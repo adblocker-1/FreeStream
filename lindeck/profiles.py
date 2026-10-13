@@ -24,12 +24,25 @@ from . import paths
 from .models import Geometry, model_geometry, model_name
 
 _B32_FIX = str.maketrans("UV", "VW")
+_B32_UNFIX = str.maketrans("VW", "UV")
 
 
 def encode_page_dir(page_uuid: str) -> str:
     """UUID -> Ordnername im v2-Format (base32hex, U/V verschoben, Suffix Z)."""
     raw = uuidlib.UUID(page_uuid).bytes
     return base64.b32hexencode(raw).decode().rstrip("=").translate(_B32_FIX) + "Z"
+
+
+def decode_page_dir(name: str) -> str:
+    """Ordnername (v3: UUID, v2: Base32 + "Z") -> UUID in Kleinbuchstaben."""
+    try:
+        return str(uuidlib.UUID(name))
+    except ValueError:
+        pass
+    raw = name[:-1] if name.endswith("Z") else name
+    raw = raw.translate(_B32_UNFIX)
+    data = base64.b32hexdecode(raw + "=" * (-len(raw) % 8))
+    return str(uuidlib.UUID(bytes=data[:16]))
 
 
 def read_json(p: Path):
@@ -163,8 +176,9 @@ class Profile:
         return f"<Profile {self.name!r} {self.model_name} {len(self.page_ids)} Seiten>"
 
 
-def load_page(page_uuid: str, d: Path) -> Page:
-    m = read_json(d / "manifest.json")
+def load_page(page_uuid: str, d: Path, manifest: dict = None) -> Page:
+    """Seite aus <d>/manifest.json lesen (oder aus einem bereits geladenen Manifest)."""
+    m = manifest if manifest is not None else read_json(d / "manifest.json")
     pg = Page(page_uuid, d, name=m.get("Name") or "")
     controllers = m.get("Controllers")
     if controllers is None and "Actions" in m:

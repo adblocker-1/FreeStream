@@ -56,6 +56,17 @@ Exec=/usr/bin/lindeck run
 Icon=input-keyboard
 Categories=Utility;
 EOF
+cat > "$PKG/usr/share/applications/lindeck-editor.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=LinDeck Editor
+GenericName=Stream-Deck-Profile bearbeiten
+Comment=Tasten, Seiten und Ordner der Stream-Deck-Profile bearbeiten
+Exec=/usr/bin/lindeck edit
+Icon=preferences-desktop-keyboard-shortcuts
+Categories=Utility;Settings;
+StartupWMClass=Lindeck-editor
+EOF
 
 cat > "$PKG/DEBIAN/control" <<EOF
 Package: lindeck
@@ -64,11 +75,13 @@ Section: utils
 Priority: optional
 Architecture: all
 Maintainer: Felix <noreply@localhost>
-Depends: python3 (>= 3.10), python3-pil, python3-evdev, python3-cairosvg, libhidapi-libusb0, fonts-dejavu-core, xdg-utils, xdg-user-dirs, libnotify-bin, wl-clipboard, xclip, playerctl, pulseaudio-utils, msitools, udev, kmod
+Depends: python3 (>= 3.10), python3-pil, python3-tk, python3-pil.imagetk, python3-evdev, python3-cairosvg, libhidapi-libusb0, fonts-dejavu-core, xdg-utils, xdg-user-dirs, libnotify-bin, wl-clipboard, xclip, playerctl, pulseaudio-utils, msitools, udev, kmod
 Recommends: mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, wireplumber
 Description: Elgato-kompatible Stream-Deck-Software für Linux
  Steuert alle Elgato Stream Decks (Original, MK.2, Mini, XL, Neo, +, + XL,
  Studio, Pedal) und liest Profile der Elgato-App direkt ein. Profile,
+ Tasten, Seiten und Ordner lassen sich mit dem grafischen Editor
+ („LinDeck Editor“) direkt unter Linux bearbeiten. Profile,
  Backups und der Elgato-Installer werden automatisch aus Downloads,
  Desktop und USB-Sticks übernommen.
 EOF

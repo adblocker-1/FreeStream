@@ -3,12 +3,14 @@
 Linux-Ersatz für die Elgato-Stream-Deck-Software. LinDeck steuert alle
 Stream-Deck-Modelle per USB und liest die Profile der Elgato-App **direkt und
 unverändert** ein – Tasten, Icons, Titel, Ordner, Seiten, Multi-Actions, Dials
-und Touchstreifen. Ein Neu-Einrichten unter Linux ist nicht nötig.
+und Touchstreifen. Ein Neu-Einrichten unter Linux ist nicht nötig – und mit dem
+eingebauten **grafischen Editor** lassen sich Profile direkt unter Linux
+bearbeiten oder neu anlegen.
 
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 
-> **Status:** Version 0.1 – getestet mit simulierten Geräten aller Modelle und
+> **Status:** Version 0.2 – getestet mit simulierten Geräten aller Modelle und
 > den Elgato-Standardprofilen. Tests auf echter Hardware stehen noch aus.
 
 ---
@@ -18,6 +20,7 @@ Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 - [Unterstützte Geräte](#unterstützte-geräte)
 - [Installation](#installation)
 - [Profile übernehmen](#profile-übernehmen)
+- [Profile bearbeiten (Editor)](#profile-bearbeiten-editor)
 - [Unterstützte Aktionen](#unterstützte-aktionen)
 - [Befehle](#befehle)
 - [Konfiguration](#konfiguration)
@@ -56,7 +59,7 @@ unterstützt. Profile werden dem passenden Gerät automatisch zugeordnet
 2. Doppelklick → **Installieren**, oder im Terminal:
 
    ```bash
-   sudo apt install ./lindeck_0.1.0_all.deb
+   sudo apt install ./lindeck_0.2.0_all.deb
    ```
 
 Das Paket erledigt automatisch:
@@ -65,7 +68,7 @@ Das Paket erledigt automatisch:
 - udev-Regel für den Gerätezugriff ohne root (`/lib/udev/rules.d/70-lindeck.rules`)
 - `uinput`-Modul für Hotkeys unter X11 **und** Wayland
 - Autostart bei jeder Anmeldung und sofortiger Start nach der Installation
-- Menüeintrag „LinDeck (Stream Deck)“
+- Menüeinträge „LinDeck (Stream Deck)“ und „LinDeck Editor“
 
 Falls LinDeck direkt nach der Installation nicht anläuft: einmal ab- und wieder anmelden.
 
@@ -104,6 +107,43 @@ Download-Ordner legen, damit Tasten ohne eigenes Icon die Original-Symbole zeige
 - Einzelne Exporte, komplette Backups und kopierte Profilordner
 - Eingebettete Ressourcen (z. B. Soundboard-Dateien aus v3-Exporten)
 - Auf **macOS** erstellte Profile (Cmd wird zu Strg umgesetzt)
+
+## Profile bearbeiten (Editor)
+
+Start über den Menüeintrag **LinDeck Editor** oder im Terminal mit
+`lindeck edit` (optional mit Profilname: `lindeck edit "Streaming"`).
+
+Aufbau wie in der Elgato-App:
+
+- **Mitte:** das Gerät mit allen Tasten, Dials (Stream Deck +, + XL, Studio) und
+  der Seitenleiste – die Tasten werden genau so gezeichnet wie auf dem Gerät.
+- **Rechts:** alle eingebauten Aktionen nach Kategorien, mit Suchfeld.
+- **Unten:** die Eigenschaften der gewählten Taste.
+
+| Was | So geht's |
+|---|---|
+| Aktion zuweisen | aus der Liste rechts auf eine Taste **ziehen** oder doppelklicken |
+| Taste verschieben/tauschen | Taste auf einen anderen Platz ziehen – oder auf eine Seitennummer, um sie auf eine andere Seite zu verschieben |
+| Kopieren, Einfügen, Löschen | Rechtsklick auf die Taste oder `Strg+C`, `Strg+X`, `Strg+V`, `Entf` |
+| Titel, Schrift, Farbe, Position | im Bereich **Darstellung** (pro Zustand, z. B. bei Hotkey Switch) |
+| Eigenes Icon | **Bild wählen…** (PNG, JPG, SVG, animiertes GIF) – **Standard** stellt das Original wieder her |
+| Hotkey aufnehmen | ins Hotkey-Feld klicken und die Kombination drücken, oder **Eingeben…** (z. B. `Strg+Umschalt+T`) |
+| Ordner | Aktion „Ordner“ ablegen, per Doppelklick öffnen, mit **↩ Zurück** wieder verlassen |
+| Multi Action, Key Logic, Dial Stack … | Schritte unter **Enthaltene Aktionen** hinzufügen, bearbeiten, sortieren; Verzögerungen einfügen |
+| Seiten | **+** / **−** fügt Seiten hinzu bzw. entfernt sie, **◀ ▶** ändert die Reihenfolge |
+| Rückgängig | `Strg+Z` / `Strg+Y` oder **↶ ↷** |
+| Profile | **Neu…** (mit Gerätemodell), Duplizieren, Umbenennen, Löschen, Importieren, Exportieren |
+| Plugin-Aktionen | bleiben erhalten; Titel, Icon und Rohdaten (**Einstellungen (JSON)…**) sind bearbeitbar |
+
+Jede Änderung wird **sofort gespeichert**; der laufende LinDeck-Dienst lädt das
+Profil automatisch neu, sodass das Stream Deck die Änderung nach ein bis zwei
+Sekunden zeigt. Gespeichert wird im Originalformat der Elgato-App – unbekannte
+Einstellungen (z. B. von Plugins) bleiben unverändert erhalten. **Exportieren…**
+erzeugt eine `.streamDeckProfile`-Datei, z. B. als Sicherung oder für einen
+anderen Rechner.
+
+Tasten ohne eigenes Icon zeigen die Elgato-Standardsymbole, sobald der
+Elgato-Installer übernommen wurde (siehe oben); sonst erscheint der Aktionsname.
 
 ## Unterstützte Aktionen
 
@@ -144,6 +184,7 @@ Für den normalen Betrieb ist kein Befehl nötig. Für Sonderfälle:
 | Befehl | Zweck |
 |---|---|
 | `lindeck run` | Dienst starten (läuft normalerweise automatisch) |
+| `lindeck edit [Profil]` | grafischen Editor öffnen |
 | `lindeck import <Datei/Ordner>` | Profile manuell importieren |
 | `lindeck profiles` | importierte Profile anzeigen |
 | `lindeck devices` | angeschlossene Geräte mit Seriennummer und Firmware |
@@ -216,9 +257,10 @@ Log ansehen: `tail -f ~/.local/state/lindeck/lindeck.log`
 ### Aus dem Quellcode starten
 
 ```bash
-sudo apt install python3-pil python3-evdev python3-cairosvg libhidapi-libusb0
+sudo apt install python3-pil python3-pil.imagetk python3-tk python3-evdev python3-cairosvg libhidapi-libusb0
 pip install --user "streamdeck>=0.10"
 python3 -m lindeck -v run
+python3 -m lindeck edit          # Editor
 ```
 
 ### `.deb` bauen
@@ -234,10 +276,12 @@ unter `/opt/lindeck/vendor`, damit das Paket ohne pip auskommt.
 
 **Automatischer Build:** Bei jedem Tag `v*` baut die GitHub-Action
 [`build-deb.yml`](.github/workflows/build-deb.yml) das Paket und hängt es an ein
-Release an. Ein manueller Build ist über *Actions → Build .deb → Run workflow* möglich.
+Release an. Ein manueller Build ist über *Actions → Build .deb → Run workflow* möglich;
+mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Version>`
+(Version aus `lindeck/__init__.py`).
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
 ### Tests
@@ -252,13 +296,24 @@ LINDECK_TEST_PROFILES=/tmp/sd/PFiles64/Elgato/StreamDeck/DefaultProfiles \
   python3 -m pytest -q tests
 ```
 
-Ohne `LINDECK_TEST_PROFILES` werden die Tests übersprungen.
+Ohne `LINDECK_TEST_PROFILES` werden diese Tests übersprungen.
+
+Die Editor-Tests (`tests/test_editor.py`) brauchen keine Elgato-Profile; die
+Oberflächentests laufen mit einem Display, z. B. virtuell:
+
+```bash
+sudo apt install xvfb
+xvfb-run -a python3 -m pytest -q tests/test_editor.py
+```
 
 ## Aufbau des Projekts
 
 ```
 lindeck/
 ├── __main__.py     Kommandozeile
+├── editor.py       grafischer Profil-Editor (Tk)
+├── editdoc.py      Profile bearbeiten und speichern (Logik des Editors, Undo, Export)
+├── catalog.py      Aktionskatalog des Editors, Hotkey-Umwandlung
 ├── daemon.py       Dienst: Geräteerkennung, Hotplug, Neuladen, Smart Profiles
 ├── engine.py       Steuerung eines Geräts: Seiten, Ordner, Events, Rendering
 ├── actions.py      Nachbau aller eingebauten Elgato-Aktionen
@@ -275,7 +330,8 @@ lindeck/
 packaging/
 └── build-deb.sh    baut das Debian-Paket
 tests/
-└── test_engine.py  Tests mit simulierten Geräten
+├── test_engine.py  Tests mit simulierten Geräten
+└── test_editor.py  Tests für Editor und Profilbearbeitung
 ```
 
 **Ablauf:** `daemon` erkennt Geräte → je Gerät ein `DeckController` (`engine`)
@@ -285,7 +341,7 @@ Ereigniswarteschlange an die Aktionen weitergereicht.
 
 ## Roadmap
 
-- [ ] Grafischer Editor zum Bearbeiten von Profilen direkt unter Linux
+- [x] Grafischer Editor zum Bearbeiten von Profilen direkt unter Linux (seit 0.2)
 - [ ] Plugin-Host für das Elgato-Plugin-SDK (WebSocket-Protokoll)
 - [ ] Linux-Umsetzung häufiger Plugins (OBS, Discord, Spotify, Wave Link)
 - [ ] Wave-Link-Ersatz auf Basis von PipeWire (virtuelle Kanäle, Monitor-/Stream-Mix)
