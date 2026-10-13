@@ -559,6 +559,8 @@ class WaveMicAction(NativeAction):
             return "lowcut"
         if "clip" in u:
             return "clipguard"
+        if "led" in u:
+            return "leds"
         if "gain" in u:
             return "gain"
         return "mute"
@@ -573,22 +575,35 @@ class WaveMicAction(NativeAction):
             self._g_at = now
         return self._g
 
+    def _switch(self, f):
+        now = time.time()
+        cache = self.__dict__.setdefault("_sw", {})
+        if f not in cache or now - cache[f][0] > 2.0:
+            key = {"leds": "leds_off", "ledsflip": "leds_flip"}.get(f, f)
+            val = self.mic.is_on(key)
+            cache[f] = (now, (not val if val is not None else None) if f == "leds" else val)
+        return cache[f][1]
+
     def active(self):
         f = self.func
-        if f in ("lowcut", "clipguard"):
-            return bool(self.mic.settings.get(f))
+        if f in ("lowcut", "clipguard", "leds", "ledsflip"):
+            return self._switch(f)
         vol, mute = self._gain()
         return None if vol is None else not mute
 
     def main_text(self):
-        return {"mute": "Mikro", "gain": "Gain", "lowcut": "Low Cut", "clipguard": "Clipguard"}.get(self.func, "Wave")
+        return {"mute": "Mikro", "gain": "Gain", "lowcut": "Low Cut", "clipguard": "Clipguard", "leds": "LEDs",
+                "ledsflip": "LED ↕"}.get(self.func, "Wave")
 
     def status_text(self):
         f = self.func
-        if f == "lowcut":
-            return f"{self.mic.settings.get('lowcut_freq', 80)} Hz" if self.mic.settings.get("lowcut") else "aus"
-        if f == "clipguard":
-            return "an" if self.mic.settings.get("clipguard") else "aus"
+        if f in ("lowcut", "clipguard", "leds", "ledsflip"):
+            on = self._switch(f)
+            if on is None:
+                return "nur Wave:3" if f in ("leds", "ledsflip") else "kein Wave"
+            if f == "lowcut" and on and not self.mic.hw():
+                return f"{self.mic.settings.get('lowcut_freq', 80)} Hz"
+            return "an" if on else "aus"
         vol, mute = self._gain()
         if vol is None:
             return "kein Wave"
@@ -597,10 +612,13 @@ class WaveMicAction(NativeAction):
     def key_down(self):
         f = self.func
         self._g_at = 0
-        if f == "lowcut":
-            self.run(self.mic.toggle, "lowcut")
-        elif f == "clipguard":
-            self.run(self.mic.toggle, "clipguard")
+        self.__dict__.pop("_sw", None)
+        if f in ("lowcut", "clipguard"):
+            self.run(self.mic.toggle, f)
+        elif f == "leds":
+            self.run(self.mic.toggle, "leds_off")
+        elif f == "ledsflip":
+            self.run(self.mic.toggle, "leds_flip")
         elif f == "gain":
             self.run(self.mic.change_gain, int(self.settings.get("step") or 5))
         else:

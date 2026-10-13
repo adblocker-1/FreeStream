@@ -43,9 +43,11 @@ def _read_headers(sock):
 class Connection:
     """Eine WebSocket-Verbindung (thread-sicheres Senden)."""
 
-    def __init__(self, sock, client_side, buffered=b""):
+    def __init__(self, sock, client_side, buffered=b"", path="/", headers=None):
         self.sock = sock
         self.client_side = client_side
+        self.path = path
+        self.headers = headers or {}
         self._buf = buffered
         self._lock = threading.Lock()
         self.closed = False
@@ -96,7 +98,11 @@ class Connection:
     # ---------------------------------------------------------- Empfangen
     def _read(self, n):
         while len(self._buf) < n:
-            chunk = self.sock.recv(65536)
+            try:
+                chunk = self.sock.recv(65536)
+            except OSError as e:
+                self.closed = True
+                raise Closed(str(e)) from e
             if not chunk:
                 self.closed = True
                 raise Closed("Verbindung geschlossen")
@@ -137,10 +143,14 @@ class Connection:
 
 
 class Server:
-    """WebSocket-Server auf 127.0.0.1; on_connect(conn) läuft je Verbindung in einem Thread."""
+    """WebSocket-Server auf 127.0.0.1; on_connect(conn) läuft je Verbindung in einem Thread.
 
-    def __init__(self, on_connect, host="127.0.0.1", port=0):
+    Normale HTTP-GET-Anfragen beantwortet on_http(path, headers) -> (Status, Content-Type, Bytes, Extra-Header).
+    """
+
+    def __init__(self, on_connect, host="127.0.0.1", port=0, on_http=None):
         self.on_connect = on_connect
+        self.on_http = on_http
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((host, port))
@@ -160,11 +170,12 @@ class Server:
     def _handshake(self, s):
         try:
             s.settimeout(10)
-            _, h, rest = _read_headers(s)
+            line, h, rest = _read_headers(s)
+            parts = line.split(" ")
+            method, path = (parts[0], parts[1]) if len(parts) >= 2 else ("", "/")
             key = h.get("sec-websocket-key")
             if not key or "websocket" not in h.get("upgrade", "").lower():
-                s.sendall(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n")
-                s.close()
+                self._http(s, method, path, h)
                 return
             s.sendall(("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
                        f"Sec-WebSocket-Accept: {_accept_key(key)}\r\n\r\n").encode())
@@ -172,7 +183,24 @@ class Server:
         except (OSError, Closed):
             s.close()
             return
-        self.on_connect(Connection(s, client_side=False, buffered=rest))
+        self.on_connect(Connection(s, client_side=False, buffered=rest, path=path, headers=h))
+
+    def _http(self, s, method, path, headers):
+        status, ctype, body, extra = 404, "text/plain; charset=utf-8", b"Nicht gefunden", {}
+        if method == "GET" and self.on_http:
+            try:
+                status, ctype, body, extra = self.on_http(path, headers)
+            except Exception as e:  # noqa: BLE001
+                status, ctype, body, extra = 500, "text/plain; charset=utf-8", str(e).encode(), {}
+        reason = {200: "OK", 302: "Found", 403: "Forbidden", 404: "Not Found"}.get(status, "Error")
+        head = (f"HTTP/1.1 {status} {reason}\r\nContent-Type: {ctype}\r\nContent-Length: {len(body)}\r\n"
+                "Cache-Control: no-store\r\nConnection: close\r\n")
+        head += "".join(f"{k}: {v}\r\n" for k, v in (extra or {}).items())
+        try:
+            s.sendall(head.encode() + b"\r\n" + body)
+        except OSError:
+            pass
+        s.close()
 
     def close(self):
         self.running = False
@@ -182,11 +210,12 @@ class Server:
             pass
 
 
-def connect(host: str, port: int, path="/", timeout=5.0) -> Connection:
+def connect(host: str, port: int, path="/", timeout=5.0, headers=None) -> Connection:
     s = socket.create_connection((host, port), timeout=timeout)
     key = base64.b64encode(os.urandom(16)).decode()
+    extra = "".join(f"{k}: {v}\r\n" for k, v in (headers or {}).items())
     s.sendall((f"GET {path} HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-               f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n").encode())
+               f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n{extra}\r\n").encode())
     status, h, rest = _read_headers(s)
     if " 101 " not in status + " " or h.get("sec-websocket-accept") != _accept_key(key):
         s.close()

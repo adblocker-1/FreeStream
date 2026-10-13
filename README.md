@@ -10,7 +10,7 @@ bearbeiten oder neu anlegen.
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 
-> **Status:** Version 0.3 – getestet mit simulierten Geräten aller Modelle und
+> **Status:** Version 0.4 – getestet mit simulierten Geräten aller Modelle und
 > den Elgato-Standardprofilen. Tests auf echter Hardware stehen noch aus.
 
 ---
@@ -64,7 +64,7 @@ unterstützt. Profile werden dem passenden Gerät automatisch zugeordnet
 2. Doppelklick → **Installieren**, oder im Terminal:
 
    ```bash
-   sudo apt install ./lindeck_0.3.0_all.deb
+   sudo apt install ./lindeck_0.4.0_all.deb
    ```
 
 Das Paket erledigt automatisch:
@@ -204,11 +204,18 @@ Unterstützt werden Tasten, Dials und Touchstreifen: `keyDown`/`keyUp`,
 `willAppear`/`willDisappear`, `dialRotate`/`dialDown`/`dialUp`, `touchTap`,
 `setTitle`, `setImage` (PNG/JPG/SVG), `setState`, `showAlert`/`showOk`,
 `setSettings`/`getSettings` (wird im Profil gespeichert), globale Einstellungen,
-`setFeedback`, `openUrl`, `switchToProfile`, `logMessage`. Die
-Einstellungsseiten der Plugins (Property Inspector) werden nicht angezeigt –
-im Editor lassen sich die Einstellungen als JSON bearbeiten; die Aktionen
-installierter Plugins erscheinen dort in der Aktionsliste. Plugin-Logs liegen
-unter `~/.local/state/lindeck/plugins/`.
+`setFeedback`, `openUrl`, `switchToProfile`, `logMessage`. Die Aktionen
+installierter Plugins erscheinen im Editor in der Aktionsliste. Plugin-Logs
+liegen unter `~/.local/state/lindeck/plugins/`.
+
+**Einstellungsseiten (Property Inspector):** Im Editor öffnet
+**Einstellungsseite…** die HTML-Einstellungen des Plugins wie in der
+Elgato-App – in einem schlanken Chromium-/Chrome-Fenster, sonst im
+Standardbrowser. Änderungen speichert das Plugin sofort im Profil; der Editor
+übernimmt sie automatisch. Dafür muss der LinDeck-Dienst laufen. Die Seite wird
+nur lokal (127.0.0.1) und mit einem zufälligen Zugangsschlüssel ausgeliefert;
+fremde Webseiten können sich nicht mit dem Plugin-Host verbinden. Alternativ
+lassen sich die Einstellungen weiterhin als JSON bearbeiten.
 
 ## OBS, Spotify, Discord
 
@@ -271,25 +278,31 @@ mit `pipewire-pulse` (Standard bei aktuellen Distributionen).
 
 ## Wave-Mikrofon
 
-Für Elgato Wave:1, Wave:3, Wave Neo und Wave XLR:
+**Elgato Wave:3** – alle Einstellungen direkt im Mikrofon, wie mit Wave Link:
 
-| Funktion | Umsetzung |
+| Funktion | Befehl |
 |---|---|
-| Gain, Stummschaltung | direkt am Mikrofon (USB-Audio-Standard) |
-| Low Cut (80/120 Hz) | Hochpassfilter in PipeWire |
-| Clipguard | Limiter in PipeWire (braucht das Paket `swh-plugins`) |
-| LED-Farbe/-Helligkeit | **nicht unterstützt** – das Protokoll ist nicht öffentlich |
+| Gain (0–40 dB), Stumm | `lindeck wave gain 70` (Prozent), `lindeck wave mute` |
+| Low Cut, Clipguard (im Mikrofon) | `lindeck wave lowcut on`, `lindeck wave clipguard on` |
+| LEDs ein/aus | `lindeck wave leds off` |
+| LEDs umkehren (Mikrofon hängend am Arm) | `lindeck wave flip on` |
+| Kopfhörer-Lautstärke (−60 … 0 dB) | `lindeck wave headphone -20` |
+| Mithören Mikrofon/PC (0–100 %) | `lindeck wave monitor 50` |
 
-Mit Low Cut oder Clipguard stellt LinDeck das bearbeitete Signal als Mikrofon
-**„LinDeck Wave“** bereit (wird automatisch Standardmikrofon; in Discord/OBS
-auswählen). Steuerung per Stream-Deck-Aktion **Wave-Mikrofon** oder:
+Das Wave:3 hat keine einstellbare LED-Farbe oder -Helligkeit, nur „LEDs aus“ und
+„umkehren“. Grundlage ist die öffentliche Protokoll-Analyse von
+[elgato-wave3-ubuntu](https://github.com/KailasMahavarkar/elgato-wave3-ubuntu)
+(MIT-Lizenz). LinDeck liest nach jeder Änderung zurück und nimmt sie
+zurück, falls das Mikrofon unerwartet reagiert. Der Ton läuft dabei ungestört
+weiter. Zugriff erhält der angemeldete Benutzer über die mitgelieferte udev-Regel.
 
-```bash
-lindeck wave                    # Status
-lindeck wave lowcut on 120      # Low Cut bei 120 Hz
-lindeck wave clipguard on
-lindeck wave gain 70
-```
+**Wave:1, Wave Neo, Wave XLR** – Gain und Stumm über die USB-Audio-Steuerung;
+Low Cut (80/120 Hz) und Clipguard per PipeWire-Filter (Clipguard braucht
+`swh-plugins`). Das bearbeitete Signal erscheint als Mikrofon **„LinDeck Wave“**.
+LED-Steuerung ist für diese Modelle nicht möglich (Protokoll nicht dokumentiert).
+
+Auf dem Stream Deck: Aktion **Wave-Mikrofon** (Stumm, Gain, Low Cut, Clipguard,
+LEDs; Dial: Gain). `lindeck wave` zeigt den aktuellen Zustand.
 
 ## Hardware-Selbsttest
 
@@ -318,7 +331,7 @@ Für den normalen Betrieb ist kein Befehl nötig. Für Sonderfälle:
 | `lindeck remove <Profil>` | Profil löschen |
 | `lindeck plugin [list\|install\|remove]` | Elgato-Plugins verwalten |
 | `lindeck mixer [status\|setup\|remove\|set\|mute\|assign\|output]` | Audio-Mixer (Wave-Link-Ersatz) |
-| `lindeck wave [status\|gain\|mute\|lowcut\|clipguard]` | Wave-Mikrofon |
+| `lindeck wave [status\|gain\|mute\|lowcut\|clipguard\|leds\|flip\|headphone\|monitor]` | Wave-Mikrofon |
 | `lindeck obs` | Verbindung zu OBS prüfen |
 | `lindeck discord` | Discord verbinden (einmalige Freigabe) |
 | `lindeck selftest [--stop-daemon]` | Hardware-Selbsttest |
@@ -423,7 +436,7 @@ mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Versio
 (Version aus `lindeck/__init__.py`).
 
 ```bash
-git tag v0.3.0 && git push origin v0.3.0
+git tag v0.4.0 && git push origin v0.4.0
 ```
 
 ### Tests
@@ -447,6 +460,11 @@ Oberflächentests laufen mit einem Display, z. B. virtuell:
 sudo apt install xvfb
 xvfb-run -a python3 -m pytest -q tests/test_editor.py
 ```
+
+`tests/test_integrations.py` prüft Plugin-Host, Einstellungsseiten, OBS, Discord,
+Mixer, Wave-Mikrofon und Selbsttest gegen simulierte Gegenstellen. Mit
+`LINDECK_BROWSER_TEST=1` (und global installiertem Playwright) läuft zusätzlich
+eine Plugin-Einstellungsseite in einem echten Chromium.
 
 ## Aufbau des Projekts
 
@@ -472,7 +490,8 @@ lindeck/
 ├── obs.py          obs-websocket-Client (v5)
 ├── discord.py      Discord-RPC über den lokalen IPC-Socket
 ├── mixer.py        Audio-Mixer mit PipeWire (Wave-Link-Ersatz)
-├── wavemic.py      Wave-Mikrofon: Gain, Mute, Low Cut, Clipguard
+├── wavemic.py      Wave-Mikrofon: Gain, Mute, Low Cut, Clipguard (Hardware oder PipeWire)
+├── wave3hw.py      Wave:3-Steuerprotokoll (USB-Control-Transfers über libusb)
 ├── services.py     Hintergrunddienste (Mixer, Wave-Filter)
 ├── selftest.py     Hardware-Selbsttest
 ├── config.py       Konfiguration und Laufzeitzustand
@@ -497,8 +516,9 @@ Ereigniswarteschlange an die Aktionen weitergereicht.
 - [x] Linux-Umsetzung häufiger Plugins: OBS, Discord, Spotify/MPRIS, Wave Link (seit 0.3)
 - [x] Wave-Link-Ersatz auf Basis von PipeWire: virtuelle Kanäle, Monitor-/Stream-Mix (seit 0.3)
 - [x] Wave-Mikrofon: Gain, Stumm, Low Cut, Clipguard (seit 0.3)
-- [ ] LED-Steuerung der Wave-Mikrofone (Protokoll nicht öffentlich)
-- [ ] Property Inspector (Einstellungsseiten) für Plugins
+- [x] Wave:3 direkt per USB: Low Cut/Clipguard in Hardware, LEDs aus/umkehren, Kopfhörer, Mithören (seit 0.4)
+- [x] Property Inspector (Einstellungsseiten) für Plugins (seit 0.4)
+- [ ] LED-Steuerung für Wave:1, Wave Neo, Wave XLR (Protokoll nicht dokumentiert)
 - [ ] Tests auf echter Hardware aller Modelle – Werkzeug vorhanden (`lindeck selftest`), Berichte willkommen
 
 ## Rechtliches
