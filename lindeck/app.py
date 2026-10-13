@@ -2,7 +2,7 @@
 
 Ein Prozess für das Stream Deck: Gerätesteuerung, Plugins und das Fenster zum
 Bearbeiten der Profile. Mixer und Wave-Mikrofon sind – wie Elgato Wave Link –
-ein eigenes Programm: „LinDeck Wave“ (wavehost.py).
+ein eigenes Programm: „Linewave“ (wavehost.py).
 
   * Beim Anmelden startet LinDeck unsichtbar (`lindeck --hidden`).
   * Der Menüeintrag „LinDeck“ öffnet das Fenster. Läuft LinDeck schon, holt

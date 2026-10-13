@@ -54,13 +54,13 @@ def cmd_quit(args):
 
 
 def cmd_wave_app(args):
-    """LinDeck Wave öffnen (Mixer + Mikrofon) – eigenes Programm wie Elgato Wave Link."""
+    """Linewave öffnen (Mixer + Mikrofon) – eigenes Programm wie Elgato Wave Link."""
     from . import wavehost
     if args.quit:
         if not wavehost.quit_running():
-            print("LinDeck Wave läuft nicht")
+            print("Linewave läuft nicht")
             return 1
-        print("LinDeck Wave wird beendet")
+        print("Linewave wird beendet")
         return 0
     return wavehost.main(hidden=args.hidden, tray=not args.no_tray)
 
@@ -294,7 +294,7 @@ def cmd_plugin(args):
 
 
 def _signal_wave_app():
-    """LinDeck Wave die geänderte Konfiguration neu laden lassen (falls es läuft)."""
+    """Linewave die geänderte Konfiguration neu laden lassen (falls es läuft)."""
     from . import app, wavemic
     pid = app.running_instance(wavemic.WAVE_APP_FILE)
     if pid:
@@ -314,7 +314,7 @@ def cmd_mixer(args):
             cfg.save()
             _signal_wave_app()
             print("Mixer eingerichtet und beim Start aktiviert. In OBS als Audioquelle "
-                  "„Monitor of LinDeck Stream-Mix“ wählen.")
+                  "„Monitor of Linewave Stream-Mix“ wählen.")
         elif args.action == "remove":
             mx.teardown()
             cfg.data.setdefault("mixer", {})["enabled"] = False
@@ -335,7 +335,7 @@ def cmd_mixer(args):
             print("Monitor-Ausgang:", mx.set_monitor_output(args.args[0] if args.args else "next"))
         else:
             if not mx.is_active():
-                print("Mixer nicht eingerichtet – 'lindeck mixer setup'")
+                print("Mixer nicht eingerichtet – 'linewave mixer setup'")
                 return 1
             print(f"Monitor-Ausgang: {mx.monitor_output_name()}")
             for c in mx.all_channels():
@@ -367,10 +367,10 @@ def cmd_wave(args):
             mic.settings.update(kw)
             mic._save()
             if mic._delegate():
-                print(f"{args.action}: {'an' if on else 'aus'} (Software-Filter in LinDeck Wave)")
+                print(f"{args.action}: {'an' if on else 'aus'} (Software-Filter in Linewave)")
             else:
                 print(f"{args.action}: {'an' if on else 'aus'} – gespeichert; der Software-Filter läuft, "
-                      "sobald LinDeck Wave gestartet ist (lindeck-wave)")
+                      "sobald Linewave gestartet ist (linewave)")
             if args.action == "clipguard" and on and not wavemic.limiter_available():
                 print("Hinweis: Clipguard braucht das Paket swh-plugins")
         elif args.action == "leds":
@@ -562,10 +562,10 @@ def main(argv=None):
                                            "leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100>")
     s.set_defaults(fn=cmd_wave)
 
-    s = sub.add_parser("wave-app", help="LinDeck Wave öffnen: Mixer und Mikrofon (eigenes Programm)")
+    s = sub.add_parser("linewave", aliases=["wave-app"], help="Linewave öffnen: Mixer und Mikrofon (eigenes Programm)")
     s.add_argument("--hidden", action="store_true", help="unsichtbar starten (Autostart)")
     s.add_argument("--no-tray", action="store_true", help="kein Symbol in der Taskleiste")
-    s.add_argument("--quit", action="store_true", help="laufendes LinDeck Wave beenden")
+    s.add_argument("--quit", action="store_true", help="laufendes Linewave beenden")
     s.set_defaults(fn=cmd_wave_app)
 
     s = sub.add_parser("obs", help="Verbindung zu OBS testen")
@@ -591,8 +591,14 @@ def main(argv=None):
 
 
 def wave_main(argv=None):
-    """Einstieg für `lindeck-wave` (LinDeck Wave: Mixer und Mikrofon)."""
-    return main(["wave-app"] + list(sys.argv[1:] if argv is None else argv))
+    """Einstieg für `linewave`: ohne Befehl Fenster öffnen; `linewave mixer …`, `linewave mic …`."""
+    argv = list(sys.argv[1:] if argv is None else argv)
+    cmd = next((a for a in argv if not a.startswith("-")), "")
+    if cmd in ("mixer", "mic", "wave"):
+        i = argv.index(cmd)
+        argv[i] = "wave" if cmd == "mic" else cmd
+        return main(argv)
+    return main(["linewave"] + argv)
 
 
 if __name__ == "__main__":

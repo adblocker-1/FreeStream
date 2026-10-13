@@ -2,9 +2,9 @@
 
   * Gain und Stummschaltung: über die Standard-USB-Audio-Steuerung (pactl).
   * Low Cut (80/120 Hz) und Clipguard: in Wave Link sind das Software-Filter
-    bzw. eine Pegelbegrenzung. LinDeck bildet sie mit einer PipeWire-
+    bzw. eine Pegelbegrenzung. Linewave bildet sie mit einer PipeWire-
     Filterkette nach (Hochpass + Limiter) und stellt das Ergebnis als
-    Mikrofon „LinDeck Wave“ bereit – dieses in Discord/OBS auswählen.
+    Mikrofon „Linewave Mikrofon“ bereit – dieses in Discord/OBS auswählen.
     Clipguard braucht den LADSPA-Limiter aus dem Paket swh-plugins.
   * Wave:3: Gain, Stumm, Low Cut, Clipguard, LEDs aus/umgekehrt, Kopfhörer und
     Mithören werden direkt im Mikrofon geschaltet (wave3hw.py) – dann ist keine
@@ -27,12 +27,12 @@ from . import paths, system
 
 log = logging.getLogger("lindeck.wavemic")
 
-# True im Programm „LinDeck Wave“: es besitzt die Software-Filterkette. Andere
+# True im Programm „Linewave“: es besitzt die Software-Filterkette. Andere
 # Prozesse (Stream-Deck-App, CLI) bitten es per SIGHUP, die Einstellungen neu zu laden.
 OWNER = False
-WAVE_APP_FILE = "lindeck-wave.json"
+WAVE_APP_FILE = "linewave.json"
 
-PROCESSED = "lindeck_wave"
+PROCESSED = "linewave_micfilter"
 LIMITER_PLUGIN = "fast_lookahead_limiter_1913"
 LADSPA_DIRS = ["/usr/lib/ladspa", "/usr/lib/x86_64-linux-gnu/ladspa", "/usr/lib/aarch64-linux-gnu/ladspa",
                "/usr/local/lib/ladspa", "/usr/lib64/ladspa"]
@@ -44,7 +44,7 @@ def find_source():
         name, desc = b.get("name", ""), b.get("description", "")
         p = b.get("props", {})
         text = " ".join([name, desc, p.get("device.vendor.name", ""), p.get("device.product.name", "")]).lower()
-        if name.endswith(".monitor") or name.startswith("lindeck_"):
+        if name.endswith(".monitor") or name.startswith(("linewave_", "lindeck_")):
             continue
         if "wave" in text and ("elgato" in text or "0fd9" in text or "wave:" in text or "wave_" in text):
             return name
@@ -69,7 +69,7 @@ def filter_conf(source: str, lowcut: bool, freq: int, clipguard: bool) -> str:
     if not nodes:
         raise ValueError("Weder Low Cut noch Clipguard aktiv")
     links = [f'{{ output = "{chain[i][1]}" input = "{chain[i + 1][0]}" }}' for i in range(len(chain) - 1)]
-    return f"""# Von LinDeck erzeugt – Wave-Mikrofon mit Low Cut/Clipguard
+    return f"""# Von Linewave erzeugt – Wave-Mikrofon mit Low Cut/Clipguard
 context.properties = {{ log.level = 0 }}
 context.spa-libs = {{
     audio.convert.* = audioconvert/libspa-audioconvert
@@ -82,8 +82,8 @@ context.modules = [
     {{ name = libpipewire-module-adapter }}
     {{ name = libpipewire-module-filter-chain
         args = {{
-            node.description = "LinDeck Wave"
-            media.name       = "LinDeck Wave"
+            node.description = "Linewave Mikrofon"
+            media.name       = "Linewave Mikrofon"
             filter.graph = {{
                 nodes = [
                     {chr(10).join('                    ' + n for n in nodes).strip()}
@@ -95,14 +95,14 @@ context.modules = [
             audio.channels = 1
             audio.position = [ MONO ]
             capture.props = {{
-                node.name      = "lindeck_wave_capture"
+                node.name      = "linewave_micfilter_capture"
                 node.passive   = true
                 target.object  = "{source}"
                 stream.dont-remix = true
             }}
             playback.props = {{
                 node.name        = "{PROCESSED}"
-                node.description = "LinDeck Wave"
+                node.description = "Linewave Mikrofon"
                 media.class      = Audio/Source
             }}
         }}
@@ -289,7 +289,7 @@ class WaveMic:
         return True
 
     def _delegate(self):
-        """Läuft „LinDeck Wave“, übernimmt es die Filterkette (Einstellungen liegen in wavemic.json)."""
+        """Läuft „Linewave“, übernimmt es die Filterkette (Einstellungen liegen in wavemic.json)."""
         from . import app
         pid = app.running_instance(WAVE_APP_FILE)
         if not pid:

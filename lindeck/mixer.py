@@ -5,16 +5,16 @@ Browser, Voice Chat, Spiel, Effekte, Mikrofon). Jeder Kanal hat zwei
 unabhängige Lautstärken/Stummschaltungen:
 
   * Monitor-Mix – was du über Kopfhörer/Lautsprecher hörst
-  * Stream-Mix  – was OBS/Discord als Quelle „LinDeck Stream-Mix“ bekommt
+  * Stream-Mix  – was OBS/Discord als Quelle „Linewave Stream-Mix“ bekommt
 
 Aufbau:
-    Programm ─► Kanal (Null-Sink „LinDeck <Kanal>“) ─┬─► Loopback ─► Kopfhörer      (Monitor-Mix)
+    Programm ─► Kanal (Null-Sink „Linewave <Kanal>“) ┬─► Loopback ─► Kopfhörer      (Monitor-Mix)
                                                       └─► Loopback ─► Stream-Mix-Sink (Stream-Mix)
     Mikrofon ─────────────────────────────────────────┬─► Loopback ─► Stream-Mix-Sink
                                                       └─► Loopback ─► Kopfhörer (standardmäßig stumm)
 
 Der Stream-Mix ist ein Null-Sink; seine Monitor-Quelle wird in OBS als
-Audio-Eingang gewählt („Monitor of LinDeck Stream-Mix“).
+Audio-Eingang gewählt („Monitor of Linewave Stream-Mix“).
 
 Konfiguration (config.json):
   "mixer": {
@@ -35,7 +35,8 @@ from . import paths, system
 
 log = logging.getLogger("lindeck.mixer")
 
-PREFIX = "lindeck_"
+PREFIX = "linewave_"
+LEGACY_PREFIXES = ("lindeck_",)  # Namen bis Version 0.6
 STREAM_SINK = PREFIX + "streammix"
 DEFAULT_CHANNELS = [
     {"id": "system", "name": "System"},
@@ -66,9 +67,39 @@ def _run(args):
     return r.stdout.strip()
 
 
-def _q(text):
-    """Wert für eine Property-Liste in pactl-Modulargumenten."""
-    return "'" + text.replace("'", "") + "'"
+def _props(**props):
+    """Property-Liste als ein Modulargument, z. B. sink_properties=_props(...).
+
+    Werte mit Leerzeichen („Linewave Musik“) müssen doppelt gequotet sein:
+    außen für das Modulargument, innen für die Property-Liste – sonst schneiden
+    PulseAudio und pipewire-pulse beim ersten Leerzeichen ab und jeder Kanal
+    hieße nur „Linewave“.
+    """
+    inner = " ".join(f"{k.replace('_', '.')}='{str(v).replace(chr(39), '').replace(chr(34), '')}'"
+                     for k, v in props.items())
+    return f'"{inner}"'
+
+
+def _ours(name):
+    return name.startswith(PREFIX) or name.startswith(LEGACY_PREFIXES)
+
+
+LOOP_PROP = "linewave.loop"
+
+
+def _loop_id(props):
+    """Kennung eines Linewave-Loopbacks („linewave_music_monitor“) oder ''.
+
+    Steht in der eigenen Property linewave.loop; media.name trägt den lesbaren
+    Namen („Linewave Musik → Monitor-Mix“), den Lautstärke-Regler anzeigen.
+    Ältere Versionen hatten die Kennung direkt in media.name.
+    """
+    lid = props.get(LOOP_PROP) or props.get("media.name", "")
+    return lid if _ours(lid) else ""
+
+
+def _is_ours(props):
+    return bool(_loop_id(props)) or _ours(props.get("media.name", ""))
 
 
 class Mixer:
@@ -133,37 +164,45 @@ class Mixer:
 
     # ------------------------------------------------------- Auf- und Abbau
     def setup(self):
-        """Kanäle und Mixe anlegen (vorhandene LinDeck-Module werden vorher entfernt)."""
+        """Kanäle und Mixe anlegen (vorhandene Linewave-Module werden vorher entfernt)."""
         if not system.have("pactl"):
             raise RuntimeError("pactl fehlt (Paket pulseaudio-utils) – PipeWire mit pipewire-pulse wird benötigt")
         old = self._state()
         self.teardown(restore_default=False)
         prev_default = old.get("previous_default") or self.default_sink()
-        if prev_default.startswith(PREFIX):
+        if _ours(prev_default):
             prev_default = self.default_sink()
         monitor_out = self.conf.get("monitor_output") or prev_default
         sources = {b.get("name") for b in system._pactl_blocks("sources")}
-        mic = self.conf.get("mic") or ("lindeck_wave" if "lindeck_wave" in sources else self.default_source())
+        mic = self.conf.get("mic") or ("linewave_micfilter" if "linewave_micfilter" in sources else self.default_source())
         modules = []
 
         def load(*args):
             mid = self.run(["load-module"] + list(args))
             modules.append(mid)
             return mid
+        def loop_props(cid, name, mix):
+            label = f"Linewave {name} → {'Monitor-Mix' if mix == 'monitor' else 'Stream-Mix'}"
+            return _props(linewave_loop=self.loop_name(cid, mix), media_name=label, node_description=label)
+        stream_desc = "Linewave Stream-Mix"
         load("module-null-sink", f"sink_name={STREAM_SINK}",
-             f"sink_properties=device.description={_q('LinDeck Stream-Mix')}")
+             "sink_properties=" + _props(device_description=stream_desc, node_description=stream_desc))
         for c in self.channels():
             sink = self.sink_name(c["id"])
+            desc = "Linewave " + c["name"]
             load("module-null-sink", f"sink_name={sink}",
-                 f"sink_properties=device.description={_q('LinDeck ' + c['name'])}")
+                 "sink_properties=" + _props(device_description=desc, node_description=desc))
             for mix, target in (("monitor", monitor_out), ("stream", STREAM_SINK)):
                 load("module-loopback", f"source={sink}.monitor", f"sink={target}", "latency_msec=20",
-                     "source_dont_move=true", f"sink_input_properties=media.name={self.loop_name(c['id'], mix)}")
+                     "source_dont_move=true", "sink_input_properties=" + loop_props(c["id"], c["name"], mix))
         if mic and not mic.endswith(".monitor"):
             for mix, target in (("stream", STREAM_SINK), ("monitor", monitor_out)):
                 load("module-loopback", f"source={mic}", f"sink={target}", "latency_msec=20",
-                     f"sink_input_properties=media.name={self.loop_name('mic', mix)}")
-        self.run(["set-default-sink", self.sink_name(self.channels()[0]["id"])])
+                     "sink_input_properties=" + loop_props("mic", MIC["name"], mix))
+        try:
+            self.run(["set-default-sink", self.sink_name(self.channels()[0]["id"])])
+        except RuntimeError as e:  # z. B. ohne Session-Manager (WirePlumber)
+            log.warning("Standardausgabe nicht auf Linewave %s gesetzt: %s", self.channels()[0]["name"], e)
         self._save_state({"modules": modules, "previous_default": prev_default, "monitor_output": monitor_out,
                           "mic": mic, "created": time.time()})
         time.sleep(0.3)
@@ -196,7 +235,7 @@ class Mixer:
         # Reste früherer Läufe (z. B. nach Absturz)
         for b in system._pactl_blocks("modules"):
             args = " ".join(b.get("props", {}).values()) + " " + b.get("argument", "")
-            if PREFIX in args and b.get("index"):
+            if any(p in args for p in (PREFIX,) + LEGACY_PREFIXES) and b.get("index"):
                 try:
                     self.run(["unload-module", b["index"]])
                 except RuntimeError:
@@ -213,7 +252,7 @@ class Mixer:
     def _loop_input(self, cid, mix):
         name = self.loop_name(cid, mix)
         for b in system._pactl_blocks("sink-inputs"):
-            if b["props"].get("media.name") == name:
+            if _loop_id(b["props"]) == name:
                 return b
         return None
 
@@ -225,7 +264,7 @@ class Mixer:
         for m in (MIXES if mix == "both" else (mix,)):
             b = self._loop_input(cid, m)
             if not b:
-                raise RuntimeError(f"Kanal {cid}/{m} nicht gefunden – Mixer eingerichtet? (lindeck mixer setup)")
+                raise RuntimeError(f"Kanal {cid}/{m} nicht gefunden – Mixer eingerichtet? (linewave mixer setup)")
             self.run(["set-sink-input-volume", b["index"], f"{max(0, min(150, int(pct)))}%"])
 
     def change_volume(self, cid, mix, delta):
@@ -245,15 +284,15 @@ class Mixer:
     def levels(self):
         out = {}
         for b in system._pactl_blocks("sink-inputs"):
-            name = b["props"].get("media.name", "")
+            name = _loop_id(b["props"])
             if name.startswith(PREFIX) and name.rsplit("_", 1)[-1] in MIXES:
                 out[name[len(PREFIX):]] = (b.get("volume", 0), bool(b.get("mute")))
         return out
 
     # ---------------------------------------------------------- Ausgänge
     def outputs(self):
-        """Echte Ausgabegeräte (ohne LinDeck-Kanäle)."""
-        return [b for b in system._pactl_blocks("sinks") if not b.get("name", "").startswith(PREFIX)]
+        """Echte Ausgabegeräte (ohne Linewave-Kanäle)."""
+        return [b for b in system._pactl_blocks("sinks") if not _ours(b.get("name", ""))]
 
     def set_monitor_output(self, device):
         """Monitor-Mix auf ein anderes Ausgabegerät legen (Name, Teil der Beschreibung oder 'next')."""
@@ -272,7 +311,7 @@ class Mixer:
             if not target:
                 raise RuntimeError(f"Ausgabegerät „{device}“ nicht gefunden")
         for b in system._pactl_blocks("sink-inputs"):
-            name = b["props"].get("media.name", "")
+            name = _loop_id(b["props"])
             if name.startswith(PREFIX) and name.endswith("_monitor"):
                 self.run(["move-sink-input", b["index"], target])
         st["monitor_output"] = target
@@ -295,7 +334,7 @@ class Mixer:
         for b in system._pactl_blocks("sink-inputs"):
             idx = b["index"]
             p = b["props"]
-            if idx in self._moved or p.get("media.name", "").startswith(PREFIX):
+            if idx in self._moved or _is_ours(p):
                 continue
             self._moved.add(idx)
             names = " ".join(filter(None, (p.get("application.name"), p.get("application.process.binary"),
@@ -316,7 +355,7 @@ class Mixer:
         out = []
         for b in system._pactl_blocks("sink-inputs"):
             p = b["props"]
-            if p.get("media.name", "").startswith(PREFIX):
+            if _is_ours(p):
                 continue
             sink = sinks.get(b.get("sink", ""), "")
             cid = sink[len(PREFIX):] if sink.startswith(PREFIX) and sink != STREAM_SINK else None
@@ -361,4 +400,4 @@ class MixerService:
             self.mixer.route_streams()
 
     def stop(self):
-        pass  # Kanäle bleiben bestehen, damit der Ton beim Neustart von LinDeck nicht abreißt
+        pass  # Kanäle bleiben bestehen, damit der Ton beim Neustart von Linewave nicht abreißt
