@@ -28,6 +28,11 @@ def cmd_run(args):
     Daemon(transport=args.transport).run()
 
 
+def cmd_edit(args):
+    from .editor import main as editor_main
+    return editor_main(args.profile)
+
+
 def cmd_import(args):
     from .profiles import import_path
     total = []
@@ -253,6 +258,10 @@ def main(argv=None):
     s = sub.add_parser("run", help="Dienst starten (Standard)")
     s.add_argument("--transport", default=None, help=argparse.SUPPRESS)
     s.set_defaults(fn=cmd_run)
+
+    s = sub.add_parser("edit", help="grafischen Profil-Editor öffnen")
+    s.add_argument("profile", nargs="?", help="Profil (ID oder Name), das geöffnet werden soll")
+    s.set_defaults(fn=cmd_edit)
 
     s = sub.add_parser("import", help="Elgato-Profile importieren (.streamDeckProfile, Backup, ProfilesV2/V3-Ordner)")
     s.add_argument("files", nargs="+")

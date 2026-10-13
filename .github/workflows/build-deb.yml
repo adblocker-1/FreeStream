@@ -17,11 +17,15 @@ jobs:
       - name: Abhängigkeiten
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip python3-pil python3-evdev python3-cairosvg
-          pip install --break-system-packages "streamdeck>=0.10" pyflakes
+          sudo apt-get install -y python3-pip python3-pil python3-evdev python3-cairosvg python3-tk \
+            python3-pil.imagetk xvfb fonts-dejavu-core
+          pip install --break-system-packages "streamdeck>=0.10" pyflakes pytest
 
       - name: Code prüfen
         run: python3 -m pyflakes lindeck tests
+
+      - name: Tests
+        run: xvfb-run -a python3 -m pytest -q tests
 
       - name: Paket bauen
         run: ./packaging/build-deb.sh dist
