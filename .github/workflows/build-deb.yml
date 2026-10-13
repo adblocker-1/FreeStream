@@ -1,0 +1,44 @@
+name: Build .deb
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Abhängigkeiten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip python3-pil python3-evdev python3-cairosvg
+          pip install --break-system-packages "streamdeck>=0.10" pyflakes
+
+      - name: Code prüfen
+        run: python3 -m pyflakes lindeck tests
+
+      - name: Paket bauen
+        run: ./packaging/build-deb.sh dist
+
+      - name: Paket testen
+        run: |
+          sudo apt-get install -y ./dist/*.deb
+          lindeck --version
+          lindeck profiles
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lindeck-deb
+          path: dist/*.deb
+
+      - name: Release anlegen
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/*.deb --title "LinDeck ${GITHUB_REF_NAME}" --generate-notes
