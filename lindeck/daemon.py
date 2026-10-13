@@ -48,8 +48,11 @@ class Daemon:
             try:
                 deck.open()
                 ctrl = DeckController(deck, self.store, self.cfg, self.state, self.vin, self.sound)
+                ctrl.plugin_host = getattr(self, "plugin_host", None)
                 ctrl.start()
                 self.controllers[did] = ctrl
+                if ctrl.plugin_host:
+                    ctrl.plugin_host.device_connected(ctrl)
             except Exception as e:  # noqa: BLE001
                 log.error("Gerät %s nicht nutzbar: %s (udev-Regel installiert?)", did, e)
                 try:
@@ -65,6 +68,8 @@ class Daemon:
                 alive = False
             if not alive:
                 log.info("Gerät %s getrennt", ctrl.serial)
+                if getattr(self, "plugin_host", None):
+                    self.plugin_host.device_disconnected(ctrl)
                 ctrl.running = False
                 ctrl.events.put(("stop",))
                 del self.controllers[did]
@@ -136,8 +141,16 @@ class Daemon:
             from .plugins import PluginHost
             self.plugin_host = PluginHost(self)
         except Exception as e:  # noqa: BLE001
-            log.debug("Plugin-Host nicht verfügbar: %s", e)
+            log.warning("Plugin-Host nicht verfügbar: %s", e)
             self.plugin_host = None
+        self.services = []
+        from . import services
+        for svc in services.create(self):
+            try:
+                svc.start()
+                self.services.append(svc)
+            except Exception as e:  # noqa: BLE001
+                log.warning("Dienst %s nicht gestartet: %s", type(svc).__name__, e)
         log.info("LinDeck läuft – %d Profile geladen", len(self.store.profiles))
         last_scan = last_import = 0
         while self.running:
@@ -150,8 +163,15 @@ class Daemon:
                 self.scan()
                 for c in self.controllers.values():
                     c.plugin_host = self.plugin_host
+                if self.plugin_host:
+                    self.plugin_host.sync()
                 if self.store.changed_on_disk() or self.cfg.changed_on_disk():
                     self.reload()
+                for svc in self.services:
+                    try:
+                        svc.tick()
+                    except Exception as e:  # noqa: BLE001
+                        log.debug("Dienst %s: %s", type(svc).__name__, e)
             try:
                 self.smart_profiles()
             except Exception as e:  # noqa: BLE001
@@ -159,6 +179,13 @@ class Daemon:
             time.sleep(0.5)
         for c in list(self.controllers.values()):
             c.stop()
+        if self.plugin_host:
+            self.plugin_host.stop()
+        for svc in self.services:
+            try:
+                svc.stop()
+            except Exception:  # noqa: BLE001
+                pass
         self.vin.close()
         self.sound.stop()
         try:

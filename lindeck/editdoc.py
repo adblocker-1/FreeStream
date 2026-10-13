@@ -678,6 +678,7 @@ class _PreviewProfile:
 
 class _PreviewCtrl:
     """Was Aktionen beim Zeichnen vom Controller erwarten."""
+    preview = True
 
     def __init__(self, doc, page_index=0):
         self.profile = _PreviewProfile(doc)

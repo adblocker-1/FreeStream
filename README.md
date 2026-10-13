@@ -10,7 +10,7 @@ bearbeiten oder neu anlegen.
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 
-> **Status:** Version 0.2 – getestet mit simulierten Geräten aller Modelle und
+> **Status:** Version 0.3 – getestet mit simulierten Geräten aller Modelle und
 > den Elgato-Standardprofilen. Tests auf echter Hardware stehen noch aus.
 
 ---
@@ -22,6 +22,11 @@ Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 - [Profile übernehmen](#profile-übernehmen)
 - [Profile bearbeiten (Editor)](#profile-bearbeiten-editor)
 - [Unterstützte Aktionen](#unterstützte-aktionen)
+- [Elgato-Plugins](#elgato-plugins)
+- [OBS, Spotify, Discord](#obs-spotify-discord)
+- [Audio-Mixer (Wave-Link-Ersatz)](#audio-mixer-wave-link-ersatz)
+- [Wave-Mikrofon](#wave-mikrofon)
+- [Hardware-Selbsttest](#hardware-selbsttest)
 - [Befehle](#befehle)
 - [Konfiguration](#konfiguration)
 - [Fehlersuche](#fehlersuche)
@@ -59,7 +64,7 @@ unterstützt. Profile werden dem passenden Gerät automatisch zugeordnet
 2. Doppelklick → **Installieren**, oder im Terminal:
 
    ```bash
-   sudo apt install ./lindeck_0.2.0_all.deb
+   sudo apt install ./lindeck_0.3.0_all.deb
    ```
 
 Das Paket erledigt automatisch:
@@ -172,10 +177,128 @@ Alle eingebauten Aktionen der Elgato-App sind nachgebaut:
 Animierte GIFs, SVG-Icons, Titel mit Schriftart, -größe, -farbe, Ausrichtung,
 Unterstreichung und Kontur werden wie in der Elgato-App dargestellt.
 
-**Plugins von Drittanbietern** (z. B. Discord, Spotify, OBS, Wave Link) werden
-mit ihrem gespeicherten Icon angezeigt. Beim Drücken erscheint ein Warnsymbol,
-bis das jeweilige Plugin für Linux umgesetzt ist (siehe [Roadmap](#roadmap)).
-`lindeck report` zeigt, welche Plugins in deinen Profilen verwendet werden.
+**Plugins von Drittanbietern:** OBS, Spotify, Discord und Wave Link setzt LinDeck
+selbst um (siehe unten), andere Plugins laufen über den eingebauten
+[Plugin-Host](#elgato-plugins). Aktionen von Plugins, die unter Linux nicht laufen,
+werden mit ihrem gespeicherten Icon angezeigt; beim Drücken erscheint ein
+Warnsymbol. `lindeck report` zeigt, welche Plugins deine Profile verwenden und
+welche davon unterstützt sind.
+
+## Elgato-Plugins
+
+LinDeck enthält einen Plugin-Host für das offizielle Stream-Deck-SDK
+(WebSocket-Protokoll). Plugins installieren:
+
+- `.streamDeckPlugin`-Datei in den Download-Ordner legen (wird automatisch
+  installiert) oder
+- `lindeck plugin install <Datei.streamDeckPlugin>`
+
+| Plugin-Art | unter Linux |
+|---|---|
+| Node.js-Plugins (alle mit dem offiziellen SDK ab Stream Deck 6.4 gebauten) | laufen mit dem System-Node.js (Paket `nodejs`, Version 20 empfohlen) |
+| Plugins mit `CodePathLin` im Manifest (Linux-Programm) | laufen direkt |
+| reine Windows-/macOS-Programme (`.exe`, macOS-Binärdateien) | nicht lauffähig – `lindeck plugin list` zeigt das an |
+| ältere HTML/JavaScript-Plugins | nicht lauffähig |
+
+Unterstützt werden Tasten, Dials und Touchstreifen: `keyDown`/`keyUp`,
+`willAppear`/`willDisappear`, `dialRotate`/`dialDown`/`dialUp`, `touchTap`,
+`setTitle`, `setImage` (PNG/JPG/SVG), `setState`, `showAlert`/`showOk`,
+`setSettings`/`getSettings` (wird im Profil gespeichert), globale Einstellungen,
+`setFeedback`, `openUrl`, `switchToProfile`, `logMessage`. Die
+Einstellungsseiten der Plugins (Property Inspector) werden nicht angezeigt –
+im Editor lassen sich die Einstellungen als JSON bearbeiten; die Aktionen
+installierter Plugins erscheinen dort in der Aktionsliste. Plugin-Logs liegen
+unter `~/.local/state/lindeck/plugins/`.
+
+## OBS, Spotify, Discord
+
+Diese Plugins sind in LinDeck nachgebaut. Tasten aus importierten Elgato-Profilen
+werden automatisch zugeordnet; neue legst du im Editor an (Kategorien
+„OBS Studio“, „Spotify & Medien“, „Discord“).
+
+**OBS Studio** (über obs-websocket, in OBS ab Version 28 enthalten): Szene
+wechseln, Aufnahme (auch Pause), Stream, Quelle ein/aus, Audio-Eingang
+stumm/Lautstärke per Dial, Replay-Puffer, virtuelle Kamera, Studio-Modus,
+Übergang, Screenshot. Tasten zeigen den Zustand live (z. B. Aufnahme läuft).
+
+1. In OBS: *Werkzeuge → WebSocket-Server-Einstellungen → WebSocket-Server aktivieren*
+2. Passwort in `config.json` eintragen: `"obs": {"password": "…"}`
+3. `lindeck obs` prüft die Verbindung.
+
+Bei importierten Tasten des Elgato-OBS-Plugins nutzt LinDeck die gespeicherten
+Einstellungen und – falls dort kein Name steht – den Tastentitel als Szenen-
+bzw. Quellennamen.
+
+**Spotify und andere Player** (über MPRIS/`playerctl`): Wiedergabe/Pause,
+vor/zurück, aktueller Titel, Zufall, Wiederholen, Lautstärke (auch per Dial).
+Funktioniert mit jedem MPRIS-Player (Spotify, VLC, Firefox, Rhythmbox …).
+
+**Discord** (über die lokale RPC-Schnittstelle der Desktop-App): Mikrofon stumm,
+Ton aus, Push to Talk/Mute, Sprachkanal betreten/verlassen, Textkanal öffnen.
+Discord erlaubt das nur angemeldeten Apps – einmalig einrichten:
+
+1. Auf https://discord.com/developers/applications eine App anlegen („New Application“).
+2. Unter *OAuth2* die Redirect-URL `http://localhost` eintragen.
+3. Client-ID und Client-Secret in `config.json`:
+   `"discord": {"client_id": "…", "client_secret": "…"}`
+4. `lindeck discord` ausführen und die Anfrage in Discord bestätigen.
+
+## Audio-Mixer (Wave-Link-Ersatz)
+
+Wie Elgato Wave Link, auf Basis von PipeWire: Programme laufen in virtuellen
+Kanälen (System, Musik, Browser, Voice Chat, Spiel, Effekte, Mikrofon), und jeder
+Kanal hat zwei unabhängige Regler:
+
+- **Monitor-Mix** – was du auf Kopfhörer/Lautsprechern hörst
+- **Stream-Mix** – was dein Publikum hört; in OBS als Audioquelle
+  „Monitor of LinDeck Stream-Mix“ wählen
+
+```bash
+lindeck mixer setup                    # einrichten (bleibt nach Neustart aktiv)
+lindeck mixer                          # Übersicht aller Kanäle
+lindeck mixer set music stream 40      # Musik im Stream auf 40 %
+lindeck mixer assign spotify music     # Programm dauerhaft einem Kanal zuordnen
+lindeck mixer output                   # Monitor-Mix auf das nächste Ausgabegerät
+lindeck mixer remove                   # alles entfernen
+```
+
+Bekannte Programme (Spotify, Browser, Discord, Steam …) werden automatisch dem
+passenden Kanal zugeordnet, alles andere landet in „System“. Auf dem Stream Deck:
+Aktion **Mixer-Kanal** (Taste: stumm/lauter/leiser, Dial: Lautstärke, Drücken:
+stumm) und **Monitor-Ausgang**. Tasten des Elgato-Wave-Link-Plugins aus
+importierten Profilen werden auf den Mixer abgebildet. Voraussetzung: PipeWire
+mit `pipewire-pulse` (Standard bei aktuellen Distributionen).
+
+## Wave-Mikrofon
+
+Für Elgato Wave:1, Wave:3, Wave Neo und Wave XLR:
+
+| Funktion | Umsetzung |
+|---|---|
+| Gain, Stummschaltung | direkt am Mikrofon (USB-Audio-Standard) |
+| Low Cut (80/120 Hz) | Hochpassfilter in PipeWire |
+| Clipguard | Limiter in PipeWire (braucht das Paket `swh-plugins`) |
+| LED-Farbe/-Helligkeit | **nicht unterstützt** – das Protokoll ist nicht öffentlich |
+
+Mit Low Cut oder Clipguard stellt LinDeck das bearbeitete Signal als Mikrofon
+**„LinDeck Wave“** bereit (wird automatisch Standardmikrofon; in Discord/OBS
+auswählen). Steuerung per Stream-Deck-Aktion **Wave-Mikrofon** oder:
+
+```bash
+lindeck wave                    # Status
+lindeck wave lowcut on 120      # Low Cut bei 120 Hz
+lindeck wave clipguard on
+lindeck wave gain 70
+```
+
+## Hardware-Selbsttest
+
+`lindeck selftest --stop-daemon` prüft jedes angeschlossene Stream Deck Schritt
+für Schritt: Display und Helligkeit, jede Taste, jeden Dial (links, rechts,
+drücken), jedes Feld des Touchstreifens samt Wischen und die Neo-Touch-Tasten.
+Der Bericht landet in `~/.local/state/lindeck/selftest-*.txt` – bitte bei
+Problemen (oder als Erfolgsmeldung für ein noch ungetestetes Modell) an ein
+Issue anhängen.
 
 ## Befehle
 
@@ -193,6 +316,12 @@ Für den normalen Betrieb ist kein Befehl nötig. Für Sonderfälle:
 | `lindeck preview <Profil> -o <Ordner> [--all]` | Seiten als PNG rendern, ohne Gerät |
 | `lindeck extract-assets <Stream_Deck.msi>` | Standard-Icons manuell übernehmen |
 | `lindeck remove <Profil>` | Profil löschen |
+| `lindeck plugin [list\|install\|remove]` | Elgato-Plugins verwalten |
+| `lindeck mixer [status\|setup\|remove\|set\|mute\|assign\|output]` | Audio-Mixer (Wave-Link-Ersatz) |
+| `lindeck wave [status\|gain\|mute\|lowcut\|clipguard]` | Wave-Mikrofon |
+| `lindeck obs` | Verbindung zu OBS prüfen |
+| `lindeck discord` | Discord verbinden (einmalige Freigabe) |
+| `lindeck selftest [--stop-daemon]` | Hardware-Selbsttest |
 | `lindeck reload` | laufenden Dienst neu laden |
 | `lindeck -v run` | mit ausführlichem Log starten |
 
@@ -213,7 +342,12 @@ Optional: `~/.config/lindeck/config.json`
   "soundboard_output": "",
   "long_press_ms": 500,
   "double_press_ms": 300,
-  "devices": { "<Seriennummer>": { "profile": "<Profil-ID>" } }
+  "devices": { "<Seriennummer>": { "profile": "<Profil-ID>" } },
+  "obs": { "host": "127.0.0.1", "port": 4455, "password": "" },
+  "discord": { "client_id": "", "client_secret": "" },
+  "mixer": { "enabled": false, "monitor_output": "", "mic": "", "routes": { "spotify": "music" } },
+  "wave_mic": { "lowcut": false, "lowcut_freq": 80, "clipguard": false, "set_default": true },
+  "node_path": ""
 }
 ```
 
@@ -228,6 +362,11 @@ Optional: `~/.config/lindeck/config.json`
 | `soundboard_output` | PipeWire-Ausgabe für das Soundboard (leer = Standard) |
 | `long_press_ms`, `double_press_ms` | Zeitschwellen für Halten und Doppeltippen |
 | `devices` | feste Profilzuordnung je Gerät |
+| `obs` | Verbindung zu obs-websocket |
+| `discord` | eigene Discord-App für die RPC-Steuerung |
+| `mixer` | Audio-Mixer: aktiv, Monitor-Ausgang, Mikrofon, Programm → Kanal (`system`, `music`, `browser`, `voice`, `game`, `sfx`), eigene Kanäle über `channels` |
+| `wave_mic` | Startwerte für Low Cut/Clipguard |
+| `node_path` | Node.js für Plugins (leer = `node` aus dem Pfad) |
 
 **Dateien:**
 
@@ -236,6 +375,7 @@ Optional: `~/.config/lindeck/config.json`
 | `~/.local/share/lindeck/profiles/` | importierte Profile (Elgato-Format) |
 | `~/.local/share/lindeck/resources/` | eingebettete Ressourcen (z. B. Sounds) |
 | `~/.local/share/lindeck/elgato-assets/` | Standard-Icons aus dem Elgato-Installer |
+| `~/.local/share/lindeck/plugins/` | installierte Elgato-Plugins |
 | `~/.local/state/lindeck/state.json` | zuletzt aktives Profil, Seite, Helligkeit je Gerät |
 | `~/.local/state/lindeck/lindeck.log` | Log |
 
@@ -248,7 +388,9 @@ Optional: `~/.config/lindeck/config.json`
 | Hotkeys funktionieren nicht | `ls -l /dev/uinput` prüfen; neu anmelden; im Log nach „uinput“ suchen |
 | Programm startet nicht | `lindeck report` zeigt fehlende Zuordnungen → in `app_map` eintragen |
 | Falsche Zeichen bei Hotkeys | `keyboard_layout` auf das Windows-Layout setzen (`de` oder `us`) |
-| Taste zeigt Warnsymbol | Aktion eines Drittanbieter-Plugins, noch nicht umgesetzt |
+| Taste zeigt Warnsymbol | Plugin nicht installiert oder nur für Windows/macOS (`lindeck report`, `lindeck plugin list`); bei OBS/Discord: Verbindung prüfen (`lindeck obs`, `lindeck discord`) |
+| OBS-Tasten zeigen „OBS offline“ | WebSocket-Server in OBS aktivieren, Passwort in `config.json` |
+| Kein Ton nach `mixer setup` | `lindeck mixer` prüfen; Monitor-Ausgang mit `lindeck mixer output` wählen; `lindeck mixer remove` stellt alles zurück |
 
 Log ansehen: `tail -f ~/.local/state/lindeck/lindeck.log`
 
@@ -281,7 +423,7 @@ mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Versio
 (Version aus `lindeck/__init__.py`).
 
 ```bash
-git tag v0.2.0 && git push origin v0.2.0
+git tag v0.3.0 && git push origin v0.3.0
 ```
 
 ### Tests
@@ -324,14 +466,23 @@ lindeck/
 ├── autoimport.py   automatischer Import aus Downloads/Desktop/USB
 ├── assets.py       Standard-Icons aus dem Elgato-Installer extrahieren
 ├── models.py       Gerätecodes, USB-IDs, Tastenlayouts
-├── plugins.py      Schnittstelle für Plugin-Umsetzungen
+├── plugins.py      Plugin-Host für das Elgato-SDK (WebSocket), Plugin-Installation
+├── ws.py           WebSocket-Server/-Client (Standardbibliothek)
+├── native.py       Linux-Umsetzung von OBS, Spotify/MPRIS, Discord, Wave Link
+├── obs.py          obs-websocket-Client (v5)
+├── discord.py      Discord-RPC über den lokalen IPC-Socket
+├── mixer.py        Audio-Mixer mit PipeWire (Wave-Link-Ersatz)
+├── wavemic.py      Wave-Mikrofon: Gain, Mute, Low Cut, Clipguard
+├── services.py     Hintergrunddienste (Mixer, Wave-Filter)
+├── selftest.py     Hardware-Selbsttest
 ├── config.py       Konfiguration und Laufzeitzustand
 └── paths.py        XDG-Verzeichnisse
 packaging/
 └── build-deb.sh    baut das Debian-Paket
 tests/
 ├── test_engine.py  Tests mit simulierten Geräten
-└── test_editor.py  Tests für Editor und Profilbearbeitung
+├── test_editor.py  Tests für Editor und Profilbearbeitung
+└── test_integrations.py  Plugin-Host, OBS, Discord, Mixer, Wave, Selbsttest (simulierte Gegenstellen)
 ```
 
 **Ablauf:** `daemon` erkennt Geräte → je Gerät ein `DeckController` (`engine`)
@@ -342,11 +493,13 @@ Ereigniswarteschlange an die Aktionen weitergereicht.
 ## Roadmap
 
 - [x] Grafischer Editor zum Bearbeiten von Profilen direkt unter Linux (seit 0.2)
-- [ ] Plugin-Host für das Elgato-Plugin-SDK (WebSocket-Protokoll)
-- [ ] Linux-Umsetzung häufiger Plugins (OBS, Discord, Spotify, Wave Link)
-- [ ] Wave-Link-Ersatz auf Basis von PipeWire (virtuelle Kanäle, Monitor-/Stream-Mix)
-- [ ] Mikrofon-Einstellungen der Wave-Mikrofone (Low Cut, Clipguard, LED)
-- [ ] Tests auf echter Hardware aller Modelle
+- [x] Plugin-Host für das Elgato-Plugin-SDK (WebSocket-Protokoll) (seit 0.3; Node.js- und Linux-Plugins)
+- [x] Linux-Umsetzung häufiger Plugins: OBS, Discord, Spotify/MPRIS, Wave Link (seit 0.3)
+- [x] Wave-Link-Ersatz auf Basis von PipeWire: virtuelle Kanäle, Monitor-/Stream-Mix (seit 0.3)
+- [x] Wave-Mikrofon: Gain, Stumm, Low Cut, Clipguard (seit 0.3)
+- [ ] LED-Steuerung der Wave-Mikrofone (Protokoll nicht öffentlich)
+- [ ] Property Inspector (Einstellungsseiten) für Plugins
+- [ ] Tests auf echter Hardware aller Modelle – Werkzeug vorhanden (`lindeck selftest`), Berichte willkommen
 
 ## Rechtliches
 

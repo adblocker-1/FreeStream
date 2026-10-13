@@ -480,6 +480,8 @@ def _pactl_blocks(what):
             cur["name"] = s.split(":", 1)[1].strip()
         elif s.startswith("Description:"):
             cur["description"] = s.split(":", 1)[1].strip()
+        elif s.startswith("Argument:"):
+            cur["argument"] = s.split(":", 1)[1].strip()
         elif s.startswith("Mute:"):
             cur["mute"] = s.endswith("yes")
         elif s.startswith("Volume:") and "volume" not in cur:

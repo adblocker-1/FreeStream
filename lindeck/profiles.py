@@ -362,6 +362,35 @@ def _safe_extract(z: zipfile.ZipFile, dest: Path) -> None:
             shutil.copyfileobj(fsrc, fdst)
 
 
+def save_action_settings(page_dir: Path, old_json: str, settings: dict) -> bool:
+    """Neue Settings für eine Aktion im Seiten-Manifest speichern (z. B. von einem Plugin).
+
+    Die Aktion wird über ihren bisherigen Inhalt (old_json, sort_keys) gefunden – auch in Multi-Actions.
+    """
+    mf = Path(page_dir) / "manifest.json"
+    m = read_json(mf)
+    found = []
+
+    def walk(obj):
+        if isinstance(obj, dict):
+            if obj.get("UUID") and json.dumps(obj, sort_keys=True) == old_json:
+                found.append(obj)
+                return
+            for v in obj.values():
+                walk(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                walk(v)
+    walk(m)
+    if not found:
+        return False
+    found[0]["Settings"] = settings
+    tmp = mf.with_name("manifest.json.tmp")
+    tmp.write_text(json.dumps(m, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    tmp.replace(mf)
+    return True
+
+
 def delete_profile(pid: str, store_root: Path = None) -> bool:
     d = Path(store_root or paths.PROFILES_DIR) / f"{pid}.sdProfile"
     if d.exists():

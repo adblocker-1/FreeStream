@@ -98,6 +98,7 @@ class EditorApp:
         self._drag = None
         self._save_job = None
         self._profile_ids = []
+        self._types = dict(C.BY_UUID)
 
         root.title("LinDeck Editor")
         root.geometry("1280x820")
@@ -636,7 +637,7 @@ class EditorApp:
             ph = ImageTk.PhotoImage(img, master=self.root)
             self._photos.append(ph)
             cv.create_image(x, y, image=ph, anchor="nw")
-            if not A.is_builtin(data.get("UUID", "")):
+            if not A.is_supported(data.get("UUID", "")):
                 cv.create_oval(x + w - 14, y + 4, x + w - 4, y + 14, fill="#f5a623", outline="")
         if sel:
             _round_rect(cv, x - 3, y - 3, x + w + 3, y + h + 3, max(8, w // 7), fill="", outline=COL["accent"],
@@ -810,8 +811,14 @@ class EditorApp:
         t.delete(*t.get_children())
         q = self.search_var.get().strip().lower()
         dials = self.doc.geometry.dials if self.doc else 0
-        for cat in C.CATEGORIES:
-            items = [a for a in C.CATALOG if a.category == cat and (C.KEY in a.controllers or dials)
+        try:
+            extra = C.plugin_types()
+        except OSError:
+            extra = []
+        catalog = C.CATALOG + extra
+        self._types = {a.uuid: a for a in catalog}
+        for cat in list(dict.fromkeys(a.category for a in catalog)):
+            items = [a for a in catalog if a.category == cat and (C.KEY in a.controllers or dials)
                      and a.uuid != "com.elgato.streamdeck.multiactions.delay"
                      and (not q or q in a.name.lower() or q in a.description.lower())]
             if not items:
@@ -823,11 +830,11 @@ class EditorApp:
 
     def _tree_item(self, e):
         it = self.tree.identify_row(e.y)
-        return it if it in C.BY_UUID else None
+        return it if it in self._types else None
 
     def _tree_select(self, _e=None):
         sel = self.tree.selection()
-        a = C.BY_UUID.get(sel[0]) if sel else None
+        a = self._types.get(sel[0]) if sel else None
         if a:
             where = "nur Dials" if a.controllers == (C.DIAL,) else "Tasten und Dials" if C.DIAL in a.controllers \
                 else "Tasten"
@@ -845,7 +852,7 @@ class EditorApp:
             w = tk.Toplevel(self.root)
             w.overrideredirect(True)
             w.attributes("-topmost", True)
-            tk.Label(w, text=C.BY_UUID[d["uuid"]].name, bg=COL["accent"], fg="white", padx=10, pady=4).pack()
+            tk.Label(w, text=self._types[d["uuid"]].name, bg=COL["accent"], fg="white", padx=10, pady=4).pack()
             d["win"] = w
         if d["win"] is not None:
             d["win"].geometry(f"+{e.x_root + 12}+{e.y_root + 8}")
@@ -869,7 +876,7 @@ class EditorApp:
         uuid = self._tree_item(e)
         if not uuid or not self.doc:
             return "break"
-        a = C.BY_UUID[uuid]
+        a = self._types[uuid]
         slot = self.selected
         if slot is None or not self._fits({"UUID": uuid}, slot, quiet=True):
             _, keys, dials = self._slots()
@@ -883,7 +890,7 @@ class EditorApp:
         return "break"
 
     def _fits(self, data, slot, quiet=False):
-        t = C.BY_UUID.get((data or {}).get("UUID", ""))
+        t = self._types.get((data or {}).get("UUID", ""))
         if t and slot[0] not in t.controllers:
             if not quiet:
                 self.status(f"„{t.name}“ ist nur für {'Dials' if C.DIAL in t.controllers else 'Tasten'} geeignet")
@@ -900,7 +907,7 @@ class EditorApp:
                 return
         self.doc.place(self.page_uuid, slot, uuid)
         self.select(slot)
-        self.status(f"{C.BY_UUID[uuid].name} hinzugefügt")
+        self.status(f"{self._types[uuid].name} hinzugefügt")
 
     # ========================================================= Eigenschaften
     def build_inspector(self):
@@ -958,10 +965,10 @@ class ActionForm:
         if self.appearance:
             ttk.Button(btns, text="Löschen", command=self.app.delete_selected).pack(side="left", padx=2)
         ttk.Label(f, text=self.data.get("UUID", ""), style="Muted.TLabel").pack(anchor="w")
-        if not A.is_builtin(self.data.get("UUID", "")):
+        if not A.is_supported(self.data.get("UUID", "")):
             plugin = (self.data.get("Plugin") or {}).get("Name") or self.data.get("UUID", "").rsplit(".", 1)[0]
-            ttk.Label(f, text=f"Aktion des Plugins „{plugin}“ – unter Linux noch nicht ausführbar. Titel, Icon und "
-                              "Einstellungen bleiben erhalten und können bearbeitet werden.",
+            ttk.Label(f, text=f"Aktion des Plugins „{plugin}“ – unter Linux nicht ausführbar (Plugin nicht installiert "
+                              "oder nur für Windows/macOS). Titel, Icon und Einstellungen bleiben erhalten.",
                       style="Muted.TLabel", wraplength=640, justify="left").pack(anchor="w", pady=(4, 0))
         if self.appearance:
             self.app_frame = ttk.Frame(f, style="Panel.TFrame")
