@@ -227,7 +227,7 @@ CATALOG += [
                        Field("text", "channel_id", "Kanal-ID (nur Kanal)")],
                description="Braucht eine eigene Discord-App (siehe README)"),
     # ------------------------------------------------------------- Mixer
-    ActionType("com.lindeck.mixer.channel", "Mixer-Kanal", "Audio-Mixer",
+    ActionType("com.lindeck.mixer.channel", "Mixer-Kanal", "Linewave",
                {"channel": "music", "mix": "both", "action": "mute", "step": 5}, controllers=(KEY, DIAL),
                fields=[Field("choice", "channel", "Kanal", _MIX_CHANNELS), Field("choice", "mix", "Mix", _MIXES),
                        Field("choice", "action", "Taste", [("mute", "stumm umschalten"), ("up", "lauter"),
@@ -235,11 +235,11 @@ CATALOG += [
                        Field("int", "step", "Schrittweite (%)", min=1, max=50),
                        Field("int", "volume", "Lautstärke für „setzen“ (%)", min=0, max=150)],
                description="Wave-Link-Ersatz: Kanal-Lautstärke je Mix"),
-    ActionType("com.lindeck.mixer.output", "Monitor-Ausgang", "Audio-Mixer", {"device": ""},
+    ActionType("com.lindeck.mixer.output", "Monitor-Ausgang", "Linewave", {"device": ""},
                fields=[Field("text", "device", "Gerät (leer = nächstes)")],
                description="Monitor-Mix auf Kopfhörer/Lautsprecher umschalten"),
     # -------------------------------------------------------- Wave-Mikro
-    ActionType("com.lindeck.wavemic.control", "Wave-Mikrofon", "Wave-Mikrofon", {"function": "mute", "step": 5},
+    ActionType("com.lindeck.wavemic.control", "Wave-Mikrofon", "Linewave", {"function": "mute", "step": 5},
                controllers=(KEY, DIAL),
                fields=[Field("choice", "function", "Funktion", [("mute", "stumm umschalten"), ("gain", "Gain +"),
                                                                ("lowcut", "Low Cut ein/aus"),
