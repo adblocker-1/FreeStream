@@ -150,14 +150,8 @@ class Daemon:
         except Exception as e:  # noqa: BLE001
             log.warning("Plugin-Host nicht verfügbar: %s", e)
             self.plugin_host = None
+        # Mixer und Wave-Mikrofon laufen im eigenen Programm „LinDeck Wave“ (wavehost.py)
         self.services = []
-        from . import services
-        for svc in services.create(self):
-            try:
-                svc.start()
-                self.services.append(svc)
-            except Exception as e:  # noqa: BLE001
-                log.warning("Dienst %s nicht gestartet: %s", type(svc).__name__, e)
         log.info("LinDeck läuft – %d Profile geladen", len(self.store.profiles))
 
     def loop(self):
@@ -197,6 +191,9 @@ class Daemon:
                 svc.stop()
             except Exception:  # noqa: BLE001
                 pass
+        from . import wavemic
+        if "obj" in wavemic._instance:
+            wavemic._instance["obj"].stop()  # Filterkette, falls „LinDeck Wave“ nicht lief
         self.vin.close()
         self.sound.stop()
         try:

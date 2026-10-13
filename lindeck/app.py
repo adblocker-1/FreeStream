@@ -1,7 +1,8 @@
 """LinDeck als eine App – wie die Elgato-Stream-Deck-Software.
 
-Ein Prozess für alles: Gerätesteuerung, Plugins, Mixer und das Fenster zum
-Bearbeiten der Profile.
+Ein Prozess für das Stream Deck: Gerätesteuerung, Plugins und das Fenster zum
+Bearbeiten der Profile. Mixer und Wave-Mikrofon sind – wie Elgato Wave Link –
+ein eigenes Programm: „LinDeck Wave“ (wavehost.py).
 
   * Beim Anmelden startet LinDeck unsichtbar (`lindeck --hidden`).
   * Der Menüeintrag „LinDeck“ öffnet das Fenster. Läuft LinDeck schon, holt
@@ -26,16 +27,24 @@ log = logging.getLogger("lindeck.app")
 APP_FILE = "app.json"
 
 
-def _app_info():
+def _app_info(name=APP_FILE):
     try:
-        return json.loads((paths.STATE_DIR / APP_FILE).read_text(encoding="utf-8"))
+        return json.loads((paths.STATE_DIR / name).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
 
 
-def _write_app_info(gui):
+def _write_app_info(gui, name=APP_FILE):
     paths.ensure_dirs()
-    (paths.STATE_DIR / APP_FILE).write_text(json.dumps({"pid": os.getpid(), "gui": gui}), encoding="utf-8")
+    (paths.STATE_DIR / name).write_text(json.dumps({"pid": os.getpid(), "gui": gui}), encoding="utf-8")
+
+
+def _clear_app_info(name=APP_FILE):
+    try:
+        if _app_info(name).get("pid") == os.getpid():
+            (paths.STATE_DIR / name).unlink()
+    except OSError:
+        pass
 
 
 def _alive(pid):
@@ -46,13 +55,14 @@ def _alive(pid):
         return False
 
 
-def running_instance():
-    """Pid einer laufenden LinDeck-Instanz (Dienst oder App) oder None."""
-    from .daemon import Daemon
-    pid = Daemon.already_running()
-    if pid:
-        return pid
-    pid = _app_info().get("pid")
+def running_instance(name=APP_FILE):
+    """Pid einer laufenden Instanz (LinDeck: Dienst oder App; sonst nach Statusdatei) oder None."""
+    if name == APP_FILE:
+        from .daemon import Daemon
+        pid = Daemon.already_running()
+        if pid:
+            return pid
+    pid = _app_info(name).get("pid")
     if pid and pid != os.getpid() and _alive(pid):
         return pid
     return None
@@ -79,17 +89,18 @@ def make_icon(size=256):
 class Tray:
     """Symbol in der Taskleiste (optional, über pystray)."""
 
-    def __init__(self, on_show, on_quit):
+    def __init__(self, on_show, on_quit, icon=None, title="LinDeck (Stream Deck)", ident="lindeck",
+                 open_label="LinDeck öffnen"):
         self.icon = None
         try:
             import pystray
         except Exception as e:  # noqa: BLE001 - pystray fehlt oder kein Backend
             log.info("Kein Taskleisten-Symbol (pystray nicht verfügbar: %s)", e)
             return
-        menu = pystray.Menu(pystray.MenuItem("LinDeck öffnen", lambda *a: on_show(), default=True),
+        menu = pystray.Menu(pystray.MenuItem(open_label, lambda *a: on_show(), default=True),
                             pystray.MenuItem("Beenden", lambda *a: on_quit()))
         try:
-            self.icon = pystray.Icon("lindeck", make_icon(64), "LinDeck (Stream Deck)", menu)
+            self.icon = pystray.Icon(ident, icon or make_icon(64), title, menu)
             threading.Thread(target=self.icon.run, name="tray", daemon=True).start()
         except Exception as e:  # noqa: BLE001
             log.info("Taskleisten-Symbol nicht möglich: %s", e)
@@ -207,11 +218,7 @@ def main(hidden=False, profile=None, transport=None, tray=True):
             root.destroy()
         except Exception:  # noqa: BLE001
             pass
-        try:
-            if _app_info().get("pid") == os.getpid():
-                (paths.STATE_DIR / APP_FILE).unlink()
-        except OSError:
-            pass
+        _clear_app_info()
     return 0
 
 

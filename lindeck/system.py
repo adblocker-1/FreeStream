@@ -465,7 +465,7 @@ def active_window_class():
 # Audiogeräte und App-Lautstärken (Elgato Volume Controller)
 # --------------------------------------------------------------------------
 def _pactl_blocks(what):
-    """pactl list <what> -> Liste von dicts mit index, name, description, props, volume, mute."""
+    """pactl list <what> -> Liste von dicts mit index, name, description, sink, props, volume, mute."""
     out = run_out(["pactl", "list", what], timeout=3)
     blocks, cur = [], None
     for line in out.splitlines():
@@ -480,6 +480,8 @@ def _pactl_blocks(what):
             cur["name"] = s.split(":", 1)[1].strip()
         elif s.startswith("Description:"):
             cur["description"] = s.split(":", 1)[1].strip()
+        elif s.startswith("Sink:"):
+            cur["sink"] = s.split(":", 1)[1].strip()
         elif s.startswith("Argument:"):
             cur["argument"] = s.split(":", 1)[1].strip()
         elif s.startswith("Mute:"):
