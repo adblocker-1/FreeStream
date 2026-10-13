@@ -1,5 +1,10 @@
 """Fenster von Linewave: Mixer (Monitor-/Stream-Mix je Kanal) und Mikrofon.
 
+Aufbau wie in Elgato Wave Link: oben die Umschaltung Mixer/Mikrofon, darunter
+je Kanal eine Karte mit zwei Reglern – Cyan für den Monitor-Mix (was du
+hörst), Violett für den Stream-Mix (was dein Publikum hört) – und runden
+Stumm-Knöpfen.
+
 Alle Zugriffe auf PipeWire (pactl) und das Mikrofon (USB) laufen in einem
 eigenen Arbeits-Thread, damit das Fenster nie hängt. Ergebnisse werden im
 Tk-Thread übernommen; Regler, die gerade bewegt werden, überschreibt die
@@ -12,14 +17,25 @@ import time
 import tkinter as tk
 from tkinter import ttk
 
-from . import wavemic
-from .editor import COL
+from . import theme, wavemic
+from .theme import COL, Card, Fader, RoundToggle, Segmented, Switch, label
 
 log = logging.getLogger("lindeck.waveui")
 REFRESH_MS = 1500
 TOUCH_HOLD = 2.5
 MIX_LABEL = {"monitor": "Monitor", "stream": "Stream"}
+MIX_COLOR = {"monitor": COL["monitor"], "stream": COL["stream"]}
+MUTE_ICONS = {"monitor": ("headphones", "headphones_off"), "stream": ("stream", "stream_off")}
 NOT_IN_MIXER = "– nicht im Mixer –"
+CHANNEL_LOOK = {  # Kanal -> (Symbol, Farbe)
+    "system": ("system", "#8e9bb0"), "music": ("music", "#30d158"), "browser": ("browser", "#2f7bff"),
+    "voice": ("chat", "#6b74ff"), "game": ("game", "#ffb020"), "sfx": ("sfx", "#ff6bd5"),
+    "mic": ("mic", "#ff4d5a"),
+}
+
+
+def channel_look(cid):
+    return CHANNEL_LOOK.get(cid, ("wave", "#8e9bb0"))
 
 
 class Worker:
@@ -61,12 +77,13 @@ class WaveWindow:
         self.strips = {}
         self._strip_ids = None
         self._stream_keys = None
+        self.view = "mixer"
         root.title("Linewave")
-        root.geometry("1140x660")
-        root.minsize(900, 560)
-        root.configure(background=COL["bg"])
+        root.geometry("1220x760")
+        root.minsize(980, 620)
         root.protocol("WM_DELETE_WINDOW", self.hide)
-        self._style()
+        theme.apply(root)
+        self.icons = theme.Icons(root)
         self._build()
         try:
             from PIL import ImageTk
@@ -148,89 +165,88 @@ class WaveWindow:
         self.status_var.set(text)
 
     # ============================================================== Aufbau
-    def _style(self):
-        s = ttk.Style(self.root)
-        s.theme_use("clam")
-        bg, panel, fg = COL["bg"], COL["panel"], COL["fg"]
-        s.configure(".", background=bg, foreground=fg, fieldbackground=COL["panel2"], bordercolor="#3a3c42",
-                    lightcolor=panel, darkcolor=panel, troughcolor=bg, insertcolor=fg, focuscolor=COL["accent"])
-        s.configure("TFrame", background=bg)
-        s.configure("Panel.TFrame", background=panel)
-        s.configure("TLabel", background=bg, foreground=fg)
-        s.configure("Panel.TLabel", background=panel)
-        s.configure("Muted.TLabel", background=panel, foreground=COL["muted"])
-        s.configure("Head.TLabel", background=panel, font=("TkDefaultFont", 13, "bold"))
-        s.configure("Strip.TLabel", background=panel, font=("TkDefaultFont", 10, "bold"))
-        s.configure("Section.TLabel", background=panel, foreground=COL["muted"], font=("TkDefaultFont", 9, "bold"))
-        s.configure("Status.TLabel", background=COL["panel2"], foreground=COL["muted"], padding=(10, 4))
-        s.configure("TButton", background=COL["panel2"], foreground=fg, padding=(8, 3), borderwidth=1, width=-4)
-        s.map("TButton", background=[("active", "#3a3d45"), ("disabled", bg)],
-              foreground=[("disabled", "#5c5e66")])
-        s.configure("Accent.TButton", background=COL["accent"])
-        s.map("Accent.TButton", background=[("active", "#3b9bff")])
-        s.configure("TCheckbutton", background=panel, foreground=fg)
-        s.map("TCheckbutton", background=[("active", panel)], indicatorcolor=[("selected", COL["accent"])])
-        s.configure("Mute.TCheckbutton", background=panel, foreground=fg)
-        s.map("Mute.TCheckbutton", indicatorcolor=[("selected", COL["danger"])], background=[("active", panel)])
-        s.configure("TCombobox", foreground=fg, fieldbackground=COL["panel2"], background=COL["panel2"],
-                    arrowcolor=fg)
-        s.map("TCombobox", fieldbackground=[("readonly", COL["panel2"])], foreground=[("readonly", fg)],
-              selectbackground=[("readonly", COL["panel2"])], selectforeground=[("readonly", fg)])
-        s.configure("TScale", background=panel, troughcolor=COL["bg"])
-        s.configure("TNotebook", background=bg, borderwidth=0)
-        s.configure("TNotebook.Tab", background=COL["panel2"], foreground=fg, padding=(16, 6))
-        s.map("TNotebook.Tab", background=[("selected", COL["accent"])])
-        self.root.option_add("*TCombobox*Listbox.background", COL["panel2"])
-        self.root.option_add("*TCombobox*Listbox.foreground", fg)
-
     def _build(self):
         r = self.root
-        head = ttk.Frame(r, style="Panel.TFrame", padding=(14, 10))
+        head = tk.Frame(r, bg=COL["panel"], height=64)
         head.pack(fill="x")
-        ttk.Label(head, text="Linewave", style="Head.TLabel").pack(side="left")
-        self.mic_head = tk.StringVar(value="Mikrofon wird gesucht …")
-        ttk.Label(head, textvariable=self.mic_head, style="Muted.TLabel").pack(side="left", padx=16)
-        ttk.Button(head, text="Beenden", command=self.quit_app).pack(side="right")
-        ttk.Button(head, text="Fenster schließen", command=self.hide).pack(side="right", padx=6)
+        head.pack_propagate(False)
+        tk.Label(head, image=self.icons.get("wave", 34, "#ffffff", circle=COL["accent"]),
+                 bg=COL["panel"]).pack(side="left", padx=(16, 10))
+        label(head, "Linewave", 15, "bold").pack(side="left")
+        self.mic_head = tk.StringVar(self.root, value="Mikrofon wird gesucht …")
+        self.mic_pill = label(head, textvariable=self.mic_head, size=9, color=COL["muted"], padx=10, pady=3,
+                              bg=COL["panel2"])
+        self.mic_pill.pack(side="left", padx=16)
+        ttk.Button(head, text="Beenden", command=self.quit_app).pack(side="right", padx=(6, 16))
+        ttk.Button(head, text="Fenster schließen", style="Ghost.TButton", command=self.hide).pack(side="right")
+        self.tabs = Segmented(head, [("mixer", "Mixer"), ("mic", "Mikrofon")], command=self.show_view)
+        self.tabs.place(relx=0.5, rely=0.5, anchor="center")
 
-        self.nb = ttk.Notebook(r)
-        self.nb.pack(fill="both", expand=True, padx=10, pady=10)
-        self.tab_mixer = ttk.Frame(self.nb, style="Panel.TFrame", padding=12)
-        self.tab_mic = ttk.Frame(self.nb, style="Panel.TFrame", padding=16)
-        self.nb.add(self.tab_mixer, text="Mixer")
-        self.nb.add(self.tab_mic, text="Mikrofon")
+        self.status_var = tk.StringVar(self.root, value="")
+        ttk.Label(r, textvariable=self.status_var, style="Status.TLabel", anchor="w").pack(fill="x", side="bottom")
+
+        self.content = tk.Frame(r, bg=COL["bg"])
+        self.content.pack(fill="both", expand=True, padx=18, pady=16)
+        self.view_mixer = tk.Frame(self.content, bg=COL["bg"])
+        self.view_mic = tk.Frame(self.content, bg=COL["bg"])
         self._build_mixer()
         self._build_mic()
+        self.show_view("mixer")
 
-        self.status_var = tk.StringVar(value="")
-        ttk.Label(r, textvariable=self.status_var, style="Status.TLabel", anchor="w").pack(fill="x", side="bottom")
+    def show_view(self, key):
+        self.view = key
+        self.tabs.set(key)
+        for k, f in (("mixer", self.view_mixer), ("mic", self.view_mic)):
+            if k == key:
+                f.pack(fill="both", expand=True)
+            else:
+                f.pack_forget()
 
     # -------------------------------------------------------------- Mixer
     def _build_mixer(self):
-        t = self.tab_mixer
-        self.mix_off = ttk.Frame(t, style="Panel.TFrame")
-        ttk.Label(self.mix_off, style="Panel.TLabel", justify="left", wraplength=640,
-                  text="Der Mixer ist nicht eingerichtet.\n\nWie in Elgato Wave Link bekommt jedes Programm einen "
-                       "Kanal (System, Musik, Browser, Voice Chat, Spiel, Effekte) mit eigener Lautstärke für den "
-                       "Monitor-Mix (Kopfhörer) und den Stream-Mix (OBS/Discord: „Monitor of Linewave Stream-Mix“)."
-                  ).pack(anchor="w")
-        ttk.Button(self.mix_off, text="Mixer einrichten", style="Accent.TButton",
-                   command=lambda: self._mixer_enable(True)).pack(anchor="w", pady=14)
+        t = self.view_mixer
+        # Mixer noch nicht eingerichtet
+        self.mix_off = tk.Frame(t, bg=COL["bg"])
+        card = Card(self.mix_off, pad=28)
+        card.pack(pady=60)
+        b = card.body
+        tk.Label(b, image=self.icons.get("wave", 64, "#ffffff", circle=COL["accent"]), bg=COL["panel"]).pack()
+        label(b, "Mixer einrichten", 16, "bold").pack(pady=(14, 6))
+        label(b, "Wie in Elgato Wave Link bekommt jedes Programm einen Kanal – mit eigener Lautstärke "
+                 "für deinen Kopfhörer (Monitor-Mix) und für deinen Stream (Stream-Mix).",
+              color=COL["muted"], wraplength=460, justify="center").pack()
+        ttk.Button(b, text="Mixer einrichten", style="Accent.TButton",
+                   command=lambda: self._mixer_enable(True)).pack(pady=(18, 0))
 
-        self.mix_on = ttk.Frame(t, style="Panel.TFrame")
-        self.strip_row = ttk.Frame(self.mix_on, style="Panel.TFrame")
-        self.strip_row.pack(fill="x")
-        bar = ttk.Frame(self.mix_on, style="Panel.TFrame")
-        bar.pack(fill="x", pady=(12, 4))
-        ttk.Label(bar, text="Monitor-Ausgang (Kopfhörer):", style="Panel.TLabel").pack(side="left")
-        self.out_var = tk.StringVar()
-        self.out_box = ttk.Combobox(bar, textvariable=self.out_var, state="readonly", width=42)
-        self.out_box.pack(side="left", padx=8)
+        # Mixer aktiv
+        self.mix_on = tk.Frame(t, bg=COL["bg"])
+        bar = tk.Frame(self.mix_on, bg=COL["bg"])
+        bar.pack(fill="x", pady=(0, 12))
+        for mix, text in (("monitor", "Monitor-Mix – was du hörst"), ("stream", "Stream-Mix – was dein Publikum hört")):
+            dot = tk.Canvas(bar, width=12, height=12, bg=COL["bg"], highlightthickness=0)
+            dot.create_oval(1, 1, 11, 11, fill=MIX_COLOR[mix], outline="")
+            dot.pack(side="left", padx=(0, 6))
+            label(bar, text, color=COL["muted"]).pack(side="left", padx=(0, 18))
+        ttk.Button(bar, text="Mixer entfernen", style="Ghost.TButton",
+                   command=lambda: self._mixer_enable(False)).pack(side="right")
+        self.out_var = tk.StringVar(self.root)
+        self.out_box = ttk.Combobox(bar, textvariable=self.out_var, state="readonly", width=34)
+        self.out_box.pack(side="right", padx=(6, 12))
         self.out_box.bind("<<ComboboxSelected>>", self._on_output)
-        ttk.Button(bar, text="Mixer entfernen", command=lambda: self._mixer_enable(False)).pack(side="right")
-        ttk.Label(self.mix_on, text="PROGRAMME", style="Section.TLabel").pack(anchor="w", pady=(10, 4))
-        self.streams_frame = ttk.Frame(self.mix_on, style="Panel.TFrame")
-        self.streams_frame.pack(fill="both", expand=True)
+        tk.Label(bar, image=self.icons.get("headphones", 18, COL["monitor"]), bg=COL["bg"]).pack(side="right")
+
+        self.strip_row = tk.Frame(self.mix_on, bg=COL["bg"])
+        self.strip_row.pack(fill="x")
+
+        self.apps_card = Card(self.mix_on, pad=16)
+        self.apps_card.pack(fill="both", expand=True, pady=(14, 0))
+        hb = tk.Frame(self.apps_card.body, bg=COL["panel"])
+        hb.pack(fill="x")
+        label(hb, "PROGRAMME", 9, "bold", color=COL["muted"]).pack(side="left")
+        label(hb, "Kanal wählen – Linewave merkt sich die Zuordnung", 9, color=COL["faint"]).pack(side="left",
+                                                                                                padx=10)
+        self.streams_frame = tk.Frame(self.apps_card.body, bg=COL["panel"])
+        self.streams_frame.pack(fill="x", pady=(10, 0))
 
     def _mixer_enable(self, on):
         self.status("Mixer wird eingerichtet …" if on else "Mixer wird entfernt …")
@@ -246,25 +262,32 @@ class WaveWindow:
         for w in self.strip_row.winfo_children():
             w.destroy()
         self.strips = {}
-        for cid, name in channels:
-            if cid == "mic":
-                ttk.Separator(self.strip_row, orient="vertical").pack(side="left", fill="y", padx=6)
-            f = ttk.Frame(self.strip_row, style="Panel.TFrame", padding=(2, 4))
-            f.pack(side="left", fill="y", padx=2)
-            ttk.Label(f, text=name, style="Strip.TLabel").grid(row=0, column=0, columnspan=2, pady=(0, 6))
-            strip = {}
+        # Mikrofon zuerst – wie in Wave Link
+        ordered = sorted(channels, key=lambda c: c[0] != "mic")
+        for cid, name in ordered:
+            glyph, color = channel_look(cid)
+            card = Card(self.strip_row, pad=12, radius=16)
+            card.pack(side="left", padx=(0, 10), anchor="n")
+            b = card.body
+            tk.Label(b, image=self.icons.get(glyph, 40, "#ffffff", circle=color), bg=COL["panel"]).pack()
+            label(b, name, 11, "bold").pack(pady=(8, 0))
+            apps = tk.StringVar(self.root, value=" ")
+            label(b, textvariable=apps, size=8, color=COL["muted"], wraplength=112, height=2,
+                  justify="center").pack()
+            row = tk.Frame(b, bg=COL["panel"])
+            row.pack(pady=(6, 0))
+            strip = {"apps": apps, "card": card}
             for col, mix in enumerate(("monitor", "stream")):
-                var = tk.DoubleVar(value=0)
-                val = tk.StringVar(value="–")
-                mute = tk.BooleanVar(value=False)
-                ttk.Label(f, text=MIX_LABEL[mix], style="Muted.TLabel").grid(row=1, column=col)
-                sc = ttk.Scale(f, from_=100, to=0, orient="vertical", length=170, variable=var,
-                               command=lambda v, c=cid, m=mix: self._on_level(c, m, v))
-                sc.grid(row=2, column=col, padx=3, pady=2)
-                ttk.Label(f, textvariable=val, style="Panel.TLabel", width=5, anchor="center").grid(row=3, column=col)
-                ttk.Checkbutton(f, text="Stumm", variable=mute, style="Mute.TCheckbutton",
-                                command=lambda c=cid, m=mix: self._on_mute(c, m)).grid(row=4, column=col)
-                strip[mix] = {"var": var, "val": val, "mute": mute, "scale": sc}
+                fader = Fader(row, length=190, thickness=40, color=MIX_COLOR[mix],
+                              command=lambda v, c=cid, m=mix: self._on_level(c, m, v))
+                fader.grid(row=0, column=col, padx=6)
+                val = tk.StringVar(self.root, value="–")
+                label(row, textvariable=val, size=9, color=COL["muted"], width=5).grid(row=1, column=col, pady=(4, 6))
+                off, on = MUTE_ICONS[mix]
+                mute = RoundToggle(row, off, on, size=36, command=lambda c=cid, m=mix: self._on_mute(c, m))
+                mute.grid(row=2, column=col)
+                label(row, MIX_LABEL[mix], 8, color=COL["faint"]).grid(row=3, column=col, pady=(4, 0))
+                strip[mix] = {"fader": fader, "val": val, "mute": mute}
             self.strips[cid] = strip
 
     def _on_level(self, cid, mix, value):
@@ -273,20 +296,22 @@ class WaveWindow:
         self._debounced(f"lvl:{cid}:{mix}", lambda v: self.mixer.set_volume(cid, mix, v), pct)
 
     def _on_mute(self, cid, mix):
-        on = self.strips[cid][mix]["mute"].get()
+        s = self.strips[cid][mix]
+        on = s["mute"].get()
+        s["fader"].set_dimmed(on)
         self._touch(f"mute:{cid}:{mix}")
         self.worker.submit(lambda: self.mixer.set_mute(cid, mix, on))
 
     def _on_output(self, _e=None):
-        label = self.out_var.get()
-        name = next((n for n, d in self.state.get("outputs", []) if d == label), None)
+        lbl = self.out_var.get()
+        name = next((n for n, d in self.state.get("outputs", []) if d == lbl), None)
         if not name:
             return
         self._touch("output")
 
         def done(res, err):
             if err is None:
-                self.status(f"Monitor-Mix → {label}")
+                self.status(f"Monitor-Mix → {lbl}")
         self.worker.submit(lambda: self.mixer.set_monitor_output(name), done)
 
     def _build_streams(self, streams, channels):
@@ -295,17 +320,23 @@ class WaveWindow:
         names = [n for cid, n in channels if cid != "mic"]
         ids = {n: cid for cid, n in channels}
         if not streams:
-            ttk.Label(self.streams_frame, text="Gerade spielt kein Programm Ton ab.", style="Muted.TLabel").pack(
-                anchor="w")
+            label(self.streams_frame, "Gerade spielt kein Programm Ton ab.", color=COL["muted"]).pack(anchor="w")
             return
+        cols = 3
         for i, s in enumerate(streams):
-            ttk.Label(self.streams_frame, text=s["app"], style="Panel.TLabel", width=32, anchor="w").grid(
-                row=i, column=0, sticky="w", pady=2)
-            var = tk.StringVar(value=next((n for cid, n in channels if cid == s["channel"]), NOT_IN_MIXER))
-            box = ttk.Combobox(self.streams_frame, textvariable=var, values=names, state="readonly", width=20)
-            box.grid(row=i, column=1, padx=8, pady=2)
-            box.bind("<<ComboboxSelected>>",
-                     lambda e, s=s, v=var: self._on_stream(s, ids.get(v.get())))
+            r, c = divmod(i, cols)
+            cell = tk.Frame(self.streams_frame, bg=COL["panel2"], padx=10, pady=6)
+            cell.grid(row=r, column=c, sticky="we", padx=(0, 10), pady=4)
+            glyph, color = channel_look(s["channel"]) if s["channel"] else ("speaker", COL["faint"])
+            tk.Label(cell, image=self.icons.get(glyph, 22, "#ffffff", circle=color), bg=COL["panel2"]).pack(
+                side="left")
+            label(cell, s["app"], 10, "bold", width=16, anchor="w").pack(side="left", padx=8)
+            var = tk.StringVar(self.root, value=next((n for cid, n in channels if cid == s["channel"]), NOT_IN_MIXER))
+            box = ttk.Combobox(cell, textvariable=var, values=names, state="readonly", width=14)
+            box.pack(side="left")
+            box.bind("<<ComboboxSelected>>", lambda e, s=s, v=var: self._on_stream(s, ids.get(v.get())))
+        for c in range(cols):
+            self.streams_frame.grid_columnconfigure(c, weight=1)
 
     def _on_stream(self, s, cid):
         if not cid:
@@ -319,64 +350,98 @@ class WaveWindow:
         self.worker.submit(lambda: self.mixer.move_stream(s["index"], cid, remember=s.get("key", "")), done)
 
     # ------------------------------------------------------------ Mikrofon
+    def _row(self, parent, title, sub=""):
+        row = tk.Frame(parent, bg=COL["panel"])
+        row.pack(fill="x", pady=7)
+        txt = tk.Frame(row, bg=COL["panel"])
+        txt.pack(side="left", fill="x", expand=True)
+        label(txt, title, 11, "bold").pack(anchor="w")
+        if sub:
+            label(txt, sub, 9, color=COL["muted"], wraplength=330, justify="left").pack(anchor="w")
+        return row
+
     def _build_mic(self):
-        t = self.tab_mic
-        self.mic_name = tk.StringVar(value="")
-        ttk.Label(t, textvariable=self.mic_name, style="Head.TLabel").grid(row=0, column=0, columnspan=4, sticky="w")
-        self.mic_hint = tk.StringVar(value="")
-        ttk.Label(t, textvariable=self.mic_hint, style="Muted.TLabel", wraplength=640, justify="left").grid(
-            row=1, column=0, columnspan=4, sticky="w", pady=(2, 12))
+        t = self.view_mic
+        self.v = {}
+        # --- Karte Mikrofon
+        card = Card(t, pad=22)
+        card.pack(side="left", anchor="n", padx=(0, 16))
+        b = card.body
+        top = tk.Frame(b, bg=COL["panel"])
+        top.pack(fill="x")
+        tk.Label(top, image=self.icons.get("mic", 48, "#ffffff", circle=CHANNEL_LOOK["mic"][1]),
+                 bg=COL["panel"]).pack(side="left")
+        names = tk.Frame(top, bg=COL["panel"])
+        names.pack(side="left", padx=14)
+        self.mic_name = tk.StringVar(self.root, value="")
+        label(names, textvariable=self.mic_name, size=14, weight="bold").pack(anchor="w")
+        self.mic_hint = tk.StringVar(self.root, value="")
+        label(names, textvariable=self.mic_hint, size=9, color=COL["muted"], wraplength=380,
+              justify="left").pack(anchor="w")
 
-        self.v = {k: tk.BooleanVar(value=False) for k in ("mute", "lowcut", "clipguard", "leds_off", "leds_flip",
-                                                            "headphone_mute")}
-        self.gain = tk.DoubleVar(value=0)
-        self.gain_val = tk.StringVar(value="–")
-        ttk.Label(t, text="Gain", style="Panel.TLabel").grid(row=2, column=0, sticky="w")
-        self.gain_scale = ttk.Scale(t, from_=0, to=100, orient="horizontal", length=320, variable=self.gain,
-                                    command=self._on_gain)
-        self.gain_scale.grid(row=2, column=1, sticky="w", padx=8)
-        ttk.Label(t, textvariable=self.gain_val, style="Panel.TLabel", width=18).grid(row=2, column=2, sticky="w")
-        ttk.Checkbutton(t, text="Stumm", variable=self.v["mute"], style="Mute.TCheckbutton",
-                        command=self._on_mic_mute).grid(row=2, column=3, sticky="w")
+        label(b, "GAIN", 9, "bold", color=COL["muted"]).pack(anchor="w", pady=(22, 6))
+        g = tk.Frame(b, bg=COL["panel"])
+        g.pack(fill="x")
+        self.gain = Fader(g, length=380, thickness=36, orient="horizontal", color=COL["accent"],
+                          command=self._on_gain)
+        self.gain.pack(side="left")
+        self.v["mute"] = RoundToggle(g, "mic", "mic_off", size=44, command=self._on_mic_mute)
+        self.v["mute"].pack(side="right")
+        self.gain_val = tk.StringVar(self.root, value="–")
+        label(b, textvariable=self.gain_val, size=10, color=COL["fg"]).pack(anchor="w", pady=(4, 10))
 
-        ttk.Checkbutton(t, text="Low Cut", variable=self.v["lowcut"],
-                        command=lambda: self._on_filter("lowcut")).grid(row=3, column=0, sticky="w", pady=(12, 2))
-        self.freq = tk.StringVar(value="80")
-        self.freq_box = ttk.Combobox(t, textvariable=self.freq, values=["80", "120"], state="readonly", width=6)
-        self.freq_box.grid(row=3, column=1, sticky="w", padx=8, pady=(12, 2))
-        self.freq_box.bind("<<ComboboxSelected>>", self._on_freq)
-        self.freq_unit = ttk.Label(t, text="Hz (Software-Filter)", style="Muted.TLabel")
-        self.freq_unit.grid(row=3, column=1, sticky="w", padx=(80, 0), pady=(12, 2))
-        ttk.Checkbutton(t, text="Clipguard", variable=self.v["clipguard"],
-                        command=lambda: self._on_filter("clipguard")).grid(row=4, column=0, sticky="w", pady=2)
+        ttk.Separator(b).pack(fill="x", pady=8)
+        row = self._row(b, "Low Cut", "Filtert tiefes Brummen und Trittschall heraus")
+        self.v["lowcut"] = Switch(row, command=lambda: self._on_filter("lowcut"))
+        self.v["lowcut"].pack(side="right")
+        self.freq_seg = Segmented(row, [("80", "80 Hz"), ("120", "120 Hz")], command=self._on_freq)
+        self.freq_seg.pack(side="right", padx=12)
+        self.freq = tk.StringVar(self.root, value="80")
+        row = self._row(b, "Clipguard", "Verhindert Übersteuern, wenn du plötzlich laut wirst")
+        self.v["clipguard"] = Switch(row, command=lambda: self._on_filter("clipguard"))
+        self.v["clipguard"].pack(side="right")
 
-        self.hw_frame = ttk.Frame(t, style="Panel.TFrame")
-        self.hw_frame.grid(row=5, column=0, columnspan=4, sticky="w", pady=(16, 0))
-        h = self.hw_frame
-        ttk.Label(h, text="WAVE:3", style="Section.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 6))
-        ttk.Checkbutton(h, text="LEDs aus", variable=self.v["leds_off"],
-                        command=lambda: self._on_hw_bool("leds_off")).grid(row=1, column=0, sticky="w")
-        ttk.Checkbutton(h, text="LEDs umkehren (Mikrofon hängend)", variable=self.v["leds_flip"],
-                        command=lambda: self._on_hw_bool("leds_flip")).grid(row=1, column=1, sticky="w", padx=8)
-        self.hp = tk.DoubleVar(value=-20)
-        self.hp_val = tk.StringVar(value="–")
-        ttk.Label(h, text="Kopfhörer", style="Panel.TLabel").grid(row=2, column=0, sticky="w", pady=(10, 2))
-        ttk.Scale(h, from_=-60, to=0, orient="horizontal", length=320, variable=self.hp,
-                  command=lambda v: self._on_hw_level("headphone_volume", v, self.hp_val, "{:.0f} dB")).grid(
-            row=2, column=1, sticky="w", padx=8, pady=(10, 2))
-        ttk.Label(h, textvariable=self.hp_val, style="Panel.TLabel", width=9).grid(row=2, column=2, sticky="w",
-                                                                                  pady=(10, 2))
-        ttk.Checkbutton(h, text="Stumm", variable=self.v["headphone_mute"], style="Mute.TCheckbutton",
-                        command=lambda: self._on_hw_bool("headphone_mute")).grid(row=2, column=3, sticky="w",
-                                                                                pady=(10, 2))
-        self.dm = tk.DoubleVar(value=50)
-        self.dm_val = tk.StringVar(value="–")
-        ttk.Label(h, text="Mithören", style="Panel.TLabel").grid(row=3, column=0, sticky="w", pady=2)
-        ttk.Scale(h, from_=0, to=100, orient="horizontal", length=320, variable=self.dm,
-                  command=lambda v: self._on_hw_level("direct_monitor", v, self.dm_val, "{:.0f} % Mikro")).grid(
-            row=3, column=1, sticky="w", padx=8, pady=2)
-        ttk.Label(h, textvariable=self.dm_val, style="Panel.TLabel", width=12).grid(row=3, column=2, sticky="w")
-        self.hw_frame.grid_remove()
+        # --- Karte Wave:3 (nur mit Hardware)
+        right = tk.Frame(t, bg=COL["bg"])
+        right.pack(side="left", anchor="n", fill="x", expand=True)
+        self.hw_frame = Card(right, pad=22)
+        h = self.hw_frame.body
+        label(h, "WAVE:3", 9, "bold", color=COL["muted"]).pack(anchor="w")
+        row = self._row(h, "Kopfhörer")
+        self.v["headphone_mute"] = RoundToggle(row, "headphones", "headphones_off", size=36,
+                                               command=lambda: self._on_hw_bool("headphone_mute"))
+        self.v["headphone_mute"].pack(side="right")
+        self.hp_val = tk.StringVar(self.root, value="–")
+        label(row, textvariable=self.hp_val, color=COL["muted"], width=8).pack(side="right", padx=8)
+        self.hp = Fader(h, length=360, thickness=32, orient="horizontal", from_=-60, to=0, color=COL["monitor"],
+                        command=lambda v: self._on_hw_level("headphone_volume", v, self.hp_val, "{:.0f} dB"))
+        self.hp.pack(anchor="w")
+        row = self._row(h, "Mithören", "Verhältnis Mikrofon ↔ PC-Ton im Kopfhörer")
+        self.dm_val = tk.StringVar(self.root, value="–")
+        label(row, textvariable=self.dm_val, color=COL["muted"], width=12).pack(side="right")
+        mixrow = tk.Frame(h, bg=COL["panel"])
+        mixrow.pack(anchor="w")
+        label(mixrow, "PC", 9, color=COL["faint"]).pack(side="left", padx=(0, 6))
+        self.dm = Fader(mixrow, length=320, thickness=32, orient="horizontal", from_=0, to=100,
+                        color=CHANNEL_LOOK["mic"][1],
+                        command=lambda v: self._on_hw_level("direct_monitor", v, self.dm_val, "{:.0f} % Mikro"))
+        self.dm.pack(side="left")
+        label(mixrow, "Mikro", 9, color=COL["faint"]).pack(side="left", padx=(6, 0))
+        ttk.Separator(h).pack(fill="x", pady=12)
+        row = self._row(h, "LEDs aus")
+        self.v["leds_off"] = Switch(row, command=lambda: self._on_hw_bool("leds_off"))
+        self.v["leds_off"].pack(side="right")
+        row = self._row(h, "LEDs umkehren", "Wenn das Mikrofon hängend am Arm montiert ist")
+        self.v["leds_flip"] = Switch(row, command=lambda: self._on_hw_bool("leds_flip"))
+        self.v["leds_flip"].pack(side="right")
+
+        self.no_hw = Card(right, pad=22)
+        label(self.no_hw.body, "Mehr Einstellungen mit dem Elgato Wave:3", 11, "bold").pack(anchor="w")
+        label(self.no_hw.body, "Kopfhörer-Lautstärke, Mithören und die LEDs lassen sich direkt am Wave:3 "
+                               "einstellen. Bei Wave:1, Wave Neo und Wave XLR ist das Protokoll dafür nicht "
+                               "dokumentiert.", 9, color=COL["muted"], wraplength=360, justify="left").pack(
+            anchor="w", pady=(6, 0))
+        self.no_hw.pack(anchor="nw")
 
     def _on_gain(self, value):
         pct = int(round(float(value)))
@@ -385,6 +450,7 @@ class WaveWindow:
 
     def _on_mic_mute(self):
         self._touch("mute")
+        self.gain.set_dimmed(self.v["mute"].get())
         self.worker.submit(self.mic.toggle_mute)
 
     def _on_filter(self, key):
@@ -404,8 +470,9 @@ class WaveWindow:
                 self.status(f"{'Low Cut' if key == 'lowcut' else 'Clipguard'} {'an' if on else 'aus'}")
         self.worker.submit(work, done)
 
-    def _on_freq(self, _e=None):
-        f = int(self.freq.get())
+    def _on_freq(self, value=None):
+        f = int(value or self.freq.get())
+        self.freq.set(str(f))
         self._touch("lowcut_freq")
         self.worker.submit(lambda: self.mic.set(lowcut_freq=f))
 
@@ -414,9 +481,9 @@ class WaveWindow:
         self._touch(key)
         self.worker.submit(lambda: self.mic.hw_set(key, on))
 
-    def _on_hw_level(self, key, value, label, fmt):
+    def _on_hw_level(self, key, value, lbl, fmt):
         v = float(value)
-        label.set(fmt.format(v))
+        lbl.set(fmt.format(v))
         self._debounced(key, lambda x: self.mic.hw_set(key, x), v)
 
     # ------------------------------------------------- Regler entprellen
@@ -494,10 +561,17 @@ class WaveWindow:
                 if not s:
                     continue
                 if not self._held(f"lvl:{cid}:{mix}"):
-                    s["var"].set(min(100, vol))
+                    s["fader"].set(min(100, vol))
                     s["val"].set(f"{vol} %")
                 if not self._held(f"mute:{cid}:{mix}"):
                     s["mute"].set(bool(mute))
+                    s["fader"].set_dimmed(bool(mute))
+            apps = {}
+            for s in st.get("streams") or []:
+                if s["channel"]:
+                    apps.setdefault(s["channel"], []).append(s["app"])
+            for cid, strip in self.strips.items():
+                strip["apps"].set(", ".join(apps.get(cid, [])) or " ")
             outs = st.get("outputs") or []
             self.out_box.configure(values=[d for _n, d in outs])
             if not self._held("output"):
@@ -517,49 +591,58 @@ class WaveWindow:
         # --- Mikrofon
         mic, cfg = st.get("mic") or {}, st.get("settings") or {}
         hw = bool(mic.get("hardware"))
-        if hw:
-            name = "Elgato Wave:3" + (f" (Firmware-API {mic['api']})" if mic.get("api") else "")
-        elif mic.get("source"):
-            name = "Elgato Wave"
-        else:
-            name = "Kein Wave-Mikrofon angeschlossen"
+        present = hw or bool(mic.get("source"))
+        name = "Elgato Wave:3" if hw else ("Elgato Wave" if present else "Kein Wave-Mikrofon")
         self.mic_name.set(name)
-        self.mic_head.set(name + (" – stumm" if mic.get("mute") else ""))
+        muted = bool(mic.get("mute"))
+        self.mic_head.set(("●  " + name + (" · stumm" if muted else "")) if present
+                          else "○  Kein Wave-Mikrofon angeschlossen")
+        self.mic_pill.configure(fg=COL["danger"] if muted else (COL["ok"] if present else COL["muted"]))
         if hw:
-            hint = "Alle Einstellungen werden direkt im Mikrofon gespeichert (wie mit Wave Link)."
-        elif mic.get("source"):
+            hint = "Alle Einstellungen werden direkt im Mikrofon gespeichert." + (
+                f" Firmware-API {mic['api']}." if mic.get("api") else "")
+        elif present:
             hint = ("Low Cut und Clipguard laufen als PipeWire-Filter. In Discord/OBS das Mikrofon "
-                    "„Linewave“ wählen." + ("" if st.get("limiter") else
-                                                 " Clipguard braucht das Paket swh-plugins.")
-                    + " LED-Steuerung gibt es nur beim Wave:3.")
+                    "„Linewave Mikrofon“ wählen." + ("" if st.get("limiter") else
+                                                    " Clipguard braucht das Paket swh-plugins."))
         else:
             hint = "Mikrofon anschließen – die Einstellungen werden übernommen, sobald es erkannt wird."
         self.mic_hint.set(hint)
+        if self.gain.enabled != ("gain_pct" in mic):  # ohne Mikrofon nichts zu regeln
+            self.gain.enabled = "gain_pct" in mic
+            self.gain.set_dimmed(not self.gain.enabled)
         if "gain_pct" in mic and not self._held("gain"):
             self.gain.set(mic["gain_pct"])
-            self.gain_val.set(f"{mic['gain_pct']} %" + (f" ({mic['gain']:.1f} dB)" if hw else ""))
+            self.gain_val.set(f"{mic['gain_pct']} %" + (f"  ·  {mic['gain']:.1f} dB" if hw else ""))
         if not self._held("mute"):
-            self.v["mute"].set(bool(mic.get("mute")))
+            self.v["mute"].set(muted)
+            self.gain.set_dimmed(muted)
         for key in ("lowcut", "clipguard"):
             if not self._held(key):
                 self.v[key].set(bool(mic[key]) if hw and key in mic else bool(cfg.get(key)))
         if not self._held("lowcut_freq"):
             self.freq.set(str(cfg.get("lowcut_freq") or 80))
-        for w in (self.freq_box, self.freq_unit):  # das Wave:3 filtert mit fester Frequenz selbst
-            if hw:
-                w.grid_remove()
-            else:
-                w.grid()
+            self.freq_seg.set(self.freq.get() if self.freq.get() in ("80", "120") else "80")
+        if hw:  # das Wave:3 filtert mit fester Frequenz selbst
+            self.freq_seg.pack_forget()
+        elif not self.freq_seg.winfo_manager():
+            self.freq_seg.pack(side="right", padx=12)
         if hw:
-            self.hw_frame.grid()
+            self.no_hw.pack_forget()
+            if not self.hw_frame.winfo_manager():
+                self.hw_frame.pack(anchor="nw")
             for key in ("leds_off", "leds_flip", "headphone_mute"):
                 if key in mic and not self._held(key):
                     self.v[key].set(bool(mic[key]))
             if "headphone_volume" in mic and not self._held("headphone_volume"):
                 self.hp.set(mic["headphone_volume"])
                 self.hp_val.set(f"{mic['headphone_volume']:.0f} dB")
+                self.hp.set_dimmed(bool(mic.get("headphone_mute")))
             if "direct_monitor" in mic and not self._held("direct_monitor"):
                 self.dm.set(mic["direct_monitor"])
                 self.dm_val.set(f"{mic['direct_monitor']:.0f} % Mikro")
+            self.v["leds_flip"].set_enabled("leds_flip" in mic)
         else:
-            self.hw_frame.grid_remove()
+            self.hw_frame.pack_forget()
+            if not self.no_hw.winfo_manager():
+                self.no_hw.pack(anchor="nw")

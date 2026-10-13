@@ -35,7 +35,7 @@ Programm einfach weiter.
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 
-> **Status:** Version 0.7 – getestet mit simulierten Geräten aller Modelle und
+> **Status:** Version 0.8 – getestet mit simulierten Geräten aller Modelle und
 > den Elgato-Standardprofilen. Tests auf echter Hardware stehen noch aus.
 
 ---
@@ -90,7 +90,7 @@ unterstützt. Profile werden dem passenden Gerät automatisch zugeordnet
 2. Doppelklick → **Installieren**, oder im Terminal:
 
    ```bash
-   sudo apt install ./lindeck_0.7.0_all.deb
+   sudo apt install ./lindeck_0.8.0_all.deb
    ```
 
 Das Paket erledigt automatisch:
@@ -519,7 +519,7 @@ mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Versio
 (Version aus `lindeck/__init__.py`).
 
 ```bash
-git tag v0.7.0 && git push origin v0.7.0
+git tag v0.8.0 && git push origin v0.8.0
 ```
 
 ### Tests
@@ -579,6 +579,7 @@ lindeck/
 ├── linewave.py     Einstieg für den Befehl `linewave`
 ├── wavehost.py     Linewave: Hintergrundteil, Einzelinstanz, Autostart
 ├── waveui.py       Linewave: Fenster (Mixer, Mikrofon)
+├── theme.py        gemeinsames Aussehen: Farben, Schriften, Symbole, Regler, Schalter
 ├── selftest.py     Hardware-Selbsttest
 ├── config.py       Konfiguration und Laufzeitzustand
 └── paths.py        XDG-Verzeichnisse
@@ -607,6 +608,7 @@ Ereigniswarteschlange an die Aktionen weitergereicht.
 - [x] Eine App wie die Elgato-Software: unsichtbar im Hintergrund, Fenster über das Menü, Gerät folgt dem Fenster (seit 0.5)
 - [x] Zwei Programme wie bei Elgato: LinDeck (Stream Deck) und Linewave (Mixer + Mikrofon) (seit 0.6)
 - [x] Kanalnamen unter Linux sichtbar („Linewave Musik“ …), Audio-Programm heißt Linewave (seit 0.7)
+- [x] Neues Aussehen im Stil der Elgato-Programme: Kanal-Karten mit Reglern wie in Wave Link, Symbole in der Aktionsliste (seit 0.8)
 - [x] Plugin-Host für das Elgato-Plugin-SDK (WebSocket-Protokoll) (seit 0.3; Node.js- und Linux-Plugins)
 - [x] Linux-Umsetzung häufiger Plugins: OBS, Discord, Spotify/MPRIS, Wave Link (seit 0.3)
 - [x] Wave-Link-Ersatz auf Basis von PipeWire: virtuelle Kanäle, Monitor-/Stream-Mix (seit 0.3)
