@@ -1,5 +1,6 @@
-"""Tests für LinDeck Wave (eigenes Programm für Mixer und Wave-Mikrofon)."""
+"""Tests für Linewave (eigenes Programm für Mixer und Wave-Mikrofon)."""
 import json
+import re
 import os
 import subprocess
 import sys
@@ -46,11 +47,12 @@ class FakePactl:
             kv = dict(a.split("=", 1) for a in args[2:] if "=" in a)
             if args[1] == "module-null-sink":
                 self.sinks.append({"index": str(self.next_id), "name": kv["sink_name"], "description": ""})
-            name = next((a.split("=", 2)[-1] for a in args if a.startswith("sink_input_properties=")), None)
+            name = next((re.search(r"linewave\.loop='([^']+)'", a).group(1) for a in args
+                         if a.startswith("sink_input_properties=")), None)
             if name:
                 self.inputs[str(self.next_id)] = {"index": str(self.next_id), "volume": 100, "mute": False,
                                                   "sink": self._sink(kv.get("sink", "")),
-                                                  "props": {"media.name": name}}
+                                                  "props": {"linewave.loop": name, "media.name": "lesbar"}}
             return str(self.next_id)
         if args[0] == "get-default-sink":
             return "alsa_output.headphones"
@@ -106,7 +108,7 @@ def test_host_sets_up_mixer_and_routes(env, pactl):
     from lindeck.wavehost import WaveHost
     cfg = _config(env, {"mixer": {"enabled": True, "routes": {"game.exe": "game"}}})
     host = WaveHost(cfg)
-    assert wavemic.OWNER is True  # LinDeck Wave besitzt die Filterkette
+    assert wavemic.OWNER is True  # Linewave besitzt die Filterkette
     host.start()
     assert host.mixer.is_active() and not host.error
     host.tick()
@@ -163,7 +165,7 @@ def test_stream_deck_app_delegates_filter_to_wave_app(env, monkeypatch):
 
 def test_cli_wave_app_quit_and_entry(env):
     from lindeck.__main__ import main
-    assert main(["wave-app", "--quit"]) == 1  # läuft nicht
+    assert main(["linewave", "--quit"]) == 1  # läuft nicht
 
 
 def test_icon():
@@ -217,3 +219,23 @@ def test_wave_window(env, pactl):
         assert win.quitting
     finally:
         root.destroy()
+
+
+def test_linewave_command_routes_audio_subcommands(env, monkeypatch):
+    from lindeck import __main__ as M
+    seen = []
+    monkeypatch.setattr(M, "main", lambda argv=None: seen.append(argv) or 0)
+    M.wave_main(["mic", "lowcut", "on"])
+    M.wave_main(["mixer", "set", "music", "stream", "40"])
+    M.wave_main(["--hidden"])
+    assert seen == [["wave", "lowcut", "on"], ["mixer", "set", "music", "stream", "40"], ["linewave", "--hidden"]]
+
+
+def test_legacy_lindeck_channels_are_cleaned_up(env, pactl, monkeypatch):
+    from lindeck import system
+    from lindeck.mixer import Mixer
+    old = {"index": "55", "argument": "sink_name=lindeck_music sink_properties=device.description='LinDeck", "props": {}}
+    blocks = pactl.blocks
+    monkeypatch.setattr(system, "_pactl_blocks", lambda what: [old] if what == "modules" else blocks(what))
+    Mixer({}, run=pactl).setup()
+    assert ["unload-module", "55"] in pactl.cmds

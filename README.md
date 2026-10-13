@@ -11,7 +11,7 @@ LinDeck-Fenster lassen sich Profile direkt unter Linux bearbeiten oder neu anleg
 | Programm | Elgato-Gegenstück | Aufgabe |
 |---|---|---|
 | **LinDeck** (`lindeck`) | Stream Deck | Tasten, Profile, Plugins |
-| **LinDeck Wave** (`lindeck-wave`) | Wave Link | Audio-Mixer (Monitor-/Stream-Mix) und Wave-Mikrofon |
+| **Linewave** (`linewave`) | Wave Link | Audio-Mixer (Monitor-/Stream-Mix) und Wave-Mikrofon |
 
 Beide starten beim Anmelden unsichtbar und arbeiten im Hintergrund. Über den
 jeweiligen Menüeintrag öffnest du das Fenster; schließt du es, läuft das
@@ -20,7 +20,7 @@ Programm einfach weiter.
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 
-> **Status:** Version 0.6 – getestet mit simulierten Geräten aller Modelle und
+> **Status:** Version 0.7 – getestet mit simulierten Geräten aller Modelle und
 > den Elgato-Standardprofilen. Tests auf echter Hardware stehen noch aus.
 
 ---
@@ -31,7 +31,7 @@ Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 - [Installation](#installation)
 - [Profile übernehmen](#profile-übernehmen)
 - [Das LinDeck-Fenster](#das-lindeck-fenster)
-- [LinDeck Wave](#lindeck-wave)
+- [Linewave](#linewave)
 - [Unterstützte Aktionen](#unterstützte-aktionen)
 - [Elgato-Plugins](#elgato-plugins)
 - [OBS, Spotify, Discord](#obs-spotify-discord)
@@ -75,7 +75,7 @@ unterstützt. Profile werden dem passenden Gerät automatisch zugeordnet
 2. Doppelklick → **Installieren**, oder im Terminal:
 
    ```bash
-   sudo apt install ./lindeck_0.6.0_all.deb
+   sudo apt install ./lindeck_0.7.0_all.deb
    ```
 
 Das Paket erledigt automatisch:
@@ -84,7 +84,7 @@ Das Paket erledigt automatisch:
 - udev-Regel für den Gerätezugriff ohne root (`/lib/udev/rules.d/70-lindeck.rules`)
 - `uinput`-Modul für Hotkeys unter X11 **und** Wayland
 - Autostart bei jeder Anmeldung und sofortiger Start nach der Installation
-- Menüeinträge „LinDeck“ und „LinDeck Wave“ mit eigenen Symbolen
+- Menüeinträge „LinDeck“ und „Linewave“ mit eigenen Symbolen
 
 Falls LinDeck direkt nach der Installation nicht anläuft: einmal ab- und wieder anmelden.
 
@@ -135,7 +135,7 @@ LinDeck ist das Programm für das Stream Deck – wie die Elgato-Stream-Deck-Sof
 - **Fenster schließen** blendet es nur aus; das Stream Deck arbeitet weiter.
 - **Beenden** über den Knopf oben rechts, das Symbol in der Taskleiste (falls
   vorhanden, Paket `python3-pystray`) oder `lindeck quit`.
-- Der Knopf **LinDeck Wave** oben öffnet das zweite Programm für Mixer und Mikrofon.
+- Der Knopf **Linewave** oben öffnet das zweite Programm für Mixer und Mikrofon.
 
 Oben wählst du das angeschlossene Stream Deck; geöffnet wird das Profil, das
 gerade darauf läuft. Wechselst du im Fenster Profil oder Seite, wechselt das
@@ -272,12 +272,12 @@ Discord erlaubt das nur angemeldeten Apps – einmalig einrichten:
    `"discord": {"client_id": "…", "client_secret": "…"}`
 4. `lindeck discord` ausführen und die Anfrage in Discord bestätigen.
 
-## LinDeck Wave
+## Linewave
 
 Das zweite Programm – der Ersatz für Elgato Wave Link. Menüeintrag
-**LinDeck Wave** oder `lindeck-wave`; auch hier gibt es nur eine Instanz, und
+**Linewave** oder `linewave`; auch hier gibt es nur eine Instanz, und
 „Fenster schließen“ blendet nur aus. Beenden: Knopf oben rechts, Taskleiste
-oder `lindeck wave-app --quit`.
+oder `linewave --quit`.
 
 - **Mixer:** je Kanal zwei Regler (Monitor/Stream) mit Stumm-Schalter,
   Monitor-Ausgang (Kopfhörer) wählen, und unter **Programme** jedes laufende
@@ -286,10 +286,18 @@ oder `lindeck wave-app --quit`.
 - **Mikrofon:** Gain, Stumm, Low Cut, Clipguard; beim Wave:3 zusätzlich LEDs
   aus/umkehren, Kopfhörer-Lautstärke und Mithören.
 
-Im Hintergrund richtet LinDeck Wave den Mixer nach dem Anmelden ein, verteilt
+Im Hintergrund richtet Linewave den Mixer nach dem Anmelden ein, verteilt
 neue Programme auf die Kanäle und betreibt die Software-Filter für Wave-Mikrofone
 ohne eingebaute Filter. Tasten auf dem Stream Deck (Mixer-Kanal, Wave-Mikrofon)
-funktionieren auch, wenn LinDeck Wave gerade nicht läuft.
+funktionieren auch, wenn Linewave gerade nicht läuft.
+
+**So heißt alles unter Linux:** In den Klangeinstellungen, in `pavucontrol`
+und in OBS erscheinen die Kanäle als **„Linewave System“, „Linewave Musik“,
+„Linewave Browser“, „Linewave Voice Chat“, „Linewave Spiel“, „Linewave Effekte“**
+und **„Linewave Stream-Mix“**, das gefilterte Mikrofon als **„Linewave Mikrofon“**.
+Die internen Verbindungen heißen z. B. „Linewave Musik → Stream-Mix“.
+(Bis Version 0.6 hieß jeder Kanal nur „LinDeck“ – beim ersten Start räumt
+Linewave die alten Kanäle auf und legt sie mit den richtigen Namen neu an.)
 
 ## Audio-Mixer (Wave-Link-Ersatz)
 
@@ -299,15 +307,15 @@ Kanal hat zwei unabhängige Regler:
 
 - **Monitor-Mix** – was du auf Kopfhörer/Lautsprechern hörst
 - **Stream-Mix** – was dein Publikum hört; in OBS als Audioquelle
-  „Monitor of LinDeck Stream-Mix“ wählen
+  „Monitor of Linewave Stream-Mix“ wählen
 
 ```bash
-lindeck mixer setup                    # einrichten (oder im Fenster von LinDeck Wave)
-lindeck mixer                          # Übersicht aller Kanäle
-lindeck mixer set music stream 40      # Musik im Stream auf 40 %
-lindeck mixer assign spotify music     # Programm dauerhaft einem Kanal zuordnen
-lindeck mixer output                   # Monitor-Mix auf das nächste Ausgabegerät
-lindeck mixer remove                   # alles entfernen
+linewave mixer setup                   # einrichten (oder im Fenster von Linewave)
+linewave mixer                         # Übersicht aller Kanäle
+linewave mixer set music stream 40     # Musik im Stream auf 40 %
+linewave mixer assign spotify music    # Programm dauerhaft einem Kanal zuordnen
+linewave mixer output                  # Monitor-Mix auf das nächste Ausgabegerät
+linewave mixer remove                  # alles entfernen
 ```
 
 Bekannte Programme (Spotify, Browser, Discord, Steam …) werden automatisch dem
@@ -323,12 +331,12 @@ mit `pipewire-pulse` (Standard bei aktuellen Distributionen).
 
 | Funktion | Befehl |
 |---|---|
-| Gain (0–40 dB), Stumm | `lindeck wave gain 70` (Prozent), `lindeck wave mute` |
-| Low Cut, Clipguard (im Mikrofon) | `lindeck wave lowcut on`, `lindeck wave clipguard on` |
-| LEDs ein/aus | `lindeck wave leds off` |
-| LEDs umkehren (Mikrofon hängend am Arm) | `lindeck wave flip on` |
-| Kopfhörer-Lautstärke (−60 … 0 dB) | `lindeck wave headphone -20` |
-| Mithören Mikrofon/PC (0–100 %) | `lindeck wave monitor 50` |
+| Gain (0–40 dB), Stumm | `linewave mic gain 70` (Prozent), `linewave mic mute` |
+| Low Cut, Clipguard (im Mikrofon) | `linewave mic lowcut on`, `linewave mic clipguard on` |
+| LEDs ein/aus | `linewave mic leds off` |
+| LEDs umkehren (Mikrofon hängend am Arm) | `linewave mic flip on` |
+| Kopfhörer-Lautstärke (−60 … 0 dB) | `linewave mic headphone -20` |
+| Mithören Mikrofon/PC (0–100 %) | `linewave mic monitor 50` |
 
 Das Wave:3 hat keine einstellbare LED-Farbe oder -Helligkeit, nur „LEDs aus“ und
 „umkehren“. Grundlage ist die öffentliche Protokoll-Analyse von
@@ -339,11 +347,11 @@ weiter. Zugriff erhält der angemeldete Benutzer über die mitgelieferte udev-Re
 
 **Wave:1, Wave Neo, Wave XLR** – Gain und Stumm über die USB-Audio-Steuerung;
 Low Cut (80/120 Hz) und Clipguard per PipeWire-Filter (Clipguard braucht
-`swh-plugins`). Das bearbeitete Signal erscheint als Mikrofon **„LinDeck Wave“**.
+`swh-plugins`). Das bearbeitete Signal erscheint als Mikrofon **„Linewave Mikrofon“**.
 LED-Steuerung ist für diese Modelle nicht möglich (Protokoll nicht dokumentiert).
 
 Auf dem Stream Deck: Aktion **Wave-Mikrofon** (Stumm, Gain, Low Cut, Clipguard,
-LEDs; Dial: Gain). `lindeck wave` zeigt den aktuellen Zustand.
+LEDs; Dial: Gain). `linewave mic` zeigt den aktuellen Zustand.
 
 ## Hardware-Selbsttest
 
@@ -374,9 +382,9 @@ Für den normalen Betrieb ist kein Befehl nötig. Für Sonderfälle:
 | `lindeck extract-assets <Stream_Deck.msi>` | Standard-Icons manuell übernehmen |
 | `lindeck remove <Profil>` | Profil löschen |
 | `lindeck plugin [list\|install\|remove]` | Elgato-Plugins verwalten |
-| `lindeck-wave` (= `lindeck wave-app`) | LinDeck Wave öffnen (`--hidden`: unsichtbar, `--quit`: beenden) |
-| `lindeck mixer [status\|setup\|remove\|set\|mute\|assign\|output]` | Audio-Mixer (Wave-Link-Ersatz) |
-| `lindeck wave [status\|gain\|mute\|lowcut\|clipguard\|leds\|flip\|headphone\|monitor]` | Wave-Mikrofon |
+| `linewave` | Linewave öffnen (`--hidden`: unsichtbar, `--quit`: beenden) |
+| `linewave mixer [status\|setup\|remove\|set\|mute\|assign\|output]` | Audio-Mixer (Wave-Link-Ersatz) |
+| `linewave mic [status\|gain\|mute\|lowcut\|clipguard\|leds\|flip\|headphone\|monitor]` | Wave-Mikrofon |
 | `lindeck obs` | Verbindung zu OBS prüfen |
 | `lindeck discord` | Discord verbinden (einmalige Freigabe) |
 | `lindeck selftest [--stop-daemon]` | Hardware-Selbsttest |
@@ -448,7 +456,7 @@ Optional: `~/.config/lindeck/config.json`
 | Falsche Zeichen bei Hotkeys | `keyboard_layout` auf das Windows-Layout setzen (`de` oder `us`) |
 | Taste zeigt Warnsymbol | Plugin nicht installiert oder nur für Windows/macOS (`lindeck report`, `lindeck plugin list`); bei OBS/Discord: Verbindung prüfen (`lindeck obs`, `lindeck discord`) |
 | OBS-Tasten zeigen „OBS offline“ | WebSocket-Server in OBS aktivieren, Passwort in `config.json` |
-| Kein Ton nach `mixer setup` | `lindeck mixer` prüfen; Monitor-Ausgang mit `lindeck mixer output` wählen; `lindeck mixer remove` stellt alles zurück |
+| Kein Ton nach `mixer setup` | `linewave mixer` prüfen; Monitor-Ausgang mit `linewave mixer output` wählen; `linewave mixer remove` stellt alles zurück |
 
 Log ansehen: `tail -f ~/.local/state/lindeck/lindeck.log`
 
@@ -481,7 +489,7 @@ mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Versio
 (Version aus `lindeck/__init__.py`).
 
 ```bash
-git tag v0.6.0 && git push origin v0.6.0
+git tag v0.7.0 && git push origin v0.7.0
 ```
 
 ### Tests
@@ -538,8 +546,9 @@ lindeck/
 ├── mixer.py        Audio-Mixer mit PipeWire (Wave-Link-Ersatz)
 ├── wavemic.py      Wave-Mikrofon: Gain, Mute, Low Cut, Clipguard (Hardware oder PipeWire)
 ├── wave3hw.py      Wave:3-Steuerprotokoll (USB-Control-Transfers über libusb)
-├── wavehost.py     LinDeck Wave: Hintergrundteil, Einzelinstanz, Autostart
-├── waveui.py       LinDeck Wave: Fenster (Mixer, Mikrofon)
+├── linewave.py     Einstieg für den Befehl `linewave`
+├── wavehost.py     Linewave: Hintergrundteil, Einzelinstanz, Autostart
+├── waveui.py       Linewave: Fenster (Mixer, Mikrofon)
 ├── selftest.py     Hardware-Selbsttest
 ├── config.py       Konfiguration und Laufzeitzustand
 └── paths.py        XDG-Verzeichnisse
@@ -549,7 +558,7 @@ tests/
 ├── test_engine.py  Tests mit simulierten Geräten
 ├── test_editor.py  Tests für Editor und Profilbearbeitung
 ├── test_app.py     Tests für die App (Einzelinstanz, Fenster, Gerät folgt)
-├── test_waveapp.py LinDeck Wave (Mixer-Fenster, Mikrofon, Übergabe zwischen den Programmen)
+├── test_waveapp.py Linewave (Mixer-Fenster, Mikrofon, Übergabe zwischen den Programmen)
 └── test_integrations.py  Plugin-Host, OBS, Discord, Mixer, Wave, Selbsttest (simulierte Gegenstellen)
 ```
 
@@ -562,7 +571,8 @@ Ereigniswarteschlange an die Aktionen weitergereicht.
 
 - [x] Grafischer Editor zum Bearbeiten von Profilen direkt unter Linux (seit 0.2)
 - [x] Eine App wie die Elgato-Software: unsichtbar im Hintergrund, Fenster über das Menü, Gerät folgt dem Fenster (seit 0.5)
-- [x] Zwei Programme wie bei Elgato: LinDeck (Stream Deck) und LinDeck Wave (Mixer + Mikrofon) (seit 0.6)
+- [x] Zwei Programme wie bei Elgato: LinDeck (Stream Deck) und Linewave (Mixer + Mikrofon) (seit 0.6)
+- [x] Kanalnamen unter Linux sichtbar („Linewave Musik“ …), Audio-Programm heißt Linewave (seit 0.7)
 - [x] Plugin-Host für das Elgato-Plugin-SDK (WebSocket-Protokoll) (seit 0.3; Node.js- und Linux-Plugins)
 - [x] Linux-Umsetzung häufiger Plugins: OBS, Discord, Spotify/MPRIS, Wave Link (seit 0.3)
 - [x] Wave-Link-Ersatz auf Basis von PipeWire: virtuelle Kanäle, Monitor-/Stream-Mix (seit 0.3)

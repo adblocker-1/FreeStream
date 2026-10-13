@@ -1,18 +1,18 @@
-"""LinDeck Wave – eigenes Programm für Audio-Mixer und Wave-Mikrofon.
+"""Linewave – eigenes Programm für Audio-Mixer und Wave-Mikrofon.
 
 Wie bei Elgato gibt es zwei Programme:
 
   * LinDeck       – Stream Deck (Tasten, Profile, Plugins)        `lindeck`
-  * LinDeck Wave  – Wave-Link-Ersatz: Mixer und Mikrofon           `lindeck-wave`
+  * Linewave  – Wave-Link-Ersatz: Mixer und Mikrofon           `linewave`
 
-LinDeck Wave startet beim Anmelden unsichtbar (`lindeck-wave --hidden`),
+Linewave startet beim Anmelden unsichtbar (`linewave --hidden`),
 richtet den PipeWire-Mixer ein, verteilt neue Programme auf die Kanäle und
 betreibt die Software-Filterkette (Low Cut/Clipguard) für Wave-Mikrofone ohne
 Hardware-Filter. Ein zweiter Start holt nur das Fenster nach vorne.
 
 Tasten auf dem Stream Deck (Mixer, Wave-Mikrofon) funktionieren auch ohne
-LinDeck Wave – sie stellen PipeWire bzw. das Mikrofon direkt. Ändert die
-Stream-Deck-App Low Cut/Clipguard, lädt LinDeck Wave die Einstellungen neu
+Linewave – sie stellen PipeWire bzw. das Mikrofon direkt. Ändert die
+Stream-Deck-App Low Cut/Clipguard, lädt Linewave die Einstellungen neu
 (Signal SIGHUP).
 """
 import logging
@@ -47,7 +47,7 @@ def make_icon(size=256):
 
 
 class WaveHost:
-    """Hintergrundteil von LinDeck Wave: Mixer einrichten, Streams verteilen, Mikrofon-Filter."""
+    """Hintergrundteil von Linewave: Mixer einrichten, Streams verteilen, Mikrofon-Filter."""
 
     def __init__(self, cfg=None):
         if cfg is None:
@@ -132,7 +132,7 @@ class WaveHost:
 
 
 def main(hidden=False, tray=True, cfg=None):
-    """Startet LinDeck Wave oder holt das Fenster der laufenden Instanz nach vorne."""
+    """Startet Linewave oder holt das Fenster der laufenden Instanz nach vorne."""
     from .autoimport import adopt_session_env
     adopt_session_env()
     pid = app.running_instance(WAVE_APP_FILE)
@@ -142,7 +142,7 @@ def main(hidden=False, tray=True, cfg=None):
         if app._app_info(WAVE_APP_FILE).get("gui"):
             os.kill(pid, signal.SIGUSR1)
             return 0
-        log.info("LinDeck Wave läuft ohne Fenster – starte neu mit Fenster")
+        log.info("Linewave läuft ohne Fenster – starte neu mit Fenster")
         os.kill(pid, signal.SIGTERM)
         for _ in range(50):
             if not app._alive(pid):
@@ -152,9 +152,9 @@ def main(hidden=False, tray=True, cfg=None):
     root = None
     try:
         import tkinter as tk
-        root = tk.Tk(className="lindeck-wave")
+        root = tk.Tk(className="linewave")
     except Exception as e:  # noqa: BLE001
-        log.info("Keine grafische Oberfläche (%s) – LinDeck Wave läuft als Dienst", e)
+        log.info("Keine grafische Oberfläche (%s) – Linewave läuft als Dienst", e)
 
     host = WaveHost(cfg)
     app._write_app_info(root is not None, WAVE_APP_FILE)
@@ -167,7 +167,7 @@ def main(hidden=False, tray=True, cfg=None):
             signal.signal(signal.SIGINT, lambda *a: host.shutdown())
             host.loop()
             return 0
-        loop = threading.Thread(target=host.loop, name="lindeck-wave", daemon=True)
+        loop = threading.Thread(target=host.loop, name="linewave", daemon=True)
         loop.start()
         from .waveui import WaveWindow
         win = WaveWindow(root, host, hidden=hidden, tray=tray)

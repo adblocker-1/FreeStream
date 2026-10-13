@@ -52,7 +52,7 @@ KNOWN_APPS = {
     "winword.exe": ["libreoffice --writer", "onlyoffice-desktopeditors"],
     "excel.exe": ["libreoffice --calc", "onlyoffice-desktopeditors"],
     "powerpnt.exe": ["libreoffice --impress", "onlyoffice-desktopeditors"],
-    "wavelink.exe": ["lindeck-wavelink"],
+    "wavelink.exe": ["linewave"],
 }
 
 

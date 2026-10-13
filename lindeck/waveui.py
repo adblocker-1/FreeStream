@@ -1,4 +1,4 @@
-"""Fenster von LinDeck Wave: Mixer (Monitor-/Stream-Mix je Kanal) und Mikrofon.
+"""Fenster von Linewave: Mixer (Monitor-/Stream-Mix je Kanal) und Mikrofon.
 
 Alle Zugriffe auf PipeWire (pactl) und das Mikrofon (USB) laufen in einem
 eigenen Arbeits-Thread, damit das Fenster nie hängt. Ergebnisse werden im
@@ -61,7 +61,7 @@ class WaveWindow:
         self.strips = {}
         self._strip_ids = None
         self._stream_keys = None
-        root.title("LinDeck Wave")
+        root.title("Linewave")
         root.geometry("1140x660")
         root.minsize(900, 560)
         root.configure(background=COL["bg"])
@@ -79,8 +79,8 @@ class WaveWindow:
         if tray:
             from .app import Tray
             from .wavehost import make_icon
-            self.tray = Tray(self.request_show, self.request_quit, icon=make_icon(64), title="LinDeck Wave",
-                             ident="lindeck-wave", open_label="LinDeck Wave öffnen")
+            self.tray = Tray(self.request_show, self.request_quit, icon=make_icon(64), title="Linewave",
+                             ident="linewave", open_label="Linewave öffnen")
         if hidden:
             root.withdraw()
         self.refresh()
@@ -107,7 +107,7 @@ class WaveWindow:
         if not self._hidden_once:
             self._hidden_once = True
             from .autoimport import notify
-            notify("LinDeck Wave läuft weiter", "Mixer und Mikrofon bleiben aktiv. Öffnen über das Menü „LinDeck Wave“.")
+            notify("Linewave läuft weiter", "Mixer und Mikrofon bleiben aktiv. Öffnen über das Menü „Linewave“.")
 
     def quit_app(self):
         self.request_quit()
@@ -187,7 +187,7 @@ class WaveWindow:
         r = self.root
         head = ttk.Frame(r, style="Panel.TFrame", padding=(14, 10))
         head.pack(fill="x")
-        ttk.Label(head, text="LinDeck Wave", style="Head.TLabel").pack(side="left")
+        ttk.Label(head, text="Linewave", style="Head.TLabel").pack(side="left")
         self.mic_head = tk.StringVar(value="Mikrofon wird gesucht …")
         ttk.Label(head, textvariable=self.mic_head, style="Muted.TLabel").pack(side="left", padx=16)
         ttk.Button(head, text="Beenden", command=self.quit_app).pack(side="right")
@@ -212,7 +212,7 @@ class WaveWindow:
         ttk.Label(self.mix_off, style="Panel.TLabel", justify="left", wraplength=640,
                   text="Der Mixer ist nicht eingerichtet.\n\nWie in Elgato Wave Link bekommt jedes Programm einen "
                        "Kanal (System, Musik, Browser, Voice Chat, Spiel, Effekte) mit eigener Lautstärke für den "
-                       "Monitor-Mix (Kopfhörer) und den Stream-Mix (OBS/Discord: „Monitor of LinDeck Stream-Mix“)."
+                       "Monitor-Mix (Kopfhörer) und den Stream-Mix (OBS/Discord: „Monitor of Linewave Stream-Mix“)."
                   ).pack(anchor="w")
         ttk.Button(self.mix_off, text="Mixer einrichten", style="Accent.TButton",
                    command=lambda: self._mixer_enable(True)).pack(anchor="w", pady=14)
@@ -529,7 +529,7 @@ class WaveWindow:
             hint = "Alle Einstellungen werden direkt im Mikrofon gespeichert (wie mit Wave Link)."
         elif mic.get("source"):
             hint = ("Low Cut und Clipguard laufen als PipeWire-Filter. In Discord/OBS das Mikrofon "
-                    "„LinDeck Wave“ wählen." + ("" if st.get("limiter") else
+                    "„Linewave“ wählen." + ("" if st.get("limiter") else
                                                  " Clipguard braucht das Paket swh-plugins.")
                     + " LED-Steuerung gibt es nur beim Wave:3.")
         else:

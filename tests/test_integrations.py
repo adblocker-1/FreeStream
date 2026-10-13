@@ -6,6 +6,7 @@ oder Geräte sind nicht nötig. Der Node.js-Test läuft nur, wenn `node` da ist.
 import hashlib
 import base64
 import json
+import re
 import os
 import shutil
 import socket
@@ -420,10 +421,11 @@ class FakePactl:
         self.cmds.append(args)
         if args[0] == "load-module":
             self.next_id += 1
-            name = next((a.split("=", 2)[-1] for a in args if a.startswith("sink_input_properties=")), None)
+            name = next((re.search(r"linewave\.loop='([^']+)'", a).group(1) for a in args
+                         if a.startswith("sink_input_properties=")), None)
             if name:
                 self.inputs[str(self.next_id)] = {"index": str(self.next_id), "volume": 100, "mute": False,
-                                                  "props": {"media.name": name}}
+                                                  "props": {"linewave.loop": name, "media.name": "lesbar"}}
             return str(self.next_id)
         if args[0] == "get-default-sink":
             return self.default_sink
@@ -465,17 +467,20 @@ def test_mixer_setup_volumes_routing(pactl):
     mods = mx.setup()
     loads = [c for c in pactl.cmds if c[0] == "load-module"]
     assert len(mods) == len(loads) == 1 + 6 * 3 + 2
-    assert any("sink_name=lindeck_music" in " ".join(c) for c in loads)
-    assert any("sink=alsa_output.headphones" in c and "source=lindeck_music.monitor" in c for c in loads)
-    assert ["set-default-sink", "lindeck_system"] in pactl.cmds
+    assert any("sink_name=linewave_music" in " ".join(c) for c in loads)
+    # Kanalnamen mit Leerzeichen bleiben vollständig (sonst hieße jeder Kanal nur „Linewave“)
+    assert "sink_properties=\"device.description='Linewave Voice Chat' node.description='Linewave Voice Chat'\"" in [
+        x for c in loads for x in c]
+    assert any("sink=alsa_output.headphones" in c and "source=linewave_music.monitor" in c for c in loads)
+    assert ["set-default-sink", "linewave_system"] in pactl.cmds
     assert mx.get("mic", "monitor") == (100, True)  # eigenes Mikro nicht auf dem Kopfhörer
     mx.set_volume("music", "stream", 40)
     assert mx.get("music", "stream") == (40, False) and mx.get("music", "monitor") == (100, False)
     mx.change_volume("music", "both", -10)
     assert mx.get("music", "stream")[0] == 30 and mx.get("music", "monitor")[0] == 90
     assert mx.route_streams() == 2
-    assert ["move-sink-input", "7", "lindeck_music"] in pactl.cmds
-    assert ["move-sink-input", "8", "lindeck_game"] in pactl.cmds  # eigene Regel schlägt Standard
+    assert ["move-sink-input", "7", "linewave_music"] in pactl.cmds
+    assert ["move-sink-input", "8", "linewave_game"] in pactl.cmds  # eigene Regel schlägt Standard
     assert mx.route_streams() == 0  # jeder Stream nur einmal
     assert mx.set_monitor_output("Lautsprecher") == "alsa_output.speakers"
     # Aktion (auch Wave-Link-Plugin-Aktion aus einem Elgato-Profil)
