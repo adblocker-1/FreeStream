@@ -24,7 +24,12 @@ cat > "$PKG/usr/bin/lindeck" <<'EOF'
 export PYTHONPATH="/opt/lindeck:/opt/lindeck/vendor${PYTHONPATH:+:$PYTHONPATH}"
 exec /usr/bin/python3 -m lindeck "$@"
 EOF
-chmod 755 "$PKG/usr/bin/lindeck"
+cat > "$PKG/usr/bin/lindeck-wave" <<'EOF'
+#!/bin/sh
+export PYTHONPATH="/opt/lindeck:/opt/lindeck/vendor${PYTHONPATH:+:$PYTHONPATH}"
+exec /usr/bin/python3 -m lindeck wave-app "$@"
+EOF
+chmod 755 "$PKG/usr/bin/lindeck" "$PKG/usr/bin/lindeck-wave"
 
 cat > "$PKG/lib/udev/rules.d/70-lindeck.rules" <<'EOF'
 # Elgato Stream Deck: Zugriff für den angemeldeten Benutzer
@@ -61,11 +66,39 @@ Keywords=Stream Deck;Elgato;Streamdeck;Makro;
 StartupWMClass=Lindeck
 StartupNotify=true
 EOF
-# App-Symbol in mehreren Größen
+# Zweites Programm: LinDeck Wave (Mixer + Mikrofon), wie Elgato Wave Link
+cat > "$PKG/etc/xdg/autostart/lindeck-wave.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=LinDeck Wave
+Comment=Audio-Mixer und Wave-Mikrofon im Hintergrund starten
+Exec=/usr/bin/lindeck-wave --hidden
+Icon=lindeck-wave
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2
+EOF
+cat > "$PKG/usr/share/applications/lindeck-wave.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=LinDeck Wave
+GenericName=Audio-Mixer
+Comment=Wave-Link-Ersatz: Mixer (Monitor-/Stream-Mix) und Elgato-Wave-Mikrofon
+Exec=/usr/bin/lindeck-wave
+Icon=lindeck-wave
+Terminal=false
+Categories=AudioVideo;Audio;Mixer;
+Keywords=Wave Link;Elgato;Wave:3;Mixer;Mikrofon;PipeWire;
+StartupWMClass=Lindeck-wave
+StartupNotify=true
+EOF
+# App-Symbole in mehreren Größen
 for sz in 48 64 128 256; do
     mkdir -p "$PKG/usr/share/icons/hicolor/${sz}x${sz}/apps"
     python3 -c "import sys;sys.path.insert(0,'$ROOT');from lindeck.app import make_icon;make_icon($sz).save(sys.argv[1])" \
         "$PKG/usr/share/icons/hicolor/${sz}x${sz}/apps/lindeck.png"
+    python3 -c "import sys;sys.path.insert(0,'$ROOT');from lindeck.wavehost import make_icon;make_icon($sz).save(sys.argv[1])" \
+        "$PKG/usr/share/icons/hicolor/${sz}x${sz}/apps/lindeck-wave.png"
 done
 
 cat > "$PKG/DEBIAN/control" <<EOF
@@ -79,11 +112,12 @@ Depends: python3 (>= 3.10), python3-pil, python3-tk, python3-pil.imagetk, python
 Recommends: python3-pystray, gir1.2-ayatanaappindicator3-0.1, chromium | google-chrome-stable | firefox, mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, wireplumber, pipewire-pulse, nodejs, swh-plugins
 Description: Elgato-kompatible Stream-Deck-Software für Linux
  Steuert alle Elgato Stream Decks (Original, MK.2, Mini, XL, Neo, +, + XL,
- Studio, Pedal) und liest Profile der Elgato-App direkt ein. Profile,
- Tasten, Seiten und Ordner lassen sich mit dem grafischen Editor
- („LinDeck Editor“) direkt unter Linux bearbeiten. Elgato-Plugins (Node.js)
- laufen über den eingebauten Plugin-Host; OBS, Spotify, Discord und Wave Link
- sind für Linux umgesetzt, inklusive PipeWire-Mixer. Profile,
+ Studio, Pedal) und liest Profile der Elgato-App direkt ein. Zwei
+ Programme wie bei Elgato: „LinDeck“ für das Stream Deck (Profile,
+ Tasten, Plugins bearbeiten) und „LinDeck Wave“ als Wave-Link-Ersatz
+ (PipeWire-Mixer mit Monitor-/Stream-Mix, Elgato-Wave-Mikrofone).
+ Elgato-Plugins (Node.js) laufen über den eingebauten Plugin-Host; OBS,
+ Spotify, Discord und Wave Link sind für Linux umgesetzt. Profile,
  Backups und der Elgato-Installer werden automatisch aus Downloads,
  Desktop und USB-Sticks übernommen.
 EOF
@@ -107,6 +141,8 @@ if [ "$1" = "configure" ]; then
             sleep 1
             runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" HOME="$(getent passwd "$uid" | cut -d: -f6)" \
                 setsid -f /usr/bin/lindeck run >/dev/null 2>&1 < /dev/null || true
+            runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" HOME="$(getent passwd "$uid" | cut -d: -f6)" \
+                setsid -f /usr/bin/lindeck-wave --hidden >/dev/null 2>&1 < /dev/null || true
         done
     fi
 fi

@@ -17,13 +17,20 @@ Konfiguration (optional, config.json):
 """
 import json
 import logging
+import os
 import shutil
+import signal
 import subprocess
 from pathlib import Path
 
 from . import paths, system
 
 log = logging.getLogger("lindeck.wavemic")
+
+# True im Programm „LinDeck Wave“: es besitzt die Software-Filterkette. Andere
+# Prozesse (Stream-Deck-App, CLI) bitten es per SIGHUP, die Einstellungen neu zu laden.
+OWNER = False
+WAVE_APP_FILE = "lindeck-wave.json"
 
 PROCESSED = "lindeck_wave"
 LIMITER_PLUGIN = "fast_lookahead_limiter_1913"
@@ -254,6 +261,8 @@ class WaveMic:
                 except Exception as e:  # noqa: BLE001
                     log.warning("Wave:3 %s: %s", key, e)
             return False
+        if not OWNER and self._delegate():
+            return False
         lowcut, clip = bool(self.settings.get("lowcut")), bool(self.settings.get("clipguard"))
         if clip and not limiter_available():
             log.warning("Clipguard braucht den LADSPA-Limiter (Paket swh-plugins) – wird ausgelassen")
@@ -278,6 +287,24 @@ class WaveMic:
             time.sleep(0.5)
             subprocess.run(["pactl", "set-default-source", PROCESSED], capture_output=True)
         return True
+
+    def _delegate(self):
+        """Läuft „LinDeck Wave“, übernimmt es die Filterkette (Einstellungen liegen in wavemic.json)."""
+        from . import app
+        pid = app.running_instance(WAVE_APP_FILE)
+        if not pid:
+            return False
+        try:
+            os.kill(pid, signal.SIGHUP)
+            return True
+        except OSError:
+            return False
+
+    def reload(self):
+        """Einstellungen neu lesen und anwenden (z. B. nach Änderung durch die Stream-Deck-App)."""
+        self.settings = self._load()
+        self.version += 1
+        return self.apply()
 
     def stop(self):
         if self.running():

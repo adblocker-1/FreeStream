@@ -310,6 +310,31 @@ class Mixer:
                     break
         return moved
 
+    def streams(self):
+        """Wiedergabe-Streams der Programme mit ihrem Kanal (Kanal-id oder None = nicht im Mixer)."""
+        sinks = {b["index"]: b.get("name", "") for b in system._pactl_blocks("sinks")}
+        out = []
+        for b in system._pactl_blocks("sink-inputs"):
+            p = b["props"]
+            if p.get("media.name", "").startswith(PREFIX):
+                continue
+            sink = sinks.get(b.get("sink", ""), "")
+            cid = sink[len(PREFIX):] if sink.startswith(PREFIX) and sink != STREAM_SINK else None
+            out.append({"index": b["index"], "channel": cid, "sink": sink,
+                        "app": (p.get("application.name") or p.get("application.process.binary")
+                                or p.get("node.name") or f"Stream {b['index']}"),
+                        "key": (p.get("application.process.binary") or p.get("application.name") or "").lower()})
+        return out
+
+    def move_stream(self, index, cid, remember=""):
+        """Einen Stream in einen Kanal verschieben; mit remember (Programmname) dauerhaft merken."""
+        if cid not in {c["id"] for c in self.channels()}:
+            raise RuntimeError(f"Unbekannter Kanal: {cid}")
+        self.run(["move-sink-input", str(index), self.sink_name(cid)])
+        if remember and self.cfg is not None and hasattr(self.cfg, "save"):
+            self.cfg.data.setdefault("mixer", {}).setdefault("routes", {})[remember.lower()] = cid
+            self.cfg.save()
+
     def assign(self, app, cid):
         """Programm dauerhaft einem Kanal zuordnen (laufende Streams werden sofort verschoben)."""
         if not self.channel(cid):

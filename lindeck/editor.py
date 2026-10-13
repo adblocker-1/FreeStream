@@ -219,6 +219,19 @@ class EditorApp:
             from .autoimport import notify
             notify("LinDeck läuft weiter", "Das Stream Deck bleibt aktiv. Öffnen über das Menü „LinDeck“.")
 
+    def open_wave(self):
+        """Das zweite Programm „LinDeck Wave“ (Mixer + Mikrofon) öffnen."""
+        import shutil
+        import subprocess
+        import sys
+        cmd = [shutil.which("lindeck-wave")] if shutil.which("lindeck-wave") else [sys.executable, "-m", "lindeck",
+                                                                                   "wave-app"]
+        try:
+            subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+        except OSError as e:
+            messagebox.showerror("LinDeck Wave", f"Konnte LinDeck Wave nicht starten: {e}", parent=self.root)
+
     def quit_app(self):
         self.close_doc()
         if self.on_quit:
@@ -283,6 +296,7 @@ class EditorApp:
             ttk.Label(head, textvariable=self.device_status, foreground="#30d158").pack(side="left", padx=10)
             ttk.Button(head, text="Beenden", command=self.quit_app).pack(side="right")
             ttk.Button(head, text="Fenster schließen", command=self.hide).pack(side="right", padx=4)
+            ttk.Button(head, text="LinDeck Wave", command=self.open_wave).pack(side="right", padx=(4, 12))
         # --- Werkzeugleiste
         top = ttk.Frame(r, padding=(10, 8))
         top.pack(side="top", fill="x")
