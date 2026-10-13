@@ -6,8 +6,11 @@
     Filterkette nach (Hochpass + Limiter) und stellt das Ergebnis als
     Mikrofon „LinDeck Wave“ bereit – dieses in Discord/OBS auswählen.
     Clipguard braucht den LADSPA-Limiter aus dem Paket swh-plugins.
-  * LED-Farbe/-Helligkeit: Das Steuerprotokoll der Mikrofone ist nicht
-    öffentlich dokumentiert und wird daher nicht unterstützt.
+  * Wave:3: Gain, Stumm, Low Cut, Clipguard, LEDs aus/umgekehrt, Kopfhörer und
+    Mithören werden direkt im Mikrofon geschaltet (wave3hw.py) – dann ist keine
+    Software-Filterkette nötig. Eine LED-Farbe hat das Wave:3 nicht.
+  * Andere Wave-Modelle (Wave:1, Neo, XLR): Low Cut/Clipguard per Software,
+    LED-Steuerung nicht möglich (Protokoll nicht dokumentiert).
 
 Konfiguration (optional, config.json):
   "wave_mic": {"lowcut": false, "lowcut_freq": 80, "clipguard": false, "set_default": true}
@@ -109,6 +112,8 @@ class WaveMic:
         self.conf_file = paths.STATE_DIR / "wave-filter.conf"
         self.settings = self._load()
         self.version = 0
+        self._hw = None
+        self._hw_error = ""
 
     def _load(self):
         base = {"lowcut": False, "lowcut_freq": 80, "clipguard": False, "set_default": True}
@@ -124,6 +129,60 @@ class WaveMic:
         keep = {k: self.settings[k] for k in ("lowcut", "lowcut_freq", "clipguard")}
         self.state_file.write_text(json.dumps(keep), encoding="utf-8")
 
+    # ------------------------------------------------ Wave:3-Hardware
+    def hw(self):
+        """Wave3-Objekt, wenn ein Wave:3 angeschlossen und erreichbar ist, sonst None."""
+        from . import wave3hw
+        if self._hw is None and wave3hw.present():
+            try:
+                self._hw = wave3hw.Wave3()
+                self._hw_error = ""
+            except wave3hw.Wave3Error as e:
+                if str(e) != self._hw_error:
+                    log.warning("Wave:3: %s", e)
+                self._hw_error = str(e)
+        return self._hw
+
+    def _hw_do(self, fn):
+        from . import wave3hw
+        try:
+            return fn(self._hw)
+        except wave3hw.Wave3Error as e:
+            if self._hw:
+                self._hw.close()
+            self._hw = None
+            raise RuntimeError(str(e)) from e
+        finally:
+            self.version += 1
+
+    def is_on(self, key):
+        """Low Cut, Clipguard oder LED-Schalter: aktueller Zustand."""
+        if self.hw():
+            try:
+                return bool(self._hw.get()[key])
+            except Exception:  # noqa: BLE001
+                self._hw = None
+                return None
+        if key in ("leds_off", "leds_flip"):
+            return None
+        return bool(self.settings.get(key))
+
+    def hw_set(self, key, value):
+        if not self.hw():
+            raise RuntimeError("Nur mit Elgato Wave:3 möglich" + (f" ({self._hw_error})" if self._hw_error else ""))
+        return self._hw_do(lambda h: h.set(key, value))
+
+    def status(self):
+        st = {"source": find_source(), "hardware": False}
+        if self.hw():
+            try:
+                st.update(self._hw.get())
+                st["hardware"] = True
+                st["api"] = "%d.%d" % self._hw.api
+            except Exception as e:  # noqa: BLE001
+                st["error"] = str(e)
+        return st
+
     # ------------------------------------------------------- Gain / Mute
     def source(self):
         src = find_source()
@@ -132,19 +191,32 @@ class WaveMic:
         return src
 
     def gain(self):
+        """(Prozent, stumm). Beim Wave:3 ist 100 % = 40 dB Hardware-Gain."""
+        if self.hw():
+            try:
+                c = self._hw.get()
+                return int(round(c["gain"] * 2.5)), c["mute"]
+            except Exception:  # noqa: BLE001
+                self._hw = None
         return system.device_volume("source", self.source())
 
     def change_gain(self, delta):
+        if self.hw():
+            return self._hw_do(lambda h: h.change("gain", delta * 0.4))
         src = self.source()
         cur, _ = system.device_volume("source", src)
         system.device_set("source", src, cur + delta)
         self.version += 1
 
     def set_gain(self, pct):
+        if self.hw():
+            return self._hw_do(lambda h: h.set("gain", pct * 0.4))
         system.device_set("source", self.source(), pct)
         self.version += 1
 
     def toggle_mute(self):
+        if self.hw():
+            return self._hw_do(lambda h: h.toggle("mute"))
         system.device_mute("source", self.source(), "toggle")
         self.version += 1
 
@@ -156,6 +228,14 @@ class WaveMic:
         self.version += 1
 
     def toggle(self, key):
+        if self.hw():
+            new = self._hw_do(lambda h: h.toggle(key))
+            if key in ("lowcut", "clipguard"):
+                self.settings[key] = bool(new)
+                self._save()
+            return new
+        if key in ("leds_off", "leds_flip"):
+            raise RuntimeError("LED-Steuerung gibt es nur für das Elgato Wave:3")
         self.set(**{key: not self.settings.get(key)})
         return self.settings[key]
 
@@ -165,6 +245,15 @@ class WaveMic:
     def apply(self):
         """Filterkette passend zu den Einstellungen starten, neu starten oder beenden."""
         self.stop()
+        if self.hw():
+            # Wave:3: Low Cut und Clipguard schaltet das Mikrofon selbst
+            for key in ("lowcut", "clipguard"):
+                try:
+                    if bool(self._hw.get()[key]) != bool(self.settings.get(key)):
+                        self._hw.set(key, bool(self.settings.get(key)))
+                except Exception as e:  # noqa: BLE001
+                    log.warning("Wave:3 %s: %s", key, e)
+            return False
         lowcut, clip = bool(self.settings.get("lowcut")), bool(self.settings.get("clipguard"))
         if clip and not limiter_available():
             log.warning("Clipguard braucht den LADSPA-Limiter (Paket swh-plugins) – wird ausgelassen")
@@ -228,6 +317,11 @@ class WaveMicService:
         self._last = time.time()
         wants = self.mic.settings.get("lowcut") or self.mic.settings.get("clipguard")
         if not wants and not self.mic.running():
+            return
+        from . import wave3hw
+        if wave3hw.present():
+            if self.mic.running():
+                self.mic.stop()  # Wave:3 filtert selbst
             return
         present = bool(find_source())
         if present and wants and (not self.mic.running() or not self._present):

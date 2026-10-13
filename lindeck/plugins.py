@@ -19,15 +19,21 @@ Stream-Deck-App verbinden. LinDeck übernimmt diese Rolle:
     setSettings, getSettings, setGlobalSettings, getGlobalSettings, openUrl,
     logMessage, switchToProfile, setFeedback, setFeedbackLayout
 
-Property Inspectors (HTML-Einstellungsseiten) werden nicht angezeigt; die
-Einstellungen lassen sich im Editor als JSON bearbeiten.
+Property Inspector (HTML-Einstellungsseite eines Plugins): Der Host liefert
+die Seite über HTTP auf demselben Port aus (geschützt durch einen zufälligen
+Schlüssel), ruft wie die Elgato-App `connectElgatoStreamDeckSocket(...)` auf
+und vermittelt setSettings/getSettings/sendToPlugin/sendToPropertyInspector
+und die globalen Einstellungen. Der Editor öffnet die Seite in einem
+Browserfenster. Port und Schlüssel stehen in ~/.local/state/lindeck/plugin-host.json.
 """
 import base64
 import io
 import json
 import logging
 import os
+import mimetypes
 import platform
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -304,7 +310,7 @@ class PluginProcess:
 class PluginHost:
     """Schnittstelle zwischen Geräten (DeckController) und Elgato-Plugins."""
 
-    def __init__(self, daemon=None, plugins_dir=None, node=None, autostart=True):
+    def __init__(self, daemon=None, plugins_dir=None, node=None, autostart=True, publish=None):
         self.daemon = daemon
         self.plugins_dir = Path(plugins_dir or paths.PLUGINS_DIR)
         cfg_node = daemon.cfg.get("node_path") if daemon and getattr(daemon, "cfg", None) else None
@@ -312,9 +318,17 @@ class PluginHost:
         self.procs = {}           # Plugin-UUID -> PluginProcess
         self.contexts = {}        # Kontext -> Aktion
         self.visible = set()      # Kontexte, die gerade angezeigt werden
+        self.pis = {}             # Kontext -> Verbindung des Property Inspectors
+        self.token = secrets.token_urlsafe(18)
         self._lock = threading.RLock()
-        self.server = ws.Server(self._on_connect)
+        self.server = ws.Server(self._on_connect, on_http=self._on_http)
         self.port = self.server.port
+        self.publish = daemon is not None if publish is None else publish
+        if self.publish:
+            paths.STATE_DIR.mkdir(parents=True, exist_ok=True)
+            f = paths.STATE_DIR / "plugin-host.json"
+            f.write_text(json.dumps({"port": self.port, "token": self.token, "pid": os.getpid()}), encoding="utf-8")
+            os.chmod(f, 0o600)
         if autostart:
             self.sync()
 
@@ -368,7 +382,14 @@ class PluginHost:
         for p in self.procs.values():
             if p:
                 p.stop()
+        for conn in list(self.pis.values()):
+            conn.close()
         self.server.close()
+        if self.publish:
+            try:
+                (paths.STATE_DIR / "plugin-host.json").unlink()
+            except OSError:
+                pass
 
     # ---------------------------------------------------------- Kontexte
     def _proc_for(self, action):
@@ -394,6 +415,8 @@ class PluginHost:
 
     def _coords(self, action):
         ctrl, slot = self._ctrl(action), action.slot
+        if getattr(action, "sdk_coords", None):
+            return action.sdk_coords
         if not slot or ctrl is None:
             return {"column": 0, "row": 0}
         if slot[0] == "key":
@@ -471,14 +494,26 @@ class PluginHost:
                 p.send({"event": "deviceDidDisconnect", "device": ctrl.serial})
 
     # ------------------------------------------------- Plugin-Verbindung
+    def _origin_ok(self, headers):
+        """Nur Plugins (ohne Origin) und die eigenen Einstellungsseiten dürfen sich verbinden."""
+        origin = (headers or {}).get("origin")
+        return not origin or origin in (f"http://127.0.0.1:{self.port}", f"http://localhost:{self.port}")
+
     def _on_connect(self, conn):
+        if not self._origin_ok(conn.headers):
+            log.warning("WebSocket-Verbindung von fremder Herkunft abgelehnt: %s", conn.headers.get("origin"))
+            conn.close()
+            return
         try:
             first = json.loads(conn.recv())
         except (ws.Closed, ValueError):
             conn.close()
             return
+        if first.get("event") == "registerPropertyInspector":
+            self._pi_session(conn, first.get("uuid"))
+            return
         if first.get("event") != "registerPlugin":
-            conn.close()  # Property Inspector o. Ä. – nicht unterstützt
+            conn.close()
             return
         proc = self.procs.get(first.get("uuid"))
         if proc is None:
@@ -528,19 +563,21 @@ class PluginHost:
             a.ok()
         elif ev == "setSettings" and a is not None:
             self._store_settings(a, payload if isinstance(payload, dict) else {})
+            if ctx in self.pis:
+                self._pi_send(self.pis[ctx], self._settings_msg(a))
         elif ev == "getSettings" and a is not None:
             proc.send({"event": "didReceiveSettings", "action": a.uuid, "context": ctx,
                        "device": getattr(self._ctrl(a), "serial", ""),
                        "payload": {"settings": a.settings, "coordinates": self._coords(a),
                                    "isInMultiAction": a.slot is None, "state": a.state}})
         elif ev == "setGlobalSettings":
-            f = paths.PLUGIN_DATA_DIR / f"{proc.info.uuid}.json"
-            f.parent.mkdir(parents=True, exist_ok=True)
-            f.write_text(json.dumps(payload), encoding="utf-8")
+            self._set_global(proc, payload)
+            for c, pi in list(self.pis.items()):
+                pa = self.contexts.get(c)
+                if pa is not None and self._proc_for(pa) is proc:
+                    self._pi_send(pi, {"event": "didReceiveGlobalSettings", "payload": {"settings": payload}})
         elif ev == "getGlobalSettings":
-            f = paths.PLUGIN_DATA_DIR / f"{proc.info.uuid}.json"
-            data = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
-            proc.send({"event": "didReceiveGlobalSettings", "payload": {"settings": data}})
+            proc.send({"event": "didReceiveGlobalSettings", "payload": {"settings": self._get_global(proc)}})
         elif ev == "openUrl":
             url = payload.get("url") or ""
             if url.startswith(("http://", "https://", "mailto:")):
@@ -559,7 +596,12 @@ class PluginHost:
                     fb[k] = v
             a.sdk_feedback = fb
             a.redraw()
-        elif ev in ("setFeedbackLayout", "setTriggerDescription", "sendToPropertyInspector"):
+        elif ev == "sendToPropertyInspector":
+            pi = self.pis.get(ctx)
+            if pi is not None and a is not None:
+                self._pi_send(pi, {"event": "sendToPropertyInspector", "action": a.uuid, "context": ctx,
+                                   "payload": payload})
+        elif ev in ("setFeedbackLayout", "setTriggerDescription"):
             pass
         else:
             log.debug("Plugin %s: unbekannter Befehl %s", proc.info.name, ev)
@@ -580,3 +622,196 @@ class PluginHost:
         for ctrl in self._controllers():
             if (not device or ctrl.serial == device) and profile:
                 ctrl.switch_profile(profile)
+
+    # ------------------------------------------------ globale Einstellungen
+    @staticmethod
+    def _global_file(proc):
+        return paths.PLUGIN_DATA_DIR / f"{proc.info.uuid}.json"
+
+    def _set_global(self, proc, data):
+        f = self._global_file(proc)
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(json.dumps(data), encoding="utf-8")
+
+    def _get_global(self, proc):
+        f = self._global_file(proc)
+        try:
+            return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        except ValueError:
+            return {}
+
+    def _settings_msg(self, a):
+        return {"event": "didReceiveSettings", "action": a.uuid, "context": self.context(a),
+                "device": getattr(self._ctrl(a), "serial", ""),
+                "payload": {"settings": a.settings, "coordinates": self._coords(a),
+                            "isInMultiAction": a.slot is None and not getattr(a, "sdk_coords", None),
+                            "state": a.state}}
+
+    # ---------------------------------------------- Property Inspector
+    @staticmethod
+    def _pi_send(conn, msg):
+        try:
+            conn.send(json.dumps(msg))
+        except ws.Closed:
+            pass
+
+    def pi_path(self, action):
+        info = plugin_for_action(action.uuid, self.plugins_dir)
+        if not info:
+            return None, None
+        meta = info.actions.get(action.uuid) or {}
+        rel = meta.get("PropertyInspectorPath") or info.manifest.get("PropertyInspectorPath")
+        return info, rel
+
+    def open_context(self, profile_id, page_uuid, slot):
+        """Aktion aus einem Profil für die Einstellungsseite bereitstellen (auch wenn sie nicht sichtbar ist)."""
+        from . import actions as A
+        from .profiles import ProfileStore
+        store = getattr(self.daemon, "store", None) or ProfileStore()
+        prof = store.get(profile_id)
+        if prof is None:
+            store.reload()
+            prof = store.get(profile_id)
+        if prof is None:
+            raise LookupError("Profil nicht gefunden")
+        prof._page_cache.clear()
+        page = prof.page(page_uuid)
+        if page is None:
+            raise LookupError("Seite nicht gefunden")
+        kind, _, pos = slot.partition(":")
+        if kind == "dial":
+            data, coords = page.encoders.get(int(pos)), {"column": int(pos), "row": 0}
+        else:
+            c, r = (int(x) for x in pos.split(","))
+            data, coords = page.keypad.get((c, r)), {"column": c, "row": r}
+        if not data:
+            raise LookupError("Keine Aktion auf diesem Platz")
+        # Läuft die Aktion schon auf einem Gerät? Dann denselben Kontext nehmen
+        with self._lock:
+            for ctx, a in self.contexts.items():
+                pg = getattr(a, "page", None)
+                if pg is not None and Path(pg.dir) == Path(page.dir) and a.uuid == data.get("UUID") and (
+                        (data.get("ActionID") and a.data.get("ActionID") == data.get("ActionID")) or a.data == data):
+                    return a
+        a = A.create_action(data, page, A.Context(None, getattr(self.daemon, "cfg", None) or {}, None, None))
+        a.slot = ("dial", int(pos)) if kind == "dial" else None
+        a.sdk_coords = coords
+        a.sdk_detached = True
+        self.context(a)
+        return a
+
+    def _on_http(self, path, headers):
+        url = urllib.parse.urlsplit(path)
+        parts = [urllib.parse.unquote(x) for x in url.path.split("/") if x]
+        q = dict(urllib.parse.parse_qsl(url.query))
+        if len(parts) < 2 or not secrets.compare_digest(parts[1], self.token):
+            return 403, "text/plain; charset=utf-8", b"Zugriff verweigert", {}
+        if parts[0] == "pi":
+            try:
+                a = self.open_context(q.get("profile", ""), q.get("page", ""), q.get("slot", ""))
+            except (LookupError, ValueError) as e:
+                return 404, "text/plain; charset=utf-8", str(e).encode(), {}
+            info, rel = self.pi_path(a)
+            if not rel:
+                return 404, "text/plain; charset=utf-8", "Dieses Plugin hat keine Einstellungsseite".encode(), {}
+            loc = f"/plugin/{self.token}/{urllib.parse.quote(info.uuid)}/{urllib.parse.quote(rel)}" \
+                  f"?ctx={self.context(a)}"
+            return 302, "text/plain", b"", {"Location": loc}
+        if parts[0] == "plugin" and len(parts) >= 4:
+            info = installed(self.plugins_dir).get(parts[2])
+            if not info:
+                return 404, "text/plain; charset=utf-8", b"Plugin nicht installiert", {}
+            base = info.dir.resolve()
+            f = (base / "/".join(parts[3:])).resolve()
+            if base not in f.parents or not f.is_file():
+                return 404, "text/plain; charset=utf-8", b"Datei nicht gefunden", {}
+            body = f.read_bytes()
+            ctype = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
+            if f.suffix.lower() in (".html", ".htm") and q.get("ctx") in self.contexts:
+                body = self._inject(body, info, self.contexts[q["ctx"]])
+                ctype = "text/html; charset=utf-8"
+            elif ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
+                ctype += "; charset=utf-8"
+            return 200, ctype, body, {}
+        return 404, "text/plain; charset=utf-8", b"Nicht gefunden", {}
+
+    def _inject(self, html: bytes, info, a) -> bytes:
+        ctx = self.context(a)
+        action_info = {"action": a.uuid, "context": ctx, "device": getattr(self._ctrl(a), "serial", ""),
+                       "payload": {"settings": a.settings, "coordinates": self._coords(a),
+                                   "controller": "Encoder" if a.slot and a.slot[0] == "dial" else "Keypad",
+                                   "state": a.state}}
+        def js(value):
+            # JSON-Text als JS-String; "</" maskieren, damit nichts aus dem <script> ausbrechen kann
+            return json.dumps(json.dumps(value)).replace("</", "<\\/")
+        boot = ("<script>/* LinDeck: Start wie in der Elgato-App */(function(){"
+                f"var port={self.port},uuid={json.dumps(ctx)},info={js(self.info_for(info))},ai={js(action_info)};"
+                "function go(){if(typeof window.connectElgatoStreamDeckSocket==='function'){"
+                "window.connectElgatoStreamDeckSocket(port,uuid,'registerPropertyInspector',info,ai);}"
+                "else{console.error('connectElgatoStreamDeckSocket fehlt');}}"
+                "if(document.readyState==='complete'){setTimeout(go,0);}else{window.addEventListener('load',go);}"
+                "})();</script>")
+        text = html.decode("utf-8", errors="replace")
+        title = f"<title>{info.name} – LinDeck</title>" if "<title>" not in text.lower() else ""
+        idx = text.lower().rfind("</body>")
+        text = (text[:idx] + boot + text[idx:]) if idx >= 0 else text + boot
+        if title:
+            h = text.lower().find("<head>")
+            text = text[:h + 6] + title + text[h + 6:] if h >= 0 else title + text
+        return text.encode("utf-8")
+
+    def _pi_session(self, conn, ctx):
+        a = self.contexts.get(ctx)
+        proc = self._proc_for(a) if a is not None else None
+        if a is None or proc is None:
+            conn.close()
+            return
+        old = self.pis.get(ctx)
+        if old is not None:
+            old.close()
+        self.pis[ctx] = conn
+        detached = getattr(a, "sdk_detached", False)
+        if detached and ctx not in self.visible:
+            self._event("willAppear", a)
+        proc.send({"event": "propertyInspectorDidAppear", "action": a.uuid, "context": ctx,
+                   "device": getattr(self._ctrl(a), "serial", "")})
+        try:
+            while True:
+                try:
+                    msg = json.loads(conn.recv())
+                except ValueError:
+                    continue
+                try:
+                    self._pi_handle(proc, a, ctx, conn, msg)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("Einstellungsseite %s: %s", proc.info.name, e)
+        except ws.Closed:
+            pass
+        if self.pis.get(ctx) is conn:
+            del self.pis[ctx]
+        proc.send({"event": "propertyInspectorDidDisappear", "action": a.uuid, "context": ctx,
+                   "device": getattr(self._ctrl(a), "serial", "")})
+        if detached and ctx not in self.visible:
+            self._event("willDisappear", a)
+
+    def _pi_handle(self, proc, a, ctx, conn, msg):
+        ev = msg.get("event")
+        payload = msg.get("payload")
+        if ev == "setSettings":
+            self._store_settings(a, payload if isinstance(payload, dict) else {})
+            proc.send(self._settings_msg(a))
+        elif ev == "getSettings":
+            self._pi_send(conn, self._settings_msg(a))
+        elif ev == "sendToPlugin":
+            proc.send({"event": "sendToPlugin", "action": a.uuid, "context": ctx, "payload": payload or {}})
+        elif ev == "setGlobalSettings":
+            self._set_global(proc, payload or {})
+            proc.send({"event": "didReceiveGlobalSettings", "payload": {"settings": payload or {}}})
+        elif ev == "getGlobalSettings":
+            self._pi_send(conn, {"event": "didReceiveGlobalSettings", "payload": {"settings": self._get_global(proc)}})
+        elif ev == "openUrl":
+            url = (payload or {}).get("url") or ""
+            if url.startswith(("http://", "https://", "mailto:")):
+                system.run_bg(["xdg-open", url])
+        elif ev == "logMessage":
+            log.info("[%s Einstellungen] %s", proc.info.name, (payload or {}).get("message"))

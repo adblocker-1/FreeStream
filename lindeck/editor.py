@@ -484,6 +484,53 @@ class EditorApp:
         self.btn["undo"].state(["!disabled" if self.doc.undo_stack else "disabled"])
         self.btn["redo"].state(["!disabled" if self.doc.redo_stack else "disabled"])
 
+    # ============================================== Plugin-Einstellungsseite
+    def open_property_inspector(self, page_uuid, slot):
+        """Einstellungsseite (Property Inspector) eines Plugins über den laufenden Dienst öffnen."""
+        import os
+        import shutil
+        import subprocess
+        import urllib.parse
+        import webbrowser
+        self.save_now()
+        try:
+            info = json.loads((paths.STATE_DIR / "plugin-host.json").read_text(encoding="utf-8"))
+            os.kill(int(info["pid"]), 0)
+        except (OSError, ValueError, KeyError):
+            messagebox.showinfo("Einstellungsseite", "Dafür muss der LinDeck-Dienst laufen (Menü: „LinDeck“ "
+                                "oder `lindeck run`), weil er die Plugins ausführt.", parent=self.root)
+            return
+        pos = f"key:{slot[1]},{slot[2]}" if slot[0] == "key" else f"dial:{slot[1]}"
+        q = urllib.parse.urlencode({"profile": self.doc.id, "page": page_uuid, "slot": pos})
+        url = f"http://127.0.0.1:{info['port']}/pi/{info['token']}?{q}"
+        for exe in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "brave-browser",
+                    "microsoft-edge"):
+            if shutil.which(exe):
+                subprocess.Popen([exe, f"--app={url}", "--window-size=460,720", "--new-window"],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                break
+        else:
+            webbrowser.open(url)
+        self.status("Einstellungsseite geöffnet – Änderungen werden automatisch übernommen")
+        self._watch_external()
+
+    def _watch_external(self):
+        if getattr(self, "_watch_job", None) or not self.doc:
+            return
+
+        def poll():
+            self._watch_job = None
+            if not self.doc:
+                return
+            if not self._save_job and self.doc.reload_external():
+                self._img_cache.clear()
+                self.redraw()
+                focus = self.root.focus_get()
+                if not (focus and focus.winfo_class() in TEXT_WIDGETS):
+                    self.build_inspector()
+            self._watch_job = self.root.after(1500, poll)
+        self._watch_job = self.root.after(1500, poll)
+
     # ================================================================ Seiten
     @property
     def page_uuid(self):
@@ -961,6 +1008,10 @@ class ActionForm:
         if self.data.get("UUID") == C.FOLDER_UUID and self.appearance:
             ttk.Button(btns, text="Ordner öffnen", command=lambda: self.app.open_folder(
                 (self.data.get("Settings") or {}).get("ProfileUUID"))).pack(side="left", padx=2)
+        if self.appearance and self._has_pi():
+            ttk.Button(btns, text="Einstellungsseite…", style="Accent.TButton",
+                       command=lambda: self.app.open_property_inspector(self.page_uuid, self.slot)
+                       ).pack(side="left", padx=2)
         ttk.Button(btns, text="Einstellungen (JSON)…", command=self.edit_json).pack(side="left", padx=2)
         if self.appearance:
             ttk.Button(btns, text="Löschen", command=self.app.delete_selected).pack(side="left", padx=2)
@@ -984,6 +1035,14 @@ class ActionForm:
                 self.build_field(grid, row, fld)
         if self.type and self.type.children:
             self.build_children(f)
+
+    def _has_pi(self):
+        from . import plugins
+        info = plugins.plugin_for_action(self.data.get("UUID", ""))
+        if not info or not info.runnable:
+            return False
+        meta = info.actions.get(self.data.get("UUID", "")) or {}
+        return bool(meta.get("PropertyInspectorPath") or info.manifest.get("PropertyInspectorPath"))
 
     def _section(self, f, text):
         ttk.Label(f, text=text, style="Section.TLabel").pack(anchor="w", pady=(14, 4))

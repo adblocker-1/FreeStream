@@ -499,6 +499,25 @@ class ProfileDoc:
         """Nach direkter Bearbeitung eines Aktions-Dicts (vorher checkpoint() aufrufen)."""
         self._changed()
 
+    def reload_external(self):
+        """Seiten neu einlesen, die außerhalb des Editors geändert wurden (z. B. von einer Plugin-
+        Einstellungsseite). Seiten mit ungespeicherten Änderungen im Editor bleiben unberührt."""
+        changed = []
+        for k, p in self.pages.items():
+            f = p.dir / "manifest.json"
+            try:
+                disk = read_json(f)
+            except (OSError, ValueError):
+                continue
+            text = json.dumps(disk, sort_keys=True)
+            if text == self._disk.get(k):
+                continue
+            if json.dumps(p.manifest, sort_keys=True) == self._disk.get(k):
+                p.manifest = disk
+                self._disk[k] = text
+                changed.append(p.uuid)
+        return changed
+
     # ================================================================ Undo
     def _snapshot(self):
         return (copy.deepcopy(self.manifest),

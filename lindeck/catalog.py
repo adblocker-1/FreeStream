@@ -243,9 +243,11 @@ CATALOG += [
                controllers=(KEY, DIAL),
                fields=[Field("choice", "function", "Funktion", [("mute", "stumm umschalten"), ("gain", "Gain +"),
                                                                ("lowcut", "Low Cut ein/aus"),
-                                                               ("clipguard", "Clipguard ein/aus")]),
+                                                               ("clipguard", "Clipguard ein/aus"),
+                                                               ("leds", "LEDs ein/aus (Wave:3)"),
+                                                               ("ledsflip", "LEDs umkehren (Wave:3)")]),
                        Field("int", "step", "Schrittweite Gain (%)", min=1, max=20)],
-               description="Gain, Stumm, Low Cut, Clipguard (Dial: Gain)"),
+               description="Gain, Stumm, Low Cut, Clipguard, LEDs (Dial: Gain)"),
 ]
 
 BY_UUID = {a.uuid: a for a in CATALOG}

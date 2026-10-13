@@ -313,32 +313,58 @@ def cmd_wave(args):
     from . import wavemic
     from .config import Config
     mic = wavemic.WaveMic(Config())
+    on = (args.args[0] if args.args else "on").lower() in ("on", "an", "1", "true", "ein")
     try:
         if args.action in ("lowcut", "clipguard"):
-            on = (args.args[0] if args.args else "on").lower() in ("on", "an", "1", "true", "ein")
+            if mic.hw():
+                mic.hw_set(args.action, on)
+                print(f"{args.action}: {'an' if on else 'aus'} (direkt im Wave:3)")
+                return 0
             kw = {args.action: on}
             if args.action == "lowcut" and len(args.args) > 1:
                 kw["lowcut_freq"] = int(args.args[1])
             mic.settings.update(kw)
             mic._save()
             _signal_daemon()
-            print(f"{args.action}: {'an' if on else 'aus'} (wird vom LinDeck-Dienst angewendet)")
+            print(f"{args.action}: {'an' if on else 'aus'} (Software-Filter, wird vom LinDeck-Dienst angewendet)")
             if args.action == "clipguard" and on and not wavemic.limiter_available():
                 print("Hinweis: Clipguard braucht das Paket swh-plugins")
+        elif args.action == "leds":
+            mic.hw_set("leds_off", not on)
+        elif args.action == "flip":
+            mic.hw_set("leds_flip", on)
+        elif args.action == "headphone":
+            mic.hw_set("headphone_volume", float(args.args[0]))
+        elif args.action == "monitor":
+            mic.hw_set("direct_monitor", float(args.args[0]))
         elif args.action == "gain":
             mic.set_gain(int(args.args[0]))
         elif args.action == "mute":
             mic.toggle_mute()
         else:
-            src = wavemic.find_source()
-            if not src:
+            st = mic.status()
+            if not st.get("source") and not st.get("hardware"):
                 print("Kein Elgato-Wave-Mikrofon gefunden")
                 return 1
-            vol, mute = mic.gain()
-            s = mic.settings
-            print(f"Mikrofon:  {src}\nGain:      {vol}%{' (stumm)' if mute else ''}\n"
-                  f"Low Cut:   {str(s.get('lowcut_freq')) + ' Hz' if s.get('lowcut') else 'aus'}\n"
-                  f"Clipguard: {'an' if s.get('clipguard') else 'aus'}\nLED:       nicht unterstützt")
+            print(f"Mikrofon:   {st.get('source') or '–'}")
+            if st.get("hardware"):
+                print(f"Wave:3 (Firmware-API {st['api']}) – Einstellungen direkt im Mikrofon")
+                print(f"Gain:       {st['gain']:.1f} dB{' (stumm)' if st['mute'] else ''}")
+                print(f"Low Cut:    {'an' if st['lowcut'] else 'aus'}")
+                print(f"Clipguard:  {'an' if st['clipguard'] else 'aus'}")
+                print(f"Kopfhörer:  {st['headphone_volume']:.1f} dB{' (stumm)' if st['headphone_mute'] else ''}")
+                print(f"Mithören:   {st['direct_monitor']:.0f} % Mikrofon")
+                print(f"LEDs:       {'aus' if st['leds_off'] else 'an'}"
+                      + (f", umgekehrt: {'ja' if st.get('leds_flip') else 'nein'}" if 'leds_flip' in st else ""))
+            else:
+                if st.get("error"):
+                    print(f"Wave:3-Steuerung nicht möglich: {st['error']}")
+                vol, mute = mic.gain()
+                s = mic.settings
+                print(f"Gain:       {vol}%{' (stumm)' if mute else ''}")
+                print(f"Low Cut:    {str(s.get('lowcut_freq')) + ' Hz (Software)' if s.get('lowcut') else 'aus'}")
+                print(f"Clipguard:  {'an (Software)' if s.get('clipguard') else 'aus'}")
+                print("LEDs:       nur beim Wave:3 steuerbar")
     except (RuntimeError, ValueError, IndexError) as e:
         print(f"Fehler: {e}")
         return 1
@@ -475,9 +501,12 @@ def main(argv=None):
                                            "assign <Programm> <Kanal> · output [Gerät]")
     s.set_defaults(fn=cmd_mixer)
 
-    s = sub.add_parser("wave", help="Elgato-Wave-Mikrofon: status, gain, mute, lowcut, clipguard")
-    s.add_argument("action", nargs="?", default="status", choices=["status", "gain", "mute", "lowcut", "clipguard"])
-    s.add_argument("args", nargs="*", help="gain <Prozent> · lowcut on|off [80|120] · clipguard on|off")
+    s = sub.add_parser("wave", help="Elgato-Wave-Mikrofon: status, gain, mute, lowcut, clipguard, leds, flip, "
+                                    "headphone, monitor")
+    s.add_argument("action", nargs="?", default="status",
+                   choices=["status", "gain", "mute", "lowcut", "clipguard", "leds", "flip", "headphone", "monitor"])
+    s.add_argument("args", nargs="*", help="gain <Prozent> · lowcut on|off [80|120] · clipguard on|off · "
+                                           "leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100>")
     s.set_defaults(fn=cmd_wave)
 
     s = sub.add_parser("obs", help="Verbindung zu OBS testen")

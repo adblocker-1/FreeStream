@@ -75,8 +75,8 @@ Section: utils
 Priority: optional
 Architecture: all
 Maintainer: Felix <noreply@localhost>
-Depends: python3 (>= 3.10), python3-pil, python3-tk, python3-pil.imagetk, python3-evdev, python3-cairosvg, libhidapi-libusb0, fonts-dejavu-core, xdg-utils, xdg-user-dirs, libnotify-bin, wl-clipboard, xclip, playerctl, pulseaudio-utils, msitools, udev, kmod
-Recommends: mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, wireplumber, pipewire-pulse, nodejs, swh-plugins
+Depends: python3 (>= 3.10), python3-pil, python3-tk, python3-pil.imagetk, python3-evdev, python3-cairosvg, libhidapi-libusb0, libusb-1.0-0, fonts-dejavu-core, xdg-utils, xdg-user-dirs, libnotify-bin, wl-clipboard, xclip, playerctl, pulseaudio-utils, msitools, udev, kmod
+Recommends: chromium | google-chrome-stable | firefox, mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, wireplumber, pipewire-pulse, nodejs, swh-plugins
 Description: Elgato-kompatible Stream-Deck-Software für Linux
  Steuert alle Elgato Stream Decks (Original, MK.2, Mini, XL, Neo, +, + XL,
  Studio, Pedal) und liest Profile der Elgato-App direkt ein. Profile,

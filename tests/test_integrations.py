@@ -592,3 +592,220 @@ def test_selftest_with_simulated_presses(xdg):
     deck.close()
     assert passed(res), res
     assert "Stream Deck +" in report_text(res)
+
+
+# ==========================================================================
+# Wave:3-Hardware (Protokoll siehe lindeck/wave3hw.py)
+# ==========================================================================
+class FakeWave3:
+    """Simuliert die Control-Transfers des Wave:3 (Block aus der veröffentlichten Messung)."""
+
+    def __init__(self, api=(5, 4), misbehave=False):
+        self.block = bytearray.fromhex("00 28 00 00 00 01 01 80 e8 00 00 00 01 00 00 01")
+        self.api, self.misbehave, self.writes = api, misbehave, []
+        if api < (5, 3):
+            self.block = self.block[:14]
+
+    def control(self, req_type, req, value, data):
+        from lindeck import wave3hw as W
+        if req_type == W.RT_IN and value == W.SEL_VERSION:
+            return bytes(self.api)
+        if req_type == W.RT_IN:
+            return bytes(self.block[:data])
+        self.writes.append(bytes(data))
+        self.block = bytearray(data)
+        if self.misbehave:
+            self.block[2] ^= 0xFF  # reserviertes Byte verändert sich unerwartet
+        return b""
+
+    def close(self):
+        pass
+
+
+def test_wave3_decode_and_write():
+    from lindeck import wave3hw as W
+    dev = W.Wave3(FakeWave3())
+    st = dev.get()
+    assert st["gain"] == 40.0 and st["headphone_volume"] == -23.5 and st["lowcut"] and st["clipguard"]
+    assert st["leds_off"] is False and st["gain_lock"] is True and st["dial_mode"] == 1
+    assert dev.set("leds_off", True) is True
+    assert dev.t.block[13] == 1 and len(dev.t.writes[-1]) == 16
+    assert dev.set("gain", 12.3) == 12.5  # auf 0,5 dB gerastert
+    assert bytes(dev.t.block[0:2]) == bytes.fromhex("800c")
+    assert dev.set("headphone_volume", -99) == -60.0  # begrenzt
+    assert dev.toggle("lowcut") is False and dev.t.block[6] == 0
+    assert bytes(dev.t.block[2:4]) == b"\x00\x00"  # reservierte Bytes bleiben erhalten
+
+
+def test_wave3_rollback_and_old_firmware():
+    from lindeck import wave3hw as W
+    bad = W.Wave3(FakeWave3(misbehave=True))
+    original = bytes(bad.t.block)
+    with pytest.raises(W.Wave3Error):
+        bad.set("mute", True)
+    assert bad.t.writes[-1] == original  # alter Block zurückgeschrieben
+    old = W.Wave3(FakeWave3(api=(5, 2)))
+    assert old.config_len() == 14 and old.set("mute", True) is True
+    with pytest.raises(W.Wave3Error):
+        old.set("leds_flip", True)
+
+
+def test_wavemic_uses_wave3_hardware(monkeypatch, xdg):
+    from lindeck import system, wave3hw, wavemic
+    monkeypatch.setattr(wave3hw, "present", lambda: True)
+    monkeypatch.setattr(wave3hw, "USBTransport", lambda: FakeWave3())
+    monkeypatch.setattr(system, "_pactl_blocks", lambda what: [])
+    wavemic._instance.clear()
+    mic = wavemic.instance({})
+    assert mic.gain() == (100, False)
+    mic.change_gain(-50)  # −20 dB
+    assert mic._hw.get()["gain"] == 20.0
+    assert mic.toggle("lowcut") is False and mic.settings["lowcut"] is False
+    assert mic.apply() is False and not mic.running()  # keine Software-Filterkette nötig
+    led, _ = make_action({"UUID": "com.lindeck.wavemic.control", "Settings": {"function": "leds"}}, {})
+    assert led.active() is True
+    led.key_down()
+    assert mic._hw.get()["leds_off"] is True and led.active() is False
+
+
+def test_wavemic_leds_need_wave3(monkeypatch, xdg):
+    from lindeck import wave3hw, wavemic
+    monkeypatch.setattr(wave3hw, "present", lambda: False)
+    mic = wavemic.WaveMic({})
+    with pytest.raises(RuntimeError):
+        mic.toggle("leds_off")
+
+
+# ==========================================================================
+# Property Inspector (Einstellungsseite eines Plugins)
+# ==========================================================================
+PI_HTML = """<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>
+<input id="value"><div id="echo"></div>
+<script>
+function connectElgatoStreamDeckSocket(port, uuid, reg, info, actionInfo) {
+  const ai = JSON.parse(actionInfo), i = JSON.parse(info);
+  document.getElementById("value").value = ai.payload.settings.n || 0;
+  const ws = new WebSocket("ws://127.0.0.1:" + port);
+  window.piSocket = ws;
+  ws.onopen = () => { ws.send(JSON.stringify({event: reg, uuid}));
+                      ws.send(JSON.stringify({event: "setSettings", context: uuid, payload: {n: 42, from: i.application.platform}}));
+                      ws.send(JSON.stringify({event: "sendToPlugin", action: ai.action, context: uuid, payload: {ping: 1}})); };
+  ws.onmessage = (m) => { const e = JSON.parse(m.data);
+    if (e.event === "sendToPropertyInspector") document.getElementById("echo").textContent = JSON.stringify(e.payload); };
+}
+</script></body></html>"""
+
+PI_PLUGIN = r'''
+import json, sys
+sys.path.insert(0, %r)
+from lindeck import ws
+a = sys.argv
+c = ws.connect("127.0.0.1", int(a[a.index("-port") + 1]))
+c.send(json.dumps({"event": a[a.index("-registerEvent") + 1], "uuid": a[a.index("-pluginUUID") + 1]}))
+while True:
+    e = json.loads(c.recv())
+    if e["event"] == "sendToPlugin":
+        c.send(json.dumps({"event": "sendToPropertyInspector", "context": e["context"], "payload": {"pong": e["payload"]}}))
+    elif e["event"] == "didReceiveSettings":
+        c.send(json.dumps({"event": "setTitle", "context": e["context"], "payload": {"title": "n=%%s" %% e["payload"]["settings"].get("n")}}))
+'''
+
+
+@pytest.fixture
+def pi_setup(xdg, tmp_path):
+    from lindeck import editdoc, plugins
+    from lindeck.profiles import ProfileStore
+    repo = str(Path(__file__).resolve().parents[1])
+    # PropertyInspectorPath auf Plugin-Ebene (gilt für alle Aktionen des Plugins)
+    zf = _make_plugin(tmp_path, "com.test.pi", PI_PLUGIN % repo, {"CodePath": "x.exe", "CodePathLin": "bin/plugin",
+                                                                   "PropertyInspectorPath": "pi/index.html"})
+    with zipfile.ZipFile(zf, "a") as z:
+        z.writestr("com.test.pi.sdPlugin/pi/index.html", PI_HTML)
+    plugins.install(zf)
+    store_root = xdg / "data" / "profiles"
+    store_root.mkdir(parents=True)
+    root = editdoc.create_profile("PI", "20GBA9901", store_root)
+    doc = editdoc.ProfileDoc(root)
+    page = doc.page_ids[0]
+    doc.place(page, ("key", 2, 1), "com.test.pi.act")
+    doc.save()
+
+    class Daemon:
+        controllers = {}
+        cfg = {}
+        store = ProfileStore(store_root)
+    host = plugins.PluginHost(Daemon(), publish=True)
+    assert wait_for(lambda: host.procs["com.test.pi"].conn is not None)
+    yield host, doc, page
+    host.stop()
+
+
+def _get(url):
+    import urllib.error
+    import urllib.request
+    try:
+        with urllib.request.urlopen(url, timeout=5) as r:
+            return r.status, r.read().decode()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()
+
+
+def test_property_inspector_protocol(pi_setup, xdg):
+    import urllib.parse
+    host, doc, page = pi_setup
+    info = json.loads((xdg / "state" / "plugin-host.json").read_text())
+    assert info["port"] == host.port and info["token"] == host.token
+    q = urllib.parse.urlencode({"profile": doc.id, "page": page, "slot": "key:2,1"})
+    status, html = _get(f"http://127.0.0.1:{host.port}/pi/{host.token}?{q}")
+    assert status == 200, html
+    assert "connectElgatoStreamDeckSocket(port,uuid,'registerPropertyInspector'" in html
+    assert _get(f"http://127.0.0.1:{host.port}/pi/falsch?{q}")[0] == 403
+    assert _get(f"http://127.0.0.1:{host.port}/plugin/{host.token}/com.test.pi/../../../etc/passwd")[0] == 404
+    ctx = next(iter(host.contexts))
+    action = host.contexts[ctx]
+    # fremde Webseite darf sich nicht verbinden
+    evil = ws.connect("127.0.0.1", host.port, headers={"Origin": "http://evil.example"})
+    with pytest.raises(ws.Closed):
+        evil.recv()
+    pi = ws.connect("127.0.0.1", host.port, headers={"Origin": f"http://127.0.0.1:{host.port}"})
+    pi.send(json.dumps({"event": "registerPropertyInspector", "uuid": ctx}))
+    pi.send(json.dumps({"event": "setSettings", "context": ctx, "payload": {"n": 7}}))
+    pi.send(json.dumps({"event": "sendToPlugin", "action": action.uuid, "context": ctx, "payload": {"ping": 1}}))
+    msg = json.loads(pi.recv())
+    assert msg["event"] == "sendToPropertyInspector" and msg["payload"] == {"pong": {"ping": 1}}
+    assert wait_for(lambda: action.title() == "n=7")  # Plugin hat didReceiveSettings bekommen
+    pi.send(json.dumps({"event": "getSettings", "context": ctx}))
+    assert json.loads(pi.recv())["payload"]["settings"] == {"n": 7}
+    # gespeichert und vom Editor übernommen
+    saved = json.loads((doc.page(page).dir / "manifest.json").read_text())
+    assert saved["Controllers"][0]["Actions"]["2,1"]["Settings"] == {"n": 7}
+    assert doc.reload_external() == [page] and doc.get(page, ("key", 2, 1))["Settings"] == {"n": 7}
+    pi.close()
+
+
+@pytest.mark.skipif(not (shutil.which("node") and Path("/opt/pw-browsers").exists()
+                         and os.environ.get("LINDECK_BROWSER_TEST")),
+                    reason="Browser-Test nur mit LINDECK_BROWSER_TEST=1 und Playwright")
+def test_property_inspector_in_chromium(pi_setup, tmp_path):
+    import subprocess
+    import urllib.parse
+    host, doc, page = pi_setup
+    q = urllib.parse.urlencode({"profile": doc.id, "page": page, "slot": "key:2,1"})
+    url = f"http://127.0.0.1:{host.port}/pi/{host.token}?{q}"
+    script = tmp_path / "pi.js"
+    script.write_text("""
+const { chromium } = require('playwright');
+(async () => {
+  const b = await chromium.launch(); const p = await b.newPage();
+  await p.goto(process.argv[2]);
+  await p.waitForFunction(() => document.getElementById('echo').textContent.includes('pong'), null, {timeout: 10000});
+  console.log(await p.textContent('#echo')); await b.close();
+})().catch(e => { console.error(e); process.exit(1); });
+""")
+    env = dict(os.environ, NODE_PATH=subprocess.run(["npm", "root", "-g"], capture_output=True,
+                                                      text=True).stdout.strip())
+    r = subprocess.run(["node", str(script), url], capture_output=True, text=True, env=env, timeout=60)
+    assert r.returncode == 0, r.stderr
+    assert '"pong"' in r.stdout
+    ctx = next(iter(host.contexts))
+    assert host.contexts[ctx].settings.get("n") == 42 and host.contexts[ctx].settings.get("from") == "linux"
