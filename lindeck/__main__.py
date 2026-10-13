@@ -24,14 +24,33 @@ def _setup_logging(verbose):
     logging.getLogger("StreamDeck").setLevel(logging.WARNING)
 
 
+def cmd_app(args):
+    """LinDeck öffnen (Fenster) – oder das Fenster der laufenden Instanz nach vorne holen."""
+    from .app import main as app_main
+    return app_main(hidden=False, profile=getattr(args, "profile", None), transport=getattr(args, "transport", None))
+
+
 def cmd_run(args):
-    from .daemon import Daemon
-    Daemon(transport=args.transport).run()
+    """Autostart: LinDeck unsichtbar starten (Fenster über das Menü). --no-gui: nur Dienst."""
+    if args.no_gui:
+        from .daemon import Daemon
+        Daemon(transport=args.transport).run()
+        return 0
+    from .app import main as app_main
+    return app_main(hidden=True, transport=args.transport)
 
 
 def cmd_edit(args):
-    from .editor import main as editor_main
-    return editor_main(args.profile)
+    return cmd_app(args)
+
+
+def cmd_quit(args):
+    from .app import quit_running
+    if not quit_running():
+        print("LinDeck läuft nicht")
+        return 1
+    print("LinDeck wird beendet")
+    return 0
 
 
 def cmd_import(args):
@@ -445,13 +464,22 @@ def main(argv=None):
     ap.add_argument("-v", "--verbose", action="store_true")
     sub = ap.add_subparsers(dest="cmd")
 
-    s = sub.add_parser("run", help="Dienst starten (Standard)")
+    s = sub.add_parser("open", help="LinDeck-Fenster öffnen (Standard ohne Befehl)")
+    s.add_argument("profile", nargs="?", help=argparse.SUPPRESS)
+    s.add_argument("--transport", default=None, help=argparse.SUPPRESS)
+    s.set_defaults(fn=cmd_app)
+
+    s = sub.add_parser("run", help="LinDeck unsichtbar starten (Autostart)")
+    s.add_argument("--no-gui", action="store_true", help="nur den Dienst ohne Fenster starten (z. B. per SSH)")
     s.add_argument("--transport", default=None, help=argparse.SUPPRESS)
     s.set_defaults(fn=cmd_run)
 
-    s = sub.add_parser("edit", help="grafischen Profil-Editor öffnen")
+    s = sub.add_parser("edit", help="LinDeck-Fenster öffnen, optional mit einem bestimmten Profil")
     s.add_argument("profile", nargs="?", help="Profil (ID oder Name), das geöffnet werden soll")
     s.set_defaults(fn=cmd_edit)
+
+    s = sub.add_parser("quit", help="laufendes LinDeck beenden")
+    s.set_defaults(fn=cmd_quit)
 
     s = sub.add_parser("import", help="Elgato-Profile importieren (.streamDeckProfile, Backup, ProfilesV2/V3-Ordner)")
     s.add_argument("files", nargs="+")
@@ -527,7 +555,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
     _setup_logging(args.verbose)
     if not getattr(args, "fn", None):
-        args = ap.parse_args((argv or sys.argv[1:]) + ["run"])
+        args = ap.parse_args((argv or sys.argv[1:]) + ["open"])
     return args.fn(args) or 0
 
 

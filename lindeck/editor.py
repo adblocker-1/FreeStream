@@ -83,8 +83,13 @@ class ScrollFrame(ttk.Frame):
 
 
 class EditorApp:
-    def __init__(self, root: tk.Tk, store_root=None, profile=None):
+    def __init__(self, root: tk.Tk, store_root=None, profile=None, daemon=None, on_quit=None):
         self.root = root
+        self.daemon = daemon        # laufender Dienst im selben Programm (App-Modus)
+        self.on_quit = on_quit
+        self.device = None          # Seriennummer des gewählten Stream Decks
+        self._device_ids = []
+        self._hidden_once = False
         self.store_root = Path(store_root or paths.PROFILES_DIR)
         self.store_root.mkdir(parents=True, exist_ok=True)
         self.store = ProfileStore(self.store_root)
@@ -100,7 +105,7 @@ class EditorApp:
         self._profile_ids = []
         self._types = dict(C.BY_UUID)
 
-        root.title("LinDeck Editor")
+        root.title("LinDeck")
         root.geometry("1280x820")
         root.minsize(980, 640)
         root.configure(bg=COL["bg"])
@@ -117,6 +122,109 @@ class EditorApp:
             self.open_profile(target.id)
         else:
             self.show_empty()
+        if self.daemon is not None:
+            self.refresh_devices(initial=True)
+
+    # ================================================================ Geräte
+    def _controllers(self):
+        return list(getattr(self.daemon, "controllers", {}).values()) if self.daemon is not None else []
+
+    def _ctrl(self):
+        return next((c for c in self._controllers() if c.serial == self.device), None)
+
+    def refresh_devices(self, initial=False):
+        """Liste der angeschlossenen Stream Decks aktualisieren (alle 2 s)."""
+        if self.daemon is None:
+            return
+        ctrls = sorted(self._controllers(), key=lambda c: (model_name(c.model), c.serial))
+        ids = [c.serial for c in ctrls]
+        if ids != self._device_ids:
+            self._device_ids = ids
+            self.device_box["values"] = [f"{model_name(c.model)}  ·  {c.serial}" for c in ctrls] or \
+                ["Kein Stream Deck verbunden"]
+            if self.device not in ids:
+                self.device = ids[0] if ids else None
+                if self.device and not initial:
+                    self._show_device_profile()
+            if self.device:
+                self.device_box.current(ids.index(self.device))
+            else:
+                self.device_box.current(0)
+            n = len(ids)
+            self.device_status.set("● verbunden" if n == 1 else f"● {n} Geräte verbunden" if n else "○ kein Gerät")
+            if initial and self.device:
+                self._show_device_profile()
+        try:
+            self.root.after_cancel(self._dev_job)
+        except (AttributeError, tk.TclError):
+            pass
+        self._dev_job = self.root.after(2000, self.refresh_devices)
+
+    def _on_device_selected(self, _e=None):
+        i = self.device_box.current()
+        if 0 <= i < len(self._device_ids):
+            self.device = self._device_ids[i]
+            self._show_device_profile()
+
+    def _show_device_profile(self):
+        """Das Profil öffnen, das gerade auf dem gewählten Gerät läuft."""
+        ctrl = self._ctrl()
+        if ctrl is None or not ctrl.profile:
+            return
+        if not self.doc or self.doc.id != ctrl.profile.id:
+            self.open_profile(ctrl.profile.id, from_device=True)
+        ids = self.doc.page_ids if self.doc else []
+        if 0 <= ctrl.page_index < len(ids) and self.nav and self.nav[0] != ids[ctrl.page_index]:
+            self.nav = [ids[ctrl.page_index]]
+            self.refresh_all()
+
+    def _device_follow(self, page_index=None):
+        """Gewähltes Gerät auf das bearbeitete Profil bzw. die Seite umschalten (wie in der Elgato-App)."""
+        ctrl = self._ctrl()
+        if ctrl is None or not self.doc:
+            return
+        g = self.doc.geometry
+        if (g.cols, g.rows) != (ctrl.geometry.cols, ctrl.geometry.rows):
+            return  # Profil passt nicht zu diesem Gerät
+        pid = self.doc.id
+
+        def work():
+            try:
+                if not ctrl.profile or ctrl.profile.id != pid:
+                    if not self.daemon.store.get(pid):
+                        self.daemon.store.reload()
+                    ctrl.load_profile(pid, page_index or 0)
+                elif page_index is not None and page_index != ctrl.page_index:
+                    ctrl.goto_page(page_index)
+            except Exception as e:  # noqa: BLE001
+                log.debug("Gerät umschalten: %s", e)
+        import threading
+        threading.Thread(target=work, daemon=True).start()
+
+    # ======================================================= Fenster
+    def show(self):
+        self.root.deiconify()
+        self.root.lift()
+        try:
+            self.root.focus_force()
+        except tk.TclError:
+            pass
+        self.refresh_profiles()
+
+    def hide(self):
+        self.save_now()
+        self.root.withdraw()
+        if not self._hidden_once:
+            self._hidden_once = True
+            from .autoimport import notify
+            notify("LinDeck läuft weiter", "Das Stream Deck bleibt aktiv. Öffnen über das Menü „LinDeck“.")
+
+    def quit_app(self):
+        self.close_doc()
+        if self.on_quit:
+            self.on_quit()
+        else:
+            self.root.destroy()
 
     # ================================================================ Aufbau
     def _style(self):
@@ -163,6 +271,18 @@ class EditorApp:
 
     def _build(self):
         r = self.root
+        # --- Kopfzeile mit Gerät (nur App-Modus)
+        if self.daemon is not None:
+            head = ttk.Frame(r, padding=(10, 8, 10, 0))
+            head.pack(side="top", fill="x")
+            ttk.Label(head, text="LinDeck", font=("TkDefaultFont", 13, "bold")).pack(side="left", padx=(0, 14))
+            self.device_box = ttk.Combobox(head, state="readonly", width=34)
+            self.device_box.pack(side="left")
+            self.device_box.bind("<<ComboboxSelected>>", self._on_device_selected)
+            self.device_status = tk.StringVar(value="")
+            ttk.Label(head, textvariable=self.device_status, foreground="#30d158").pack(side="left", padx=10)
+            ttk.Button(head, text="Beenden", command=self.quit_app).pack(side="right")
+            ttk.Button(head, text="Fenster schließen", command=self.hide).pack(side="right", padx=4)
         # --- Werkzeugleiste
         top = ttk.Frame(r, padding=(10, 8))
         top.pack(side="top", fill="x")
@@ -191,7 +311,7 @@ class EditorApp:
                                       values=[MODELS[c][0] for c in self._model_codes])
         self.model_box.pack(side="right")
         self.model_box.bind("<<ComboboxSelected>>", self._on_model_selected)
-        ttk.Label(top, text="Gerät").pack(side="right", padx=6)
+        ttk.Label(top, text="Modell").pack(side="right", padx=6)
 
         # --- Statusleiste
         self.status_var = tk.StringVar(value="")
@@ -296,8 +416,11 @@ class EditorApp:
                 log.warning("Aufräumen fehlgeschlagen: %s", e)
         self.doc = None
 
-    def open_profile(self, pid):
+    def open_profile(self, pid, from_device=False):
         p = self.store.get(pid)
+        if not p:
+            self.store.reload()
+            p = self.store.get(pid)
         if not p:
             return
         self.close_doc()
@@ -312,7 +435,7 @@ class EditorApp:
         self.selected = None
         self._img_cache.clear()
         self.refresh_profiles()
-        self.root.title(f"LinDeck Editor – {self.doc.name}")
+        self.root.title(f"LinDeck – {self.doc.name}")
         if self.doc.model in self._model_codes:
             self.model_box.current(self._model_codes.index(self.doc.model))
         else:
@@ -320,6 +443,8 @@ class EditorApp:
         self.fill_catalog()
         self.refresh_all()
         self.status(f"{self.doc.name} geöffnet – Änderungen werden automatisch gespeichert")
+        if not from_device:
+            self._device_follow(0)
 
     def show_empty(self):
         self.doc = None
@@ -366,7 +491,7 @@ class EditorApp:
             self.doc.rename(name)
             self.save_now()
             self.refresh_profiles()
-            self.root.title(f"LinDeck Editor – {self.doc.name}")
+            self.root.title(f"LinDeck – {self.doc.name}")
 
     def delete_profile(self):
         if not self.doc:
@@ -458,6 +583,9 @@ class EditorApp:
             messagebox.showerror("Speichern", str(e), parent=self.root)
 
     def close(self):
+        if self.daemon is not None:
+            self.hide()  # wie bei Elgato: Fenster zu, Stream Deck läuft weiter
+            return
         self.close_doc()
         self.root.destroy()
 
@@ -497,8 +625,8 @@ class EditorApp:
             info = json.loads((paths.STATE_DIR / "plugin-host.json").read_text(encoding="utf-8"))
             os.kill(int(info["pid"]), 0)
         except (OSError, ValueError, KeyError):
-            messagebox.showinfo("Einstellungsseite", "Dafür muss der LinDeck-Dienst laufen (Menü: „LinDeck“ "
-                                "oder `lindeck run`), weil er die Plugins ausführt.", parent=self.root)
+            messagebox.showinfo("Einstellungsseite", "Dafür muss LinDeck laufen (Menü: „LinDeck“ "
+                                "oder `lindeck`), weil es die Plugins ausführt.", parent=self.root)
             return
         pos = f"key:{slot[1]},{slot[2]}" if slot[0] == "key" else f"dial:{slot[1]}"
         q = urllib.parse.urlencode({"profile": self.doc.id, "page": page_uuid, "slot": pos})
@@ -578,6 +706,8 @@ class EditorApp:
         self.nav = [pid]
         self.selected = None
         self.refresh_all()
+        if self.doc and pid in self.doc.page_ids:
+            self._device_follow(self.doc.page_ids.index(pid))
 
     def add_page(self):
         pid = self.doc.add_page(after=self.nav[0] if self.nav else None)

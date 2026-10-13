@@ -127,16 +127,23 @@ class Daemon:
             log.debug("Auto-Import: %s", e)
 
     def run(self):
+        """Dienst im Vordergrund (ohne Fenster) bis SIGTERM/SIGINT."""
         if self.already_running():
             log.info("LinDeck läuft bereits")
             autoimport.notify("LinDeck", "LinDeck läuft bereits")
             return
-        paths.PID_FILE.write_text(str(os.getpid()))
-        self._auto_import()
-        self.store.reload()
         signal.signal(signal.SIGHUP, lambda *a: threading.Thread(target=self.reload, daemon=True).start())
         signal.signal(signal.SIGTERM, lambda *a: self.shutdown())
         signal.signal(signal.SIGINT, lambda *a: self.shutdown())
+        self.start()
+        self.loop()
+        self.cleanup()
+
+    def start(self):
+        """Pid-Datei, Auto-Import, Plugin-Host und Hintergrunddienste (ohne Signale, ohne Schleife)."""
+        paths.PID_FILE.write_text(str(os.getpid()))
+        self._auto_import()
+        self.store.reload()
         try:
             from .plugins import PluginHost
             self.plugin_host = PluginHost(self)
@@ -152,6 +159,8 @@ class Daemon:
             except Exception as e:  # noqa: BLE001
                 log.warning("Dienst %s nicht gestartet: %s", type(svc).__name__, e)
         log.info("LinDeck läuft – %d Profile geladen", len(self.store.profiles))
+
+    def loop(self):
         last_scan = last_import = 0
         while self.running:
             now = time.time()
@@ -177,11 +186,13 @@ class Daemon:
             except Exception as e:  # noqa: BLE001
                 log.debug("Smart Profiles: %s", e)
             time.sleep(0.5)
+
+    def cleanup(self):
         for c in list(self.controllers.values()):
             c.stop()
-        if self.plugin_host:
+        if getattr(self, "plugin_host", None):
             self.plugin_host.stop()
-        for svc in self.services:
+        for svc in getattr(self, "services", []):
             try:
                 svc.stop()
             except Exception:  # noqa: BLE001

@@ -3,14 +3,17 @@
 Linux-Ersatz für die Elgato-Stream-Deck-Software. LinDeck steuert alle
 Stream-Deck-Modelle per USB und liest die Profile der Elgato-App **direkt und
 unverändert** ein – Tasten, Icons, Titel, Ordner, Seiten, Multi-Actions, Dials
-und Touchstreifen. Ein Neu-Einrichten unter Linux ist nicht nötig – und mit dem
-eingebauten **grafischen Editor** lassen sich Profile direkt unter Linux
-bearbeiten oder neu anlegen.
+und Touchstreifen. Ein Neu-Einrichten unter Linux ist nicht nötig – und im
+LinDeck-Fenster lassen sich Profile direkt unter Linux bearbeiten oder neu anlegen.
+
+**Ein Programm wie die Elgato-App:** LinDeck startet beim Anmelden unsichtbar und
+steuert ab dann das Stream Deck. Der Menüeintrag **LinDeck** öffnet das Fenster
+zum Einrichten; schließt du es, läuft das Stream Deck einfach weiter.
 
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 
-> **Status:** Version 0.4 – getestet mit simulierten Geräten aller Modelle und
+> **Status:** Version 0.5 – getestet mit simulierten Geräten aller Modelle und
 > den Elgato-Standardprofilen. Tests auf echter Hardware stehen noch aus.
 
 ---
@@ -20,7 +23,7 @@ Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 - [Unterstützte Geräte](#unterstützte-geräte)
 - [Installation](#installation)
 - [Profile übernehmen](#profile-übernehmen)
-- [Profile bearbeiten (Editor)](#profile-bearbeiten-editor)
+- [Das LinDeck-Fenster](#das-lindeck-fenster)
 - [Unterstützte Aktionen](#unterstützte-aktionen)
 - [Elgato-Plugins](#elgato-plugins)
 - [OBS, Spotify, Discord](#obs-spotify-discord)
@@ -64,7 +67,7 @@ unterstützt. Profile werden dem passenden Gerät automatisch zugeordnet
 2. Doppelklick → **Installieren**, oder im Terminal:
 
    ```bash
-   sudo apt install ./lindeck_0.4.0_all.deb
+   sudo apt install ./lindeck_0.5.0_all.deb
    ```
 
 Das Paket erledigt automatisch:
@@ -73,7 +76,7 @@ Das Paket erledigt automatisch:
 - udev-Regel für den Gerätezugriff ohne root (`/lib/udev/rules.d/70-lindeck.rules`)
 - `uinput`-Modul für Hotkeys unter X11 **und** Wayland
 - Autostart bei jeder Anmeldung und sofortiger Start nach der Installation
-- Menüeinträge „LinDeck (Stream Deck)“ und „LinDeck Editor“
+- Menüeintrag „LinDeck“ mit eigenem Symbol
 
 Falls LinDeck direkt nach der Installation nicht anläuft: einmal ab- und wieder anmelden.
 
@@ -113,10 +116,21 @@ Download-Ordner legen, damit Tasten ohne eigenes Icon die Original-Symbole zeige
 - Eingebettete Ressourcen (z. B. Soundboard-Dateien aus v3-Exporten)
 - Auf **macOS** erstellte Profile (Cmd wird zu Strg umgesetzt)
 
-## Profile bearbeiten (Editor)
+## Das LinDeck-Fenster
 
-Start über den Menüeintrag **LinDeck Editor** oder im Terminal mit
-`lindeck edit` (optional mit Profilname: `lindeck edit "Streaming"`).
+LinDeck ist **ein** Programm – wie die Elgato-Software:
+
+- **Beim Anmelden** startet LinDeck unsichtbar und steuert das Stream Deck.
+- **Menüeintrag „LinDeck“** (oder `lindeck` im Terminal) öffnet das Fenster.
+  Läuft LinDeck schon, kommt nur das Fenster nach vorne – es gibt nie zwei
+  Instanzen.
+- **Fenster schließen** blendet es nur aus; das Stream Deck arbeitet weiter.
+- **Beenden** über den Knopf oben rechts, das Symbol in der Taskleiste (falls
+  vorhanden, Paket `python3-pystray`) oder `lindeck quit`.
+
+Oben wählst du das angeschlossene Stream Deck; geöffnet wird das Profil, das
+gerade darauf läuft. Wechselst du im Fenster Profil oder Seite, wechselt das
+Gerät mit (sofern das Profil zum Gerät passt).
 
 Aufbau wie in der Elgato-App:
 
@@ -140,8 +154,7 @@ Aufbau wie in der Elgato-App:
 | Profile | **Neu…** (mit Gerätemodell), Duplizieren, Umbenennen, Löschen, Importieren, Exportieren |
 | Plugin-Aktionen | bleiben erhalten; Titel, Icon und Rohdaten (**Einstellungen (JSON)…**) sind bearbeitbar |
 
-Jede Änderung wird **sofort gespeichert**; der laufende LinDeck-Dienst lädt das
-Profil automatisch neu, sodass das Stream Deck die Änderung nach ein bis zwei
+Jede Änderung wird **sofort gespeichert** und das Profil automatisch neu geladen, sodass das Stream Deck die Änderung nach ein bis zwei
 Sekunden zeigt. Gespeichert wird im Originalformat der Elgato-App – unbekannte
 Einstellungen (z. B. von Plugins) bleiben unverändert erhalten. **Exportieren…**
 erzeugt eine `.streamDeckProfile`-Datei, z. B. als Sicherung oder für einen
@@ -205,14 +218,14 @@ Unterstützt werden Tasten, Dials und Touchstreifen: `keyDown`/`keyUp`,
 `setTitle`, `setImage` (PNG/JPG/SVG), `setState`, `showAlert`/`showOk`,
 `setSettings`/`getSettings` (wird im Profil gespeichert), globale Einstellungen,
 `setFeedback`, `openUrl`, `switchToProfile`, `logMessage`. Die Aktionen
-installierter Plugins erscheinen im Editor in der Aktionsliste. Plugin-Logs
+installierter Plugins erscheinen im LinDeck-Fenster in der Aktionsliste. Plugin-Logs
 liegen unter `~/.local/state/lindeck/plugins/`.
 
-**Einstellungsseiten (Property Inspector):** Im Editor öffnet
+**Einstellungsseiten (Property Inspector):** Im LinDeck-Fenster öffnet
 **Einstellungsseite…** die HTML-Einstellungen des Plugins wie in der
 Elgato-App – in einem schlanken Chromium-/Chrome-Fenster, sonst im
-Standardbrowser. Änderungen speichert das Plugin sofort im Profil; der Editor
-übernimmt sie automatisch. Dafür muss der LinDeck-Dienst laufen. Die Seite wird
+Standardbrowser. Änderungen speichert das Plugin sofort im Profil; das Fenster
+übernimmt sie automatisch. Die Seite wird
 nur lokal (127.0.0.1) und mit einem zufälligen Zugangsschlüssel ausgeliefert;
 fremde Webseiten können sich nicht mit dem Plugin-Host verbinden. Alternativ
 lassen sich die Einstellungen weiterhin als JSON bearbeiten.
@@ -220,7 +233,7 @@ lassen sich die Einstellungen weiterhin als JSON bearbeiten.
 ## OBS, Spotify, Discord
 
 Diese Plugins sind in LinDeck nachgebaut. Tasten aus importierten Elgato-Profilen
-werden automatisch zugeordnet; neue legst du im Editor an (Kategorien
+werden automatisch zugeordnet; neue legst du im LinDeck-Fenster an (Kategorien
 „OBS Studio“, „Spotify & Medien“, „Discord“).
 
 **OBS Studio** (über obs-websocket, in OBS ab Version 28 enthalten): Szene
@@ -319,8 +332,11 @@ Für den normalen Betrieb ist kein Befehl nötig. Für Sonderfälle:
 
 | Befehl | Zweck |
 |---|---|
-| `lindeck run` | Dienst starten (läuft normalerweise automatisch) |
-| `lindeck edit [Profil]` | grafischen Editor öffnen |
+| `lindeck` | LinDeck-Fenster öffnen (startet LinDeck, falls es nicht läuft) |
+| `lindeck edit [Profil]` | Fenster öffnen, optional mit einem bestimmten Profil |
+| `lindeck run` | unsichtbar starten (so startet der Autostart) |
+| `lindeck run --no-gui` | nur die Gerätesteuerung ohne Fenster (z. B. per SSH) |
+| `lindeck quit` | LinDeck beenden |
 | `lindeck import <Datei/Ordner>` | Profile manuell importieren |
 | `lindeck profiles` | importierte Profile anzeigen |
 | `lindeck devices` | angeschlossene Geräte mit Seriennummer und Firmware |
@@ -335,7 +351,7 @@ Für den normalen Betrieb ist kein Befehl nötig. Für Sonderfälle:
 | `lindeck obs` | Verbindung zu OBS prüfen |
 | `lindeck discord` | Discord verbinden (einmalige Freigabe) |
 | `lindeck selftest [--stop-daemon]` | Hardware-Selbsttest |
-| `lindeck reload` | laufenden Dienst neu laden |
+| `lindeck reload` | Profile und Konfiguration neu laden |
 | `lindeck -v run` | mit ausführlichem Log starten |
 
 Profile und Konfiguration werden bei Änderungen automatisch neu geladen.
@@ -414,8 +430,8 @@ Log ansehen: `tail -f ~/.local/state/lindeck/lindeck.log`
 ```bash
 sudo apt install python3-pil python3-pil.imagetk python3-tk python3-evdev python3-cairosvg libhidapi-libusb0
 pip install --user "streamdeck>=0.10"
-python3 -m lindeck -v run
-python3 -m lindeck edit          # Editor
+python3 -m lindeck -v           # LinDeck mit Fenster
+python3 -m lindeck -v run --no-gui   # nur Gerätesteuerung
 ```
 
 ### `.deb` bauen
@@ -436,7 +452,7 @@ mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Versio
 (Version aus `lindeck/__init__.py`).
 
 ```bash
-git tag v0.4.0 && git push origin v0.4.0
+git tag v0.5.0 && git push origin v0.5.0
 ```
 
 ### Tests
@@ -471,7 +487,8 @@ eine Plugin-Einstellungsseite in einem echten Chromium.
 ```
 lindeck/
 ├── __main__.py     Kommandozeile
-├── editor.py       grafischer Profil-Editor (Tk)
+├── app.py          LinDeck als eine App: Fenster + Dienst in einem Prozess, Einzelinstanz, Taskleiste
+├── editor.py       LinDeck-Fenster: Geräte, Profile, Tasten (Tk)
 ├── editdoc.py      Profile bearbeiten und speichern (Logik des Editors, Undo, Export)
 ├── catalog.py      Aktionskatalog des Editors, Hotkey-Umwandlung
 ├── daemon.py       Dienst: Geräteerkennung, Hotplug, Neuladen, Smart Profiles
@@ -501,6 +518,7 @@ packaging/
 tests/
 ├── test_engine.py  Tests mit simulierten Geräten
 ├── test_editor.py  Tests für Editor und Profilbearbeitung
+├── test_app.py     Tests für die App (Einzelinstanz, Fenster, Gerät folgt)
 └── test_integrations.py  Plugin-Host, OBS, Discord, Mixer, Wave, Selbsttest (simulierte Gegenstellen)
 ```
 
@@ -512,6 +530,7 @@ Ereigniswarteschlange an die Aktionen weitergereicht.
 ## Roadmap
 
 - [x] Grafischer Editor zum Bearbeiten von Profilen direkt unter Linux (seit 0.2)
+- [x] Eine App wie die Elgato-Software: unsichtbar im Hintergrund, Fenster über das Menü, Gerät folgt dem Fenster (seit 0.5)
 - [x] Plugin-Host für das Elgato-Plugin-SDK (WebSocket-Protokoll) (seit 0.3; Node.js- und Linux-Plugins)
 - [x] Linux-Umsetzung häufiger Plugins: OBS, Discord, Spotify/MPRIS, Wave Link (seit 0.3)
 - [x] Wave-Link-Ersatz auf Basis von PipeWire: virtuelle Kanäle, Monitor-/Stream-Mix (seit 0.3)
