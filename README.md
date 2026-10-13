@@ -276,7 +276,9 @@ unter `/opt/lindeck/vendor`, damit das Paket ohne pip auskommt.
 
 **Automatischer Build:** Bei jedem Tag `v*` baut die GitHub-Action
 [`build-deb.yml`](.github/workflows/build-deb.yml) das Paket und hängt es an ein
-Release an. Ein manueller Build ist über *Actions → Build .deb → Run workflow* möglich.
+Release an. Ein manueller Build ist über *Actions → Build .deb → Run workflow* möglich;
+mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Version>`
+(Version aus `lindeck/__init__.py`).
 
 ```bash
 git tag v0.2.0 && git push origin v0.2.0
