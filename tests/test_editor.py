@@ -94,8 +94,7 @@ def test_actions_created_by_editor_run(store, doc):
         img = E.preview_action(doc, p0, data, (72, 72)) if slot[0] == "key" else \
             E.preview_dial(doc, p0, data, (200, 100))
         assert img.size in ((72, 72), (200, 100))
-        assert t.uuid in __import__("lindeck.actions", fromlist=["REGISTRY"]).REGISTRY or \
-            t.uuid.startswith("com.elgato.volume-controller.")
+        assert __import__("lindeck.actions", fromlist=["is_builtin"]).is_builtin(t.uuid), t.uuid
 
 
 def test_folders_copy_move_and_cleanup(store, doc, tmp_path):

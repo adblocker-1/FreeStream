@@ -75,6 +75,8 @@ def candidates(base: Path, depth=2):
             if e.is_file():
                 if name.endswith(PROFILE_EXT):
                     found.append(("profile", e))
+                elif name.endswith(".streamdeckplugin"):
+                    found.append(("plugin", e))
                 elif name.endswith(".msi") and "stream" in name and "deck" in name:
                     found.append(("msi", e))
                 elif name.endswith(".zip") and ("profile" in name or "streamdeck" in name.replace("_", "")
@@ -124,6 +126,16 @@ def run_once(state) -> bool:
                         assets.extract(p)
                         log.info("Elgato-Icons aus %s übernommen", p.name)
                         notify("LinDeck", "Standard-Icons aus dem Elgato-Installer übernommen")
+                        imported_any = True
+                elif kind == "plugin":
+                    from . import plugins
+                    for uid in plugins.install(p):
+                        info = plugins.installed().get(uid)
+                        log.info("Plugin %s installiert", uid)
+                        msg = f"Plugin „{info.name if info else uid}“ installiert"
+                        if info and not info.runnable:
+                            msg += f" – unter Linux nicht lauffähig ({info.reason})"
+                        notify("LinDeck", msg)
                         imported_any = True
                 else:
                     ids = profiles.import_path(p)

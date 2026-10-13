@@ -16,6 +16,8 @@ STATE_FILE = STATE_DIR / "state.json"
 PROFILES_DIR = DATA_DIR / "profiles"
 RESOURCES_DIR = DATA_DIR / "resources"
 ASSETS_DIR = DATA_DIR / "elgato-assets"
+PLUGINS_DIR = DATA_DIR / "plugins"
+PLUGIN_DATA_DIR = DATA_DIR / "plugin-data"
 LOG_FILE = STATE_DIR / "lindeck.log"
 PID_FILE = STATE_DIR / "lindeck.pid"
 

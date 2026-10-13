@@ -1075,8 +1075,35 @@ class NoOp(Action):
 
 
 class PluginAction(Action):
-    """Aktion eines Drittanbieter-Plugins – Anzeige des gespeicherten Bildes."""
+    """Aktion eines Drittanbieter-Plugins – Anzeige des gespeicherten Bildes, Ausführung im Plugin-Host."""
     supported = False
+
+    def default_icon(self):
+        from .plugins import plugin_for_action
+        info = plugin_for_action(self.uuid)
+        return info.action_icon(self.uuid, self.state) if info else None
+
+    def feedback(self):
+        fb = super().feedback()
+        for k, v in (getattr(self, "sdk_feedback", None) or {}).items():
+            if isinstance(v, dict):
+                v = v.get("value")
+            if k == "indicator":
+                try:
+                    fb["indicator"] = float(v)
+                except (TypeError, ValueError):
+                    pass
+            elif k in ("title", "value"):
+                fb[k] = "" if v is None else str(v)
+        return fb
+
+    def _host(self):
+        return getattr(self.ctx.ctrl, "plugin_host", None) if self.ctx and self.ctx.ctrl else None
+
+    def key_up(self, held_ms=0):
+        host = self._host()
+        if host:
+            host.key_up(self)
 
     def fallback_label(self):
         if self.title():
@@ -1086,7 +1113,7 @@ class PluginAction(Action):
 
     def key_down(self):
         handled = False
-        host = getattr(self.ctx.ctrl, "plugin_host", None) if self.ctx.ctrl else None
+        host = self._host()
         if host:
             handled = host.key_down(self)
         if not handled:
@@ -1139,7 +1166,7 @@ def create_action(data, page, ctx) -> Action:
     uuid = (data or {}).get("UUID", "")
     cls = REGISTRY.get(uuid)
     if cls is None:
-        cls = VolumeDevice if uuid.startswith("com.elgato.volume-controller.") else PluginAction
+        cls = _plugin_class(uuid)
     try:
         return cls(data, page, ctx)
     except Exception as e:  # noqa: BLE001 - kaputte Einstellungen dürfen das Gerät nicht blockieren
@@ -1147,5 +1174,31 @@ def create_action(data, page, ctx) -> Action:
         return PluginAction(data, page, ctx)
 
 
+def _plugin_class(uuid: str):
+    """Aktionen außerhalb der Elgato-Grundausstattung: installiertes SDK-Plugin vor Linux-Umsetzung."""
+    if uuid.startswith("com.elgato.volume-controller."):
+        return VolumeDevice
+    from . import native, plugins
+    try:
+        if plugins.plugin_for_action(uuid):
+            return PluginAction
+    except OSError:
+        pass
+    return native.lookup(uuid) or PluginAction
+
+
+def is_supported(uuid: str) -> bool:
+    """True, wenn die Aktion unter Linux ausgeführt werden kann (eingebaut, Linux-Umsetzung oder SDK-Plugin)."""
+    if is_builtin(uuid):
+        return True
+    from . import plugins
+    info = plugins.plugin_for_action(uuid)
+    return bool(info and info.runnable)
+
+
 def is_builtin(uuid: str) -> bool:
-    return uuid in REGISTRY or uuid.startswith("com.elgato.volume-controller.")
+    """True, wenn LinDeck die Aktion selbst ausführt (eingebaut oder Linux-Umsetzung eines Plugins)."""
+    if uuid in REGISTRY or uuid.startswith("com.elgato.volume-controller."):
+        return True
+    from . import native
+    return native.lookup(uuid) is not None

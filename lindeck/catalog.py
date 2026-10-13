@@ -178,8 +178,103 @@ CATALOG = [
                plugin="com.elgato.volume-controller"),
 ]
 
+_MIX_CHANNELS = [("system", "System"), ("music", "Musik"), ("browser", "Browser"), ("voice", "Voice Chat"),
+                 ("game", "Spiel"), ("sfx", "Effekte"), ("mic", "Mikrofon")]
+_MIXES = [("both", "Monitor- und Stream-Mix"), ("monitor", "nur Monitor-Mix"), ("stream", "nur Stream-Mix")]
+_TOGGLE = [("toggle", "umschalten"), ("start", "starten"), ("stop", "stoppen")]
+
+CATALOG += [
+    # ------------------------------------------------------------- OBS
+    ActionType("com.lindeck.obs.scene", "Szene", "OBS Studio", {"scene": ""}, controllers=(KEY, DIAL),
+               fields=[Field("text", "scene", "Szene", hint="Name wie in OBS")],
+               description="Wechselt die Szene (Dial: durch Szenen blättern)"),
+    ActionType("com.lindeck.obs.record", "Aufnahme", "OBS Studio", {"mode": "toggle"}, states=2,
+               fields=[Field("choice", "mode", "Funktion", _TOGGLE + [("pause", "Pause umschalten")])]),
+    ActionType("com.lindeck.obs.stream", "Stream", "OBS Studio", {"mode": "toggle"}, states=2,
+               fields=[Field("choice", "mode", "Funktion", _TOGGLE)]),
+    ActionType("com.lindeck.obs.source", "Quelle ein/aus", "OBS Studio", {"scene": "", "source": ""}, states=2,
+               fields=[Field("text", "source", "Quelle"), Field("text", "scene", "Szene (leer = aktuelle)")]),
+    ActionType("com.lindeck.obs.audio", "Audio-Eingang", "OBS Studio", {"source": "", "step_db": 1}, states=2,
+               controllers=(KEY, DIAL),
+               fields=[Field("text", "source", "Audio-Eingang", hint="z. B. Mic/Aux"),
+                       Field("int", "step_db", "Schritt je Dial-Raste (dB)", min=1, max=10)],
+               description="Taste: stumm schalten · Dial: Lautstärke"),
+    ActionType("com.lindeck.obs.replay", "Replay-Puffer", "OBS Studio", {"mode": "save"},
+               fields=[Field("choice", "mode", "Funktion", [("save", "Replay speichern"),
+                                                            ("toggle", "Puffer ein/aus")])]),
+    ActionType("com.lindeck.obs.virtualcam", "Virtuelle Kamera", "OBS Studio", states=2),
+    ActionType("com.lindeck.obs.studiomode", "Studio-Modus", "OBS Studio", states=2),
+    ActionType("com.lindeck.obs.transition", "Übergang ausführen", "OBS Studio",
+               description="Vorschau → Programm im Studio-Modus"),
+    ActionType("com.lindeck.obs.screenshot", "Screenshot", "OBS Studio", {"source": ""},
+               fields=[Field("text", "source", "Quelle (leer = Programm)")]),
+    # ------------------------------------------------------------ Medien
+    ActionType("com.lindeck.media.player", "Medien-Player", "Spotify & Medien",
+               {"player": "spotify", "function": "playpause"}, controllers=(KEY, DIAL),
+               fields=[Field("text", "player", "Player", hint="spotify, vlc, firefox … (leer = aktiver)"),
+                       Field("choice", "function", "Funktion",
+                             [("playpause", "Wiedergabe/Pause"), ("next", "Nächster Titel"),
+                              ("previous", "Vorheriger Titel"), ("nowplaying", "Aktueller Titel"),
+                              ("shuffle", "Zufallswiedergabe"), ("repeat", "Wiederholen"),
+                              ("volumeup", "Lauter"), ("volumedown", "Leiser"), ("stop", "Stopp")])],
+               description="Steuert Spotify oder jeden MPRIS-Player"),
+    # ----------------------------------------------------------- Discord
+    ActionType("com.lindeck.discord.voice", "Discord", "Discord", {"function": "mute", "channel_id": ""}, states=2,
+               fields=[Field("choice", "function", "Funktion",
+                             [("mute", "Mikrofon stumm"), ("deafen", "Ton aus"), ("pushtotalk", "Push to Talk"),
+                              ("pushtomute", "Push to Mute"), ("voicechannel", "Sprachkanal betreten"),
+                              ("textchannel", "Textkanal öffnen"), ("leave", "Sprachkanal verlassen")]),
+                       Field("text", "channel_id", "Kanal-ID (nur Kanal)")],
+               description="Braucht eine eigene Discord-App (siehe README)"),
+    # ------------------------------------------------------------- Mixer
+    ActionType("com.lindeck.mixer.channel", "Mixer-Kanal", "Audio-Mixer",
+               {"channel": "music", "mix": "both", "action": "mute", "step": 5}, controllers=(KEY, DIAL),
+               fields=[Field("choice", "channel", "Kanal", _MIX_CHANNELS), Field("choice", "mix", "Mix", _MIXES),
+                       Field("choice", "action", "Taste", [("mute", "stumm umschalten"), ("up", "lauter"),
+                                                           ("down", "leiser"), ("set", "Lautstärke setzen")]),
+                       Field("int", "step", "Schrittweite (%)", min=1, max=50),
+                       Field("int", "volume", "Lautstärke für „setzen“ (%)", min=0, max=150)],
+               description="Wave-Link-Ersatz: Kanal-Lautstärke je Mix"),
+    ActionType("com.lindeck.mixer.output", "Monitor-Ausgang", "Audio-Mixer", {"device": ""},
+               fields=[Field("text", "device", "Gerät (leer = nächstes)")],
+               description="Monitor-Mix auf Kopfhörer/Lautsprecher umschalten"),
+    # -------------------------------------------------------- Wave-Mikro
+    ActionType("com.lindeck.wavemic.control", "Wave-Mikrofon", "Wave-Mikrofon", {"function": "mute", "step": 5},
+               controllers=(KEY, DIAL),
+               fields=[Field("choice", "function", "Funktion", [("mute", "stumm umschalten"), ("gain", "Gain +"),
+                                                               ("lowcut", "Low Cut ein/aus"),
+                                                               ("clipguard", "Clipguard ein/aus")]),
+                       Field("int", "step", "Schrittweite Gain (%)", min=1, max=20)],
+               description="Gain, Stumm, Low Cut, Clipguard (Dial: Gain)"),
+]
+
 BY_UUID = {a.uuid: a for a in CATALOG}
 CATEGORIES = list(dict.fromkeys(a.category for a in CATALOG))
+
+
+def plugin_types():
+    """Aktionen installierter Elgato-Plugins (für den Editor)."""
+    from . import plugins
+    out = []
+    for info in plugins.installed().values():
+        for a in info.actions.values():
+            ctrls = tuple({"Keypad": KEY, "Encoder": DIAL}.get(c, KEY) for c in (a.get("Controllers") or ["Keypad"]))
+            t = ActionType(a["UUID"], a.get("Name") or a["UUID"], f"Plugin: {info.name}",
+                           states=max(1, len(a.get("States") or [])), controllers=ctrls,
+                           description=a.get("Tooltip") or "", plugin=info.uuid)
+            t.plugin_version = info.version
+            out.append(t)
+    return out
+
+
+def find_type(uuid: str):
+    t = BY_UUID.get(uuid)
+    if t:
+        return t
+    try:
+        return next((p for p in plugin_types() if p.uuid == uuid), None)
+    except OSError:
+        return None
 FOLDER_UUID = "com.elgato.streamdeck.profile.openchild"
 BACK_UUID = "com.elgato.streamdeck.profile.backtoparent"
 
@@ -205,15 +300,15 @@ def default_state():
 
 def new_action(uuid: str) -> dict:
     """Neue Aktion im Format der Elgato-App."""
-    t = BY_UUID.get(uuid)
+    t = find_type(uuid)
     settings = copy.deepcopy(t.settings) if t else {}
     settings.pop("Actions", None)
     data = {
         "ActionID": str(uuidlib.uuid4()),
         "LinkedTitle": True,
         "Name": t.name if t else uuid.rsplit(".", 1)[-1],
-        "Plugin": {"Name": t.category if t else "", "UUID": (t.plugin if t and t.plugin else uuid),
-                   "Version": "1.0"},
+        "Plugin": {"Name": t.category.replace("Plugin: ", "") if t else "",
+                   "UUID": (t.plugin if t and t.plugin else uuid), "Version": getattr(t, "plugin_version", "1.0")},
         "Resources": None,
         "Settings": settings,
         "State": 0,

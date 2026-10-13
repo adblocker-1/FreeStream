@@ -345,7 +345,9 @@ class DeckController:
                 continue
             try:
                 fb = a.feedback()
-                icon_fr = render.load_frames(a.encoder_icon_path(), 48, 48) if a.encoder_icon_path() else None
+                icon_img = getattr(a, "encoder_icon_image", None)
+                icon_fr = [(icon_img, 0)] if icon_img is not None else \
+                    (render.load_frames(a.encoder_icon_path(), 48, 48) if a.encoder_icon_path() else None)
                 sbg_path = a.encoder_background_path()
                 sbg = render.load_frames(sbg_path, seg_w, h) if sbg_path else None
                 seg = render.compose_dial_segment((seg_w, h), icon_fr[0][0] if icon_fr else None,

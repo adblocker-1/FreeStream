@@ -5,6 +5,7 @@ import logging
 import os
 import signal
 import sys
+import time
 from pathlib import Path
 
 from . import __version__, paths
@@ -182,7 +183,7 @@ def cmd_report(args):
 
     def walk(a, where):
         uuid = a.get("UUID", "")
-        if A.is_builtin(uuid):
+        if A.is_supported(uuid):
             builtin[uuid] += 1
         else:
             plug = (a.get("Plugin") or {}).get("Name") or uuid.rsplit(".", 1)[0]
@@ -214,10 +215,10 @@ def cmd_report(args):
             for pos, a in list(pg.keypad.items()) + [((i, "dial"), a) for i, a in pg.encoders.items()] + \
                     [((i, "info"), a) for i, a in pg.infobar.items()]:
                 walk(a, f"{p.name} / {pg.name or pg.uuid[:8]} / {pos}")
-    print(f"Eingebaute Aktionen (unterstützt): {sum(builtin.values())}")
+    print(f"Unterstützte Aktionen (eingebaut, Linux-Umsetzung oder installiertes Plugin): {sum(builtin.values())}")
     for u, n in builtin.most_common():
         print(f"   {n:4d}  {u}")
-    print(f"\nPlugin-Aktionen (benötigen Plugin-Umbau): {sum(plugins.values())}")
+    print(f"\nNicht unterstützte Plugin-Aktionen: {sum(plugins.values())}")
     for u, n in plugins.most_common():
         print(f"   {n:4d}  {u}")
     if hints:
@@ -231,6 +232,169 @@ def cmd_assets(args):
     dst = extract(args.source)
     print(f"Elgato-Icons übernommen nach {dst}")
     _signal_daemon()
+
+
+def cmd_plugin(args):
+    from . import plugins
+    if args.action == "install":
+        if not args.target:
+            print("Datei angeben: lindeck plugin install <Datei.streamDeckPlugin>")
+            return 1
+        ids = []
+        for t in args.target:
+            ids += plugins.install(t)
+        for uid in ids:
+            info = plugins.installed()[uid]
+            print(f"Installiert: {info.name} ({uid})" + ("" if info.runnable else f" – startet nicht: {info.reason}"))
+        _signal_daemon()
+        return 0 if ids else 1
+    if args.action == "remove":
+        ok = all(plugins.remove(t) for t in args.target)
+        _signal_daemon()
+        print("Entfernt" if ok else "Plugin nicht gefunden")
+        return 0 if ok else 1
+    found = plugins.installed()
+    if not found:
+        print("Keine Plugins installiert. 'lindeck plugin install <Datei.streamDeckPlugin>'")
+    for info in found.values():
+        state = f"{info.runtime}" if info.runnable else f"nicht startbar: {info.reason}"
+        print(f"{info.uuid:<40} {info.name:<28} {info.version:<10} {len(info.actions)} Aktionen  [{state}]")
+    return 0
+
+
+def cmd_mixer(args):
+    from .config import Config
+    from .mixer import Mixer
+    cfg = Config()
+    mx = Mixer(cfg)
+    try:
+        if args.action == "setup":
+            mx.setup()
+            cfg.data.setdefault("mixer", {})["enabled"] = True
+            cfg.save()
+            print("Mixer eingerichtet und beim Start aktiviert. In OBS als Audioquelle "
+                  "„Monitor of LinDeck Stream-Mix“ wählen.")
+        elif args.action == "remove":
+            mx.teardown()
+            cfg.data.setdefault("mixer", {})["enabled"] = False
+            cfg.save()
+            print("Mixer entfernt")
+        elif args.action == "set":
+            ch, mix, vol = args.args
+            mx.set_volume(ch, mix, int(vol))
+        elif args.action == "mute":
+            ch, mix = args.args
+            mx.set_mute(ch, mix, "toggle")
+        elif args.action == "assign":
+            app, ch = args.args
+            cfg.data.setdefault("mixer", {}).setdefault("routes", {})[app.lower()] = ch
+            cfg.save()
+            print(f"{app} → {ch} ({mx.assign(app, ch)} laufende Streams verschoben)")
+        elif args.action == "output":
+            print("Monitor-Ausgang:", mx.set_monitor_output(args.args[0] if args.args else "next"))
+        else:
+            if not mx.is_active():
+                print("Mixer nicht eingerichtet – 'lindeck mixer setup'")
+                return 1
+            print(f"Monitor-Ausgang: {mx.monitor_output_name()}")
+            for c in mx.all_channels():
+                cells = []
+                for m in ("monitor", "stream"):
+                    vol, mute = mx.get(c["id"], m)
+                    cells.append(f"{m}: " + ("–" if vol is None else ("stumm" if mute else f"{vol}%")))
+                print(f"  {c['id']:<8} {c['name']:<12} " + "   ".join(cells))
+    except (RuntimeError, ValueError) as e:
+        print(f"Fehler: {e}")
+        return 1
+    return 0
+
+
+def cmd_wave(args):
+    from . import wavemic
+    from .config import Config
+    mic = wavemic.WaveMic(Config())
+    try:
+        if args.action in ("lowcut", "clipguard"):
+            on = (args.args[0] if args.args else "on").lower() in ("on", "an", "1", "true", "ein")
+            kw = {args.action: on}
+            if args.action == "lowcut" and len(args.args) > 1:
+                kw["lowcut_freq"] = int(args.args[1])
+            mic.settings.update(kw)
+            mic._save()
+            _signal_daemon()
+            print(f"{args.action}: {'an' if on else 'aus'} (wird vom LinDeck-Dienst angewendet)")
+            if args.action == "clipguard" and on and not wavemic.limiter_available():
+                print("Hinweis: Clipguard braucht das Paket swh-plugins")
+        elif args.action == "gain":
+            mic.set_gain(int(args.args[0]))
+        elif args.action == "mute":
+            mic.toggle_mute()
+        else:
+            src = wavemic.find_source()
+            if not src:
+                print("Kein Elgato-Wave-Mikrofon gefunden")
+                return 1
+            vol, mute = mic.gain()
+            s = mic.settings
+            print(f"Mikrofon:  {src}\nGain:      {vol}%{' (stumm)' if mute else ''}\n"
+                  f"Low Cut:   {str(s.get('lowcut_freq')) + ' Hz' if s.get('lowcut') else 'aus'}\n"
+                  f"Clipguard: {'an' if s.get('clipguard') else 'aus'}\nLED:       nicht unterstützt")
+    except (RuntimeError, ValueError, IndexError) as e:
+        print(f"Fehler: {e}")
+        return 1
+    return 0
+
+
+def cmd_obs(args):
+    from . import obs
+    from .config import Config
+    cl = obs.client(Config())
+    if not obs.wait_connected(cl, 5):
+        print(f"Keine Verbindung zu OBS: {cl.error or 'Zeitüberschreitung'}")
+        print("In OBS: Werkzeuge → WebSocket-Server-Einstellungen → aktivieren; Passwort in config.json (obs.password)")
+        return 1
+    time.sleep(0.5)
+    v = cl.request("GetVersion")
+    print(f"Verbunden mit OBS {v.get('obsVersion')} (obs-websocket {v.get('obsWebSocketVersion')})")
+    for k, val in cl.state.items():
+        print(f"  {k:<11} {val}")
+    cl.close()
+    return 0
+
+
+def cmd_discord(args):
+    from . import discord
+    from .config import Config
+    try:
+        cl = discord.client(Config())
+        print("Verbinde mit Discord – bitte die Anfrage in Discord bestätigen …")
+        cl.connect()
+        print(f"Verbunden. Mikrofon {'stumm' if cl.voice.get('mute') else 'an'}, "
+              f"Ton {'aus' if cl.voice.get('deaf') else 'an'}")
+    except discord.DiscordError as e:
+        print(f"Fehler: {e}")
+        return 1
+    return 0
+
+
+def cmd_selftest(args):
+    from . import selftest
+    from .daemon import Daemon
+    pid = Daemon.already_running()
+    if pid:
+        if not args.stop_daemon:
+            print("Der LinDeck-Dienst läuft und belegt das Gerät. Mit --stop-daemon wird er für den Test "
+                  "angehalten und danach neu gestartet.")
+            return 1
+        os.kill(pid, signal.SIGTERM)
+        time.sleep(2)
+    try:
+        files = selftest.run(args.transport, args.timeout)
+    finally:
+        if pid:
+            from .system import run_bg
+            run_bg(["lindeck", "run"])
+    return 0 if files else 1
 
 
 def cmd_reload(args):
@@ -297,6 +461,36 @@ def main(argv=None):
     s = sub.add_parser("extract-assets", help="Standard-Icons aus dem Elgato-Installer übernehmen")
     s.add_argument("source", help="Stream_Deck_*.msi oder kopierter Programmordner")
     s.set_defaults(fn=cmd_assets)
+
+    s = sub.add_parser("plugin", help="Elgato-Plugins verwalten (list, install, remove)")
+    s.add_argument("action", choices=["list", "install", "remove"], nargs="?", default="list")
+    s.add_argument("target", nargs="*", help="Datei (.streamDeckPlugin) bzw. Plugin-UUID")
+    s.set_defaults(fn=cmd_plugin)
+
+    s = sub.add_parser("mixer", help="Audio-Mixer (Wave-Link-Ersatz): status, setup, remove, set, mute, "
+                                     "assign, output")
+    s.add_argument("action", nargs="?", default="status",
+                   choices=["status", "setup", "remove", "set", "mute", "assign", "output"])
+    s.add_argument("args", nargs="*", help="set <Kanal> <monitor|stream|both> <Prozent> · mute <Kanal> <Mix> · "
+                                           "assign <Programm> <Kanal> · output [Gerät]")
+    s.set_defaults(fn=cmd_mixer)
+
+    s = sub.add_parser("wave", help="Elgato-Wave-Mikrofon: status, gain, mute, lowcut, clipguard")
+    s.add_argument("action", nargs="?", default="status", choices=["status", "gain", "mute", "lowcut", "clipguard"])
+    s.add_argument("args", nargs="*", help="gain <Prozent> · lowcut on|off [80|120] · clipguard on|off")
+    s.set_defaults(fn=cmd_wave)
+
+    s = sub.add_parser("obs", help="Verbindung zu OBS testen")
+    s.set_defaults(fn=cmd_obs)
+
+    s = sub.add_parser("discord", help="mit Discord verbinden (einmalige Freigabe)")
+    s.set_defaults(fn=cmd_discord)
+
+    s = sub.add_parser("selftest", help="angeschlossene Stream Decks Schritt für Schritt testen")
+    s.add_argument("--timeout", type=int, default=90, help="Sekunden je Schritt")
+    s.add_argument("--stop-daemon", action="store_true", help="laufenden Dienst für den Test anhalten")
+    s.add_argument("--transport", default=None, help=argparse.SUPPRESS)
+    s.set_defaults(fn=cmd_selftest)
 
     s = sub.add_parser("reload", help="laufenden Dienst neu laden")
     s.set_defaults(fn=cmd_reload)
