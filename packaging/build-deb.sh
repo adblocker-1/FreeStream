@@ -40,9 +40,9 @@ cat > "$PKG/etc/xdg/autostart/lindeck.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=LinDeck
-Comment=Stream Deck Dienst
+Comment=Stream Deck im Hintergrund starten
 Exec=/usr/bin/lindeck run
-Icon=input-keyboard
+Icon=lindeck
 NoDisplay=true
 X-GNOME-Autostart-enabled=true
 X-KDE-autostart-phase=2
@@ -50,23 +50,23 @@ EOF
 cat > "$PKG/usr/share/applications/lindeck.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
-Name=LinDeck (Stream Deck)
-Comment=Stream Deck starten
-Exec=/usr/bin/lindeck run
-Icon=input-keyboard
-Categories=Utility;
+Name=LinDeck
+GenericName=Stream Deck
+Comment=Stream Deck einrichten: Tasten, Profile, Plugins
+Exec=/usr/bin/lindeck
+Icon=lindeck
+Terminal=false
+Categories=Utility;AudioVideo;
+Keywords=Stream Deck;Elgato;Streamdeck;Makro;
+StartupWMClass=Lindeck
+StartupNotify=true
 EOF
-cat > "$PKG/usr/share/applications/lindeck-editor.desktop" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=LinDeck Editor
-GenericName=Stream-Deck-Profile bearbeiten
-Comment=Tasten, Seiten und Ordner der Stream-Deck-Profile bearbeiten
-Exec=/usr/bin/lindeck edit
-Icon=preferences-desktop-keyboard-shortcuts
-Categories=Utility;Settings;
-StartupWMClass=Lindeck-editor
-EOF
+# App-Symbol in mehreren Größen
+for sz in 48 64 128 256; do
+    mkdir -p "$PKG/usr/share/icons/hicolor/${sz}x${sz}/apps"
+    python3 -c "import sys;sys.path.insert(0,'$ROOT');from lindeck.app import make_icon;make_icon($sz).save(sys.argv[1])" \
+        "$PKG/usr/share/icons/hicolor/${sz}x${sz}/apps/lindeck.png"
+done
 
 cat > "$PKG/DEBIAN/control" <<EOF
 Package: lindeck
@@ -76,7 +76,7 @@ Priority: optional
 Architecture: all
 Maintainer: Felix <noreply@localhost>
 Depends: python3 (>= 3.10), python3-pil, python3-tk, python3-pil.imagetk, python3-evdev, python3-cairosvg, libhidapi-libusb0, libusb-1.0-0, fonts-dejavu-core, xdg-utils, xdg-user-dirs, libnotify-bin, wl-clipboard, xclip, playerctl, pulseaudio-utils, msitools, udev, kmod
-Recommends: chromium | google-chrome-stable | firefox, mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, wireplumber, pipewire-pulse, nodejs, swh-plugins
+Recommends: python3-pystray, gir1.2-ayatanaappindicator3-0.1, chromium | google-chrome-stable | firefox, mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, wireplumber, pipewire-pulse, nodejs, swh-plugins
 Description: Elgato-kompatible Stream-Deck-Software für Linux
  Steuert alle Elgato Stream Decks (Original, MK.2, Mini, XL, Neo, +, + XL,
  Studio, Pedal) und liest Profile der Elgato-App direkt ein. Profile,
@@ -94,6 +94,7 @@ set -e
 if [ "$1" = "configure" ]; then
     modprobe uinput 2>/dev/null || true
     udevadm control --reload-rules 2>/dev/null || true
+    gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
     udevadm trigger --subsystem-match=usb --subsystem-match=hidraw --subsystem-match=misc 2>/dev/null || true
     udevadm settle 2>/dev/null || true
     # Für angemeldete Benutzer sofort starten (sonst ab der nächsten Anmeldung automatisch)
@@ -102,7 +103,8 @@ if [ "$1" = "configure" ]; then
             [ "$uid" -ge 1000 ] 2>/dev/null || continue
             user=$(getent passwd "$uid" | cut -d: -f1)
             [ -n "$user" ] || continue
-            pkill -u "$uid" -f "python3 -m lindeck run" 2>/dev/null || true
+            pkill -u "$uid" -f "python3 -m lindeck" 2>/dev/null || true
+            sleep 1
             runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" HOME="$(getent passwd "$uid" | cut -d: -f6)" \
                 setsid -f /usr/bin/lindeck run >/dev/null 2>&1 < /dev/null || true
         done
@@ -114,7 +116,7 @@ cat > "$PKG/DEBIAN/prerm" <<'EOF'
 #!/bin/sh
 set -e
 if [ "$1" = "remove" ] || [ "$1" = "upgrade" ]; then
-    pkill -f "python3 -m lindeck run" 2>/dev/null || true
+    pkill -f "python3 -m lindeck" 2>/dev/null || true
 fi
 exit 0
 EOF
