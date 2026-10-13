@@ -197,7 +197,7 @@ def test_wave_window(env, pactl):
         assert _pump(root, lambda: bool(win.strips))
         assert set(win.strips) == {"system", "music", "browser", "voice", "game", "sfx", "mic"}
         assert win.strips["mic"]["monitor"]["mute"].get() is True
-        assert win.mic_name.get().startswith("Elgato Wave:3") and win.hw_frame.winfo_manager() == "grid"
+        assert win.mic_name.get().startswith("Elgato Wave:3") and win.hw_frame.winfo_manager() == "pack"
         assert win.gain_val.get().startswith("100 %")
         # Regler bewegen -> nach kurzer Pause an PipeWire
         win._on_level("music", "stream", "35")

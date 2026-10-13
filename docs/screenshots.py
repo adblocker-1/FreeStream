@@ -146,14 +146,30 @@ def shot_lindeck(tmp):
         doc.update_state(page, ("dial", i), 0, "Title", title)
     doc.save()
 
+    from lindeck.models import Geometry
+    from lindeck.profiles import ProfileStore
+    from test_app import FakeCtrl
+    ctrl = FakeCtrl("DL41K1A04321", "20GBD9901", Geometry(4, 2, 4), doc.id)
+
+    profiles = ProfileStore(store)
+
+    class Daemon:  # angeschlossenes Stream Deck + (simuliert)
+        controllers = {"a": ctrl}
+        store = profiles
+        cfg = {}
     root = tk.Tk(className="lindeck")
-    root.geometry("1240x780")
-    app = editor.EditorApp(root, store_root=store)
+    root.geometry("1240x800")
+    app = editor.EditorApp(root, store_root=store, daemon=Daemon())
     pump(root, 1.5)
     app.select(("key", 0, 0))
     pump(root, 1.5)
     grab(root, "lindeck-fenster.png")
     app.close()
+    try:
+        root.after_cancel(app._dev_job)
+        root.destroy()
+    except tk.TclError:
+        pass
 
 
 # ------------------------------------------------------------ Linewave
@@ -191,7 +207,7 @@ def shot_linewave(tmp):
     win = WaveWindow(root, host, tray=False)
     pump(root, 3)
     grab(root, "linewave-mixer.png")
-    win.nb.select(1)
+    win.show_view("mic")
     pump(root, 1)
     grab(root, "linewave-mikrofon.png")
     root.destroy()
@@ -261,6 +277,10 @@ def diagram():
 
 if __name__ == "__main__":
     tmp = Path(tempfile.mkdtemp())
-    diagram()
-    shot_lindeck(tmp)
-    shot_linewave(tmp)
+    only = sys.argv[1:]
+    if not only or "diagram" in only:
+        diagram()
+    if not only or "lindeck" in only:
+        shot_lindeck(tmp)
+    if not only or "linewave" in only:
+        shot_linewave(tmp)

@@ -14,21 +14,29 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
 
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageDraw, ImageFilter, ImageTk
 
 from . import actions as A
 from . import catalog as C
 from . import editdoc as E
-from . import paths
+from . import paths, theme
 from .models import MODELS, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
 
 log = logging.getLogger("lindeck.editor")
 
-COL = {
-    "bg": "#1b1c1f", "panel": "#25262b", "panel2": "#2e3036", "fg": "#e8e8ea", "muted": "#9a9ca5",
-    "accent": "#0a84ff", "device": "#111214", "slot": "#2a2b30", "danger": "#e5484d", "drop": "#30d158",
+COL = theme.COL
+# Kategorie der Aktionsliste -> (Symbol, Farbe)
+CATEGORY_LOOK = {
+    "System": ("keyboard", "#8e9bb0"), "Navigation": ("navigate", "#2f7bff"), "Stream Deck": ("grid", "#2f7bff"),
+    "Multi Action": ("layers", "#a66bff"), "Soundboard": ("wave", "#ff6bd5"), "Audio": ("speaker", "#30d158"),
+    "OBS Studio": ("record", "#ff4d5a"), "Spotify & Medien": ("play", "#30d158"), "Discord": ("chat", "#6b74ff"),
+    "Linewave": ("wave", "#2fc3ff"),
 }
+
+
+def category_look(cat):
+    return CATEGORY_LOOK.get(cat, ("puzzle", "#ffb020"))
 ALIGN = [("top", "oben"), ("middle", "Mitte"), ("bottom", "unten")]
 STYLES = [("", "Normal"), ("Bold", "Fett"), ("Italic", "Kursiv"), ("Bold Italic", "Fett kursiv")]
 TEXT_WIDGETS = ("Entry", "TEntry", "Text", "Spinbox", "TSpinbox", "TCombobox")
@@ -241,80 +249,48 @@ class EditorApp:
 
     # ================================================================ Aufbau
     def _style(self):
-        s = ttk.Style(self.root)
-        s.theme_use("clam")
-        bg, panel, fg = COL["bg"], COL["panel"], COL["fg"]
-        s.configure(".", background=bg, foreground=fg, fieldbackground=COL["panel2"], bordercolor="#3a3c42",
-                    lightcolor=panel, darkcolor=panel, troughcolor=bg, insertcolor=fg, focuscolor=COL["accent"])
-        s.configure("TFrame", background=bg)
-        s.configure("Panel.TFrame", background=panel)
-        s.configure("TLabel", background=bg, foreground=fg)
-        s.configure("Panel.TLabel", background=panel)
-        s.configure("Muted.TLabel", background=panel, foreground=COL["muted"])
-        s.configure("Head.TLabel", background=panel, font=("TkDefaultFont", 13, "bold"))
-        s.configure("Section.TLabel", background=panel, foreground=COL["muted"], font=("TkDefaultFont", 9, "bold"))
-        s.configure("Status.TLabel", background=COL["panel2"], foreground=COL["muted"], padding=(10, 4))
-        s.configure("TButton", background=COL["panel2"], foreground=fg, padding=(8, 3), borderwidth=1, width=-4)
-        s.map("TButton", background=[("active", "#3a3d45"), ("disabled", bg)],
-              foreground=[("disabled", "#5c5e66")])
-        s.configure("Accent.TButton", background=COL["accent"])
-        s.map("Accent.TButton", background=[("active", "#3b9bff")])
-        s.configure("Page.TButton", padding=(10, 3))
-        s.configure("PageOn.TButton", padding=(10, 3), background=COL["accent"])
-        s.map("PageOn.TButton", background=[("active", "#3b9bff")])
-        s.configure("TCheckbutton", background=panel, foreground=fg)
-        s.map("TCheckbutton", background=[("active", panel)], indicatorcolor=[("selected", COL["accent"])])
-        s.configure("TEntry", foreground=fg, fieldbackground=COL["panel2"])
-        s.configure("TCombobox", foreground=fg, fieldbackground=COL["panel2"], background=COL["panel2"],
-                    arrowcolor=fg)
-        s.map("TCombobox", fieldbackground=[("readonly", COL["panel2"])], foreground=[("readonly", fg)],
-              selectbackground=[("readonly", COL["panel2"])], selectforeground=[("readonly", fg)])
-        s.configure("TSpinbox", foreground=fg, fieldbackground=COL["panel2"], arrowcolor=fg,
-                    background=COL["panel2"])
-        s.configure("Treeview", background=panel, fieldbackground=panel, foreground=fg, rowheight=26,
-                    borderwidth=0)
-        s.map("Treeview", background=[("selected", COL["accent"])])
-        s.configure("TLabelframe", background=panel)
-        s.configure("TPanedwindow", background=bg)
-        self.root.option_add("*TCombobox*Listbox.background", COL["panel2"])
-        self.root.option_add("*TCombobox*Listbox.foreground", fg)
-        self.root.option_add("*Menu.background", COL["panel2"])
-        self.root.option_add("*Menu.foreground", fg)
-        self.root.option_add("*Menu.activeBackground", COL["accent"])
+        theme.apply(self.root)
+        self.icons = theme.Icons(self.root)
+        self._fam = theme.font(self.root)[0]
 
     def _build(self):
         r = self.root
         # --- Kopfzeile mit Gerät (nur App-Modus)
         if self.daemon is not None:
-            head = ttk.Frame(r, padding=(10, 8, 10, 0))
+            head = tk.Frame(r, bg=COL["panel"], height=60)
             head.pack(side="top", fill="x")
-            ttk.Label(head, text="LinDeck", font=("TkDefaultFont", 13, "bold")).pack(side="left", padx=(0, 14))
+            head.pack_propagate(False)
+            tk.Label(head, image=self.icons.get("grid", 32, "#ffffff", circle=COL["accent"]),
+                     bg=COL["panel"]).pack(side="left", padx=(14, 10))
+            theme.label(head, "LinDeck", 15, "bold").pack(side="left", padx=(0, 18))
+            tk.Label(head, image=self.icons.get("grid", 16, COL["muted"]), bg=COL["panel"]).pack(side="left")
             self.device_box = ttk.Combobox(head, state="readonly", width=34)
-            self.device_box.pack(side="left")
+            self.device_box.pack(side="left", padx=(6, 0))
             self.device_box.bind("<<ComboboxSelected>>", self._on_device_selected)
             self.device_status = tk.StringVar(value="")
-            ttk.Label(head, textvariable=self.device_status, foreground="#30d158").pack(side="left", padx=10)
-            ttk.Button(head, text="Beenden", command=self.quit_app).pack(side="right")
-            ttk.Button(head, text="Fenster schließen", command=self.hide).pack(side="right", padx=4)
-            ttk.Button(head, text="Linewave", command=self.open_wave).pack(side="right", padx=(4, 12))
+            theme.label(head, textvariable=self.device_status, color=COL["ok"]).pack(side="left", padx=10)
+            ttk.Button(head, text="Beenden", command=self.quit_app).pack(side="right", padx=(4, 14))
+            ttk.Button(head, text="Fenster schließen", style="Ghost.TButton", command=self.hide).pack(side="right")
+            ttk.Button(head, text=" Linewave", image=self.icons.get("wave", 16, COL["monitor"]), compound="left",
+                       style="Ghost.TButton", command=self.open_wave).pack(side="right", padx=(4, 8))
         # --- Werkzeugleiste
-        top = ttk.Frame(r, padding=(10, 8))
+        top = ttk.Frame(r, padding=(14, 10))
         top.pack(side="top", fill="x")
-        ttk.Label(top, text="Profil").pack(side="left")
+        ttk.Label(top, text="Profil", style="MutedBg.TLabel").pack(side="left")
         self.profile_var = tk.StringVar()
-        self.profile_box = ttk.Combobox(top, textvariable=self.profile_var, state="readonly", width=28)
-        self.profile_box.pack(side="left", padx=(6, 6))
+        self.profile_box = ttk.Combobox(top, textvariable=self.profile_var, state="readonly", width=30)
+        self.profile_box.pack(side="left", padx=(8, 8))
         self.profile_box.bind("<<ComboboxSelected>>", self._on_profile_selected)
         self.btn = {}
         for key, text, cmd in (("new", "Neu…", self.new_profile), ("dup", "Duplizieren", self.duplicate_profile),
                                ("ren", "Umbenennen…", self.rename_profile), ("del", "Löschen", self.delete_profile)):
             self.btn[key] = ttk.Button(top, text=text, command=cmd)
             self.btn[key].pack(side="left", padx=2)
-        ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=8)
+        ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=10)
         for key, text, cmd in (("imp", "Importieren…", self.import_profiles), ("exp", "Exportieren…", self.export_profile)):
             self.btn[key] = ttk.Button(top, text=text, command=cmd)
             self.btn[key].pack(side="left", padx=2)
-        ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=8)
+        ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=10)
         self.btn["undo"] = ttk.Button(top, text="↶", width=3, command=self.undo)
         self.btn["undo"].pack(side="left", padx=2)
         self.btn["redo"] = ttk.Button(top, text="↷", width=3, command=self.redo)
@@ -325,19 +301,19 @@ class EditorApp:
                                       values=[MODELS[c][0] for c in self._model_codes])
         self.model_box.pack(side="right")
         self.model_box.bind("<<ComboboxSelected>>", self._on_model_selected)
-        ttk.Label(top, text="Modell").pack(side="right", padx=6)
+        ttk.Label(top, text="Modell", style="MutedBg.TLabel").pack(side="right", padx=8)
 
         # --- Statusleiste
         self.status_var = tk.StringVar(value="")
         ttk.Label(r, textvariable=self.status_var, style="Status.TLabel", anchor="w").pack(side="bottom", fill="x")
 
         body = ttk.PanedWindow(r, orient="horizontal")
-        body.pack(fill="both", expand=True, padx=10, pady=(0, 8))
+        body.pack(fill="both", expand=True, padx=14, pady=(0, 10))
 
         # --- links: Gerät + Eigenschaften
         left = ttk.PanedWindow(body, orient="vertical")
         body.add(left, weight=4)
-        dev = ttk.Frame(left, style="Panel.TFrame", padding=10)
+        dev = ttk.Frame(left, style="Panel.TFrame", padding=12)
         left.add(dev, weight=1)
         nav = ttk.Frame(dev, style="Panel.TFrame")
         nav.pack(side="top", fill="x")
@@ -356,19 +332,25 @@ class EditorApp:
         self.canvas.bind("<Double-Button-1>", self._canvas_double)
         self.canvas.bind("<Button-3>", self._canvas_menu)
 
-        insp = ttk.Frame(left, style="Panel.TFrame", padding=(12, 10))
+        insp = ttk.Frame(left, style="Panel.TFrame", padding=(16, 12))
         left.add(insp, weight=1)
         self.inspector = ScrollFrame(insp, style="Panel.TFrame")
         self.inspector.pack(fill="both", expand=True)
 
         # --- rechts: Aktionen
-        right = ttk.Frame(body, style="Panel.TFrame", padding=10)
+        right = ttk.Frame(body, style="Panel.TFrame", padding=12)
         body.add(right, weight=1)
         ttk.Label(right, text="AKTIONEN", style="Section.TLabel").pack(anchor="w")
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *a: self.fill_catalog())
-        ttk.Entry(right, textvariable=self.search_var).pack(fill="x", pady=(6, 6))
+        sb = tk.Frame(right, bg=COL["panel2"])
+        sb.pack(fill="x", pady=(8, 8))
+        tk.Label(sb, image=self.icons.get("search", 16, COL["muted"]), bg=COL["panel2"]).pack(side="left", padx=(8, 0))
+        tk.Entry(sb, textvariable=self.search_var, bg=COL["panel2"], fg=COL["fg"], insertbackground=COL["fg"],
+                 relief="flat", highlightthickness=0, font=theme.font(self.root, 10)).pack(
+            side="left", fill="x", expand=True, padx=8, ipady=6)
         self.tree = ttk.Treeview(right, show="tree", selectmode="browse")
+        self.tree.tag_configure("cat", font=theme.font(self.root, 10, "bold"))
         self.tree.pack(fill="both", expand=True)
         self.tree.bind("<ButtonPress-1>", self._tree_press)
         self.tree.bind("<B1-Motion>", self._tree_motion)
@@ -799,8 +781,9 @@ class EditorApp:
         cw, ch = max(cv.winfo_width(), grid_w + 2 * pad), max(cv.winfo_height(), total_h + 2 * pad)
         x0 = (cw - grid_w) // 2
         y0 = max(pad, (ch - total_h) // 2)
-        _round_rect(cv, x0 - pad, y0 - pad, x0 + grid_w + pad, y0 + total_h + pad, 26, fill=COL["device"],
-                    outline="#000000")
+        body = _device_body(grid_w + 2 * pad, total_h + 2 * pad, 28)
+        self._body_photo = ImageTk.PhotoImage(body, master=self.root)
+        cv.create_image(x0 - pad - SHADOW, y0 - pad - SHADOW, image=self._body_photo, anchor="nw")
         page = self.doc.page(self.page_uuid)
         for slot in keys:
             c, r = slot[1], slot[2]
@@ -1014,10 +997,13 @@ class EditorApp:
                      and (not q or q in a.name.lower() or q in a.description.lower())]
             if not items:
                 continue
-            node = t.insert("", "end", iid=f"cat:{cat}", text=cat, open=True)
+            glyph, color = category_look(cat)
+            node = t.insert("", "end", iid=f"cat:{cat}", text=f"  {cat}", open=True, tags=("cat",),
+                            image=self.icons.get(glyph, 22, "#ffffff", circle=color))
             for a in items:
                 suffix = "  ◎" if C.DIAL in a.controllers and C.KEY not in a.controllers else ""
-                t.insert(node, "end", iid=a.uuid, text=f"  {a.name}{suffix}")
+                t.insert(node, "end", iid=a.uuid, text=f"  {a.name}{suffix}",
+                         image=self.icons.get(glyph, 16, color))
 
     def _tree_item(self, e):
         it = self.tree.identify_row(e.y)
@@ -1144,6 +1130,9 @@ class ActionForm:
         f = self.parent
         head = ttk.Frame(f, style="Panel.TFrame")
         head.pack(fill="x")
+        glyph, color = category_look(self.type.category if self.type else "")
+        tk.Label(head, image=self.app.icons.get(glyph, 30, "#ffffff", circle=color), bg=COL["panel"]).pack(
+            side="left", padx=(0, 10))
         ttk.Label(head, text=C.display_name(self.data), style="Head.TLabel").pack(side="left")
         if self.header:
             ttk.Label(head, text="  " + self.header, style="Muted.TLabel").pack(side="left")
@@ -1651,6 +1640,42 @@ class NewProfileDialog(_Dialog):
 # --------------------------------------------------------------------------
 # Zeichenhilfen
 # --------------------------------------------------------------------------
+SHADOW = 36
+_BODY_CACHE = {}
+
+
+def _device_body(w, h, r):
+    """Gehäuse des Stream Decks: dunkler Verlauf, heller Rand oben, weicher Schatten."""
+    key = (w, h, r)
+    if key in _BODY_CACHE:
+        return _BODY_CACHE[key]
+    W, H = w + 2 * SHADOW, h + 2 * SHADOW
+    out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sh = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(sh).rounded_rectangle((SHADOW, SHADOW + 8, SHADOW + w, SHADOW + h + 8), r, fill=170)
+    sh = sh.filter(ImageFilter.GaussianBlur(10))
+    out.paste((0, 0, 0, 255), (0, 0), sh)
+    grad = Image.new("RGBA", (w, h))
+    top, bot = theme.rgb("#26282d"), theme.rgb("#0c0d0f")
+    gd = ImageDraw.Draw(grad)
+    for y in range(h):
+        t = y / max(1, h - 1)
+        gd.line([(0, y), (w, y)], fill=tuple(round(a + (b - a) * t) for a, b in zip(top, bot)) + (255,))
+    k = 3
+    mask = Image.new("L", (w * k, h * k), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, w * k - 1, h * k - 1), r * k, fill=255)
+    mask = mask.resize((w, h), Image.LANCZOS)
+    out.paste(grad, (SHADOW, SHADOW), mask)
+    rim = Image.new("RGBA", (w * k, h * k), (0, 0, 0, 0))
+    ImageDraw.Draw(rim).rounded_rectangle((0, 0, w * k - 1, h * k - 1), r * k, outline=(70, 73, 80, 255),
+                                          width=2 * k)
+    out.alpha_composite(rim.resize((w, h), Image.LANCZOS), (SHADOW, SHADOW))
+    if len(_BODY_CACHE) > 20:
+        _BODY_CACHE.clear()
+    _BODY_CACHE[key] = out
+    return out
+
+
 def _round_rect(cv, x0, y0, x1, y1, r, **kw):
     pts = [x0 + r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y1 - r, x1, y1, x1 - r, y1, x0 + r, y1,
            x0, y1, x0, y1 - r, x0, y0 + r, x0, y0]
