@@ -13,9 +13,24 @@ LinDeck-Fenster lassen sich Profile direkt unter Linux bearbeiten oder neu anleg
 | **LinDeck** (`lindeck`) | Stream Deck | Tasten, Profile, Plugins |
 | **Linewave** (`linewave`) | Wave Link | Audio-Mixer (Monitor-/Stream-Mix) und Wave-Mikrofon |
 
+| LinDeck – Tasten und Profile einrichten | Linewave – Mixer für Kopfhörer und Stream |
+|---|---|
+| ![LinDeck-Fenster mit einem Stream Deck +](docs/bilder/lindeck-fenster.png) | ![Linewave-Fenster mit dem Mixer](docs/bilder/linewave-mixer.png) |
+
 Beide starten beim Anmelden unsichtbar und arbeiten im Hintergrund. Über den
 jeweiligen Menüeintrag öffnest du das Fenster; schließt du es, läuft das
 Programm einfach weiter.
+
+### In 3 Schritten loslegen
+
+1. **Installieren:** `lindeck_<version>_all.deb` unter [Releases](../../releases)
+   herunterladen und per Doppelklick installieren (Details unter
+   [Installation](#installation)).
+2. **Stream Deck:** Den Windows-Ordner `ProfilesV3` auf einen USB-Stick kopieren
+   und einstecken – LinDeck übernimmt alle Profile von selbst. Ändern kannst du
+   sie im Fenster **LinDeck** (Menü).
+3. **Audio (optional):** Im Menü **Linewave** öffnen → **Mixer einrichten**.
+   In OBS als Audioquelle „Monitor of Linewave Stream-Mix“ wählen – fertig.
 
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
@@ -136,6 +151,8 @@ LinDeck ist das Programm für das Stream Deck – wie die Elgato-Stream-Deck-Sof
 - **Beenden** über den Knopf oben rechts, das Symbol in der Taskleiste (falls
   vorhanden, Paket `python3-pystray`) oder `lindeck quit`.
 - Der Knopf **Linewave** oben öffnet das zweite Programm für Mixer und Mikrofon.
+
+![Das LinDeck-Fenster: in der Mitte das Stream Deck, rechts die Aktionen, unten die Einstellungen der gewählten Taste](docs/bilder/lindeck-fenster.png)
 
 Oben wählst du das angeschlossene Stream Deck; geöffnet wird das Profil, das
 gerade darauf läuft. Wechselst du im Fenster Profil oder Seite, wechselt das
@@ -286,6 +303,10 @@ oder `linewave --quit`.
 - **Mikrofon:** Gain, Stumm, Low Cut, Clipguard; beim Wave:3 zusätzlich LEDs
   aus/umkehren, Kopfhörer-Lautstärke und Mithören.
 
+| Reiter „Mixer“ | Reiter „Mikrofon“ |
+|---|---|
+| ![Linewave: Mixer mit Monitor- und Stream-Regler je Kanal](docs/bilder/linewave-mixer.png) | ![Linewave: Einstellungen des Wave:3](docs/bilder/linewave-mikrofon.png) |
+
 Im Hintergrund richtet Linewave den Mixer nach dem Anmelden ein, verteilt
 neue Programme auf die Kanäle und betreibt die Software-Filter für Wave-Mikrofone
 ohne eingebaute Filter. Tasten auf dem Stream Deck (Mixer-Kanal, Wave-Mikrofon)
@@ -299,6 +320,9 @@ Die internen Verbindungen heißen z. B. „Linewave Musik → Stream-Mix“.
 (Bis Version 0.6 hieß jeder Kanal nur „LinDeck“ – beim ersten Start räumt
 Linewave die alten Kanäle auf und legt sie mit den richtigen Namen neu an.)
 
+<p align="center"><img src="docs/bilder/pavucontrol-linewave.png" width="380"
+alt="pavucontrol zeigt die Ausgabegeräte Linewave Stream-Mix, System, Musik, Browser, Voice Chat, Spiel und Effekte"></p>
+
 ## Audio-Mixer (Wave-Link-Ersatz)
 
 Wie Elgato Wave Link, auf Basis von PipeWire: Programme laufen in virtuellen
@@ -308,6 +332,12 @@ Kanal hat zwei unabhängige Regler:
 - **Monitor-Mix** – was du auf Kopfhörer/Lautsprechern hörst
 - **Stream-Mix** – was dein Publikum hört; in OBS als Audioquelle
   „Monitor of Linewave Stream-Mix“ wählen
+
+![Schaubild: Programme laufen in Linewave-Kanäle, jeder Kanal geht mit eigenem Regler in den Monitor-Mix und in den Stream-Mix](docs/bilder/linewave-ablauf.png)
+
+Beispiel: Musik soll im Kopfhörer laut sein, im Stream aber leise → beim Kanal
+„Musik“ den Regler **Monitor** hoch und **Stream** runter. Dein eigenes Mikrofon
+hörst du standardmäßig nicht im Kopfhörer (Monitor stumm), im Stream ist es an.
 
 ```bash
 linewave mixer setup                   # einrichten (oder im Fenster von Linewave)
@@ -553,7 +583,11 @@ lindeck/
 ├── config.py       Konfiguration und Laufzeitzustand
 └── paths.py        XDG-Verzeichnisse
 packaging/
-└── build-deb.sh    baut das Debian-Paket
+├── build-deb.sh    baut das Debian-Paket
+└── release-notes/  Texte der Releases auf GitHub
+docs/
+├── bilder/         Bilder für diese Anleitung
+└── screenshots.py  erzeugt die Bilder neu (xvfb-run python3 docs/screenshots.py)
 tests/
 ├── test_engine.py  Tests mit simulierten Geräten
 ├── test_editor.py  Tests für Editor und Profilbearbeitung
