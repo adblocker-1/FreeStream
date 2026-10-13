@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lindeck"
+version = "0.1.0"
+description = "Elgato-kompatible Stream-Deck-Software für Linux"
+requires-python = ">=3.9"
+dependencies = ["streamdeck>=0.10", "pillow", "evdev", "cairosvg"]
+
+[project.scripts]
+lindeck = "lindeck.__main__:main"
+
+[tool.setuptools]
+packages = ["lindeck"]
