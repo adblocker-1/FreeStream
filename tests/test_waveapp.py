@@ -51,7 +51,7 @@ class FakePactl:
                          if a.startswith("sink_input_properties=")), None)
             if name:
                 self.inputs[str(self.next_id)] = {"index": str(self.next_id), "volume": 100, "mute": False,
-                                                  "sink": self._sink(kv.get("sink", "")),
+                                                  "sink": self._sink(kv.get("sink", "")), "source": kv.get("source"),
                                                   "props": {"linewave.loop": name, "media.name": "lesbar"}}
             return str(self.next_id)
         if args[0] == "get-default-sink":
@@ -65,6 +65,9 @@ class FakePactl:
             b["mute"] = (not b["mute"]) if args[2] == "toggle" else args[2] == "1"
         if args[0] == "move-sink-input":
             self.inputs[args[1]]["sink"] = self._sink(args[2])
+        if args[0] == "unload-module":
+            self.sinks = [x for x in self.sinks if x["index"] != args[1]]
+            self.inputs.pop(args[1], None)
         return ""
 
     def blocks(self, what):
@@ -72,6 +75,9 @@ class FakePactl:
             return [dict(b) for b in self.inputs.values()]
         if what == "sinks":
             return [dict(s) for s in self.sinks]
+        if what == "sources":
+            return [{"name": "alsa_input.usb-capture", "description": "USB Capture"},
+                    {"name": "alsa_output.headphones.monitor", "description": "Monitor"}]
         return []
 
 
@@ -239,3 +245,154 @@ def test_legacy_lindeck_channels_are_cleaned_up(env, pactl, monkeypatch):
     monkeypatch.setattr(system, "_pactl_blocks", lambda what: [old] if what == "modules" else blocks(what))
     Mixer({}, run=pactl).setup()
     assert ["unload-module", "55"] in pactl.cmds
+
+
+# ==========================================================================
+# Eigene Kanäle
+# ==========================================================================
+def _loops(pactl, cid):
+    return {b["props"]["linewave.loop"]: b for b in pactl.inputs.values()
+            if b["props"].get("linewave.loop", "").startswith(f"linewave_{cid}_")}
+
+
+def test_custom_channels(env, pactl):
+    from lindeck.mixer import Mixer
+    cfg = _config(env, {"mixer": {"enabled": True}})
+    mx = Mixer(cfg, run=pactl)
+    mx.setup()
+    assert mx.new_id("Größe Ü") == "groesseue" and mx.new_id("Mikrofon!") == "mikrofon"
+    assert mx.new_id("System") == "system2"  # belegt
+    # Kanal für Programme
+    c = mx.add_channel("Podcast Gast", "apps", icon="chat", color="#ff6bd5")
+    assert c["id"] == "podcastgast"
+    assert any(x["name"] == "linewave_podcastgast" for x in pactl.sinks)
+    assert set(_loops(pactl, "podcastgast")) == {"linewave_podcastgast_monitor", "linewave_podcastgast_stream"}
+    assert json.loads((env / "config" / "config.json").read_text())["mixer"]["channels"][-1]["name"] == "Podcast Gast"
+    # Lautstärke bleibt beim Umbenennen erhalten
+    mx.set_volume("podcastgast", "stream", 30)
+    mx.update_channel("podcastgast", name="Gast")
+    assert mx.get("podcastgast", "stream") == (30, False)
+    assert mx.channel("podcastgast")["name"] == "Gast"
+    # Eingangsgerät als Kanal (z. B. Capture-Karte)
+    assert mx.inputs() == [("alsa_input.usb-capture", "USB Capture")]
+    cap = mx.add_channel("Konsole", "input", source="alsa_input.usb-capture")
+    loops = _loops(pactl, cap["id"])
+    assert {b["source"] for b in loops.values()} == {"alsa_input.usb-capture"}
+    assert not any(x["name"] == f"linewave_{cap['id']}" for x in pactl.sinks)  # kein Null-Sink
+    assert cap["id"] not in [a["id"] for a in mx.app_channels()]
+    with pytest.raises(RuntimeError):
+        mx.move_stream("7", cap["id"])  # Programme nur in Programm-Kanäle
+    with pytest.raises(RuntimeError):
+        mx.add_channel("Ohne Gerät", "input")
+    # Löschen
+    mx.remove_channel("podcastgast")
+    assert not _loops(pactl, "podcastgast")
+    assert not any(x["name"] == "linewave_podcastgast" for x in pactl.sinks)
+    assert "podcastgast" not in [c["id"] for c in mx.all_channels()]
+
+
+def test_last_app_channel_stays(env, pactl):
+    from lindeck.mixer import Mixer
+    mx = Mixer(_config(env, {"mixer": {"channels": [{"id": "system", "name": "System"}]}}), run=pactl)
+    with pytest.raises(RuntimeError):
+        mx.remove_channel("system")
+
+
+# ==========================================================================
+# Effekte (Plugins) je Kanal
+# ==========================================================================
+def test_effect_graph_mono_and_stereo():
+    from lindeck import effects
+    stereo = {"id": "ladspa:x.so:lim", "type": "ladspa", "plugin": "/usr/lib/ladspa/x.so", "label": "lim",
+              "name": "Limiter", "inputs": ["In L", "In R"], "outputs": ["Out L", "Out R"],
+              "controls": [{"name": "Limit (dB)", "min": -20, "max": 0, "default": -1}]}
+    cat = [effects.lookup("builtin:highpass"), stereo]
+    chain = [effects.new_effect(cat[0]), dict(effects.new_effect(stereo), controls={"Limit (dB)": -3}),
+             dict(effects.new_effect(cat[0]), enabled=False)]
+    g = effects.graph(chain, cat)
+    assert len(g["nodes"]) == 3  # Hochpass je Seite + ein Stereo-Limiter, ausgeschalteter Effekt fehlt
+    assert g["inputs"] == ["fx0l:In", "fx0r:In"] and g["outputs"] == ["fx1:Out L", "fx1:Out R"]
+    assert '{ output = "fx0l:Out" input = "fx1:In L" }' in g["links"]
+    assert '{ output = "fx0r:Out" input = "fx1:In R" }' in g["links"]
+    assert '"Limit (dB)" = -3' in g["nodes"][2] and 'plugin = "/usr/lib/ladspa/x.so"' in g["nodes"][2]
+    conf = effects.conf("music", "Musik", "linewave_music.monitor", chain, cat)
+    assert 'target.object = "linewave_music"' in conf and "stream.capture.sink = true" in conf
+    assert 'node.name        = "linewave_music_fx"' in conf
+    assert effects.graph([dict(chain[0], enabled=False)], cat) is None
+
+
+def test_effect_presets_and_catalog(env):
+    from lindeck import effects
+    gate = {"id": "ladspa:gate_1410.so:gate", "label": "gate", "name": "Noise Gate",
+            "controls": [{"name": "Threshold (dB)", "min": -70, "max": 20, "default": -70}]}
+    assert effects.new_effect(gate)["controls"]["Threshold (dB)"] == -45.0  # sinnvoller Startwert
+    cat = effects.catalog()
+    assert [p["id"] for p in cat[:5]] == [b["id"] for b in effects.BUILTIN]
+
+
+def test_ladspa_reader_on_real_plugin():
+    from lindeck import effects
+    lib = next(iter(effects._ladspa_files()), None)
+    if lib is None:
+        pytest.skip("keine LADSPA-Plugins installiert")
+    found = effects._scan_all()
+    assert found and all(len(p["inputs"]) == len(p["outputs"]) in (1, 2) for p in found)
+
+
+def test_mixer_routes_channel_through_effects(env, pactl, monkeypatch):
+    from lindeck import effects
+    from lindeck.mixer import Mixer
+    hp = effects.lookup("builtin:highpass")
+    cfg = _config(env, {"mixer": {"enabled": True, "effects": {"music": [effects.new_effect(hp)]}}})
+    started = []
+    monkeypatch.setattr(effects.Effects, "start", lambda self, c, src: started.append((c["id"], src))
+                        or self.node_name(c["id"]))
+    mx = Mixer(cfg, run=pactl)
+    mx.setup()
+    assert started == [("music", "linewave_music.monitor")]
+    assert {b["source"] for b in _loops(pactl, "music").values()} == {"linewave_music_fx"}
+    assert {b["source"] for b in _loops(pactl, "system").values()} == {"linewave_system.monitor"}
+    # Effekte aus -> Kanal wieder direkt
+    mx.fx.set_chain("music", [])
+    mx.rebuild_channel("music")
+    assert {b["source"] for b in _loops(pactl, "music").values()} == {"linewave_music.monitor"}
+
+
+def test_effects_fall_back_without_pipewire(env, pactl, monkeypatch):
+    from lindeck import effects
+    from lindeck.mixer import Mixer
+    monkeypatch.setattr(effects.shutil, "which", lambda name: None)
+    hp = effects.lookup("builtin:highpass")
+    mx = Mixer(_config(env, {"mixer": {"effects": {"music": [effects.new_effect(hp)]}}}), run=pactl)
+    mx.setup()  # ohne pipewire: Kanal läuft ohne Effekte weiter
+    assert {b["source"] for b in _loops(pactl, "music").values()} == {"linewave_music.monitor"}
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
+def test_dialogs_open(env, pactl, monkeypatch):
+    import tkinter as tk
+    from lindeck import effects, paths
+    from lindeck.pluginui import PluginManager
+    from lindeck.wavedialogs import ChannelDialog, EffectsDialog, PluginPicker
+    root = tk.Tk()
+    try:
+        saved = []
+        d = ChannelDialog(root, [("alsa_input.x", "Gerät X")], on_save=saved.append)
+        d.name.set("Neu")
+        d._save()
+        assert saved and saved[0]["name"] == "Neu" and saved[0]["kind"] == "apps"
+        cat = [effects.lookup("builtin:highpass")]
+        changes = []
+        e = EffectsDialog(root, {"id": "mic", "name": "Mikrofon"}, [], cat,
+                          on_change=lambda chain, rebuild: changes.append(len(chain)), on_control=None)
+        e._added(cat[0])
+        assert changes == [1]
+        pk = PluginPicker(root, cat, lambda p: None)
+        pk.destroy()
+        e.destroy()
+        monkeypatch.setattr(paths, "PLUGINS_DIR", env / "plugins")
+        pm = PluginManager(root)
+        root.update()
+        pm.destroy()
+    finally:
+        root.destroy()

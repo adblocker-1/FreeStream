@@ -227,6 +227,11 @@ class EditorApp:
             from .autoimport import notify
             notify("LinDeck läuft weiter", "Das Stream Deck bleibt aktiv. Öffnen über das Menü „LinDeck“.")
 
+    def open_plugins(self):
+        """Plugin-Verwaltung öffnen."""
+        from .pluginui import PluginManager
+        PluginManager(self.root, host=getattr(self.daemon, "plugin_host", None), on_change=self.fill_catalog)
+
     def open_wave(self):
         """Das zweite Programm „Linewave“ (Mixer + Mikrofon) öffnen."""
         import shutil
@@ -278,7 +283,7 @@ class EditorApp:
         top.pack(side="top", fill="x")
         ttk.Label(top, text="Profil", style="MutedBg.TLabel").pack(side="left")
         self.profile_var = tk.StringVar()
-        self.profile_box = ttk.Combobox(top, textvariable=self.profile_var, state="readonly", width=30)
+        self.profile_box = ttk.Combobox(top, textvariable=self.profile_var, state="readonly", width=28)
         self.profile_box.pack(side="left", padx=(8, 8))
         self.profile_box.bind("<<ComboboxSelected>>", self._on_profile_selected)
         self.btn = {}
@@ -286,22 +291,18 @@ class EditorApp:
                                ("ren", "Umbenennen…", self.rename_profile), ("del", "Löschen", self.delete_profile)):
             self.btn[key] = ttk.Button(top, text=text, command=cmd)
             self.btn[key].pack(side="left", padx=2)
-        ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=10)
+        ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=6)
         for key, text, cmd in (("imp", "Importieren…", self.import_profiles), ("exp", "Exportieren…", self.export_profile)):
             self.btn[key] = ttk.Button(top, text=text, command=cmd)
             self.btn[key].pack(side="left", padx=2)
-        ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=10)
+        self.btn["plugins"] = ttk.Button(top, text=" Plugins", image=self.icons.get("puzzle", 16, COL["warn"]),
+                                         compound="left", command=self.open_plugins)
+        self.btn["plugins"].pack(side="left", padx=(10, 2))
+        ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=6)
         self.btn["undo"] = ttk.Button(top, text="↶", width=3, command=self.undo)
         self.btn["undo"].pack(side="left", padx=2)
         self.btn["redo"] = ttk.Button(top, text="↷", width=3, command=self.redo)
         self.btn["redo"].pack(side="left", padx=2)
-        self.model_var = tk.StringVar()
-        self._model_codes = list(MODELS)
-        self.model_box = ttk.Combobox(top, textvariable=self.model_var, state="readonly", width=22,
-                                      values=[MODELS[c][0] for c in self._model_codes])
-        self.model_box.pack(side="right")
-        self.model_box.bind("<<ComboboxSelected>>", self._on_model_selected)
-        ttk.Label(top, text="Modell", style="MutedBg.TLabel").pack(side="right", padx=8)
 
         # --- Statusleiste
         self.status_var = tk.StringVar(value="")
@@ -321,6 +322,13 @@ class EditorApp:
         self.back_btn.pack(side="left")
         self.crumb_var = tk.StringVar()
         ttk.Label(nav, textvariable=self.crumb_var, style="Panel.TLabel").pack(side="left", padx=10)
+        self.model_var = tk.StringVar()
+        self._model_codes = list(MODELS)
+        self.model_box = ttk.Combobox(nav, textvariable=self.model_var, state="readonly", width=22,
+                                      values=[MODELS[c][0] for c in self._model_codes])
+        self.model_box.pack(side="right")
+        self.model_box.bind("<<ComboboxSelected>>", self._on_model_selected)
+        ttk.Label(nav, text="Modell", style="Muted.TLabel").pack(side="right", padx=8)
         self.pagebar = ttk.Frame(dev, style="Panel.TFrame")
         self.pagebar.pack(side="bottom", fill="x")
         self.canvas = tk.Canvas(dev, bg=COL["panel"], highlightthickness=0, height=300)

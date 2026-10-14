@@ -164,6 +164,7 @@ def shot_lindeck(tmp):
     app.select(("key", 0, 0))
     pump(root, 1.5)
     grab(root, "lindeck-fenster.png")
+    shot_plugins(tmp, root, Daemon)
     app.close()
     try:
         root.after_cancel(app._dev_job)
@@ -172,26 +173,80 @@ def shot_lindeck(tmp):
         pass
 
 
+def shot_plugins(tmp, root, daemon):
+    """Plugin-Verwaltung mit zwei Demo-Plugins (selbst erzeugt)."""
+    from lindeck import paths
+    from lindeck.pluginui import PluginManager
+    paths.PLUGINS_DIR = tmp / "plugins"
+    demos = [("de.example.timer", "Pomodoro-Timer", "Zeigt einen Timer auf der Taste und klingelt nach Ablauf.",
+              "bin/plugin.js", (255, 107, 90), "rec"),
+             ("de.example.homeassist", "Smart Home", "Schaltet Lampen und Szenen über die lokale Zentrale.",
+              "bin/plugin.js", (48, 209, 88), "light"),
+             ("de.example.winonly", "Windows-Werkzeug", "Ein Plugin, das nur für Windows gebaut wurde.",
+              "Tool.exe", (142, 155, 176), "keyboard")]
+    for uid, name, desc, code, color, glyph in demos:
+        d = paths.PLUGINS_DIR / f"{uid}.sdPlugin"
+        (d / "bin").mkdir(parents=True)
+        icon(d / "icon.png", color, glyph)
+        (d / "manifest.json").write_text(json.dumps({
+            "UUID": uid, "Name": name, "Description": desc, "Author": "Beispiel", "Version": "1.2.0",
+            "CodePath": code, "Icon": "icon", "Nodejs": {"Version": "20"},
+            "Actions": [{"UUID": f"{uid}.a{i}", "Name": f"Aktion {i}", "States": [{}]} for i in range(3)]}))
+
+    class Proc:
+        def __init__(self, ok):
+            self.proc = type("P", (), {"poll": lambda s: None})()
+            self.conn = object() if ok else None
+
+    class Host:
+        node = "/usr/bin/node"
+        procs = {"de.example.timer": Proc(True), "de.example.homeassist": Proc(False)}
+
+        def sync(self):
+            pass
+    dlg = PluginManager(root, host=Host())
+    dlg.geometry("740x600")
+    pump(root, 1.5)
+    grab(dlg, "lindeck-plugins.png")
+    dlg.destroy()
+
+
 # ------------------------------------------------------------ Linewave
 def shot_linewave(tmp):
     import tkinter as tk
     import test_waveapp as T
-    from lindeck import mixer, paths, system, wave3hw
+    from lindeck import effects, mixer, paths, system, wave3hw
     for n, s in (("STATE_DIR", "state"), ("CONFIG_DIR", "config"), ("CONFIG_FILE", "config/config.json"),
                  ("DATA_DIR", "data")):
         setattr(paths, n, tmp / s)
     (tmp / "state").mkdir(exist_ok=True)
     (tmp / "config").mkdir(exist_ok=True)
-    (tmp / "config" / "config.json").write_text(json.dumps({"mixer": {"enabled": True}}))
+    channels = [dict(c) for c in mixer.DEFAULT_CHANNELS[:4]] + [
+        {"id": "podcast", "name": "Podcast-Gast", "icon": "chat", "color": "#ff6bd5"},
+        {"id": "capture", "name": "Konsole", "kind": "input", "source": "alsa_input.usb-capture", "icon": "game",
+         "color": "#ff8a3d"}]
+    hp, gate = effects.lookup("builtin:highpass"), effects.lookup("builtin:highshelf")
+    fx = {"mic": [effects.new_effect(hp), effects.new_effect(gate)], "music": [effects.new_effect(gate)]}
+    (tmp / "config" / "config.json").write_text(json.dumps({"mixer": {"enabled": True, "channels": channels,
+                                                                       "effects": fx}}))
     fake = T.FakePactl()
     fake.inputs["9"] = {"index": "9", "sink": "1", "volume": 80, "mute": False,
                         "props": {"application.name": "Firefox", "application.process.binary": "firefox"}}
     fake.inputs["10"] = {"index": "10", "sink": "1", "volume": 80, "mute": False,
                          "props": {"application.name": "Discord", "application.process.binary": "discord"}}
-    system._pactl_blocks = fake.blocks
+    blocks = fake.blocks
+
+    def blocks_with_sources(what):
+        if what == "sources":
+            return [{"name": "alsa_input.usb-Elgato_Wave_3", "description": "Elgato Wave:3 Mono"},
+                    {"name": "alsa_input.usb-capture", "description": "USB Capture HDMI – Digital Stereo"},
+                    {"name": "alsa_input.pci-analog", "description": "Eingebautes Audio Analog Stereo"}]
+        return blocks(what)
+    system._pactl_blocks = blocks_with_sources
     system.have = lambda c: True
     mixer._run = fake
     mixer.time.sleep = lambda s: None
+    effects.Effects.start = lambda self, c, src: self.node_name(c["id"])  # keine echten Filterprozesse
     wave3hw.present = lambda: True
     wave3hw.USBTransport = lambda: T.FakeWave3()
     from lindeck.wavehost import WaveHost
@@ -199,8 +254,8 @@ def shot_linewave(tmp):
     host = WaveHost()
     host.start()
     host.tick()
-    for cid, mix, vol in (("music", "stream", 35), ("music", "monitor", 70), ("game", "stream", 60),
-                          ("voice", "stream", 0), ("browser", "monitor", 55), ("sfx", "stream", 80)):
+    for cid, mix, vol in (("music", "stream", 35), ("music", "monitor", 70), ("podcast", "stream", 85),
+                          ("voice", "stream", 0), ("browser", "monitor", 55), ("capture", "monitor", 40)):
         host.mixer.set_volume(cid, mix, vol)
     host.mixer.set_mute("voice", "stream", True)
     root = tk.Tk(className="linewave")
@@ -210,6 +265,31 @@ def shot_linewave(tmp):
     win.show_view("mic")
     pump(root, 1)
     grab(root, "linewave-mikrofon.png")
+    win.show_view("mixer")
+
+    from lindeck.wavedialogs import ChannelDialog, EffectsDialog
+    dlg = ChannelDialog(root, host.mixer.inputs(), on_save=lambda v: None)
+    dlg.name.set("Konsole")
+    dlg.kind_seg.set("input")
+    dlg._kind("input")
+    dlg.dev.set("USB Capture HDMI – Digital Stereo")
+    dlg.icon.set("game")
+    dlg.color.set("#ff8a3d")
+    dlg.icon.set_color("#ff8a3d")
+    pump(root, 1)
+    grab(dlg, "linewave-kanal.png")
+    dlg.destroy()
+
+    cat = effects.catalog()
+    chain = [effects.new_effect(p) for p in (effects.lookup("builtin:highpass", cat),
+                                            next((p for p in cat if p["label"] == "gate"), None),
+                                            next((p for p in cat if p["label"] == "sc4m"), None)) if p]
+    mic = host.mixer.channel("mic")
+    dlg = EffectsDialog(root, mic, chain, cat, on_change=None, on_control=None)
+    dlg.geometry("620x760")
+    pump(root, 1.5)
+    grab(dlg, "linewave-effekte.png")
+    dlg.destroy()
     root.destroy()
 
 

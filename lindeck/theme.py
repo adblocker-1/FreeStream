@@ -280,6 +280,26 @@ def glyph(name, size=20, color="#ececf0", bg=None, circle=None):
     elif n == "search":
         ell(0.04, 0.04, 0.7, 0.7, fill=False)
         line((0.62, 0.62), (0.94, 0.94))
+    elif n == "more":
+        for x in (0.15, 0.5, 0.85):
+            ell(x - 0.1, 0.4, x + 0.1, 0.6)
+    elif n == "fx":
+        for i, (lo, hi) in enumerate(((0.1, 0.9), (0.1, 0.9), (0.1, 0.9))):
+            x = 0.18 + i * 0.32
+            line((x, lo), (x, hi))
+        for i, y in enumerate((0.35, 0.7, 0.45)):
+            x = 0.18 + i * 0.32
+            rect(x - 0.13, y - 0.08, x + 0.13, y + 0.08, r=0.04)
+    elif n == "close":
+        line((0.15, 0.15), (0.85, 0.85))
+        line((0.85, 0.15), (0.15, 0.85))
+    elif n == "up":
+        line((0.15, 0.68), (0.5, 0.3), (0.85, 0.68))
+    elif n == "down":
+        line((0.15, 0.32), (0.5, 0.7), (0.85, 0.32))
+    elif n == "input":
+        d.polygon([P(0.04, 0.34), P(0.46, 0.34), P(0.46, 0.12), P(0.86, 0.5), P(0.46, 0.88), P(0.46, 0.66),
+                   P(0.04, 0.66)], fill=c)
     elif n == "plus":
         line((0.5, 0.1), (0.5, 0.9))
         line((0.1, 0.5), (0.9, 0.5))
@@ -313,10 +333,12 @@ def rounded_rect(cv, x0, y0, x1, y1, r, **kw):
 class Card(tk.Canvas):
     """Fläche mit runden Ecken; Widgets kommen in card.body (tk.Frame)."""
 
-    def __init__(self, master, color=COL["panel"], radius=14, pad=14, outline="", parent_bg=None, **kw):
+    def __init__(self, master, color=COL["panel"], radius=14, pad=14, outline="", parent_bg=None, stretch=False,
+                 **kw):
         bg = parent_bg or _bg_of(master)
         super().__init__(master, bg=bg, highlightthickness=0, bd=0, **kw)
         self.color, self.radius, self.pad, self.outline = color, radius, pad, outline
+        self.stretch = stretch  # Inhalt auf die ganze Breite ziehen (pack(fill="x"))
         self.body = tk.Frame(self, bg=color)
         self._win = self.create_window(pad, pad, window=self.body, anchor="nw")
         self.body.bind("<Configure>", self._fit)
@@ -337,7 +359,7 @@ class Card(tk.Canvas):
             w, h = int(self["width"]), int(self["height"])
         rounded_rect(self, 0, 0, w - 1, h - 1, self.radius, fill=self.color, outline=self.outline, tags="bg")
         self.tag_lower("bg")
-        if self._fixed_w or self._fixed_h:
+        if self._fixed_w or self._fixed_h or (self.stretch and w - 2 * self.pad >= self.body.winfo_reqwidth()):
             self.itemconfigure(self._win, width=max(1, w - 2 * self.pad))
 
     def set_color(self, color):
@@ -608,6 +630,109 @@ class Switch(tk.Canvas):
         self._draw()
         if self.command:
             self.command()
+
+
+class PillButton(tk.Canvas):
+    """Kleiner, runder Knopf mit Text und/oder Symbol (z. B. „FX 2“)."""
+
+    def __init__(self, master, text="", icon=None, command=None, active=False, height=26, padx=12):
+        super().__init__(master, height=height, bg=_bg_of(master), highlightthickness=0, bd=0, cursor="hand2")
+        self.text, self.icon, self.command, self.active = text, icon, command, active
+        self.h, self.padx = height, padx
+        self.hover = False
+        self.icons = Icons(self)
+        self.f = font(self, 9, "bold")
+        self.bind("<Button-1>", lambda e: self.command and self.command())
+        self.bind("<Enter>", lambda e: self._hover(True))
+        self.bind("<Leave>", lambda e: self._hover(False))
+        self._draw()
+
+    def _hover(self, v):
+        self.hover = v
+        self._draw()
+
+    def set(self, text=None, active=None):
+        if text is not None:
+            self.text = text
+        if active is not None:
+            self.active = active
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        fnt = tkfont.Font(self, font=self.f)
+        tw = fnt.measure(self.text) if self.text else 0
+        iw = 14 if self.icon else 0
+        w = self.padx * 2 + tw + iw + (6 if tw and iw else 0)
+        self.configure(width=w)
+        base = COL["accent"] if self.active else COL["raised"]
+        fill = mix(base, "#ffffff", 0.1) if self.hover else base
+        rounded_rect(self, 0, 0, w, self.h, self.h / 2, fill=fill, outline="")
+        x = self.padx
+        fg = "#ffffff" if self.active else COL["fg"]
+        if self.icon:
+            self.create_image(x + 7, self.h / 2, image=self.icons.get(self.icon, 14, fg))
+            x += iw + 6
+        if self.text:
+            self.create_text(x, self.h / 2, text=self.text, font=self.f, fill=fg, anchor="w")
+
+
+class HScroll(tk.Frame):
+    """Waagerecht scrollbarer Bereich; Inhalt in .inner."""
+
+    def __init__(self, master, height=None):
+        bg = _bg_of(master)
+        super().__init__(master, bg=bg)
+        self.cv = tk.Canvas(self, bg=bg, highlightthickness=0, bd=0, height=height or 10)
+        self.bar = ttk.Scrollbar(self, orient="horizontal", command=self.cv.xview)
+        self.cv.configure(xscrollcommand=self._on_scroll)
+        self.cv.pack(fill="x")
+        self.inner = tk.Frame(self.cv, bg=bg)
+        self.cv.create_window(0, 0, window=self.inner, anchor="nw")
+        self.inner.bind("<Configure>", self._fit)
+        self.cv.bind("<Configure>", self._fit)
+        for w in (self.cv, self.inner):
+            w.bind("<Shift-MouseWheel>", lambda e: self.cv.xview_scroll(-1 if e.delta > 0 else 1, "units"))
+            w.bind("<Shift-Button-4>", lambda e: self.cv.xview_scroll(-3, "units"))
+            w.bind("<Shift-Button-5>", lambda e: self.cv.xview_scroll(3, "units"))
+
+    def _fit(self, _e=None):
+        self.cv.configure(height=self.inner.winfo_reqheight(), scrollregion=(0, 0, self.inner.winfo_reqwidth(),
+                                                                               self.inner.winfo_reqheight()))
+
+    def _on_scroll(self, lo, hi):
+        if float(lo) <= 0 and float(hi) >= 1:
+            self.bar.pack_forget()
+        elif not self.bar.winfo_manager():
+            self.bar.pack(fill="x", pady=(6, 0))
+        self.bar.set(lo, hi)
+
+
+class Dialog(tk.Toplevel):
+    """Dialogfenster im Linewave/LinDeck-Stil."""
+
+    def __init__(self, master, title, width=520, height=None):
+        super().__init__(master)
+        self.title(title)
+        self.configure(bg=COL["bg"])
+        self.transient(master.winfo_toplevel())
+        self.resizable(True, True)
+        if height:
+            self.geometry(f"{width}x{height}")
+        self.minsize(width, 200)
+        self.body = tk.Frame(self, bg=COL["bg"], padx=22, pady=18)
+        self.body.pack(fill="both", expand=True)
+        self.buttons = tk.Frame(self, bg=COL["panel"], padx=16, pady=12)
+        self.buttons.pack(fill="x", side="bottom")
+        self.bind("<Escape>", lambda e: self.destroy())
+
+    def show(self):
+        self.update_idletasks()
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass
+        self.focus_set()
 
 
 class Segmented(tk.Frame):

@@ -102,6 +102,23 @@ class WaveHost:
             self.mic_service.tick()
         except Exception as e:  # noqa: BLE001
             log.debug("Wave-Mikrofon: %s", e)
+        self._watch_effects()
+
+    def _watch_effects(self):
+        """Abgestürzte Effektketten neu starten (alle 10 s)."""
+        now = time.time()
+        if now - getattr(self, "_fx_check", 0) < 10 or not self.mixer_enabled:
+            return
+        self._fx_check = now
+        try:
+            if not self.mixer.is_active():
+                return
+            for c in self.mixer.all_channels():
+                if self.mixer.fx.active(c["id"]) and not self.mixer.fx.running(c["id"]):
+                    log.info("Effekte für %s werden neu gestartet", c["name"])
+                    self.mixer.rebuild_channel(c["id"])
+        except Exception as e:  # noqa: BLE001
+            log.debug("Effekte: %s", e)
 
     def loop(self):
         while self.running:
