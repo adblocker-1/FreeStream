@@ -35,7 +35,7 @@ Programm einfach weiter.
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 
-> **Status:** Version 0.8 – getestet mit simulierten Geräten aller Modelle und
+> **Status:** Version 0.9 – getestet mit simulierten Geräten aller Modelle und
 > den Elgato-Standardprofilen. Tests auf echter Hardware stehen noch aus.
 
 ---
@@ -90,7 +90,7 @@ unterstützt. Profile werden dem passenden Gerät automatisch zugeordnet
 2. Doppelklick → **Installieren**, oder im Terminal:
 
    ```bash
-   sudo apt install ./lindeck_0.8.0_all.deb
+   sudo apt install ./lindeck_0.9.0_all.deb
    ```
 
 Das Paket erledigt automatisch:
@@ -228,9 +228,18 @@ welche davon unterstützt sind.
 LinDeck enthält einen Plugin-Host für das offizielle Stream-Deck-SDK
 (WebSocket-Protokoll). Plugins installieren:
 
-- `.streamDeckPlugin`-Datei in den Download-Ordner legen (wird automatisch
-  installiert) oder
+- im LinDeck-Fenster auf **Plugins** → **Plugin installieren …** und die
+  heruntergeladene `.streamDeckPlugin`-Datei wählen,
+- die Datei einfach in den Download-Ordner legen (wird automatisch installiert)
+  oder
 - `lindeck plugin install <Datei.streamDeckPlugin>`
+
+Die **Plugin-Verwaltung** zeigt jedes Plugin mit Symbol, Version und Status
+(läuft, startet, beendet, nicht lauffähig) und ob Node.js installiert ist. Dort
+lassen sich Plugins neu starten, ihr Log öffnen oder entfernen; **Marketplace
+öffnen** führt zu den Elgato-Plugins.
+
+![Plugin-Verwaltung in LinDeck mit Status je Plugin](docs/bilder/lindeck-plugins.png)
 
 | Plugin-Art | unter Linux |
 |---|---|
@@ -323,6 +332,47 @@ Linewave die alten Kanäle auf und legt sie mit den richtigen Namen neu an.)
 <p align="center"><img src="docs/bilder/pavucontrol-linewave.png" width="380"
 alt="pavucontrol zeigt die Ausgabegeräte Linewave Stream-Mix, System, Musik, Browser, Voice Chat, Spiel und Effekte"></p>
 
+### Eigene Kanäle
+
+Rechts neben den Kanälen legt **Kanal hinzufügen** einen neuen Kanal an – mit
+Name, Symbol und Farbe. Zwei Arten gibt es:
+
+- **Programme:** ein weiterer Kanal wie „Musik“ oder „Spiel“, z. B. „Podcast-Gast“
+  oder „Zweites Spiel“. Programme legst du unter **Programme** hinein.
+- **Eingangsgerät:** holt ein Gerät direkt in den Mix – ein zweites Mikrofon,
+  Line-In oder eine Capture-Karte (Konsole, Kamera). Wie jeder Kanal mit
+  eigenem Regler für Monitor und Stream.
+
+Über **•••** unter einem Kanal änderst du Name, Symbol, Farbe oder Gerät oder
+löschst ihn; auch die mitgelieferten Kanäle lassen sich umbenennen oder löschen.
+Lautstärken bleiben dabei erhalten. Im Terminal: `linewave mixer add "Podcast-Gast"`,
+`linewave mixer add Konsole "USB Capture"` (Eingangsgerät) und
+`linewave mixer delete <Kanal>`.
+
+<p align="center"><img src="docs/bilder/linewave-kanal.png" width="420"
+alt="Dialog „Neuen Kanal anlegen“ mit Name, Art, Eingangsgerät, Symbol und Farbe"></p>
+
+### Effekte (Plugins)
+
+Wie die Plugins in Wave Link: **FX** unter einem Kanal öffnet seine
+Effektkette – für Programm-Kanäle, eigene Eingänge und das Mikrofon. Der Ton
+läuft von oben nach unten durch die Effekte; jeder lässt sich an- und
+ausschalten, verschieben und mit Reglern einstellen. Regler wirken sofort.
+
+| Effekt | woher |
+|---|---|
+| Hochpass (Low Cut), Tiefpass, Bass, Höhen, EQ-Band | in PipeWire eingebaut – immer da |
+| Rauschunterdrückung (RNNoise) | Paket `noise-suppression-for-voice` bzw. dessen LADSPA-Datei |
+| Noise Gate, Kompressor, Limiter | Paket `swh-plugins` (wird mit LinDeck empfohlen) |
+| Equalizer, De-Esser, Hall | Paket `tap-plugins` |
+| alle weiteren LADSPA-Plugins | werden automatisch gefunden (`/usr/lib/ladspa`, `~/.ladspa`, `LADSPA_PATH`) |
+
+Ein Kanal mit Effekten erscheint unter Linux zusätzlich als Quelle
+„Linewave <Kanal> (Effekte)“. Stürzt ein Plugin ab, startet Linewave die
+Effektkette neu; startet sie gar nicht, läuft der Kanal ohne Effekte weiter.
+
+![Effekte für das Mikrofon: Hochpass, Noise Gate und Kompressor](docs/bilder/linewave-effekte.png)
+
 ## Audio-Mixer (Wave-Link-Ersatz)
 
 Wie Elgato Wave Link, auf Basis von PipeWire: Programme laufen in virtuellen
@@ -413,6 +463,7 @@ Für den normalen Betrieb ist kein Befehl nötig. Für Sonderfälle:
 | `lindeck remove <Profil>` | Profil löschen |
 | `lindeck plugin [list\|install\|remove]` | Elgato-Plugins verwalten |
 | `linewave` | Linewave öffnen (`--hidden`: unsichtbar, `--quit`: beenden) |
+| `linewave mixer add <Name> [Eingangsgerät]` · `linewave mixer delete <Kanal>` | eigenen Kanal anlegen bzw. löschen |
 | `linewave mixer [status\|setup\|remove\|set\|mute\|assign\|output]` | Audio-Mixer (Wave-Link-Ersatz) |
 | `linewave mic [status\|gain\|mute\|lowcut\|clipguard\|leds\|flip\|headphone\|monitor]` | Wave-Mikrofon |
 | `lindeck obs` | Verbindung zu OBS prüfen |
@@ -519,7 +570,7 @@ mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Versio
 (Version aus `lindeck/__init__.py`).
 
 ```bash
-git tag v0.8.0 && git push origin v0.8.0
+git tag v0.9.0 && git push origin v0.9.0
 ```
 
 ### Tests
@@ -579,6 +630,9 @@ lindeck/
 ├── linewave.py     Einstieg für den Befehl `linewave`
 ├── wavehost.py     Linewave: Hintergrundteil, Einzelinstanz, Autostart
 ├── waveui.py       Linewave: Fenster (Mixer, Mikrofon)
+├── wavedialogs.py  Linewave: Dialoge für eigene Kanäle und Effekte
+├── effects.py      Effekt-Plugins je Kanal (PipeWire-Filter, LADSPA)
+├── pluginui.py     LinDeck: Plugin-Verwaltung
 ├── theme.py        gemeinsames Aussehen: Farben, Schriften, Symbole, Regler, Schalter
 ├── selftest.py     Hardware-Selbsttest
 ├── config.py       Konfiguration und Laufzeitzustand
@@ -609,6 +663,8 @@ Ereigniswarteschlange an die Aktionen weitergereicht.
 - [x] Zwei Programme wie bei Elgato: LinDeck (Stream Deck) und Linewave (Mixer + Mikrofon) (seit 0.6)
 - [x] Kanalnamen unter Linux sichtbar („Linewave Musik“ …), Audio-Programm heißt Linewave (seit 0.7)
 - [x] Neues Aussehen im Stil der Elgato-Programme: Kanal-Karten mit Reglern wie in Wave Link, Symbole in der Aktionsliste (seit 0.8)
+- [x] Plugin-Verwaltung in LinDeck; eigene Kanäle und Effekt-Plugins (PipeWire-Filter, LADSPA) in Linewave (seit 0.9)
+- [ ] LV2-Plugins als Effekte in Linewave
 - [x] Plugin-Host für das Elgato-Plugin-SDK (WebSocket-Protokoll) (seit 0.3; Node.js- und Linux-Plugins)
 - [x] Linux-Umsetzung häufiger Plugins: OBS, Discord, Spotify/MPRIS, Wave Link (seit 0.3)
 - [x] Wave-Link-Ersatz auf Basis von PipeWire: virtuelle Kanäle, Monitor-/Stream-Mix (seit 0.3)

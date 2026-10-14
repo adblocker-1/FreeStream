@@ -18,7 +18,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import theme, wavemic
-from .theme import COL, Card, Fader, RoundToggle, Segmented, Switch, label
+from .theme import COL, Card, Fader, HScroll, PillButton, RoundToggle, Segmented, Switch, label
 
 log = logging.getLogger("lindeck.waveui")
 REFRESH_MS = 1500
@@ -34,8 +34,12 @@ CHANNEL_LOOK = {  # Kanal -> (Symbol, Farbe)
 }
 
 
-def channel_look(cid):
-    return CHANNEL_LOOK.get(cid, ("wave", "#8e9bb0"))
+def channel_look(c):
+    """(Symbol, Farbe) eines Kanals – eigene Angaben gehen vor."""
+    if isinstance(c, dict):
+        base = CHANNEL_LOOK.get(c["id"], ("input" if c.get("kind") == "input" else "wave", "#8e9bb0"))
+        return c.get("icon") or base[0], c.get("color") or base[1]
+    return CHANNEL_LOOK.get(c, ("wave", "#8e9bb0"))
 
 
 class Worker:
@@ -79,7 +83,7 @@ class WaveWindow:
         self._stream_keys = None
         self.view = "mixer"
         root.title("Linewave")
-        root.geometry("1220x760")
+        root.geometry("1240x800")
         root.minsize(980, 620)
         root.protocol("WM_DELETE_WINDOW", self.hide)
         theme.apply(root)
@@ -235,8 +239,9 @@ class WaveWindow:
         self.out_box.bind("<<ComboboxSelected>>", self._on_output)
         tk.Label(bar, image=self.icons.get("headphones", 18, COL["monitor"]), bg=COL["bg"]).pack(side="right")
 
-        self.strip_row = tk.Frame(self.mix_on, bg=COL["bg"])
-        self.strip_row.pack(fill="x")
+        self.strip_scroll = HScroll(self.mix_on)
+        self.strip_scroll.pack(fill="x")
+        self.strip_row = self.strip_scroll.inner
 
         self.apps_card = Card(self.mix_on, pad=16)
         self.apps_card.pack(fill="both", expand=True, pady=(14, 0))
@@ -263,22 +268,23 @@ class WaveWindow:
             w.destroy()
         self.strips = {}
         # Mikrofon zuerst – wie in Wave Link
-        ordered = sorted(channels, key=lambda c: c[0] != "mic")
-        for cid, name in ordered:
-            glyph, color = channel_look(cid)
+        ordered = sorted(channels, key=lambda c: c["id"] != "mic")
+        for ch in ordered:
+            cid, name = ch["id"], ch["name"]
+            glyph, color = channel_look(ch)
             card = Card(self.strip_row, pad=12, radius=16)
             card.pack(side="left", padx=(0, 10), anchor="n")
             b = card.body
             tk.Label(b, image=self.icons.get(glyph, 40, "#ffffff", circle=color), bg=COL["panel"]).pack()
-            label(b, name, 11, "bold").pack(pady=(8, 0))
+            label(b, name, 11, "bold", width=12).pack(pady=(8, 0))
             apps = tk.StringVar(self.root, value=" ")
             label(b, textvariable=apps, size=8, color=COL["muted"], wraplength=112, height=2,
                   justify="center").pack()
             row = tk.Frame(b, bg=COL["panel"])
             row.pack(pady=(6, 0))
-            strip = {"apps": apps, "card": card}
+            strip = {"apps": apps, "card": card, "channel": ch}
             for col, mix in enumerate(("monitor", "stream")):
-                fader = Fader(row, length=190, thickness=40, color=MIX_COLOR[mix],
+                fader = Fader(row, length=160, thickness=40, color=MIX_COLOR[mix],
                               command=lambda v, c=cid, m=mix: self._on_level(c, m, v))
                 fader.grid(row=0, column=col, padx=6)
                 val = tk.StringVar(self.root, value="–")
@@ -288,7 +294,26 @@ class WaveWindow:
                 mute.grid(row=2, column=col)
                 label(row, MIX_LABEL[mix], 8, color=COL["faint"]).grid(row=3, column=col, pady=(4, 0))
                 strip[mix] = {"fader": fader, "val": val, "mute": mute}
+            tools = tk.Frame(b, bg=COL["panel"])
+            tools.pack(pady=(10, 0))
+            n = ch.get("fx", 0)
+            strip["fx"] = PillButton(tools, f"FX {n}" if n else "FX", icon="fx", active=bool(n),
+                                     command=lambda c=ch: self._open_effects(c))
+            strip["fx"].pack(side="left", padx=(0, 6))
+            PillButton(tools, icon="more", padx=8, command=lambda c=ch: self._edit_channel(c)).pack(side="left")
             self.strips[cid] = strip
+        # „Kanal hinzufügen“ wie in Wave Link
+        add = Card(self.strip_row, pad=12, radius=16, color=COL["panel"])
+        add.pack(side="left", anchor="n", fill="y")
+        inner = tk.Frame(add.body, bg=COL["panel"], cursor="hand2", width=112, height=200)
+        inner.pack()
+        btn = tk.Label(add.body, image=self.icons.get("plus", 44, "#ffffff", circle=COL["raised"]), bg=COL["panel"],
+                       cursor="hand2")
+        btn.place(in_=inner, relx=0.5, rely=0.42, anchor="center")
+        txt = label(add.body, "Kanal\nhinzufügen", 10, "bold", color=COL["muted"], justify="center", cursor="hand2")
+        txt.place(in_=inner, relx=0.5, rely=0.68, anchor="center")
+        for w in (inner, btn, txt):
+            w.bind("<Button-1>", lambda e: self._new_channel())
 
     def _on_level(self, cid, mix, value):
         pct = int(round(float(value)))
@@ -317,8 +342,10 @@ class WaveWindow:
     def _build_streams(self, streams, channels):
         for w in self.streams_frame.winfo_children():
             w.destroy()
-        names = [n for cid, n in channels if cid != "mic"]
-        ids = {n: cid for cid, n in channels}
+        apps_ch = [c for c in channels if c["id"] != "mic" and c.get("kind", "apps") == "apps"]
+        names = [c["name"] for c in apps_ch]
+        ids = {c["name"]: c["id"] for c in apps_ch}
+        by_id = {c["id"]: c for c in channels}
         if not streams:
             label(self.streams_frame, "Gerade spielt kein Programm Ton ab.", color=COL["muted"]).pack(anchor="w")
             return
@@ -327,16 +354,102 @@ class WaveWindow:
             r, c = divmod(i, cols)
             cell = tk.Frame(self.streams_frame, bg=COL["panel2"], padx=10, pady=6)
             cell.grid(row=r, column=c, sticky="we", padx=(0, 10), pady=4)
-            glyph, color = channel_look(s["channel"]) if s["channel"] else ("speaker", COL["faint"])
+            glyph, color = channel_look(by_id.get(s["channel"]) or s["channel"]) if s["channel"] else \
+                ("speaker", COL["faint"])
             tk.Label(cell, image=self.icons.get(glyph, 22, "#ffffff", circle=color), bg=COL["panel2"]).pack(
                 side="left")
             label(cell, s["app"], 10, "bold", width=16, anchor="w").pack(side="left", padx=8)
-            var = tk.StringVar(self.root, value=next((n for cid, n in channels if cid == s["channel"]), NOT_IN_MIXER))
+            var = tk.StringVar(self.root, value=(by_id.get(s["channel"]) or {}).get("name", NOT_IN_MIXER))
             box = ttk.Combobox(cell, textvariable=var, values=names, state="readonly", width=14)
             box.pack(side="left")
             box.bind("<<ComboboxSelected>>", lambda e, s=s, v=var: self._on_stream(s, ids.get(v.get())))
         for c in range(cols):
             self.streams_frame.grid_columnconfigure(c, weight=1)
+
+    # ------------------------------------------------- eigene Kanäle
+    def _new_channel(self):
+        self._channel_dialog(None)
+
+    def _edit_channel(self, ch):
+        self._channel_dialog(ch)
+
+    def _channel_dialog(self, ch):
+        from .wavedialogs import ChannelDialog
+
+        def opened(inputs, err):
+            if err is not None:
+                return
+            ChannelDialog(self.root, inputs or [], channel=ch, default_look=channel_look(ch or {"id": ""}),
+                          on_save=lambda v: self._save_channel(ch, v),
+                          on_delete=(lambda: self._delete_channel(ch)) if ch else None)
+        self.worker.submit(self.mixer.inputs, opened)
+
+    def _save_channel(self, ch, v):
+        self._strip_ids = None
+
+        def work():
+            if ch is None:
+                return self.mixer.add_channel(v["name"], v["kind"], v["source"], v["icon"], v["color"])
+            changes = {"icon": v["icon"], "color": v["color"]}
+            if ch["id"] != "mic":
+                changes["name"] = v["name"]
+            if ch.get("kind") == "input" or ch["id"] == "mic":
+                changes["source"] = v["source"]
+            return self.mixer.update_channel(ch["id"], **changes)
+
+        def done(res, err):
+            if err is None:
+                self.status(f"Kanal „{res['name']}“ " + ("angelegt" if ch is None else "gespeichert"))
+            self.refresh()
+        self.worker.submit(work, done)
+
+    def _delete_channel(self, ch):
+        from tkinter import messagebox
+        if not messagebox.askyesno("Kanal löschen", f"Kanal „{ch['name']}“ wirklich löschen?", parent=self.root):
+            return
+        self._strip_ids = None
+
+        def done(res, err):
+            if err is None:
+                self.status(f"Kanal „{ch['name']}“ gelöscht")
+            self.refresh()
+        self.worker.submit(lambda: self.mixer.remove_channel(ch["id"]), done)
+
+    # ------------------------------------------------------- Effekte
+    def _open_effects(self, ch):
+        from . import effects
+        from .wavedialogs import EffectsDialog
+        self.status("Effekte werden geladen …")
+
+        def opened(cat, err):
+            if err is not None:
+                return
+            self.status("")
+            EffectsDialog(self.root, ch, self.mixer.fx.chain(ch["id"]), cat,
+                          on_change=lambda chain, rebuild: self._fx_changed(ch, chain),
+                          on_control=lambda chain, i, name, value: self._fx_control(ch, chain, i, name, value))
+        self.worker.submit(effects.catalog, opened)
+
+    def _fx_changed(self, ch, chain):
+        """Kette geändert (hinzugefügt, entfernt, an/aus, verschoben): speichern und Kanal neu verbinden."""
+        chain = [dict(fx, controls=dict(fx["controls"])) for fx in chain]
+        self._strip_ids = None
+
+        def work():
+            self.mixer.fx.set_chain(ch["id"], chain)
+            if self.mixer.is_active():
+                self.mixer.rebuild_channel(ch["id"])
+        self._debounced(f"fx:{ch['id']}", lambda _v: work(), None, delay=350)
+
+    def _fx_control(self, ch, chain, i, name, value):
+        """Regler bewegt: live setzen (pw-cli), sonst Kette neu starten."""
+        chain = [dict(fx, controls=dict(fx["controls"])) for fx in chain]
+
+        def work():
+            self.mixer.fx.set_chain(ch["id"], chain)
+            if self.mixer.is_active() and not self.mixer.fx.set_live(ch["id"], i, name, value):
+                self.mixer.rebuild_channel(ch["id"])
+        self._debounced(f"fxc:{ch['id']}", lambda _v: work(), None, delay=300)
 
     def _on_stream(self, s, cid):
         if not cid:
@@ -493,11 +606,11 @@ class WaveWindow:
     def _held(self, key):
         return time.time() - self._touched.get(key, 0) < TOUCH_HOLD
 
-    def _debounced(self, key, fn, value):
+    def _debounced(self, key, fn, value, delay=120):
         self._touch(key)
         self._pending[key] = (fn, value)
         if key not in self._timers:
-            self._timers[key] = self.root.after(120, lambda: self._fire(key))
+            self._timers[key] = self.root.after(delay, lambda: self._fire(key))
 
     def _fire(self, key):
         self._timers.pop(key, None)
@@ -514,7 +627,8 @@ class WaveWindow:
         except Exception as e:  # noqa: BLE001
             st["error"] = str(e)
         if st["mixer_active"]:
-            st["channels"] = [(c["id"], c["name"]) for c in self.mixer.all_channels()]
+            st["channels"] = [dict(c, fx=sum(1 for fx in self.mixer.fx.chain(c["id"]) if fx.get("enabled", True)))
+                              for c in self.mixer.all_channels()]
             st["levels"] = self.mixer.levels()
             st["outputs"] = [(o["name"], o.get("description") or o["name"]) for o in self.mixer.outputs()]
             st["monitor_output"] = self.mixer._state().get("monitor_output", "")
@@ -551,7 +665,8 @@ class WaveWindow:
         if st.get("mixer_active"):
             self.mix_off.pack_forget()
             self.mix_on.pack(fill="both", expand=True)
-            ids = tuple(st["channels"])
+            ids = tuple((c["id"], c["name"], c.get("icon"), c.get("color"), c.get("kind"), c["fx"])
+                        for c in st["channels"])
             if ids != self._strip_ids:
                 self._strip_ids = ids
                 self._build_strips(st["channels"])

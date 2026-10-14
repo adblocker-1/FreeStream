@@ -333,6 +333,26 @@ def cmd_mixer(args):
             print(f"{app} → {ch} ({mx.assign(app, ch)} laufende Streams verschoben)")
         elif args.action == "output":
             print("Monitor-Ausgang:", mx.set_monitor_output(args.args[0] if args.args else "next"))
+        elif args.action == "add":
+            if not args.args:
+                print("Name angeben: linewave mixer add <Name> [Eingangsgerät]")
+                return 1
+            name, dev = args.args[0], (args.args[1] if len(args.args) > 1 else "")
+            if dev:
+                src = next((n for n, d in mx.inputs() if dev == n or dev.lower() in d.lower()), None)
+                if not src:
+                    print(f"Eingangsgerät „{dev}“ nicht gefunden. Vorhanden: "
+                          + ", ".join(d for _n, d in mx.inputs()))
+                    return 1
+                c = mx.add_channel(name, "input", source=src)
+            else:
+                c = mx.add_channel(name)
+            _signal_wave_app()
+            print(f"Kanal angelegt: {c['name']} ({c['id']})")
+        elif args.action == "delete":
+            mx.remove_channel(args.args[0])
+            _signal_wave_app()
+            print("Kanal gelöscht")
         else:
             if not mx.is_active():
                 print("Mixer nicht eingerichtet – 'linewave mixer setup'")
@@ -549,9 +569,10 @@ def main(argv=None):
     s = sub.add_parser("mixer", help="Audio-Mixer (Wave-Link-Ersatz): status, setup, remove, set, mute, "
                                      "assign, output")
     s.add_argument("action", nargs="?", default="status",
-                   choices=["status", "setup", "remove", "set", "mute", "assign", "output"])
+                   choices=["status", "setup", "remove", "set", "mute", "assign", "output", "add", "delete"])
     s.add_argument("args", nargs="*", help="set <Kanal> <monitor|stream|both> <Prozent> · mute <Kanal> <Mix> · "
-                                           "assign <Programm> <Kanal> · output [Gerät]")
+                                           "assign <Programm> <Kanal> · output [Gerät] · add <Name> [Eingangsgerät] · "
+                                           "delete <Kanal>")
     s.set_defaults(fn=cmd_mixer)
 
     s = sub.add_parser("wave", help="Elgato-Wave-Mikrofon: status, gain, mute, lowcut, clipguard, leds, flip, "
