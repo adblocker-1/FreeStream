@@ -300,18 +300,30 @@ class DeckController:
         with self.deck:
             self.deck.set_key_image(k, native)
 
+    def _bg_tile(self, k):
+        """Kachel des Seiten-Hintergrundbilds für Taste k (oder None)."""
+        pg = self.current_page()
+        path = pg.image_path(pg.background) if pg is not None and getattr(pg, "background", "") else None
+        if not path:
+            return None
+        cols, rows = self.geometry.cols, self.geometry.rows
+        r, c = divmod(k, cols)
+        size = self.key_size if self.visual else (72, 72)
+        return render.background_tiles(path, cols, rows, size, pg.background_dim).get((c, r))
+
     def key_image(self, k, frame_idx=0):
         """PIL-Bild für Taste k (ohne Gerät – auch für Vorschau benutzt)."""
         a = self.keys.get(k)
+        tile = self._bg_tile(k)
         if a is None:
-            return Image.new("RGBA", self.key_size, (0, 0, 0, 255)), None
+            return (tile.copy() if tile is not None else Image.new("RGBA", self.key_size, (0, 0, 0, 255))), None
         try:
             frames = a.frames(self.key_size)
         except Exception as e:  # noqa: BLE001
             log.debug("Bildfehler %s: %s", a.uuid, e)
             frames = [(render.fallback_icon(*self.key_size, a.name), 0)]
         frame = frames[frame_idx % len(frames)][0] if frames else None
-        img = render.compose_key(self.key_size, frame, a.title(), a.state_dict(), self._overlay_for(a))
+        img = render.compose_key(self.key_size, frame, a.title(), a.state_dict(), self._overlay_for(a), base=tile)
         return img, (frames if len(frames) > 1 else None)
 
     def render_key(self, k, frame_idx=0):

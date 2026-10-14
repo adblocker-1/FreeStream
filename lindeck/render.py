@@ -205,10 +205,47 @@ def fallback_icon(w, h, label: str, color=(40, 40, 46)):
     return img
 
 
-def compose_key(size, frame, title, state, overlay=None, background=(0, 0, 0)):
-    """Erzeugt ein RGBA-Bild einer Taste."""
+BG_GAP = 0.22  # Abstand zwischen den Tasten im Verhältnis zur Tastengröße (wie am Gerät)
+_bg_cache = {}
+
+
+def background_tiles(path, cols, rows, size, dim=0, gap_ratio=BG_GAP):
+    """Hintergrundbild einer Seite in Kacheln je Taste zerlegen: {(Spalte, Zeile): RGBA-Bild}.
+
+    Das Bild füllt die ganze Tastenfläche (zugeschnitten, nicht verzerrt). Die
+    Lücken zwischen den Tasten werden mitgerechnet, damit es über die Tasten
+    hinweg durchgehend wirkt. dim (0–90) dunkelt es ab, damit Titel lesbar bleiben.
+    """
+    import os
+    from PIL import ImageOps
+    try:
+        key = (str(path), os.path.getmtime(path), cols, rows, tuple(size), int(dim))
+    except OSError:
+        return {}
+    if key in _bg_cache:
+        return _bg_cache[key]
     w, h = size
-    img = Image.new("RGBA", (w, h), background + (255,))
+    gap = int(round(w * gap_ratio))
+    W, H = cols * w + (cols - 1) * gap, rows * h + (rows - 1) * gap
+    try:
+        with Image.open(path) as src:
+            img = ImageOps.fit(ImageOps.exif_transpose(src).convert("RGB"), (W, H), Image.LANCZOS)
+    except (OSError, ValueError):
+        return {}
+    if dim:
+        img = Image.blend(img, Image.new("RGB", img.size, (0, 0, 0)), max(0, min(90, dim)) / 100)
+    tiles = {(c, r): img.crop((c * (w + gap), r * (h + gap), c * (w + gap) + w, r * (h + gap) + h)).convert("RGBA")
+             for r in range(rows) for c in range(cols)}
+    if len(_bg_cache) > 16:
+        _bg_cache.clear()
+    _bg_cache[key] = tiles
+    return tiles
+
+
+def compose_key(size, frame, title, state, overlay=None, background=(0, 0, 0), base=None):
+    """Erzeugt ein RGBA-Bild einer Taste (base: Kachel des Seiten-Hintergrunds)."""
+    w, h = size
+    img = base.copy() if base is not None else Image.new("RGBA", (w, h), background + (255,))
     if frame is not None:
         img.alpha_composite(frame if frame.size == (w, h) else _fit(frame, w, h))
     show = state.get("ShowTitle")
@@ -261,7 +298,8 @@ def text_key(size, text, sub="", bg=(0, 0, 0), fg=(255, 255, 255)):
 def compose_dial_segment(size, icon, title, value_text, indicator, background=None, active=False):
     """Ein Segment des Touchstreifens im Stil des Elgato-Layouts $B1/$A1."""
     w, h = size
-    img = Image.new("RGBA", (w, h), (0, 0, 0, 255))
+    # durchsichtig, damit der Hintergrund des ganzen Touchstreifens zu sehen ist
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     if background is not None:
         img.alpha_composite(_fit(background, w, h))
     d = ImageDraw.Draw(img)

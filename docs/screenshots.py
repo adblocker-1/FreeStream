@@ -164,6 +164,7 @@ def shot_lindeck(tmp):
     app.select(("key", 0, 0))
     pump(root, 1.5)
     grab(root, "lindeck-fenster.png")
+    shot_background(tmp, root, app, doc)
     shot_plugins(tmp, root, Daemon)
     app.close()
     try:
@@ -171,6 +172,60 @@ def shot_lindeck(tmp):
         root.destroy()
     except tk.TclError:
         pass
+
+
+def wallpaper(w, h):
+    """Eigenes Beispiel-Hintergrundbild: Abendhimmel mit Sonne und Bergen."""
+    im = Image.new("RGB", (w, h))
+    d = ImageDraw.Draw(im)
+    top, mid, bot = (38, 20, 84), (196, 66, 120), (255, 158, 76)
+    for y in range(h):
+        t = y / (h - 1)
+        a, b, u = (top, mid, t / 0.6) if t < 0.6 else (mid, bot, (t - 0.6) / 0.4)
+        d.line([(0, y), (w, y)], fill=tuple(round(x + (z - x) * u) for x, z in zip(a, b)))
+    cx, cy, r = w * 0.62, h * 0.62, h * 0.26
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 214, 120))
+    for i in range(6):
+        y = cy + r * (0.15 + i * 0.16)
+        d.rectangle((cx - r, y, cx + r, y + r * 0.05 * (i + 1)), fill=(196, 66, 120))
+    d.polygon([(0, h), (0, h * 0.72), (w * 0.18, h * 0.55), (w * 0.38, h * 0.74), (w * 0.55, h * 0.6),
+               (w * 0.8, h * 0.78), (w, h * 0.66), (w, h)], fill=(30, 16, 56))
+    return im
+
+
+def shot_background(tmp, root, app, _doc):
+    """Zweite Seite mit Hintergrundbild über alle Tasten und eigenem Touchstreifen."""
+    doc = app.doc
+    from lindeck.bgui import BackgroundDialog
+    from lindeck.theme import glyph
+    wp = tmp / "abendhimmel.jpg"
+    wallpaper(1600, 900).save(wp, quality=92)
+    strip = tmp / "streifen.png"
+    wallpaper(1600, 900).crop((0, 600, 1600, 800)).save(strip)
+    pid = doc.add_page()
+    for (c, r), name, title in (((0, 0), "music", "Musik"), ((1, 0), "chat", "Discord"), ((3, 1), "record", "Rec")):
+        f = tmp / f"t_{name}.png"
+        g = glyph(name, 120, "#ffffff")
+        im = Image.new("RGBA", (144, 144), (0, 0, 0, 0))
+        im.alpha_composite(g.resize((80, 80), Image.LANCZOS), (32, 18))
+        im.save(f)
+        doc.place(pid, ("key", c, r), "com.elgato.streamdeck.system.hotkey")
+        doc.set_icon(pid, ("key", c, r), 0, f)
+        doc.update_state(pid, ("key", c, r), 0, "Title", title)
+        doc.update_state(pid, ("key", c, r), 0, "TitleAlignment", "bottom")
+    doc.set_background(pid, wp, dim=15)
+    doc.set_strip_background(pid, strip)
+    doc.save()
+    app.goto_page(pid)
+    app.select(("key", 2, 0))
+    pump(root, 1.5)
+    grab(root, "lindeck-hintergrund.png")
+    dlg = BackgroundDialog(root, app, pid)
+    pump(root, 1)
+    grab(dlg, "lindeck-hintergrund-dialog.png")
+    dlg.destroy()
+    app.goto_page(doc.page_ids[0])
+    pump(root, 0.5)
 
 
 def shot_plugins(tmp, root, daemon):
@@ -266,6 +321,20 @@ def shot_linewave(tmp):
     pump(root, 1)
     grab(root, "linewave-mikrofon.png")
     win.show_view("mixer")
+
+    from lindeck import wavesetup
+    data = wavesetup.collect(host)
+    data["catalog"] = effects.catalog()
+    wiz = wavesetup.SetupWizard(win, data)
+    for step, name in ((1, "linewave-einrichtung-mikrofon.png"), (3, "linewave-einrichtung-klang.png")):
+        wiz.step = step
+        wiz.render()
+        if step == 1 and wiz.meter is not None:
+            wiz.meter.level, wiz.meter.peak = 0.58, 0.71
+            wiz.meter_hint.configure(text="")
+        pump(root, 1)
+        grab(wiz, name)
+    wiz.destroy()
 
     from lindeck.wavedialogs import ChannelDialog, EffectsDialog
     dlg = ChannelDialog(root, host.mixer.inputs(), on_save=lambda v: None)

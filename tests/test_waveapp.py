@@ -396,3 +396,77 @@ def test_dialogs_open(env, pactl, monkeypatch):
         pm.destroy()
     finally:
         root.destroy()
+
+
+# ==========================================================================
+# Einrichtungsassistent
+# ==========================================================================
+def test_setup_wizard_applies_choices(env, pactl, monkeypatch):
+    from lindeck import effects, wavesetup
+    from lindeck.wavehost import WaveHost
+    host = WaveHost(_config(env, {}))
+    data = wavesetup.collect(host)
+    assert ("alsa_input.usb-capture", "USB Capture") in data["inputs"] and data["wave3"] is True
+    assert ("alsa_output.headphones", "Kopfhörer") in data["outputs"]
+    hp = effects.lookup("builtin:highpass")
+    wavesetup.apply_choices(host, {"mic": "alsa_input.usb-capture", "output": "alsa_output.speakers",
+                                   "wave3": False, "lowcut": True, "clipguard": False, "gain": None,
+                                   "channels": ["music", "voice"], "mic_fx": [effects.new_effect(hp)]})
+    cfg = json.loads((env / "config" / "config.json").read_text())
+    mx = cfg["mixer"]
+    assert cfg["linewave"]["setup_done"] is True and mx["enabled"] is True
+    assert mx["mic"] == "alsa_input.usb-capture" and mx["monitor_output"] == "alsa_output.speakers"
+    assert [c["id"] for c in mx["channels"]] == ["music", "voice"]
+    assert mx["effects"]["mic"][0]["plugin"] == "builtin:highpass"
+    assert host.mixer.is_active()
+    loops = _loops(pactl, "music")
+    assert {b["sink"] for b in loops.values()} >= {pactl._sink("alsa_output.speakers")}
+
+
+def test_setup_wizard_wave3_hardware(env, pactl):
+    from lindeck import wavesetup
+    from lindeck.wavehost import WaveHost
+    host = WaveHost(_config(env, {}))
+    wavesetup.apply_choices(host, {"mic": "alsa_input.wave3", "output": "", "wave3": True, "lowcut": False,
+                                   "clipguard": True, "gain": 50, "channels": [], "mic_fx": []})
+    hw = host.mic.hw().get()
+    assert hw["lowcut"] is False and hw["clipguard"] is True and hw["gain"] == 20.0
+    cfg = json.loads((env / "config" / "config.json").read_text())
+    assert [c["id"] for c in cfg["mixer"]["channels"]] == ["system"]  # mindestens ein Programm-Kanal
+
+
+def test_test_tone_and_level_meter(env, monkeypatch):
+    import wave as wav
+    from lindeck import wavesetup
+    p = wavesetup.test_tone_file()
+    with wav.open(str(p)) as w:
+        assert w.getnchannels() == 2 and w.getframerate() == 48000
+    monkeypatch.setattr(wavesetup.shutil, "which", lambda n: None)
+    m = wavesetup.LevelMeter("alsa_input.x")
+    assert not m.available
+    m.stop()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
+def test_setup_wizard_window(env, pactl):
+    import tkinter as tk
+    from lindeck import wavesetup
+    from lindeck.wavehost import WaveHost
+    from lindeck.waveui import WaveWindow
+    host = WaveHost(_config(env, {}))
+    root = tk.Tk()
+    try:
+        win = WaveWindow(root, host, tray=False)
+        assert win.needs_setup()
+        data = wavesetup.collect(host)
+        wiz = wavesetup.SetupWizard(win, data)
+        for _ in range(4):
+            wiz.next()
+            root.update()
+        assert wiz.step == 4
+        ch = wiz.choices()
+        assert ch["mic"] and ch["channels"] == ["system", "music", "browser", "voice", "game", "sfx"]
+        wiz.skip()
+        assert not win.needs_setup()
+    finally:
+        root.destroy()

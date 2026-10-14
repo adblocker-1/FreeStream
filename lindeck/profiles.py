@@ -64,6 +64,8 @@ class Page:
     encoders: dict = field(default_factory=dict)    # dial index -> action dict
     infobar: dict = field(default_factory=dict)     # Neo-Infobar: index -> action dict
     encoder_background: str = ""                    # Bildpfad für den ganzen Touchstreifen
+    background: str = ""                            # LinDeck: Hintergrundbild über alle Tasten
+    background_dim: int = 0                         # … abgedunkelt um Prozent
 
     def image_path(self, rel: str):
         if not rel:
@@ -180,6 +182,9 @@ def load_page(page_uuid: str, d: Path, manifest: dict = None) -> Page:
     """Seite aus <d>/manifest.json lesen (oder aus einem bereits geladenen Manifest)."""
     m = manifest if manifest is not None else read_json(d / "manifest.json")
     pg = Page(page_uuid, d, name=m.get("Name") or "")
+    bg = m.get("LinDeckBackground") or {}
+    if isinstance(bg, dict):
+        pg.background, pg.background_dim = bg.get("Image") or "", int(bg.get("Dim") or 0)
     controllers = m.get("Controllers")
     if controllers is None and "Actions" in m:
         controllers = [{"Type": "Keypad", "Actions": m["Actions"]}]

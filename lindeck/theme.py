@@ -280,6 +280,10 @@ def glyph(name, size=20, color="#ececf0", bg=None, circle=None):
     elif n == "search":
         ell(0.04, 0.04, 0.7, 0.7, fill=False)
         line((0.62, 0.62), (0.94, 0.94))
+    elif n == "image":
+        rect(0.02, 0.1, 0.98, 0.9, r=0.1, fill=False)
+        ell(0.62, 0.22, 0.82, 0.42)
+        d.polygon([P(0.1, 0.82), P(0.38, 0.42), P(0.58, 0.68), P(0.7, 0.56), P(0.9, 0.82)], fill=c)
     elif n == "more":
         for x in (0.15, 0.5, 0.85):
             ell(x - 0.1, 0.4, x + 0.1, 0.6)
@@ -508,8 +512,9 @@ _KNOBS = {}
 
 def _knob_image(master, d, color, enabled=True):
     """Kantengeglätteter Reglerknopf (weiß mit farbigem Punkt und Schatten)."""
-    key = (str(master.winfo_toplevel()), d, color, enabled)
-    if key not in _KNOBS:
+    cache = _KNOBS.setdefault(master.tk, {})  # Bilder gehören zu genau einem Tk-Interpreter
+    key = (d, color, enabled)
+    if key not in cache:
         k = 4
         size = (d + 4) * k
         im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -520,8 +525,8 @@ def _knob_image(master, d, color, enabled=True):
         r = d * k * 0.17
         c = o + d * k / 2
         dr.ellipse((c - r, c - r, c + r, c + r), fill=rgb(color) + (255,))
-        _KNOBS[key] = ImageTk.PhotoImage(im.resize((d + 4, d + 4), Image.LANCZOS), master=master)
-    return _KNOBS[key]
+        cache[key] = ImageTk.PhotoImage(im.resize((d + 4, d + 4), Image.LANCZOS), master=master)
+    return cache[key]
 
 
 class RoundToggle(tk.Canvas):
@@ -576,13 +581,14 @@ class RoundToggle(tk.Canvas):
 
 
 def _disc_image(master, d, color):
-    key = ("disc", str(master.winfo_toplevel()), d, color)
-    if key not in _KNOBS:
+    cache = _KNOBS.setdefault(master.tk, {})
+    key = ("disc", d, color)
+    if key not in cache:
         k = 4
         im = Image.new("RGBA", (d * k, d * k), (0, 0, 0, 0))
         ImageDraw.Draw(im).ellipse((k, k, d * k - k, d * k - k), fill=rgb(color) + (255,))
-        _KNOBS[key] = ImageTk.PhotoImage(im.resize((d, d), Image.LANCZOS), master=master)
-    return _KNOBS[key]
+        cache[key] = ImageTk.PhotoImage(im.resize((d, d), Image.LANCZOS), master=master)
+    return cache[key]
 
 
 class Switch(tk.Canvas):
