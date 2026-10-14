@@ -19,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageTk
 from . import actions as A
 from . import catalog as C
 from . import editdoc as E
-from . import paths, theme
+from . import paths, render, theme
 from .models import MODELS, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
 
@@ -226,6 +226,13 @@ class EditorApp:
             self._hidden_once = True
             from .autoimport import notify
             notify("LinDeck läuft weiter", "Das Stream Deck bleibt aktiv. Öffnen über das Menü „LinDeck“.")
+
+    def open_background(self):
+        """Hintergrundbild der aktuellen Seite (und des Touchstreifens) einstellen."""
+        if not self.doc or not self.nav:
+            return
+        from .bgui import BackgroundDialog
+        BackgroundDialog(self.root, self, self.nav[-1])
 
     def open_plugins(self):
         """Plugin-Verwaltung öffnen."""
@@ -701,6 +708,10 @@ class EditorApp:
         left.pack(side="left", padx=(8, 1))
         right = ttk.Button(self.pagebar, text="▶", width=3, command=lambda: self.move_page(1))
         right.pack(side="left", padx=1)
+        has_bg = self.doc.background(self.page_uuid)[0] is not None
+        ttk.Button(self.pagebar, text=" Hintergrund", compound="left", style="Accent.TButton" if has_bg else "TButton",
+                   image=self.icons.get("image", 16, "#ffffff" if has_bg else COL["fg"]),
+                   command=self.open_background).pack(side="right")
         if len(ids) <= 1:
             rm.state(["disabled"])
             left.state(["disabled"])
@@ -762,7 +773,9 @@ class EditorApp:
             self._img_cache.clear()
 
     def _render(self, slot, data, size):
+        tile = self._tiles.get((slot[1], slot[2])) if slot[0] == "key" and getattr(self, "_tiles", None) else None
         key = (self.page_uuid, slot[0], json.dumps(data, sort_keys=True), size,
+               (slot[1:], self._tiles_id) if tile is not None else None,
                self.doc.page_ids.index(self.nav[0]) if self.nav and self.nav[0] in self.doc.page_ids else 0)
         img = self._img_cache.get(key)
         if img is None:
@@ -771,7 +784,7 @@ class EditorApp:
                 img = E.preview_dial(self.doc, self.page_uuid, data, (max(100, 100 * size[0] // size[1]), 100))
                 img = img.resize(size, Image.LANCZOS)
             else:
-                img = E.preview_action(self.doc, self.page_uuid, data, size, page_index=key[-1])
+                img = E.preview_action(self.doc, self.page_uuid, data, size, page_index=key[-1], base=tile)
             img = _rounded(img.convert("RGBA"), max(6, size[0] // 8))
             self._img_cache[key] = img
         return img
@@ -793,12 +806,25 @@ class EditorApp:
         self._body_photo = ImageTk.PhotoImage(body, master=self.root)
         cv.create_image(x0 - pad - SHADOW, y0 - pad - SHADOW, image=self._body_photo, anchor="nw")
         page = self.doc.page(self.page_uuid)
+        bg_path, bg_dim = self.doc.background(self.page_uuid)
+        self._tiles = render.background_tiles(bg_path, g.cols, g.rows, (ts, ts), bg_dim, gap_ratio=gap / ts) \
+            if bg_path else {}
+        self._tiles_id = (str(bg_path), bg_dim) if bg_path else None
         for slot in keys:
             c, r = slot[1], slot[2]
             x, y = x0 + c * (ts + gap), y0 + r * (ts + gap)
             self._draw_slot(slot, page.get(slot), x, y, ts, ts)
         if g.dials:
             y = y0 + g.rows * ts + (g.rows - 1) * gap + gap * 2
+            strip_w = int(g.dials * (seg_w + 4) - 4)
+            strip = Image.new("RGBA", (strip_w, dial_h), (0, 0, 0, 255))
+            sp = self.doc.strip_background(self.page_uuid)
+            if sp:
+                fr = render.load_frames(sp, strip_w, dial_h)
+                if fr:
+                    strip.alpha_composite(fr[0][0].convert("RGBA").resize((strip_w, dial_h)))
+            self._strip_photo = ImageTk.PhotoImage(_rounded(strip, max(6, dial_h // 8)), master=self.root)
+            cv.create_image(x0, y, image=self._strip_photo, anchor="nw")
             for slot in dials:
                 i = slot[1]
                 x = x0 + i * (seg_w + 4)
@@ -811,7 +837,14 @@ class EditorApp:
     def _draw_slot(self, slot, data, x, y, w, h):
         cv = self.canvas
         sel = self.selected is not None and tuple(self.selected) == tuple(slot)
-        if data is None:
+        tile = self._tiles.get((slot[1], slot[2])) if slot[0] == "key" and getattr(self, "_tiles", None) else None
+        if data is None and tile is not None:
+            ph = ImageTk.PhotoImage(_rounded(tile, max(6, w // 8)), master=self.root)
+            self._photos.append(ph)
+            cv.create_image(x, y, image=ph, anchor="nw")
+        elif data is None and slot[0] == "dial":
+            pass  # leeres Feld auf dem Touchstreifen: der Streifen ist schon gezeichnet
+        elif data is None:
             _round_rect(cv, x, y, x + w, y + h, max(6, w // 8), fill=COL["slot"], outline="")
             cv.create_text(x + w / 2, y + h / 2, text="+", fill="#4a4c53", font=("TkDefaultFont", max(10, w // 5)))
         else:

@@ -29,13 +29,14 @@ Programm einfach weiter.
 2. **Stream Deck:** Den Windows-Ordner `ProfilesV3` auf einen USB-Stick kopieren
    und einstecken – LinDeck übernimmt alle Profile von selbst. Ändern kannst du
    sie im Fenster **LinDeck** (Menü).
-3. **Audio (optional):** Im Menü **Linewave** öffnen → **Mixer einrichten**.
-   In OBS als Audioquelle „Monitor of Linewave Stream-Mix“ wählen – fertig.
+3. **Audio (optional):** Im Menü **Linewave** öffnen – der Einrichtungsassistent
+   fragt nach Mikrofon, Kopfhörer und Kanälen. Danach in OBS als Audioquelle
+   „Monitor of Linewave Stream-Mix“ wählen – fertig.
 
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 
-> **Status:** Version 0.9 – getestet mit simulierten Geräten aller Modelle und
+> **Status:** Version 0.10 – getestet mit simulierten Geräten aller Modelle und
 > den Elgato-Standardprofilen. Tests auf echter Hardware stehen noch aus.
 
 ---
@@ -90,7 +91,7 @@ unterstützt. Profile werden dem passenden Gerät automatisch zugeordnet
 2. Doppelklick → **Installieren**, oder im Terminal:
 
    ```bash
-   sudo apt install ./lindeck_0.9.0_all.deb
+   sudo apt install ./lindeck_0.10.0_all.deb
    ```
 
 Das Paket erledigt automatisch:
@@ -188,6 +189,27 @@ anderen Rechner.
 
 Tasten ohne eigenes Icon zeigen die Elgato-Standardsymbole, sobald der
 Elgato-Installer übernommen wurde (siehe oben); sonst erscheint der Aktionsname.
+
+### Hintergrundbilder
+
+Unter dem Gerät öffnet **Hintergrund** die Einstellungen der aktuellen Seite:
+
+- **Bild wählen …** verteilt ein Foto oder Bild über alle Tasten der Seite –
+  wie ein Desktop-Hintergrund. Die Lücken zwischen den Tasten sind
+  eingerechnet, sodass das Bild auf dem Gerät durchgehend wirkt. Leere Tasten
+  zeigen das Bild, Tasten mit eigenem Symbol liegen darüber (Symbole mit
+  durchsichtigem Hintergrund wirken am besten).
+- **Abdunkeln** macht das Bild dunkler, damit Titel lesbar bleiben.
+- **Auf alle Seiten übernehmen** setzt dasselbe Bild auf jeder Seite des Profils.
+- **Touchstreifen** (Stream Deck +, + XL): eigenes Bild für den ganzen Streifen –
+  dasselbe Format wie in der Elgato-App, bleibt also beim Export erhalten.
+
+| Seite mit Hintergrundbild | Einstellungen |
+|---|---|
+| ![Stream Deck + mit Hintergrundbild über allen Tasten und dem Touchstreifen](docs/bilder/lindeck-hintergrund.png) | ![Dialog Hintergrund mit Vorschau, Abdunkeln und Touchstreifen](docs/bilder/lindeck-hintergrund-dialog.png) |
+
+Das Tastenbild speichert LinDeck im Profil unter `LinDeckBackground`; die
+Elgato-App ignoriert diesen Eintrag, öffnet das Profil also weiterhin normal.
 
 ## Unterstützte Aktionen
 
@@ -304,6 +326,26 @@ Das zweite Programm – der Ersatz für Elgato Wave Link. Menüeintrag
 **Linewave** oder `linewave`; auch hier gibt es nur eine Instanz, und
 „Fenster schließen“ blendet nur aus. Beenden: Knopf oben rechts, Taskleiste
 oder `linewave --quit`.
+
+### Einrichtung beim ersten Start
+
+Beim ersten Öffnen führt ein Assistent durch alles Wichtige – wie bei Wave Link:
+
+1. **Mikrofon** wählen – ein Elgato Wave wird markiert; die Pegelanzeige zeigt
+   beim Sprechen, ob das Mikrofon ankommt.
+2. **Kopfhörer/Lautsprecher** wählen – mit **Testton**.
+3. **Klang:** Low Cut, Clipguard, beim Wave:3 der Gain, dazu empfohlene Effekte
+   (Rauschunterdrückung, Noise Gate, Kompressor – je nachdem, was installiert ist).
+4. **Kanäle** auswählen.
+5. **Fertig:** Linewave richtet den Mixer ein und zeigt, was in OBS und Discord
+   einzustellen ist.
+
+Über **Einrichtung** oben im Fenster lässt sich der Assistent jederzeit erneut
+öffnen; **Später einrichten** überspringt ihn.
+
+| Mikrofon wählen | Klang einstellen |
+|---|---|
+| ![Einrichtung: Mikrofon wählen mit Pegelanzeige](docs/bilder/linewave-einrichtung-mikrofon.png) | ![Einrichtung: Low Cut, Clipguard, Gain und empfohlene Effekte](docs/bilder/linewave-einrichtung-klang.png) |
 
 - **Mixer:** je Kanal zwei Regler (Monitor/Stream) mit Stumm-Schalter,
   Monitor-Ausgang (Kopfhörer) wählen, und unter **Programme** jedes laufende
@@ -570,7 +612,7 @@ mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Versio
 (Version aus `lindeck/__init__.py`).
 
 ```bash
-git tag v0.9.0 && git push origin v0.9.0
+git tag v0.10.0 && git push origin v0.10.0
 ```
 
 ### Tests
@@ -632,6 +674,8 @@ lindeck/
 ├── waveui.py       Linewave: Fenster (Mixer, Mikrofon)
 ├── wavedialogs.py  Linewave: Dialoge für eigene Kanäle und Effekte
 ├── effects.py      Effekt-Plugins je Kanal (PipeWire-Filter, LADSPA)
+├── wavesetup.py    Linewave: Einrichtungsassistent beim ersten Start
+├── bgui.py         LinDeck: Dialog für Hintergrundbilder
 ├── pluginui.py     LinDeck: Plugin-Verwaltung
 ├── theme.py        gemeinsames Aussehen: Farben, Schriften, Symbole, Regler, Schalter
 ├── selftest.py     Hardware-Selbsttest
@@ -664,6 +708,7 @@ Ereigniswarteschlange an die Aktionen weitergereicht.
 - [x] Kanalnamen unter Linux sichtbar („Linewave Musik“ …), Audio-Programm heißt Linewave (seit 0.7)
 - [x] Neues Aussehen im Stil der Elgato-Programme: Kanal-Karten mit Reglern wie in Wave Link, Symbole in der Aktionsliste (seit 0.8)
 - [x] Plugin-Verwaltung in LinDeck; eigene Kanäle und Effekt-Plugins (PipeWire-Filter, LADSPA) in Linewave (seit 0.9)
+- [x] Hintergrundbilder je Seite (Tasten und Touchstreifen); Einrichtungsassistent in Linewave (seit 0.10)
 - [ ] LV2-Plugins als Effekte in Linewave
 - [x] Plugin-Host für das Elgato-Plugin-SDK (WebSocket-Protokoll) (seit 0.3; Node.js- und Linux-Plugins)
 - [x] Linux-Umsetzung häufiger Plugins: OBS, Discord, Spotify/MPRIS, Wave Link (seit 0.3)

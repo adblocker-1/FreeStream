@@ -102,10 +102,39 @@ class WaveWindow:
             from .wavehost import make_icon
             self.tray = Tray(self.request_show, self.request_quit, icon=make_icon(64), title="Linewave",
                              ident="linewave", open_label="Linewave öffnen")
+        self._wizard = None
         if hidden:
             root.withdraw()
+        else:
+            root.after(500, self._maybe_setup)
         self.refresh()
         self._poll()
+
+    # ======================================================= Einrichtung
+    def needs_setup(self):
+        """Erster Start: noch nie eingerichtet und Mixer noch nicht in Betrieb."""
+        return not (self.host.cfg.get("linewave") or {}).get("setup_done") and not self.host.mixer_enabled
+
+    def _maybe_setup(self):
+        if self.needs_setup():
+            self.open_setup()
+
+    def open_setup(self):
+        """Einrichtungsassistent öffnen (beim ersten Start automatisch)."""
+        if self._wizard is not None and self._wizard.winfo_exists():
+            self._wizard.lift()
+            return
+        from . import wavesetup
+
+        def opened(data, err):
+            if err is not None:
+                return
+            self._wizard = wavesetup.SetupWizard(self, data, on_done=self._after_setup)
+        self.worker.submit(lambda: wavesetup.collect(self.host), opened)
+
+    def _after_setup(self):
+        self._strip_ids = None
+        self.refresh()
 
     # ============================================================ Fenster
     def request_show(self):
@@ -115,7 +144,10 @@ class WaveWindow:
         self._want_quit.set()
 
     def show(self):
+        first = self.root.state() == "withdrawn"
         self.root.deiconify()
+        if first and self.needs_setup():
+            self.root.after(400, self._maybe_setup)
         self.root.lift()
         try:
             self.root.focus_force()
@@ -183,6 +215,7 @@ class WaveWindow:
         self.mic_pill.pack(side="left", padx=16)
         ttk.Button(head, text="Beenden", command=self.quit_app).pack(side="right", padx=(6, 16))
         ttk.Button(head, text="Fenster schließen", style="Ghost.TButton", command=self.hide).pack(side="right")
+        ttk.Button(head, text="Einrichtung", style="Ghost.TButton", command=self.open_setup).pack(side="right")
         self.tabs = Segmented(head, [("mixer", "Mixer"), ("mic", "Mikrofon")], command=self.show_view)
         self.tabs.place(relx=0.5, rely=0.5, anchor="center")
 

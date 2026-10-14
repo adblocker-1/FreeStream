@@ -18,7 +18,7 @@ import uuid as uuidlib
 import zipfile
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 from . import actions as A
 from . import catalog as C
@@ -487,6 +487,62 @@ class ProfileDoc:
         self._created_images.add(dst)
         return f"Images/{dst.name}"
 
+    # ------------------------------------------------- Hintergrundbilder
+    def background(self, page_uuid):
+        """(Bildpfad oder None, Abdunkeln in %) des Seiten-Hintergrunds."""
+        pg = self.page(page_uuid)
+        bg = (pg.manifest.get("LinDeckBackground") or {}) if pg else {}
+        p = pg.dir / bg["Image"] if bg.get("Image") else None
+        return (p if p and p.exists() else None), int(bg.get("Dim") or 0)
+
+    def set_background(self, page_uuid, image_file=None, dim=None, keep_image=False):
+        """Hintergrundbild über alle Tasten setzen (None = entfernen); dim 0–90 %."""
+        pg = self.page(page_uuid)
+        self.checkpoint()
+        cur = pg.manifest.get("LinDeckBackground") or {}
+        if image_file is None and not keep_image:
+            pg.manifest.pop("LinDeckBackground", None)
+        else:
+            rel = self._import_background(page_uuid, image_file) if image_file else cur.get("Image")
+            pg.manifest["LinDeckBackground"] = {"Image": rel, "Dim": int(cur.get("Dim", 30) if dim is None else dim)}
+        self._changed()
+
+    def strip_background(self, page_uuid):
+        pg = self.page(page_uuid)
+        c = pg.controller("Encoder") if pg else None
+        rel = (c or {}).get("Background")
+        p = pg.dir / rel if rel else None
+        return p if p and p.exists() else None
+
+    def set_strip_background(self, page_uuid, image_file=None):
+        """Hintergrund des Touchstreifens (Stream Deck +, wie in der Elgato-App)."""
+        pg = self.page(page_uuid)
+        self.checkpoint()
+        c = pg.controller("Encoder", create=image_file is not None)
+        if c is not None:
+            if image_file is None:
+                c.pop("Background", None)
+            else:
+                c["Background"] = self._import_background(page_uuid, image_file, strip=True)
+        self._changed()
+
+    def _import_background(self, page_uuid, image_file, strip=False):
+        """Bild unverändert (nur verkleinert) in den Images-Ordner der Seite übernehmen."""
+        src = Path(image_file).expanduser()
+        pg = self.page(page_uuid)
+        img_dir = pg.dir / "Images"
+        img_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            with Image.open(src) as im:
+                im = ImageOps.exif_transpose(im).convert("RGB")
+                im.thumbnail((1600, 400) if strip else (1600, 1600), Image.LANCZOS)
+                dst = img_dir / (("Strip" if strip else "Background") + uuidlib.uuid4().hex[:12].upper() + ".png")
+                im.save(dst)
+        except (OSError, ValueError) as e:
+            raise EditError(f"Bild nicht lesbar: {e}") from e
+        self._created_images.add(dst)
+        return f"Images/{dst.name}"
+
     def set_settings_json(self, page_uuid, slot, settings: dict, action=None):
         a = action if action is not None else self.get(page_uuid, slot)
         if a is None:
@@ -608,6 +664,11 @@ class ProfileDoc:
             for _, a in p.items():
                 for holder, key in _image_refs(a):
                     used.add((p.dir / holder[key]).resolve())
+            bg = (p.manifest.get("LinDeckBackground") or {}).get("Image")
+            strip = (p.controller("Encoder") or {}).get("Background")
+            for rel in (bg, strip):
+                if rel:
+                    used.add((p.dir / rel).resolve())
         for f in list(self._created_images):
             if f.exists() and f.resolve() not in used:
                 f.unlink()
@@ -716,8 +777,8 @@ class _Cfg(dict):
     pass
 
 
-def preview_action(doc, page_uuid, data, size=(72, 72), page_index=0, state=None):
-    """Bild einer Taste wie auf dem Gerät."""
+def preview_action(doc, page_uuid, data, size=(72, 72), page_index=0, state=None, base=None):
+    """Bild einer Taste wie auf dem Gerät (base: Kachel des Hintergrundbilds)."""
     from .config import DEFAULTS
     pg = doc.runtime_page(page_uuid)
     ctx = A.Context(_PreviewCtrl(doc, page_index), _Cfg(DEFAULTS), None, None)
@@ -729,7 +790,7 @@ def preview_action(doc, page_uuid, data, size=(72, 72), page_index=0, state=None
     except Exception:  # noqa: BLE001 - Vorschau darf nie abbrechen
         frames = [(render.fallback_icon(size[0], size[1], C.display_name(data)), 0)]
     frame = frames[0][0] if frames else None
-    return render.compose_key(size, frame, act.title(), act.state_dict())
+    return render.compose_key(size, frame, act.title(), act.state_dict(), base=base)
 
 
 def preview_dial(doc, page_uuid, data, size=(100, 100)):
