@@ -10,6 +10,8 @@ import subprocess
 import threading
 from pathlib import Path, PureWindowsPath
 
+from .i18n import _
+
 log = logging.getLogger("lindeck.system")
 
 # Bekannte Windows-Programme -> Linux-Befehle (Kandidaten in Reihenfolge)
@@ -65,7 +67,7 @@ def run_bg(cmd, shell=False):
                          stderr=subprocess.DEVNULL, start_new_session=True)
         return True
     except (OSError, ValueError) as e:
-        log.warning("Start fehlgeschlagen %s: %s", cmd, e)
+        log.warning(_("Failed to start {cmd}: {error}").format(cmd=cmd, error=e))
         return False
 
 
@@ -202,7 +204,8 @@ def open_target(path: str, cfg) -> bool:
             prog = resolve_program(path, cfg.get("app_map"))
             if prog:
                 return launch(prog)
-            log.warning("Windows-Pfad ohne Zuordnung: %s (in config.json unter path_map/app_map eintragen)", path)
+            log.warning(_("Windows path without mapping: {path} (add it to path_map/app_map in config.json)")
+                        .format(path=path))
             return False
     else:
         path = map_path(path, cfg.get("path_map"))
@@ -214,7 +217,7 @@ def open_target(path: str, cfg) -> bool:
         return run_bg(["xdg-open", path])
     if have(path.split()[0]):
         return run_bg(path)
-    log.warning("Ziel nicht gefunden: %s", path)
+    log.warning(_("Target not found: {path}").format(path=path))
     return False
 
 
@@ -305,7 +308,7 @@ def clipboard_set(text: str) -> bool:
     elif have("xsel"):
         cmd = ["xsel", "--clipboard", "--input"]
     else:
-        log.warning("Keine Zwischenablage verfügbar (wl-clipboard oder xclip installieren)")
+        log.warning(_("No clipboard available (install wl-clipboard or xclip)"))
         return False
     try:
         p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -409,12 +412,12 @@ class SoundPlayer:
     def play(self, key, path, volume=100, output="", loop=False):
         cmd = self._cmd(path, volume, output, loop)
         if not cmd:
-            log.warning("Kein Audioplayer gefunden (mpv, ffplay oder pipewire-bin installieren)")
+            log.warning(_("No audio player found (install mpv, ffplay or pipewire-bin)"))
             return None
         try:
             p = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except OSError as e:
-            log.warning("Audio-Wiedergabe fehlgeschlagen: %s", e)
+            log.warning(_("Audio playback failed: {error}").format(error=e))
             return None
         with self._lock:
             self._procs.setdefault(key, []).append(p)
@@ -521,7 +524,7 @@ def device_volume(kind, name):
 
 def device_change(kind, name, delta):
     if have("pactl"):
-        cur, _ = device_volume(kind, name)
+        cur, _mute = device_volume(kind, name)
         device_set(kind, name, cur + delta)
     else:
         change_volume(delta, source=(kind == "source"))
