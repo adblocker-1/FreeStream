@@ -1,5 +1,6 @@
 """Dialoge von Linewave: eigene Kanäle anlegen/bearbeiten und Effekte (Plugins) je Kanal."""
 import math
+import shutil
 import tkinter as tk
 from tkinter import ttk
 
@@ -248,7 +249,7 @@ class EffectsDialog(Dialog):
         grid.pack(fill="x", pady=(10, 0))
         for r, c in enumerate(p.get("controls", [])):
             value = float(fx["controls"].get(c["name"], c["default"]))
-            label(grid, c["name"], 9, color=COL["muted"], anchor="w", width=20).grid(row=r, column=0, sticky="w")
+            label(grid, c.get("label") or c["name"], 9, color=COL["muted"], anchor="w", width=20).grid(row=r, column=0, sticky="w")
             val = tk.StringVar(self, value=_fmt(value, c))
             if c.get("toggle"):
                 w = Switch(grid)
@@ -317,10 +318,19 @@ class PluginPicker(Dialog):
         self.catalog, self.on_pick = catalog, on_pick
         self.icons = Icons(self)
         label(self.body, "Effekt hinzufügen", 15, "bold").pack(anchor="w")
-        n_ladspa = sum(1 for p in catalog if p["type"] == "ladspa")
-        label(self.body, f"{len(catalog) - n_ladspa} eingebaute Filter, {n_ladspa} LADSPA-Plugins gefunden. "
-                         "Mehr Plugins: Pakete swh-plugins, tap-plugins oder noise-suppression-for-voice.",
-              9, color=COL["muted"], wraplength=500, justify="left").pack(anchor="w", pady=(2, 10))
+        n = {t: sum(1 for p in catalog if p["type"] == t) for t in ("builtin", "ladspa", "lv2")}
+        self.lv2_ok, self.lv2_hint = effects.lv2_status()
+        info = (f"{n['builtin']} eingebaute Filter, {n['ladspa']} LADSPA- und {n['lv2']} LV2-Plugins gefunden. "
+                "Mehr Plugins: Pakete swh-plugins, tap-plugins, x42-plugins, lsp-plugins-lv2, calf-plugins.")
+        if n["lv2"] == 0 and not shutil.which("lv2info"):
+            info += " Für LV2-Plugins das Paket lilv-utils installieren."
+        elif not self.lv2_ok:
+            info += " " + self.lv2_hint + "."
+        label(self.body, info, 9, color=COL["muted"], wraplength=500, justify="left").pack(anchor="w", pady=(2, 8))
+        self.kind = "all"
+        self.seg = Segmented(self.body, [("all", "Alle"), ("builtin", "Eingebaut"), ("ladspa", "LADSPA"),
+                                         ("lv2", "LV2")], command=self._kind)
+        self.seg.pack(anchor="w", pady=(0, 8))
         sb = tk.Frame(self.body, bg=COL["panel2"])
         sb.pack(fill="x", pady=(0, 10))
         tk.Label(sb, image=self.icons.get("search", 16, COL["muted"]), bg=COL["panel2"]).pack(side="left", padx=8)
@@ -336,12 +346,19 @@ class PluginPicker(Dialog):
         self._fill()
         self.show()
 
+    def _kind(self, kind):
+        self.kind = kind
+        self.seg.set(kind)
+        self._fill()
+
     def _fill(self):
         for w in self.area.inner.winfo_children():
             w.destroy()
         q = self.q.get().strip().lower()
         shown = 0
         for p in self.catalog:
+            if self.kind != "all" and p["type"] != self.kind:
+                continue
             if q and q not in p["name"].lower() and q not in (p.get("info") or "").lower() \
                     and q not in p.get("label", "").lower():
                 continue
@@ -351,14 +368,19 @@ class PluginPicker(Dialog):
                 break
             row = tk.Frame(self.area.inner, bg=COL["panel"], padx=12, pady=8, cursor="hand2")
             row.pack(fill="x", pady=2)
-            tag = "PipeWire" if p["type"] == "builtin" else "LADSPA"
-            tk.Label(row, image=self.icons.get("fx", 24, "#ffffff",
-                                               circle=COL["accent"] if p["type"] == "builtin" else COL["stream"]),
+            tag = {"builtin": "PipeWire", "ladspa": "LADSPA", "lv2": "LV2"}.get(p["type"], p["type"])
+            ok = p["type"] != "lv2" or self.lv2_ok
+            circle = {"builtin": COL["accent"], "ladspa": COL["stream"], "lv2": COL["monitor"]}.get(p["type"],
+                                                                                                COL["raised"])
+            tk.Label(row, image=self.icons.get("fx", 24, "#ffffff", circle=circle if ok else COL["raised"]),
                      bg=COL["panel"]).pack(side="left")
             txt = tk.Frame(row, bg=COL["panel"])
             txt.pack(side="left", padx=10, fill="x", expand=True)
             label(txt, p["name"], 10, "bold").pack(anchor="w")
-            label(txt, f"{tag} · {p.get('info') or p.get('label', '')}", 8, color=COL["muted"]).pack(anchor="w")
+            label(txt, f"{tag} · {p.get('info') or p.get('label', '')}" if ok else f"{tag} · {self.lv2_hint}",
+                  8, color=COL["muted"] if ok else COL["warn"], wraplength=330, justify="left").pack(anchor="w")
+            if not ok:
+                continue
             add = PillButton(row, "Hinzufügen", command=lambda p=p: self._pick(p))
             add.pack(side="right")
             for w in (row, txt):

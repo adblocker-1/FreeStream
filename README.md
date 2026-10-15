@@ -36,7 +36,7 @@ Programm einfach weiter.
 Installiert wird eine einzige `.deb`-Datei. Danach läuft alles automatisch:
 Gerätezugriff, virtuelle Tastatur, Autostart und der Import deiner Profile.
 
-> **Status:** Version 0.10 – getestet mit simulierten Geräten aller Modelle und
+> **Status:** Version 0.11 – getestet mit simulierten Geräten aller Modelle und
 > den Elgato-Standardprofilen. Tests auf echter Hardware stehen noch aus.
 
 ---
@@ -91,7 +91,7 @@ unterstützt. Profile werden dem passenden Gerät automatisch zugeordnet
 2. Doppelklick → **Installieren**, oder im Terminal:
 
    ```bash
-   sudo apt install ./lindeck_0.10.0_all.deb
+   sudo apt install ./lindeck_0.11.0_all.deb
    ```
 
 Das Paket erledigt automatisch:
@@ -408,6 +408,19 @@ ausschalten, verschieben und mit Reglern einstellen. Regler wirken sofort.
 | Noise Gate, Kompressor, Limiter | Paket `swh-plugins` (wird mit LinDeck empfohlen) |
 | Equalizer, De-Esser, Hall | Paket `tap-plugins` |
 | alle weiteren LADSPA-Plugins | werden automatisch gefunden (`/usr/lib/ladspa`, `~/.ladspa`, `LADSPA_PATH`) |
+| **LV2-Plugins** – z. B. x42 (Kompressor, EQ, Limiter), LSP, Calf, Noise Repellent | Pakete `x42-plugins`, `lsp-plugins-lv2`, `calf-plugins` …; gefunden über `lilv-utils` (`/usr/lib/lv2`, `~/.lv2`, `LV2_PATH`) |
+
+**LV2 auf jedem System:** Kann das installierte PipeWire selbst LV2-Plugins
+laden (z. B. Fedora, Arch), laufen sie direkt in der Filterkette. Sonst – etwa
+bei Ubuntu 24.04 – startet Linewave jedes LV2-Plugin mit `jalv` über
+pipewire-jack und verkabelt die Kette automatisch mit `pw-link`; dafür werden
+die Pakete `jalv` und `pipewire-jack` gebraucht (vom LinDeck-Paket empfohlen).
+Regler wirken in beiden Fällen sofort. In der Effekt-Auswahl lassen sich die
+Plugins nach **Eingebaut**, **LADSPA** und **LV2** filtern. Plugins, die eine
+eigene Oberfläche, MIDI oder Steuersignale brauchen (Instrumente, Pegelanzeigen),
+werden ausgeblendet.
+
+![Effekt-Auswahl mit LV2-Plugins](docs/bilder/linewave-plugins-lv2.png)
 
 Ein Kanal mit Effekten erscheint unter Linux zusätzlich als Quelle
 „Linewave <Kanal> (Effekte)“. Stürzt ein Plugin ab, startet Linewave die
@@ -612,7 +625,7 @@ mit der Option „Release anlegen“ entsteht dabei direkt der Release `v<Versio
 (Version aus `lindeck/__init__.py`).
 
 ```bash
-git tag v0.10.0 && git push origin v0.10.0
+git tag v0.11.0 && git push origin v0.11.0
 ```
 
 ### Tests
@@ -673,7 +686,7 @@ lindeck/
 ├── wavehost.py     Linewave: Hintergrundteil, Einzelinstanz, Autostart
 ├── waveui.py       Linewave: Fenster (Mixer, Mikrofon)
 ├── wavedialogs.py  Linewave: Dialoge für eigene Kanäle und Effekte
-├── effects.py      Effekt-Plugins je Kanal (PipeWire-Filter, LADSPA)
+├── effects.py      Effekt-Plugins je Kanal (PipeWire-Filter, LADSPA, LV2 – nativ oder über jalv)
 ├── wavesetup.py    Linewave: Einrichtungsassistent beim ersten Start
 ├── bgui.py         LinDeck: Dialog für Hintergrundbilder
 ├── pluginui.py     LinDeck: Plugin-Verwaltung
@@ -709,7 +722,7 @@ Ereigniswarteschlange an die Aktionen weitergereicht.
 - [x] Neues Aussehen im Stil der Elgato-Programme: Kanal-Karten mit Reglern wie in Wave Link, Symbole in der Aktionsliste (seit 0.8)
 - [x] Plugin-Verwaltung in LinDeck; eigene Kanäle und Effekt-Plugins (PipeWire-Filter, LADSPA) in Linewave (seit 0.9)
 - [x] Hintergrundbilder je Seite (Tasten und Touchstreifen); Einrichtungsassistent in Linewave (seit 0.10)
-- [ ] LV2-Plugins als Effekte in Linewave
+- [x] LV2-Plugins als Effekte in Linewave – direkt in PipeWire oder über jalv (seit 0.11)
 - [x] Plugin-Host für das Elgato-Plugin-SDK (WebSocket-Protokoll) (seit 0.3; Node.js- und Linux-Plugins)
 - [x] Linux-Umsetzung häufiger Plugins: OBS, Discord, Spotify/MPRIS, Wave Link (seit 0.3)
 - [x] Wave-Link-Ersatz auf Basis von PipeWire: virtuelle Kanäle, Monitor-/Stream-Mix (seit 0.3)
