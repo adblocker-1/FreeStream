@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lindeck"
 version = "0.11.0"
-description = "Elgato-kompatible Stream-Deck-Software für Linux"
+description = "Elgato-compatible Stream Deck software for Linux"
 requires-python = ">=3.9"
 dependencies = ["streamdeck>=0.10", "pillow", "evdev", "cairosvg"]
 
@@ -15,3 +15,6 @@ linewave = "lindeck.__main__:wave_main"
 
 [tool.setuptools]
 packages = ["lindeck"]
+
+[tool.setuptools.package-data]
+lindeck = ["locale/*.po", "locale/*.pot"]
