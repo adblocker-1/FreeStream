@@ -402,7 +402,7 @@ class DiscordAction(NativeAction):
         return None
 
     def main_text(self):
-        return {"mute": pgettext("key label", "Mic"), "deafen": _("Sound"), "pushtotalk": "PTT", "pushtomute": "PTM",
+        return {"mute": pgettext("key label", "Mic"), "deafen": pgettext("key label", "Sound"), "pushtotalk": "PTT", "pushtomute": "PTM",
                 "voicechannel": _("Channel"), "textchannel": "Chat", "leave": _("Hang up")}.get(self.func, "Discord")
 
     def status_text(self):
@@ -498,7 +498,7 @@ class MixerAction(NativeAction):
 
     def main_text(self):
         if self.func == "output":
-            return _("Output")
+            return pgettext("key label", "Output")
         ch = self.mixer.channel(self.channel)
         return ch["name"] if ch else self.channel
 

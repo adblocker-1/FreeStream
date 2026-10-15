@@ -29,15 +29,17 @@ log = logging.getLogger("lindeck.editor")
 COL = theme.COL
 # Kategorie der Aktionsliste -> (Symbol, Farbe)
 CATEGORY_LOOK = {
-    "System": ("keyboard", "#8e9bb0"), "Navigation": ("navigate", "#2f7bff"), "Stream Deck": ("grid", "#2f7bff"),
-    "Multi Action": ("layers", "#a66bff"), "Soundboard": ("wave", "#ff6bd5"), "Audio": ("speaker", "#30d158"),
-    "OBS Studio": ("record", "#ff4d5a"), "Spotify & Medien": ("play", "#30d158"), "Discord": ("chat", "#6b74ff"),
+    _("System"): ("keyboard", "#8e9bb0"), _("Navigation"): ("navigate", "#2f7bff"), "Stream Deck": ("grid", "#2f7bff"),
+    "Multi Action": ("layers", "#a66bff"), "Soundboard": ("wave", "#ff6bd5"), _("Audio"): ("speaker", "#30d158"),
+    "OBS Studio": ("record", "#ff4d5a"), _("Spotify & Media"): ("play", "#30d158"), "Discord": ("chat", "#6b74ff"),
     "Linewave": ("wave", "#2fc3ff"),
 }
 
 
 def category_look(cat):
     return CATEGORY_LOOK.get(cat, ("puzzle", "#ffb020"))
+
+
 ALIGN = [("top", _("top")), ("middle", _("middle")), ("bottom", _("bottom"))]
 STYLES = [("", _("Regular")), ("Bold", _("Bold")), ("Italic", _("Italic")), ("Bold Italic", _("Bold italic"))]
 TEXT_WIDGETS = ("Entry", "TEntry", "Text", "Spinbox", "TSpinbox", "TCombobox")
