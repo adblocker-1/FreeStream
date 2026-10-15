@@ -1008,106 +1008,106 @@ msgctxt "key name"
 msgid "Shift"
 msgstr "Mayús"
 
-#: lindeck/catalog.py:364
+#: lindeck/catalog.py:366
 msgctxt "key name"
 msgid "Backspace"
 msgstr "Retroceso"
 
-#: lindeck/catalog.py:365
+#: lindeck/catalog.py:367
 msgctxt "key name"
 msgid "Space"
 msgstr "Espacio"
 
-#: lindeck/catalog.py:366
+#: lindeck/catalog.py:368
 msgctxt "key name"
 msgid "PgUp"
 msgstr "RePág"
 
-#: lindeck/catalog.py:366
+#: lindeck/catalog.py:368
 msgctxt "key name"
 msgid "PgDn"
 msgstr "AvPág"
 
-#: lindeck/catalog.py:367
+#: lindeck/catalog.py:369
 msgctxt "key name"
 msgid "End"
 msgstr "Fin"
 
-#: lindeck/catalog.py:367
+#: lindeck/catalog.py:369
 msgctxt "key name"
 msgid "Home"
 msgstr "Inicio"
 
-#: lindeck/catalog.py:368
+#: lindeck/catalog.py:370
 msgctxt "key name"
 msgid "Left"
 msgstr "Izquierda"
 
-#: lindeck/catalog.py:368
+#: lindeck/catalog.py:370
 msgctxt "key name"
 msgid "Up"
 msgstr "Arriba"
 
-#: lindeck/catalog.py:369
+#: lindeck/catalog.py:371
 msgctxt "key name"
 msgid "Right"
 msgstr "Derecha"
 
-#: lindeck/catalog.py:369
+#: lindeck/catalog.py:371
 msgctxt "key name"
 msgid "Down"
 msgstr "Abajo"
 
-#: lindeck/catalog.py:370
+#: lindeck/catalog.py:372
 msgctxt "key name"
 msgid "Print"
 msgstr "ImpPnt"
 
-#: lindeck/catalog.py:370
+#: lindeck/catalog.py:372
 msgctxt "key name"
 msgid "Ins"
 msgstr "Insert"
 
-#: lindeck/catalog.py:371
+#: lindeck/catalog.py:373
 msgctxt "key name"
 msgid "Del"
 msgstr "Supr"
 
-#: lindeck/catalog.py:373
+#: lindeck/catalog.py:375
 msgctxt "key name"
 msgid "Mute"
 msgstr "Silencio"
 
-#: lindeck/catalog.py:373
+#: lindeck/catalog.py:375
 msgctxt "key name"
 msgid "Volume Down"
 msgstr "Bajar vol."
 
-#: lindeck/catalog.py:374
+#: lindeck/catalog.py:376
 msgctxt "key name"
 msgid "Volume Up"
 msgstr "Subir vol."
 
-#: lindeck/catalog.py:374
+#: lindeck/catalog.py:376
 msgctxt "key name"
 msgid "Next Track"
 msgstr "Pista sig."
 
-#: lindeck/catalog.py:375
+#: lindeck/catalog.py:377
 msgctxt "key name"
 msgid "Previous Track"
 msgstr "Pista ant."
 
-#: lindeck/catalog.py:375
+#: lindeck/catalog.py:377
 msgctxt "key name"
 msgid "Stop"
 msgstr "Detener"
 
-#: lindeck/catalog.py:394 lindeck/catalog.py:236
+#: lindeck/catalog.py:396 lindeck/catalog.py:236
 msgid "volume down"
 msgstr "bajar volumen"
 
-#: lindeck/catalog.py:394 lindeck/catalog.py:235
+#: lindeck/catalog.py:396 lindeck/catalog.py:235
 msgid "volume up"
 msgstr "subir volumen"
 
@@ -1211,7 +1211,7 @@ msgstr "Cambia el Monitor Mix entre auriculares y altavoces"
 msgid "Gain, mute, Low Cut, Clipguard, LEDs (dial: gain)"
 msgstr "Ganancia, silencio, Low Cut, Clipguard, LEDs (dial: ganancia)"
 
-#: lindeck/catalog.py:497
+#: lindeck/catalog.py:499
 msgid "No key specified"
 msgstr "No se ha indicado ninguna tecla"
 
@@ -1427,7 +1427,7 @@ msgstr "p. ej. Mic/Aux"
 msgid "spotify, vlc, firefox … (empty = active)"
 msgstr "spotify, vlc, firefox … (vacío = activo)"
 
-#: lindeck/catalog.py:485
+#: lindeck/catalog.py:487
 #, python-brace-format
 msgid "Unknown modifier key: {key}"
 msgstr "Tecla modificadora desconocida: {key}"
@@ -1516,7 +1516,7 @@ msgstr "Invertir LEDs (Wave:3)"
 msgid "toggle pause"
 msgstr "alternar pausa"
 
-#: lindeck/catalog.py:495
+#: lindeck/catalog.py:497
 #, python-brace-format
 msgid "Unknown key: {key}"
 msgstr "Tecla desconocida: {key}"

@@ -598,9 +598,10 @@ Português (Brasil)**. Standardmäßig richten sie sich nach der Systemsprache
 (`LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`); ohne passende Übersetzung
 erscheint Englisch.
 
-- **Umstellen:** in LinDeck unter **Einstellungen → Sprache**, in Linewave oben
-  unter **Einstellungen**. Beide Programme teilen sich die Einstellung; sie
-  wirkt nach einem Neustart des Programms.
+- **Umstellen:** oben im Fenster von LinDeck oder Linewave auf den Knopf mit
+  dem Globus klicken und eine Sprache wählen (oder „Systemsprache“). Beide
+  Programme teilen sich die Einstellung; das Programm bietet gleich einen
+  Neustart an.
 - **Für einen Start:** `LINDECK_LANG=fr lindeck` oder `LINDECK_LANG=es linewave`.
 - **In der Konfiguration:** `"language": "de"` in `~/.config/lindeck/config.json`.
 

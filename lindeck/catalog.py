@@ -358,6 +358,8 @@ MOD_NAMES = [(MOD_CTRL, pgettext("key name", "Ctrl")), (MOD_SHIFT, pgettext("key
 _MOD_ALIASES = {"strg": MOD_CTRL, "ctrl": MOD_CTRL, "control": MOD_CTRL, "steuerung": MOD_CTRL,
                 "umschalt": MOD_SHIFT, "shift": MOD_SHIFT, "alt": MOD_ALT, "option": MOD_ALT,
                 "super": MOD_META, "win": MOD_META, "meta": MOD_META, "cmd": MOD_META, "windows": MOD_META}
+_MOD_ALIASES.update({"maj": MOD_SHIFT, "mayús": MOD_SHIFT, "mayus": MOD_SHIFT})
+_MOD_ALIASES.update({n.lower(): m for m, n in MOD_NAMES})  # Namen der aktiven Sprache
 
 # Windows-VK -> (Anzeigename, Qt-Keycode)
 _NAMED = {

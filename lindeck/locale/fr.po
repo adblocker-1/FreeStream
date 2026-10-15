@@ -1008,106 +1008,106 @@ msgctxt "key name"
 msgid "Shift"
 msgstr "Shift"
 
-#: lindeck/catalog.py:364
+#: lindeck/catalog.py:366
 msgctxt "key name"
 msgid "Backspace"
 msgstr "Retour arrière"
 
-#: lindeck/catalog.py:365
+#: lindeck/catalog.py:367
 msgctxt "key name"
 msgid "Space"
 msgstr "Espace"
 
-#: lindeck/catalog.py:366
+#: lindeck/catalog.py:368
 msgctxt "key name"
 msgid "PgUp"
 msgstr "Pg préc"
 
-#: lindeck/catalog.py:366
+#: lindeck/catalog.py:368
 msgctxt "key name"
 msgid "PgDn"
 msgstr "Pg suiv"
 
-#: lindeck/catalog.py:367
+#: lindeck/catalog.py:369
 msgctxt "key name"
 msgid "End"
 msgstr "Fin"
 
-#: lindeck/catalog.py:367
+#: lindeck/catalog.py:369
 msgctxt "key name"
 msgid "Home"
 msgstr "Début"
 
-#: lindeck/catalog.py:368
+#: lindeck/catalog.py:370
 msgctxt "key name"
 msgid "Left"
 msgstr "Gauche"
 
-#: lindeck/catalog.py:368
+#: lindeck/catalog.py:370
 msgctxt "key name"
 msgid "Up"
 msgstr "Haut"
 
-#: lindeck/catalog.py:369
+#: lindeck/catalog.py:371
 msgctxt "key name"
 msgid "Right"
 msgstr "Droite"
 
-#: lindeck/catalog.py:369
+#: lindeck/catalog.py:371
 msgctxt "key name"
 msgid "Down"
 msgstr "Bas"
 
-#: lindeck/catalog.py:370
+#: lindeck/catalog.py:372
 msgctxt "key name"
 msgid "Print"
 msgstr "Impr écran"
 
-#: lindeck/catalog.py:370
+#: lindeck/catalog.py:372
 msgctxt "key name"
 msgid "Ins"
 msgstr "Inser"
 
-#: lindeck/catalog.py:371
+#: lindeck/catalog.py:373
 msgctxt "key name"
 msgid "Del"
 msgstr "Suppr"
 
-#: lindeck/catalog.py:373
+#: lindeck/catalog.py:375
 msgctxt "key name"
 msgid "Mute"
 msgstr "Muet"
 
-#: lindeck/catalog.py:373
+#: lindeck/catalog.py:375
 msgctxt "key name"
 msgid "Volume Down"
 msgstr "Volume bas"
 
-#: lindeck/catalog.py:374
+#: lindeck/catalog.py:376
 msgctxt "key name"
 msgid "Volume Up"
 msgstr "Volume haut"
 
-#: lindeck/catalog.py:374
+#: lindeck/catalog.py:376
 msgctxt "key name"
 msgid "Next Track"
 msgstr "Piste suivante"
 
-#: lindeck/catalog.py:375
+#: lindeck/catalog.py:377
 msgctxt "key name"
 msgid "Previous Track"
 msgstr "Piste précédente"
 
-#: lindeck/catalog.py:375
+#: lindeck/catalog.py:377
 msgctxt "key name"
 msgid "Stop"
 msgstr "Arrêt"
 
-#: lindeck/catalog.py:394 lindeck/catalog.py:236
+#: lindeck/catalog.py:396 lindeck/catalog.py:236
 msgid "volume down"
 msgstr "baisser le volume"
 
-#: lindeck/catalog.py:394 lindeck/catalog.py:235
+#: lindeck/catalog.py:396 lindeck/catalog.py:235
 msgid "volume up"
 msgstr "monter le volume"
 
@@ -1211,7 +1211,7 @@ msgstr "Bascule le Monitor Mix entre casque et haut-parleurs"
 msgid "Gain, mute, Low Cut, Clipguard, LEDs (dial: gain)"
 msgstr "Gain, muet, Low Cut, Clipguard, LEDs (molette : gain)"
 
-#: lindeck/catalog.py:497
+#: lindeck/catalog.py:499
 msgid "No key specified"
 msgstr "Aucune touche indiquée"
 
@@ -1427,7 +1427,7 @@ msgstr "p. ex. Mic/Aux"
 msgid "spotify, vlc, firefox … (empty = active)"
 msgstr "spotify, vlc, firefox … (vide = actif)"
 
-#: lindeck/catalog.py:485
+#: lindeck/catalog.py:487
 #, python-brace-format
 msgid "Unknown modifier key: {key}"
 msgstr "Touche de modification inconnue : {key}"
@@ -1516,7 +1516,7 @@ msgstr "Inverser les LEDs (Wave:3)"
 msgid "toggle pause"
 msgstr "activer/désactiver la pause"
 
-#: lindeck/catalog.py:495
+#: lindeck/catalog.py:497
 #, python-brace-format
 msgid "Unknown key: {key}"
 msgstr "Touche inconnue : {key}"
@@ -3063,7 +3063,7 @@ msgstr "Langue du système"
 #: lindeck/theme.py:361
 #, python-brace-format
 msgid "{app} will be shown in {language} after a restart. Restart now?"
-msgstr "{app} s'affichera en {language} après un redémarrage. Redémarrer maintenant ?"
+msgstr "Après un redémarrage, {app} s'affichera dans cette langue : {language}. Redémarrer maintenant ?"
 
 #: lindeck/wave3hw.py:54 lindeck/wavesetup.py:27 lindeck/waveui.py:567
 msgid "Headphones"

@@ -1009,106 +1009,106 @@ msgctxt "key name"
 msgid "Shift"
 msgstr ""
 
-#: lindeck/catalog.py:364
+#: lindeck/catalog.py:366
 msgctxt "key name"
 msgid "Backspace"
 msgstr ""
 
-#: lindeck/catalog.py:365
+#: lindeck/catalog.py:367
 msgctxt "key name"
 msgid "Space"
 msgstr ""
 
-#: lindeck/catalog.py:366
+#: lindeck/catalog.py:368
 msgctxt "key name"
 msgid "PgUp"
 msgstr ""
 
-#: lindeck/catalog.py:366
+#: lindeck/catalog.py:368
 msgctxt "key name"
 msgid "PgDn"
 msgstr ""
 
-#: lindeck/catalog.py:367
+#: lindeck/catalog.py:369
 msgctxt "key name"
 msgid "End"
 msgstr ""
 
-#: lindeck/catalog.py:367
+#: lindeck/catalog.py:369
 msgctxt "key name"
 msgid "Home"
 msgstr ""
 
-#: lindeck/catalog.py:368
+#: lindeck/catalog.py:370
 msgctxt "key name"
 msgid "Left"
 msgstr ""
 
-#: lindeck/catalog.py:368
+#: lindeck/catalog.py:370
 msgctxt "key name"
 msgid "Up"
 msgstr ""
 
-#: lindeck/catalog.py:369
+#: lindeck/catalog.py:371
 msgctxt "key name"
 msgid "Right"
 msgstr ""
 
-#: lindeck/catalog.py:369
+#: lindeck/catalog.py:371
 msgctxt "key name"
 msgid "Down"
 msgstr ""
 
-#: lindeck/catalog.py:370
+#: lindeck/catalog.py:372
 msgctxt "key name"
 msgid "Print"
 msgstr ""
 
-#: lindeck/catalog.py:370
+#: lindeck/catalog.py:372
 msgctxt "key name"
 msgid "Ins"
 msgstr ""
 
-#: lindeck/catalog.py:371
+#: lindeck/catalog.py:373
 msgctxt "key name"
 msgid "Del"
 msgstr ""
 
-#: lindeck/catalog.py:373
+#: lindeck/catalog.py:375
 msgctxt "key name"
 msgid "Mute"
 msgstr ""
 
-#: lindeck/catalog.py:373
+#: lindeck/catalog.py:375
 msgctxt "key name"
 msgid "Volume Down"
 msgstr ""
 
-#: lindeck/catalog.py:374
+#: lindeck/catalog.py:376
 msgctxt "key name"
 msgid "Volume Up"
 msgstr ""
 
-#: lindeck/catalog.py:374
+#: lindeck/catalog.py:376
 msgctxt "key name"
 msgid "Next Track"
 msgstr ""
 
-#: lindeck/catalog.py:375
+#: lindeck/catalog.py:377
 msgctxt "key name"
 msgid "Previous Track"
 msgstr ""
 
-#: lindeck/catalog.py:375
+#: lindeck/catalog.py:377
 msgctxt "key name"
 msgid "Stop"
 msgstr ""
 
-#: lindeck/catalog.py:394 lindeck/catalog.py:236
+#: lindeck/catalog.py:396 lindeck/catalog.py:236
 msgid "volume down"
 msgstr ""
 
-#: lindeck/catalog.py:394 lindeck/catalog.py:235
+#: lindeck/catalog.py:396 lindeck/catalog.py:235
 msgid "volume up"
 msgstr ""
 
@@ -1212,7 +1212,7 @@ msgstr ""
 msgid "Gain, mute, Low Cut, Clipguard, LEDs (dial: gain)"
 msgstr ""
 
-#: lindeck/catalog.py:497
+#: lindeck/catalog.py:499
 msgid "No key specified"
 msgstr ""
 
@@ -1428,7 +1428,7 @@ msgstr ""
 msgid "spotify, vlc, firefox … (empty = active)"
 msgstr ""
 
-#: lindeck/catalog.py:485
+#: lindeck/catalog.py:487
 #, python-brace-format
 msgid "Unknown modifier key: {key}"
 msgstr ""
@@ -1517,7 +1517,7 @@ msgstr ""
 msgid "toggle pause"
 msgstr ""
 
-#: lindeck/catalog.py:495
+#: lindeck/catalog.py:497
 #, python-brace-format
 msgid "Unknown key: {key}"
 msgstr ""

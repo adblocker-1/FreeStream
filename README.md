@@ -594,9 +594,9 @@ LinDeck and Linewave speak **English, Deutsch, Español, Français and
 Português (Brasil)**. By default they follow the system language
 (`LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`) and fall back to English.
 
-- **Change it:** in LinDeck under **Settings → Language**, in Linewave under
-  **Settings** at the top. Both programs share the setting; it takes effect
-  after a restart of the program.
+- **Change it:** click the language button with the globe at the top of the
+  LinDeck or Linewave window and pick a language (or “System language”). Both
+  programs share the setting; the program offers to restart right away.
 - **For one start:** `LINDECK_LANG=fr lindeck` or `LINDECK_LANG=es linewave`.
 - **In the configuration:** `"language": "de"` in `~/.config/lindeck/config.json`.
 
