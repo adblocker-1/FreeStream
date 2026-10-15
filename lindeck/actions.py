@@ -12,6 +12,7 @@ import time
 from datetime import datetime
 
 from . import render, system
+from .i18n import _, pgettext
 
 log = logging.getLogger("lindeck.actions")
 
@@ -264,7 +265,7 @@ class Hotkey(Action):
 
     def dial_rotate(self, ticks):
         idx = 1 if ticks > 0 else 0
-        for _ in range(min(abs(ticks), 20)):
+        for _i in range(min(abs(ticks), 20)):
             self._send(idx)
 
     def dial_down(self):
@@ -380,7 +381,7 @@ class Multimedia(Action):
         fb = super().feedback()
         if self.idx in (18, 4, 5, 6):
             vol, muted = system.get_volume()
-            fb["value"] = "Stumm" if muted else f"{vol}%"
+            fb["value"] = _("Muted") if muted else f"{vol}%"
             fb["indicator"] = 0 if muted else vol
         return fb
 
@@ -399,7 +400,7 @@ class KeyBrightness(Action):
         return p or super().default_icon()
 
     def fallback_label(self):
-        return "Hell +" if self.idx == 0 else "Hell −" if self.idx == 1 else "Helligkeit"
+        return _("Bright +") if self.idx == 0 else _("Bright −") if self.idx == 1 else _("Brightness")
 
     def key_down(self):
         c = self.ctx.ctrl
@@ -469,8 +470,8 @@ class OpenApp(Action):
                 self.alert()
             return
         if not prog:
-            log.warning("Programm '%s' nicht gefunden – in config.json unter app_map eintragen",
-                        s.get("app_name") or s.get("exec"))
+            log.warning(_("Program '{name}' not found – add it to app_map in config.json").format(
+                name=s.get("app_name") or s.get("exec")))
             self.alert()
             return
         if s.get("bring_to_front", True) and system.is_running(names) and system.focus_window(names):
@@ -547,7 +548,7 @@ class PageIndicator(Action):
             return super().frames(size)
         n = len(self.ctx.ctrl.profile.page_ids) if self.ctx.ctrl.profile else 1
         self.title_override = ""
-        return [(render.text_key(size, str(self.ctx.ctrl.page_index + 1), f"von {n}"), 0)]
+        return [(render.text_key(size, str(self.ctx.ctrl.page_index + 1), _("of {n}").format(n=n)), 0)]
 
 
 class OpenChild(Action):
@@ -557,7 +558,7 @@ class OpenChild(Action):
         self.ctx.ctrl.open_folder(self.settings.get("ProfileUUID"))
 
     def fallback_label(self):
-        return "📁 " + (self.title() or "Ordner")
+        return "📁 " + (self.title() or _("Folder"))
 
 
 class BackToParent(Action):
@@ -567,7 +568,7 @@ class BackToParent(Action):
         self.ctx.ctrl.back_to_parent()
 
     def fallback_label(self):
-        return "↩ Zurück"
+        return "↩ " + _("Back")
 
 
 class SwitchProfile(Action):
@@ -671,19 +672,21 @@ class Timer(Action):
             if path and os.path.exists(path):
                 self.ctx.sound.play(("timer", id(self)), path)
             else:
-                for _ in range(3):
+                for _i in range(3):
                     print("\a", end="", flush=True)
         return True
 
     def frames(self, size):
         if self.finished:
             blink = int(time.time() * 2) % 2
-            return [(render.text_key(size, "00:00", "fertig", bg=(200, 30, 30) if blink else (0, 0, 0)), 0)]
+            return [(render.text_key(size, "00:00", pgettext("timer", "done"), bg=(200, 30, 30) if blink else (0, 0, 0)), 0)]
         r = int(round(self.remaining))
         h, rem = divmod(r, 3600)
         m, s = divmod(rem, 60)
         txt = f"{h}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
-        return [(render.text_key(size, txt, "läuft" if self.running else "Pause" if r < self.total else "Timer"), 0)]
+        sub = pgettext("timer", "running") if self.running else \
+            pgettext("timer", "paused") if r < self.total else "Timer"
+        return [(render.text_key(size, txt, sub), 0)]
 
 
 # ==========================================================================
@@ -705,7 +708,7 @@ class PlayAudio(Action):
     def key_down(self):
         path = self._path()
         if not path:
-            log.warning("Audiodatei nicht gefunden: %s", self.settings.get("path"))
+            log.warning(_("Audio file not found: {path}").format(path=self.settings.get("path")))
             self.alert()
             return
         key = ("sb", id(self))
@@ -763,7 +766,7 @@ class MultiAction(Action):
                     try:
                         st.execute()
                     except Exception as e:  # noqa: BLE001
-                        log.warning("Multi-Action-Schritt %s fehlgeschlagen: %s", st.uuid, e)
+                        log.warning(_("Multi Action step {action} failed: {error}").format(action=st.uuid, error=e))
                     time.sleep(0.03)
             finally:
                 self._running = False
@@ -957,7 +960,7 @@ class ActionTrigger(Action):
     def dial_rotate(self, ticks):
         act = self.right if ticks > 0 else self.left
         if act:
-            for _ in range(min(abs(ticks), 10)):
+            for _i in range(min(abs(ticks), 10)):
                 act.execute()
 
     def dial_down(self):
@@ -1057,13 +1060,13 @@ class VolumeDevice(Action):
         return changed
 
     def fallback_label(self):
-        return "Mikrofon" if self.kind == "source" else "Lautstärke"
+        return _("Microphone") if self.kind == "source" else _("Volume")
 
     def feedback(self):
         vol, muted = self._vol()
         name = self.title() or self.settings.get("friendlyName") or self.app or \
-            ("Mikrofon" if self.kind == "source" else "Ausgabe")
-        return {"title": name, "value": "–" if vol is None else ("Stumm" if muted else f"{vol}%"),
+            (_("Microphone") if self.kind == "source" else _("Output"))
+        return {"title": name, "value": "–" if vol is None else (_("Muted") if muted else f"{vol}%"),
                 "indicator": 0 if muted or vol is None else vol}
 
 
@@ -1071,7 +1074,7 @@ class NoOp(Action):
     """Aktionen ohne Linux-Entsprechung (Virtual Stream Deck, Action Bar)."""
 
     def key_down(self):
-        log.info("Aktion %s hat unter Linux keine Funktion", self.uuid)
+        log.info(_("Action {uuid} does nothing on Linux").format(uuid=self.uuid))
 
 
 class PluginAction(Action):
@@ -1117,7 +1120,7 @@ class PluginAction(Action):
         if host:
             handled = host.key_down(self)
         if not handled:
-            log.info("Plugin-Aktion %s noch nicht verfügbar", self.uuid)
+            log.info(_("Plugin action {uuid} not available yet").format(uuid=self.uuid))
             self.alert()
 
 
@@ -1170,7 +1173,7 @@ def create_action(data, page, ctx) -> Action:
     try:
         return cls(data, page, ctx)
     except Exception as e:  # noqa: BLE001 - kaputte Einstellungen dürfen das Gerät nicht blockieren
-        log.warning("Aktion %s nicht ladbar: %s", (data or {}).get("UUID"), e)
+        log.warning(_("Cannot load action {uuid}: {error}").format(uuid=(data or {}).get("UUID"), error=e))
         return PluginAction(data, page, ctx)
 
 
