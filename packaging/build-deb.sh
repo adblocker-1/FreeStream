@@ -17,7 +17,7 @@ cp -r "$ROOT/lindeck" "$PKG/opt/lindeck/"
 cp -r "$SD_LIB" "$PKG/opt/lindeck/vendor/StreamDeck"
 find "$PKG/opt" -name "__pycache__" -prune -exec rm -rf {} +
 cp "$SD_LICENSE" "$PKG/usr/share/doc/lindeck/LICENSE.python-elgato-streamdeck"
-cp "$ROOT/README.md" "$ROOT/README.de.md" "$PKG/usr/share/doc/lindeck/"
+cp "$ROOT/README.md" "$PKG/usr/share/doc/lindeck/README.md"
 
 cat > "$PKG/usr/bin/lindeck" <<'EOF'
 #!/bin/sh
