@@ -10,6 +10,8 @@ import socket
 import struct
 import threading
 
+from .i18n import _
+
 _GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 
@@ -26,10 +28,10 @@ def _read_headers(sock):
     while b"\r\n\r\n" not in data:
         chunk = sock.recv(4096)
         if not chunk:
-            raise Closed("Verbindung beim Handshake geschlossen")
+            raise Closed(_("Connection closed during handshake"))
         data += chunk
         if len(data) > 65536:
-            raise Closed("Handshake zu groß")
+            raise Closed(_("Handshake too large"))
     head, rest = data.split(b"\r\n\r\n", 1)
     lines = head.decode("latin-1").split("\r\n")
     headers = {}
@@ -105,7 +107,7 @@ class Connection:
                 raise Closed(str(e)) from e
             if not chunk:
                 self.closed = True
-                raise Closed("Verbindung geschlossen")
+                raise Closed(_("Connection closed"))
             self._buf += chunk
         out, self._buf = self._buf[:n], self._buf[n:]
         return out
@@ -127,7 +129,7 @@ class Connection:
                 payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
             if opcode == 0x8:
                 self.close()
-                raise Closed("vom Gegenüber geschlossen")
+                raise Closed(_("Closed by the peer"))
             if opcode == 0x9:
                 with self._lock:
                     self.sock.sendall(self._frame(0xA, payload))
@@ -162,7 +164,7 @@ class Server:
     def _accept_loop(self):
         while self.running:
             try:
-                s, _ = self.sock.accept()
+                s, _addr = self.sock.accept()
             except OSError:
                 break
             threading.Thread(target=self._handshake, args=(s,), daemon=True).start()
@@ -186,7 +188,7 @@ class Server:
         self.on_connect(Connection(s, client_side=False, buffered=rest, path=path, headers=h))
 
     def _http(self, s, method, path, headers):
-        status, ctype, body, extra = 404, "text/plain; charset=utf-8", b"Nicht gefunden", {}
+        status, ctype, body, extra = 404, "text/plain; charset=utf-8", _("Not found").encode(), {}
         if method == "GET" and self.on_http:
             try:
                 status, ctype, body, extra = self.on_http(path, headers)
@@ -219,6 +221,6 @@ def connect(host: str, port: int, path="/", timeout=5.0, headers=None) -> Connec
     status, h, rest = _read_headers(s)
     if " 101 " not in status + " " or h.get("sec-websocket-accept") != _accept_key(key):
         s.close()
-        raise Closed(f"Handshake abgelehnt: {status}")
+        raise Closed(_("Handshake rejected: {status}").format(status=status))
     s.settimeout(None)
     return Connection(s, client_side=True, buffered=rest)

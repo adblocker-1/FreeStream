@@ -20,6 +20,7 @@ from . import actions as A
 from . import catalog as C
 from . import editdoc as E
 from . import paths, render, theme
+from .i18n import _, ngettext
 from .models import MODELS, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
 
@@ -28,17 +29,19 @@ log = logging.getLogger("lindeck.editor")
 COL = theme.COL
 # Kategorie der Aktionsliste -> (Symbol, Farbe)
 CATEGORY_LOOK = {
-    "System": ("keyboard", "#8e9bb0"), "Navigation": ("navigate", "#2f7bff"), "Stream Deck": ("grid", "#2f7bff"),
-    "Multi Action": ("layers", "#a66bff"), "Soundboard": ("wave", "#ff6bd5"), "Audio": ("speaker", "#30d158"),
-    "OBS Studio": ("record", "#ff4d5a"), "Spotify & Medien": ("play", "#30d158"), "Discord": ("chat", "#6b74ff"),
+    _("System"): ("keyboard", "#8e9bb0"), _("Navigation"): ("navigate", "#2f7bff"), "Stream Deck": ("grid", "#2f7bff"),
+    "Multi Action": ("layers", "#a66bff"), "Soundboard": ("wave", "#ff6bd5"), _("Audio"): ("speaker", "#30d158"),
+    "OBS Studio": ("record", "#ff4d5a"), _("Spotify & Media"): ("play", "#30d158"), "Discord": ("chat", "#6b74ff"),
     "Linewave": ("wave", "#2fc3ff"),
 }
 
 
 def category_look(cat):
     return CATEGORY_LOOK.get(cat, ("puzzle", "#ffb020"))
-ALIGN = [("top", "oben"), ("middle", "Mitte"), ("bottom", "unten")]
-STYLES = [("", "Normal"), ("Bold", "Fett"), ("Italic", "Kursiv"), ("Bold Italic", "Fett kursiv")]
+
+
+ALIGN = [("top", _("top")), ("middle", _("middle")), ("bottom", _("bottom"))]
+STYLES = [("", _("Regular")), ("Bold", _("Bold")), ("Italic", _("Italic")), ("Bold Italic", _("Bold italic"))]
 TEXT_WIDGETS = ("Entry", "TEntry", "Text", "Spinbox", "TSpinbox", "TCombobox")
 
 
@@ -149,7 +152,7 @@ class EditorApp:
         if ids != self._device_ids:
             self._device_ids = ids
             self.device_box["values"] = [f"{model_name(c.model)}  ·  {c.serial}" for c in ctrls] or \
-                ["Kein Stream Deck verbunden"]
+                [_("No Stream Deck connected")]
             if self.device not in ids:
                 self.device = ids[0] if ids else None
                 if self.device and not initial:
@@ -159,7 +162,8 @@ class EditorApp:
             else:
                 self.device_box.current(0)
             n = len(ids)
-            self.device_status.set("● verbunden" if n == 1 else f"● {n} Geräte verbunden" if n else "○ kein Gerät")
+            self.device_status.set(_("● connected") if n == 1 else _("● {n} devices connected").format(n=n) if n
+                                   else _("○ no device"))
             if initial and self.device:
                 self._show_device_profile()
         try:
@@ -205,7 +209,7 @@ class EditorApp:
                 elif page_index is not None and page_index != ctrl.page_index:
                     ctrl.goto_page(page_index)
             except Exception as e:  # noqa: BLE001
-                log.debug("Gerät umschalten: %s", e)
+                log.debug(_("Switching device failed: %s"), e)
         import threading
         threading.Thread(target=work, daemon=True).start()
 
@@ -225,7 +229,7 @@ class EditorApp:
         if not self._hidden_once:
             self._hidden_once = True
             from .autoimport import notify
-            notify("LinDeck läuft weiter", "Das Stream Deck bleibt aktiv. Öffnen über das Menü „LinDeck“.")
+            notify(_("LinDeck keeps running"), _("The Stream Deck stays active. Open it via the “LinDeck” menu."))
 
     def open_background(self):
         """Hintergrundbild der aktuellen Seite (und des Touchstreifens) einstellen."""
@@ -250,7 +254,11 @@ class EditorApp:
             subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                              start_new_session=True)
         except OSError as e:
-            messagebox.showerror("Linewave", f"Konnte Linewave nicht starten: {e}", parent=self.root)
+            messagebox.showerror("Linewave", _("Could not start Linewave: {error}").format(error=e), parent=self.root)
+
+    def _restart(self):
+        theme.restart_later("lindeck")
+        self.quit_app()
 
     def quit_app(self):
         self.close_doc()
@@ -281,28 +289,29 @@ class EditorApp:
             self.device_box.bind("<<ComboboxSelected>>", self._on_device_selected)
             self.device_status = tk.StringVar(value="")
             theme.label(head, textvariable=self.device_status, color=COL["ok"]).pack(side="left", padx=10)
-            ttk.Button(head, text="Beenden", command=self.quit_app).pack(side="right", padx=(4, 14))
-            ttk.Button(head, text="Fenster schließen", style="Ghost.TButton", command=self.hide).pack(side="right")
+            ttk.Button(head, text=_("Quit"), command=self.quit_app).pack(side="right", padx=(4, 14))
+            ttk.Button(head, text=_("Close window"), style="Ghost.TButton", command=self.hide).pack(side="right")
             ttk.Button(head, text=" Linewave", image=self.icons.get("wave", 16, COL["monitor"]), compound="left",
                        style="Ghost.TButton", command=self.open_wave).pack(side="right", padx=(4, 8))
+            theme.language_button(head, self.icons, "LinDeck", self._restart).pack(side="right", padx=(4, 0))
         # --- Werkzeugleiste
         top = ttk.Frame(r, padding=(14, 10))
         top.pack(side="top", fill="x")
-        ttk.Label(top, text="Profil", style="MutedBg.TLabel").pack(side="left")
+        ttk.Label(top, text=_("Profile"), style="MutedBg.TLabel").pack(side="left")
         self.profile_var = tk.StringVar()
         self.profile_box = ttk.Combobox(top, textvariable=self.profile_var, state="readonly", width=28)
         self.profile_box.pack(side="left", padx=(8, 8))
         self.profile_box.bind("<<ComboboxSelected>>", self._on_profile_selected)
         self.btn = {}
-        for key, text, cmd in (("new", "Neu…", self.new_profile), ("dup", "Duplizieren", self.duplicate_profile),
-                               ("ren", "Umbenennen…", self.rename_profile), ("del", "Löschen", self.delete_profile)):
+        for key, text, cmd in (("new", _("New…"), self.new_profile), ("dup", _("Duplicate"), self.duplicate_profile),
+                               ("ren", _("Rename…"), self.rename_profile), ("del", _("Delete"), self.delete_profile)):
             self.btn[key] = ttk.Button(top, text=text, command=cmd)
             self.btn[key].pack(side="left", padx=2)
         ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=6)
-        for key, text, cmd in (("imp", "Importieren…", self.import_profiles), ("exp", "Exportieren…", self.export_profile)):
+        for key, text, cmd in (("imp", _("Import…"), self.import_profiles), ("exp", _("Export…"), self.export_profile)):
             self.btn[key] = ttk.Button(top, text=text, command=cmd)
             self.btn[key].pack(side="left", padx=2)
-        self.btn["plugins"] = ttk.Button(top, text=" Plugins", image=self.icons.get("puzzle", 16, COL["warn"]),
+        self.btn["plugins"] = ttk.Button(top, text=" " + _("Plugins"), image=self.icons.get("puzzle", 16, COL["warn"]),
                                          compound="left", command=self.open_plugins)
         self.btn["plugins"].pack(side="left", padx=(10, 2))
         ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=6)
@@ -325,7 +334,7 @@ class EditorApp:
         left.add(dev, weight=1)
         nav = ttk.Frame(dev, style="Panel.TFrame")
         nav.pack(side="top", fill="x")
-        self.back_btn = ttk.Button(nav, text="↩ Zurück", command=self.folder_back)
+        self.back_btn = ttk.Button(nav, text=_("↩ Back"), command=self.folder_back)
         self.back_btn.pack(side="left")
         self.crumb_var = tk.StringVar()
         ttk.Label(nav, textvariable=self.crumb_var, style="Panel.TLabel").pack(side="left", padx=10)
@@ -335,7 +344,7 @@ class EditorApp:
                                       values=[MODELS[c][0] for c in self._model_codes])
         self.model_box.pack(side="right")
         self.model_box.bind("<<ComboboxSelected>>", self._on_model_selected)
-        ttk.Label(nav, text="Modell", style="Muted.TLabel").pack(side="right", padx=8)
+        ttk.Label(nav, text=_("Model"), style="Muted.TLabel").pack(side="right", padx=8)
         self.pagebar = ttk.Frame(dev, style="Panel.TFrame")
         self.pagebar.pack(side="bottom", fill="x")
         self.canvas = tk.Canvas(dev, bg=COL["panel"], highlightthickness=0, height=300)
@@ -355,7 +364,7 @@ class EditorApp:
         # --- rechts: Aktionen
         right = ttk.Frame(body, style="Panel.TFrame", padding=12)
         body.add(right, weight=1)
-        ttk.Label(right, text="AKTIONEN", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(right, text=_("ACTIONS"), style="Section.TLabel").pack(anchor="w")
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *a: self.fill_catalog())
         sb = tk.Frame(right, bg=COL["panel2"])
@@ -372,7 +381,7 @@ class EditorApp:
         self.tree.bind("<ButtonRelease-1>", self._tree_release)
         self.tree.bind("<Double-Button-1>", self._tree_double)
         self.tree.bind("<<TreeviewSelect>>", self._tree_select)
-        self.tree_hint = tk.StringVar(value="Auf eine Taste ziehen oder doppelklicken")
+        self.tree_hint = tk.StringVar(value=_("Drag onto a key or double-click"))
         ttk.Label(right, textvariable=self.tree_hint, style="Muted.TLabel", wraplength=240,
                   justify="left").pack(fill="x", pady=(6, 0))
 
@@ -424,7 +433,7 @@ class EditorApp:
             try:
                 self.doc.cleanup()
             except OSError as e:
-                log.warning("Aufräumen fehlgeschlagen: %s", e)
+                log.warning(_("Cleanup failed: %s"), e)
         self.doc = None
 
     def open_profile(self, pid, from_device=False):
@@ -438,7 +447,7 @@ class EditorApp:
         try:
             self.doc = E.ProfileDoc(p.root)
         except (E.EditError, OSError, ValueError) as e:
-            messagebox.showerror("Profil öffnen", str(e), parent=self.root)
+            messagebox.showerror(_("Open profile"), str(e), parent=self.root)
             self.show_empty()
             return
         self.doc.on_change = self._on_doc_change
@@ -450,10 +459,10 @@ class EditorApp:
         if self.doc.model in self._model_codes:
             self.model_box.current(self._model_codes.index(self.doc.model))
         else:
-            self.model_var.set(model_name(self.doc.model) if self.doc.model else "unbekannt")
+            self.model_var.set(model_name(self.doc.model) if self.doc.model else _("unknown"))
         self.fill_catalog()
         self.refresh_all()
-        self.status(f"{self.doc.name} geöffnet – Änderungen werden automatisch gespeichert")
+        self.status(_("{name} opened – changes are saved automatically").format(name=self.doc.name))
         if not from_device:
             self._device_follow(0)
 
@@ -461,8 +470,8 @@ class EditorApp:
         self.doc = None
         self.canvas.delete("all")
         self.canvas.create_text(20, 30, anchor="nw", fill=COL["muted"], font=("TkDefaultFont", 12),
-                                text="Noch keine Profile vorhanden.\n\n„Neu…“ legt ein leeres Profil an,\n"
-                                     "„Importieren…“ übernimmt Profile der Elgato-App.")
+                                text=_("No profiles yet.\n\n“New…” creates an empty profile,\n"
+                                       "“Import…” takes over profiles from the Elgato app."))
         for c in self.pagebar.winfo_children():
             c.destroy()
         self.inspector.clear()
@@ -484,8 +493,9 @@ class EditorApp:
     def duplicate_profile(self):
         if not self.doc:
             return
-        name = simpledialog.askstring("Profil duplizieren", "Name der Kopie:",
-                                      initialvalue=f"{self.doc.name} (Kopie)", parent=self.root)
+        name = simpledialog.askstring(_("Duplicate profile"), _("Name of the copy:"),
+                                      initialvalue=_("{name} (copy)").format(name=self.doc.name),
+                                      parent=self.root)
         if not name:
             return
         self.doc.save()
@@ -496,7 +506,7 @@ class EditorApp:
     def rename_profile(self):
         if not self.doc:
             return
-        name = simpledialog.askstring("Profil umbenennen", "Neuer Name:", initialvalue=self.doc.name,
+        name = simpledialog.askstring(_("Rename profile"), _("New name:"), initialvalue=self.doc.name,
                                       parent=self.root)
         if name and name.strip():
             self.doc.rename(name)
@@ -507,7 +517,8 @@ class EditorApp:
     def delete_profile(self):
         if not self.doc:
             return
-        if not messagebox.askyesno("Profil löschen", f"Profil „{self.doc.name}“ endgültig löschen?",
+        if not messagebox.askyesno(_("Delete profile"),
+                                   _("Permanently delete profile “{name}”?").format(name=self.doc.name),
                                    parent=self.root, icon="warning"):
             return
         pid = self.doc.id
@@ -525,9 +536,9 @@ class EditorApp:
 
     def import_profiles(self):
         files = filedialog.askopenfilenames(
-            parent=self.root, title="Profile importieren",
-            filetypes=[("Stream-Deck-Profile", "*.streamDeckProfile *.streamDeckProfilesBackup *.zip"),
-                       ("Alle Dateien", "*")])
+            parent=self.root, title=_("Import profiles"),
+            filetypes=[(_("Stream Deck profiles"), "*.streamDeckProfile *.streamDeckProfilesBackup *.zip"),
+                       (_("All files"), "*")])
         if not files:
             return
         ids = []
@@ -535,23 +546,23 @@ class EditorApp:
             try:
                 ids += import_path(f, self.store_root)
             except Exception as e:  # noqa: BLE001
-                messagebox.showerror("Import", f"{f}:\n{e}", parent=self.root)
+                messagebox.showerror(_("Import"), f"{f}:\n{e}", parent=self.root)
         self.refresh_profiles()
-        self.status(f"{len(ids)} Profil(e) importiert")
+        self.status(ngettext("{n} profile imported", "{n} profiles imported", len(ids)).format(n=len(ids)))
         if ids:
             self.open_profile(ids[0])
 
     def export_profile(self):
         if not self.doc:
             return
-        safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in self.doc.name).strip() or "Profil"
-        f = filedialog.asksaveasfilename(parent=self.root, title="Profil exportieren",
+        safe = "".join(c if c.isalnum() or c in " -_" else "_" for c in self.doc.name).strip() or _("Profile")
+        f = filedialog.asksaveasfilename(parent=self.root, title=_("Export profile"),
                                          initialfile=f"{safe}.streamDeckProfile",
                                          defaultextension=".streamDeckProfile",
-                                         filetypes=[("Stream-Deck-Profil", "*.streamDeckProfile")])
+                                         filetypes=[(_("Stream Deck profile"), "*.streamDeckProfile")])
         if f:
             out = self.doc.export(f)
-            self.status(f"Exportiert: {out}")
+            self.status(_("Exported: {path}").format(path=out))
 
     def _on_model_selected(self, _e=None):
         if not self.doc:
@@ -561,9 +572,9 @@ class EditorApp:
             return
         old, new = self.doc.geometry, model_geometry(code)
         if new and (new.cols < old.cols or new.rows < old.rows or new.dials < old.dials):
-            if not messagebox.askyesno("Gerät ändern", "Das neue Gerät hat weniger Tasten oder Dials. "
-                                       "Aktionen außerhalb bleiben gespeichert, werden aber nicht angezeigt.\n\n"
-                                       "Fortfahren?", parent=self.root):
+            if not messagebox.askyesno(_("Change device"), _("The new device has fewer keys or dials. "
+                                       "Actions outside of it stay saved but are not shown.\n\n"
+                                       "Continue?"), parent=self.root):
                 if self.doc.model in self._model_codes:
                     self.model_box.current(self._model_codes.index(self.doc.model))
                 return
@@ -580,7 +591,7 @@ class EditorApp:
         if self._save_job:
             self.root.after_cancel(self._save_job)
         self._save_job = self.root.after(400, self.save_now)
-        self.status("Ändere …")
+        self.status(_("Saving…"))
 
     def save_now(self):
         self._save_job = None
@@ -588,10 +599,10 @@ class EditorApp:
             return
         try:
             if self.doc.save():
-                self.status("Gespeichert ✓  –  das Stream Deck wird automatisch aktualisiert")
+                self.status(_("Saved ✓  –  the Stream Deck updates automatically"))
         except OSError as e:
-            self.status(f"Speichern fehlgeschlagen: {e}")
-            messagebox.showerror("Speichern", str(e), parent=self.root)
+            self.status(_("Saving failed: {error}").format(error=e))
+            messagebox.showerror(_("Save"), str(e), parent=self.root)
 
     def close(self):
         if self.daemon is not None:
@@ -636,8 +647,8 @@ class EditorApp:
             info = json.loads((paths.STATE_DIR / "plugin-host.json").read_text(encoding="utf-8"))
             os.kill(int(info["pid"]), 0)
         except (OSError, ValueError, KeyError):
-            messagebox.showinfo("Einstellungsseite", "Dafür muss LinDeck laufen (Menü: „LinDeck“ "
-                                "oder `lindeck`), weil es die Plugins ausführt.", parent=self.root)
+            messagebox.showinfo(_("Settings page"), _("LinDeck must be running for this (menu: “LinDeck” "
+                                "or `lindeck`), because it runs the plugins."), parent=self.root)
             return
         pos = f"key:{slot[1]},{slot[2]}" if slot[0] == "key" else f"dial:{slot[1]}"
         q = urllib.parse.urlencode({"profile": self.doc.id, "page": page_uuid, "slot": pos})
@@ -650,7 +661,7 @@ class EditorApp:
                 break
         else:
             webbrowser.open(url)
-        self.status("Einstellungsseite geöffnet – Änderungen werden automatisch übernommen")
+        self.status(_("Settings page opened – changes are applied automatically"))
         self._watch_external()
 
     def _watch_external(self):
@@ -691,10 +702,10 @@ class EditorApp:
         crumbs = [self.doc.name]
         ids = self.doc.page_ids
         if self.nav and self.nav[0] in ids:
-            crumbs.append(f"Seite {ids.index(self.nav[0]) + 1}")
+            crumbs.append(_("Page {n}").format(n=ids.index(self.nav[0]) + 1))
         crumbs += [self.doc.folder_title(u) for u in self.nav[1:]]
         self.crumb_var.set("  ›  ".join(crumbs))
-        ttk.Label(self.pagebar, text="Seiten", style="Muted.TLabel").pack(side="left", padx=(0, 8))
+        ttk.Label(self.pagebar, text=_("Pages"), style="Muted.TLabel").pack(side="left", padx=(0, 8))
         for i, pid in enumerate(ids):
             on = self.nav and self.nav[0] == pid
             b = ttk.Button(self.pagebar, text=str(i + 1), width=3, style="PageOn.TButton" if on else "Page.TButton",
@@ -709,7 +720,7 @@ class EditorApp:
         right = ttk.Button(self.pagebar, text="▶", width=3, command=lambda: self.move_page(1))
         right.pack(side="left", padx=1)
         has_bg = self.doc.background(self.page_uuid)[0] is not None
-        ttk.Button(self.pagebar, text=" Hintergrund", compound="left", style="Accent.TButton" if has_bg else "TButton",
+        ttk.Button(self.pagebar, text=" " + _("Background"), compound="left", style="Accent.TButton" if has_bg else "TButton",
                    image=self.icons.get("image", 16, "#ffffff" if has_bg else COL["fg"]),
                    command=self.open_background).pack(side="right")
         if len(ids) <= 1:
@@ -732,7 +743,7 @@ class EditorApp:
         pid = self.nav[0]
         pg = self.doc.page(pid)
         if pg and pg.items() and not messagebox.askyesno(
-                "Seite löschen", "Die Seite enthält Aktionen. Trotzdem löschen?", parent=self.root):
+                _("Delete page"), _("This page contains actions. Delete it anyway?"), parent=self.root):
             return
         idx = self.doc.page_ids.index(pid)
         try:
@@ -749,7 +760,7 @@ class EditorApp:
 
     def open_folder(self, uuid):
         if not uuid or not self.doc.page(uuid):
-            self.status("Ordner nicht gefunden")
+            self.status(_("Folder not found"))
             return
         self.nav.append(uuid)
         self.selected = None
@@ -929,12 +940,12 @@ class EditorApp:
         page = self.doc.page(pid)
         free = next((s for s in (keys if slot[0] == "key" else dials) if page.get(s) is None), None)
         if free is None:
-            self.status("Auf der Zielseite ist kein Platz frei")
+            self.status(_("There is no free space on the target page"))
             return
         self.doc.move(self.page_uuid, slot, pid, free)
         self.selected = None
         self.refresh_all()
-        self.status(f"Aktion auf Seite {self.doc.page_ids.index(pid) + 1} verschoben")
+        self.status(_("Action moved to page {n}").format(n=self.doc.page_ids.index(pid) + 1))
 
     def _show_drop_target(self, slot):
         self.canvas.delete("droptarget")
@@ -971,23 +982,23 @@ class EditorApp:
         data = self.doc.get(self.page_uuid, slot)
         m = tk.Menu(self.root, tearoff=0)
         if data and data.get("UUID") == C.FOLDER_UUID:
-            m.add_command(label="Ordner öffnen", command=lambda: self.open_folder(
+            m.add_command(label=_("Open folder"), command=lambda: self.open_folder(
                 (data.get("Settings") or {}).get("ProfileUUID")))
             m.add_separator()
-        m.add_command(label="Ausschneiden", accelerator="Strg+X", command=self.cut_selected,
+        m.add_command(label=_("Cut"), accelerator=_("Ctrl+X"), command=self.cut_selected,
                       state="normal" if data else "disabled")
-        m.add_command(label="Kopieren", accelerator="Strg+C", command=self.copy_selected,
+        m.add_command(label=_("Copy"), accelerator=_("Ctrl+C"), command=self.copy_selected,
                       state="normal" if data else "disabled")
-        m.add_command(label="Einfügen", accelerator="Strg+V", command=self.paste_selected,
+        m.add_command(label=_("Paste"), accelerator=_("Ctrl+V"), command=self.paste_selected,
                       state="normal" if self.clipboard else "disabled")
         m.add_separator()
         if len(self.doc.page_ids) > 1 and data:
             sub = tk.Menu(m, tearoff=0)
             for i, pid in enumerate(self.doc.page_ids):
                 if pid != self.nav[0] or len(self.nav) > 1:
-                    sub.add_command(label=f"Seite {i + 1}", command=lambda p=pid: self._move_to_page(slot, p))
-            m.add_cascade(label="Verschieben auf", menu=sub)
-        m.add_command(label="Löschen", accelerator="Entf", command=self.delete_selected,
+                    sub.add_command(label=_("Page {n}").format(n=i + 1), command=lambda p=pid: self._move_to_page(slot, p))
+            m.add_cascade(label=_("Move to"), menu=sub)
+        m.add_command(label=_("Delete"), accelerator=_("Del"), command=self.delete_selected,
                       state="normal" if data else "disabled")
         try:
             m.tk_popup(e.x_root, e.y_root)
@@ -1000,7 +1011,7 @@ class EditorApp:
             clip = self.doc.copy(self.page_uuid, self.selected)
             if clip:
                 self.clipboard = clip
-                self.status("Kopiert")
+                self.status(_("Copied"))
 
     def cut_selected(self):
         self.copy_selected()
@@ -1054,10 +1065,10 @@ class EditorApp:
         sel = self.tree.selection()
         a = self._types.get(sel[0]) if sel else None
         if a:
-            where = "nur Dials" if a.controllers == (C.DIAL,) else "Tasten und Dials" if C.DIAL in a.controllers \
-                else "Tasten"
-            self.tree_hint.set(f"{a.name}: {a.description or a.category} ({where}).\n"
-                               "Auf eine Taste ziehen oder doppelklicken.")
+            where = _("dials only") if a.controllers == (C.DIAL,) else _("keys and dials") \
+                if C.DIAL in a.controllers else _("keys")
+            self.tree_hint.set(_("{name}: {description} ({where}).\nDrag onto a key or double-click.").format(
+                name=a.name, description=a.description or a.category, where=where))
 
     def _tree_press(self, e):
         self._tdrag = {"uuid": self._tree_item(e), "x": e.x_root, "y": e.y_root, "win": None}
@@ -1097,12 +1108,12 @@ class EditorApp:
         a = self._types[uuid]
         slot = self.selected
         if slot is None or not self._fits({"UUID": uuid}, slot, quiet=True):
-            _, keys, dials = self._slots()
+            _g, keys, dials = self._slots()
             page = self.doc.page(self.page_uuid)
             pool = [s for s in keys + dials if s[0] in a.controllers]
             slot = next((s for s in pool if page.get(s) is None), None)
         if slot is None:
-            self.status("Kein freier Platz – Taste auswählen, um sie zu ersetzen")
+            self.status(_("No free space – select a key to replace it"))
             return "break"
         self.place_action(uuid, slot)
         return "break"
@@ -1111,7 +1122,9 @@ class EditorApp:
         t = self._types.get((data or {}).get("UUID", ""))
         if t and slot[0] not in t.controllers:
             if not quiet:
-                self.status(f"„{t.name}“ ist nur für {'Dials' if C.DIAL in t.controllers else 'Tasten'} geeignet")
+                msg = _("“{name}” only works on dials") if C.DIAL in t.controllers \
+                    else _("“{name}” only works on keys")
+                self.status(msg.format(name=t.name))
             return False
         return True
 
@@ -1120,12 +1133,12 @@ class EditorApp:
             return
         old = self.doc.get(self.page_uuid, slot)
         if old and old.get("UUID") == C.FOLDER_UUID and self.doc.page((old.get("Settings") or {}).get("ProfileUUID", "")):
-            if not messagebox.askyesno("Ordner ersetzen", "Der Ordner und sein Inhalt werden ersetzt. Fortfahren?",
+            if not messagebox.askyesno(_("Replace folder"), _("The folder and its contents will be replaced. Continue?"),
                                        parent=self.root):
                 return
         self.doc.place(self.page_uuid, slot, uuid)
         self.select(slot)
-        self.status(f"{self._types[uuid].name} hinzugefügt")
+        self.status(_("{name} added").format(name=self._types[uuid].name))
 
     # ========================================================= Eigenschaften
     def build_inspector(self):
@@ -1134,21 +1147,21 @@ class EditorApp:
         if not self.doc:
             return
         if self.selected is None:
-            ttk.Label(f, text="Taste auswählen, um sie zu bearbeiten.", style="Muted.TLabel").pack(anchor="w")
-            ttk.Label(f, text="Tipps: Aktionen von rechts auf Tasten ziehen · Tasten per Drag & Drop verschieben "
-                              "(auch auf eine andere Seite) · Rechtsklick für Kopieren/Einfügen · Doppelklick "
-                              "öffnet Ordner · Strg+Z macht rückgängig.",
+            ttk.Label(f, text=_("Select a key to edit it."), style="Muted.TLabel").pack(anchor="w")
+            ttk.Label(f, text=_("Tips: drag actions from the right onto keys · move keys by drag & drop "
+                                "(also onto another page) · right-click to copy/paste · double-click "
+                                "opens folders · Ctrl+Z undoes."),
                       style="Muted.TLabel", wraplength=640, justify="left").pack(anchor="w", pady=(6, 0))
             return
         data = self.doc.get(self.page_uuid, self.selected)
-        where = f"Taste {self.selected[1] + 1},{self.selected[2] + 1}" if self.selected[0] == "key" \
-            else f"Dial {self.selected[1] + 1}"
+        where = _("Key {col},{row}").format(col=self.selected[1] + 1, row=self.selected[2] + 1) \
+            if self.selected[0] == "key" else _("Dial {n}").format(n=self.selected[1] + 1)
         if data is None:
-            ttk.Label(f, text=f"{where} – leer", style="Head.TLabel").pack(anchor="w")
-            ttk.Label(f, text="Aktion aus der Liste rechts hierher ziehen oder dort doppelklicken.",
+            ttk.Label(f, text=_("{where} – empty").format(where=where), style="Head.TLabel").pack(anchor="w")
+            ttk.Label(f, text=_("Drag an action here from the list on the right, or double-click it there."),
                       style="Muted.TLabel").pack(anchor="w", pady=(4, 0))
             if self.clipboard:
-                ttk.Button(f, text="Einfügen", command=self.paste_selected).pack(anchor="w", pady=8)
+                ttk.Button(f, text=_("Paste"), command=self.paste_selected).pack(anchor="w", pady=8)
             return
         ActionForm(self, f, data, self.page_uuid, self.selected, header=where).build()
 
@@ -1180,20 +1193,21 @@ class ActionForm:
         btns = ttk.Frame(head, style="Panel.TFrame")
         btns.pack(side="right")
         if self.data.get("UUID") == C.FOLDER_UUID and self.appearance:
-            ttk.Button(btns, text="Ordner öffnen", command=lambda: self.app.open_folder(
+            ttk.Button(btns, text=_("Open folder"), command=lambda: self.app.open_folder(
                 (self.data.get("Settings") or {}).get("ProfileUUID"))).pack(side="left", padx=2)
         if self.appearance and self._has_pi():
-            ttk.Button(btns, text="Einstellungsseite…", style="Accent.TButton",
+            ttk.Button(btns, text=_("Settings page…"), style="Accent.TButton",
                        command=lambda: self.app.open_property_inspector(self.page_uuid, self.slot)
                        ).pack(side="left", padx=2)
-        ttk.Button(btns, text="Einstellungen (JSON)…", command=self.edit_json).pack(side="left", padx=2)
+        ttk.Button(btns, text=_("Settings (JSON)…"), command=self.edit_json).pack(side="left", padx=2)
         if self.appearance:
-            ttk.Button(btns, text="Löschen", command=self.app.delete_selected).pack(side="left", padx=2)
+            ttk.Button(btns, text=_("Delete"), command=self.app.delete_selected).pack(side="left", padx=2)
         ttk.Label(f, text=self.data.get("UUID", ""), style="Muted.TLabel").pack(anchor="w")
         if not A.is_supported(self.data.get("UUID", "")):
             plugin = (self.data.get("Plugin") or {}).get("Name") or self.data.get("UUID", "").rsplit(".", 1)[0]
-            ttk.Label(f, text=f"Aktion des Plugins „{plugin}“ – unter Linux nicht ausführbar (Plugin nicht installiert "
-                              "oder nur für Windows/macOS). Titel, Icon und Einstellungen bleiben erhalten.",
+            ttk.Label(f, text=_("Action of the plugin “{plugin}” – cannot run on Linux (plugin not installed "
+                                "or only for Windows/macOS). Title, icon and settings are kept.").format(
+                plugin=plugin),
                       style="Muted.TLabel", wraplength=640, justify="left").pack(anchor="w", pady=(4, 0))
         if self.appearance:
             self.app_frame = ttk.Frame(f, style="Panel.TFrame")
@@ -1201,7 +1215,7 @@ class ActionForm:
             self.build_appearance()
         fields = self.type.fields_for(self.slot[0]) if self.type else []
         if fields:
-            self._section(f, "EINSTELLUNGEN")
+            self._section(f, _("SETTINGS"))
             grid = ttk.Frame(f, style="Panel.TFrame")
             grid.pack(fill="x")
             grid.columnconfigure(1, weight=1)
@@ -1229,22 +1243,22 @@ class ActionForm:
         f = self.app_frame
         for c in f.winfo_children():
             c.destroy()
-        ttk.Label(f, text="DARSTELLUNG", style="Section.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(f, text=_("APPEARANCE"), style="Section.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
         states = self.data.get("States") or [{}]
         self.state_idx = min(self.state_idx, len(states) - 1)
         st = states[self.state_idx] if states else {}
         f.columnconfigure(1, weight=1)
         r = 1
         if len(states) > 1:
-            ttk.Label(f, text="Zustand", style="Panel.TLabel").grid(row=r, column=0, sticky="w", padx=(0, 10))
-            sv = ttk.Combobox(f, state="readonly", width=12, values=[f"Zustand {i + 1}" for i in range(len(states))])
+            ttk.Label(f, text=_("State"), style="Panel.TLabel").grid(row=r, column=0, sticky="w", padx=(0, 10))
+            sv = ttk.Combobox(f, state="readonly", width=12, values=[_("State {n}").format(n=i + 1) for i in range(len(states))])
             sv.current(self.state_idx)
             sv.grid(row=r, column=1, sticky="w", pady=2)
             sv.bind("<<ComboboxSelected>>", lambda e: (setattr(self, "state_idx", sv.current()),
                                                        self.build_appearance()))
             r += 1
         # Titel
-        ttk.Label(f, text="Titel", style="Panel.TLabel").grid(row=r, column=0, sticky="nw", padx=(0, 10), pady=2)
+        ttk.Label(f, text=_("Title"), style="Panel.TLabel").grid(row=r, column=0, sticky="nw", padx=(0, 10), pady=2)
         txt = tk.Text(f, height=2, width=30, bg=COL["panel2"], fg=COL["fg"], insertbackground=COL["fg"],
                       relief="flat", font=("TkDefaultFont", 10), wrap="none", highlightthickness=1,
                       highlightbackground="#3a3c42", highlightcolor=COL["accent"])
@@ -1255,20 +1269,20 @@ class ActionForm:
         row = ttk.Frame(f, style="Panel.TFrame")
         row.grid(row=r, column=1, sticky="w", pady=2)
         show = tk.BooleanVar(value=st.get("ShowTitle", True) is not False)
-        ttk.Checkbutton(row, text="anzeigen", variable=show,
+        ttk.Checkbutton(row, text=_("show"), variable=show,
                         command=lambda: self._set_state("ShowTitle", show.get())).pack(side="left")
-        al = ttk.Combobox(row, state="readonly", width=7, values=[n for _, n in ALIGN])
+        al = ttk.Combobox(row, state="readonly", width=7, values=[n for _v, n in ALIGN])
         cur = (st.get("TitleAlignment") or "bottom").lower()
-        al.current(next((i for i, (v, _) in enumerate(ALIGN) if v == cur), 2))
+        al.current(next((i for i, (v, _n) in enumerate(ALIGN) if v == cur), 2))
         al.bind("<<ComboboxSelected>>", lambda e: self._set_state("TitleAlignment", ALIGN[al.current()][0]))
         al.pack(side="left", padx=(10, 0))
         size = tk.StringVar(value=str(st.get("FontSize") or 12))
         sp = ttk.Spinbox(row, from_=6, to=40, width=4, textvariable=size)
         sp.pack(side="left", padx=(8, 0))
         size.trace_add("write", lambda *a: self._set_int_state("FontSize", size.get()))
-        sty = ttk.Combobox(row, state="readonly", width=10, values=[n for _, n in STYLES])
+        sty = ttk.Combobox(row, state="readonly", width=10, values=[n for _v, n in STYLES])
         cur = (st.get("FontStyle") or "").replace("Regular", "")
-        sty.current(next((i for i, (v, _) in enumerate(STYLES) if v.lower() == cur.lower()), 0))
+        sty.current(next((i for i, (v, _n) in enumerate(STYLES) if v.lower() == cur.lower()), 0))
         sty.bind("<<ComboboxSelected>>", lambda e: self._set_state("FontStyle", STYLES[sty.current()][0]))
         sty.pack(side="left", padx=(8, 0))
         color = st.get("TitleColor") or "#ffffff"
@@ -1276,19 +1290,19 @@ class ActionForm:
                        command=lambda: self._pick_color(cb))
         cb.pack(side="left", padx=(8, 0))
         und = tk.BooleanVar(value=bool(st.get("FontUnderline")))
-        ttk.Checkbutton(row, text="unterstrichen", variable=und,
+        ttk.Checkbutton(row, text=_("underline"), variable=und,
                         command=lambda: self._set_state("FontUnderline", und.get())).pack(side="left", padx=(8, 0))
         r += 1
         # Icon
-        ttk.Label(f, text="Icon", style="Panel.TLabel").grid(row=r, column=0, sticky="w", padx=(0, 10), pady=(6, 2))
+        ttk.Label(f, text=_("Icon"), style="Panel.TLabel").grid(row=r, column=0, sticky="w", padx=(0, 10), pady=(6, 2))
         irow = ttk.Frame(f, style="Panel.TFrame")
         irow.grid(row=r, column=1, sticky="w", pady=(6, 2))
         prev = E.preview_action(self.doc, self.page_uuid, self.data, (56, 56), state=self.state_idx) \
             if self.slot[0] == "key" else E.preview_dial(self.doc, self.page_uuid, self.data, (112, 56))
         self._icon_photo = ImageTk.PhotoImage(_rounded(prev.convert("RGBA"), 7), master=self.app.root)
         tk.Label(irow, image=self._icon_photo, bg=COL["panel"]).pack(side="left")
-        ttk.Button(irow, text="Bild wählen…", command=self._choose_icon).pack(side="left", padx=(10, 2))
-        b = ttk.Button(irow, text="Standard", command=lambda: self._set_state("Image", "", rebuild=True))
+        ttk.Button(irow, text=_("Choose image…"), command=self._choose_icon).pack(side="left", padx=(10, 2))
+        b = ttk.Button(irow, text=_("Default"), command=lambda: self._set_state("Image", "", rebuild=True))
         b.pack(side="left", padx=2)
         if not st.get("Image"):
             b.state(["disabled"])
@@ -1309,21 +1323,21 @@ class ActionForm:
     def _pick_color(self, btn):
         states = self.data.get("States") or [{}]
         cur = states[self.state_idx].get("TitleColor") or "#ffffff"
-        res = colorchooser.askcolor(color=cur, parent=self.app.root, title="Titelfarbe")
+        res = colorchooser.askcolor(color=cur, parent=self.app.root, title=_("Title color"))
         if res and res[1]:
             btn.configure(bg=res[1], activebackground=res[1])
             self._set_state("TitleColor", res[1])
 
     def _choose_icon(self):
-        f = filedialog.askopenfilename(parent=self.app.root, title="Icon wählen",
-                                       filetypes=[("Bilder", "*.png *.jpg *.jpeg *.gif *.svg *.webp *.bmp"),
-                                                  ("Alle Dateien", "*")])
+        f = filedialog.askopenfilename(parent=self.app.root, title=_("Choose icon"),
+                                       filetypes=[(_("Images"), "*.png *.jpg *.jpeg *.gif *.svg *.webp *.bmp"),
+                                                  (_("All files"), "*")])
         if not f:
             return
         try:
             self.doc.set_icon(self.page_uuid, self.slot, self.state_idx, f, action=self.data)
         except E.EditError as e:
-            messagebox.showerror("Icon", str(e), parent=self.app.root)
+            messagebox.showerror(_("Icon"), str(e), parent=self.app.root)
             return
         self.build_appearance()
 
@@ -1371,15 +1385,15 @@ class ActionForm:
             ttk.Checkbutton(cell, variable=var, command=lambda: self._set(k, var.get())).pack(side="left")
         elif fld.kind == "choice":
             vals = fld.options
-            box = ttk.Combobox(cell, state="readonly", width=28, values=[n for _, n in vals])
+            box = ttk.Combobox(cell, state="readonly", width=28, values=[n for _v, n in vals])
             cur = s.get(k)
-            idx = next((i for i, (v, _) in enumerate(vals) if str(v) == str(cur)), 0)
+            idx = next((i for i, (v, _n) in enumerate(vals) if str(v) == str(cur)), 0)
             box.current(idx)
             box.bind("<<ComboboxSelected>>", lambda e: self._set(k, vals[box.current()][0]))
             box.pack(side="left")
         elif fld.kind == "page":
             n = len(self.doc.page_ids)
-            box = ttk.Combobox(cell, state="readonly", width=12, values=[f"Seite {i + 1}" for i in range(n)])
+            box = ttk.Combobox(cell, state="readonly", width=12, values=[_("Page {n}").format(n=i + 1) for i in range(n)])
             try:
                 box.current(max(0, min(n - 1, int(s.get(k) or 1) - 1)))
             except ValueError:
@@ -1390,7 +1404,7 @@ class ActionForm:
             profs = sorted(self.app.store.profiles.values(), key=lambda p: p.name.lower())
             ids = [""] + [p.id for p in profs]
             box = ttk.Combobox(cell, state="readonly", width=34,
-                               values=["(nächstes Profil)"] + [f"{p.name}  ·  {p.model_name}" for p in profs])
+                               values=[_("(next profile)")] + [f"{p.name}  ·  {p.model_name}" for p in profs])
             cur = (s.get(k) or "").lower()
             box.current(next((i for i, p in enumerate(ids) if p.lower() == cur), 0))
             box.bind("<<ComboboxSelected>>", lambda e: self._set(k, ids[box.current()]))
@@ -1399,7 +1413,7 @@ class ActionForm:
             HotkeyField(cell, self, int(k)).pack(side="left", fill="x", expand=True)
 
     def _browse(self, var):
-        f = filedialog.askopenfilename(parent=self.app.root, title="Datei wählen")
+        f = filedialog.askopenfilename(parent=self.app.root, title=_("Choose file"))
         if f:
             var.set(f)
 
@@ -1407,7 +1421,7 @@ class ActionForm:
     def build_children(self, f):
         kind, labels = self.type.children
         entries = C.child_lists(self.data)
-        self._section(f, "ENTHALTENE AKTIONEN")
+        self._section(f, _("INCLUDED ACTIONS"))
         box = ttk.Frame(f, style="Panel.TFrame")
         box.pack(fill="x")
         if kind == "slots":
@@ -1418,12 +1432,12 @@ class ActionForm:
                 child = entries[i] if isinstance(entries[i], dict) and entries[i].get("UUID") else None
                 ttk.Label(row, text=C.display_name(child) if child else "–", style="Panel.TLabel",
                           width=24).pack(side="left")
-                mb = ttk.Menubutton(row, text="Wählen")
+                mb = ttk.Menubutton(row, text=_("Choose"))
                 mb["menu"] = self._catalog_menu(mb, lambda u, i=i: self._set_slot_child(i, u))
                 mb.pack(side="left", padx=2)
-                b1 = ttk.Button(row, text="Bearbeiten…", command=lambda c=child: self._edit_child(c))
+                b1 = ttk.Button(row, text=_("Edit…"), command=lambda c=child: self._edit_child(c))
                 b1.pack(side="left", padx=2)
-                b2 = ttk.Button(row, text="Leeren", command=lambda i=i: self._set_slot_child(i, None))
+                b2 = ttk.Button(row, text=_("Clear"), command=lambda i=i: self._set_slot_child(i, None))
                 b2.pack(side="left", padx=2)
                 if child is None:
                     b1.state(["disabled"])
@@ -1442,7 +1456,7 @@ class ActionForm:
             lb.pack(side="left", fill="x", expand=True, anchor="n")
             col = ttk.Frame(row, style="Panel.TFrame")
             col.pack(side="left", padx=(6, 0), anchor="n")
-            mb = ttk.Menubutton(col, text="Hinzufügen")
+            mb = ttk.Menubutton(col, text=_("Add"))
             mb["menu"] = self._catalog_menu(mb, lambda u, grp=group: self._add_child(grp, u),
                                             with_delay=self.data.get("UUID", "").startswith(
                                                 "com.elgato.streamdeck.multiactions"))
@@ -1451,9 +1465,9 @@ class ActionForm:
             def sel(lb=lb):
                 s = lb.curselection()
                 return s[0] if s else None
-            ttk.Button(col, text="Bearbeiten…", command=lambda grp=group, sel=sel: self._edit_child(
+            ttk.Button(col, text=_("Edit…"), command=lambda grp=group, sel=sel: self._edit_child(
                 grp[sel()] if sel() is not None else None)).pack(fill="x", pady=1)
-            ttk.Button(col, text="Entfernen", command=lambda grp=group, sel=sel: self._remove_child(grp, sel())
+            ttk.Button(col, text=_("Remove"), command=lambda grp=group, sel=sel: self._remove_child(grp, sel())
                        ).pack(fill="x", pady=1)
             ttk.Button(col, text="▲", command=lambda grp=group, sel=sel: self._move_child(grp, sel(), -1)
                        ).pack(fill="x", pady=1)
@@ -1546,11 +1560,11 @@ class HotkeyField(ttk.Frame):
         self.entry = ttk.Entry(self, textvariable=self.var, width=26)
         self.entry._hotkey = True
         self.entry.pack(side="left", fill="x", expand=True)
-        self.entry.bind("<FocusIn>", lambda e: self.var.set("Tasten drücken …"))
+        self.entry.bind("<FocusIn>", lambda e: self.var.set(_("Press keys…")))
         self.entry.bind("<FocusOut>", lambda e: self.var.set(self._current() or ""))
         self.entry.bind("<KeyPress>", self._key)
         ttk.Button(self, text="✕", width=3, command=self.clear).pack(side="left", padx=(4, 0))
-        ttk.Button(self, text="Eingeben…", command=self.type_in).pack(side="left", padx=(4, 0))
+        ttk.Button(self, text=_("Type in…"), command=self.type_in).pack(side="left", padx=(4, 0))
 
     def _current(self):
         hks = (self.form.data.get("Settings") or {}).get("Hotkeys") or []
@@ -1573,14 +1587,14 @@ class HotkeyField(ttk.Frame):
         self._store(C.empty_hotkey())
 
     def type_in(self):
-        text = simpledialog.askstring("Tastenkombination", "z. B. Strg+Umschalt+T, Alt+F4, Super+E, F13:",
+        text = simpledialog.askstring(_("Key combination"), _("e.g. Ctrl+Shift+T, Alt+F4, Super+E, F13:"),
                                       initialvalue=self._current(), parent=self.form.app.root)
         if text is None:
             return
         try:
             self._store(C.parse_hotkey(text))
         except ValueError as e:
-            messagebox.showerror("Tastenkombination", str(e), parent=self.form.app.root)
+            messagebox.showerror(_("Key combination"), str(e), parent=self.form.app.root)
 
 
 class _Dialog(tk.Toplevel):
@@ -1600,12 +1614,12 @@ class _Dialog(tk.Toplevel):
 
 class ChildDialog(_Dialog):
     def __init__(self, app, data, page_uuid, slot, on_close=None):
-        super().__init__(app, f"{C.display_name(data)} bearbeiten")
+        super().__init__(app, _("Edit {name}").format(name=C.display_name(data)))
         self.on_close = on_close
         body = ScrollFrame(self, style="Panel.TFrame", padding=12)
         body.pack(fill="both", expand=True)
         ActionForm(app, body.inner, data, page_uuid, slot, appearance=False).build()
-        ttk.Button(self, text="Fertig", style="Accent.TButton", command=self.done).pack(anchor="e", padx=12,
+        ttk.Button(self, text=_("Done"), style="Accent.TButton", command=self.done).pack(anchor="e", padx=12,
                                                                                        pady=(0, 12))
 
     def done(self):
@@ -1616,9 +1630,9 @@ class ChildDialog(_Dialog):
 
 class JsonDialog(_Dialog):
     def __init__(self, app, data, page_uuid, slot, on_close=None):
-        super().__init__(app, "Einstellungen (JSON)")
+        super().__init__(app, _("Settings (JSON)"))
         self.data, self.page_uuid, self.slot, self.on_close = data, page_uuid, slot, on_close
-        ttk.Label(self, text="Rohdaten der Aktion („Settings“) – für Plugin-Aktionen und Sonderfälle.",
+        ttk.Label(self, text=_("Raw data of the action (“Settings”) – for plugin actions and special cases."),
                   style="Muted.TLabel").pack(anchor="w", padx=12, pady=(12, 4))
         self.txt = tk.Text(self, bg=COL["panel2"], fg=COL["fg"], insertbackground=COL["fg"], relief="flat",
                            font=("monospace", 10))
@@ -1626,14 +1640,14 @@ class JsonDialog(_Dialog):
         self.txt.pack(fill="both", expand=True, padx=12)
         row = ttk.Frame(self, style="Panel.TFrame")
         row.pack(fill="x", padx=12, pady=12)
-        ttk.Button(row, text="Übernehmen", style="Accent.TButton", command=self.apply).pack(side="right")
-        ttk.Button(row, text="Abbrechen", command=self.done).pack(side="right", padx=6)
+        ttk.Button(row, text=_("Apply"), style="Accent.TButton", command=self.apply).pack(side="right")
+        ttk.Button(row, text=_("Cancel"), command=self.done).pack(side="right", padx=6)
 
     def apply(self):
         try:
             val = json.loads(self.txt.get("1.0", "end-1c") or "{}")
             if not isinstance(val, dict):
-                raise ValueError("Ein JSON-Objekt { … } wird erwartet")
+                raise ValueError(_("A JSON object { … } is expected"))
         except ValueError as e:
             messagebox.showerror("JSON", str(e), parent=self)
             return
@@ -1646,25 +1660,25 @@ class JsonDialog(_Dialog):
 class NewProfileDialog(_Dialog):
     def __init__(self, app_root):
         tk.Toplevel.__init__(self, app_root)
-        self.title("Neues Profil")
+        self.title(_("New profile"))
         self.configure(bg=COL["panel"])
         self.transient(app_root)
         self.result = None
         f = ttk.Frame(self, style="Panel.TFrame", padding=16)
         f.pack(fill="both", expand=True)
-        ttk.Label(f, text="Name", style="Panel.TLabel").grid(row=0, column=0, sticky="w", pady=4)
-        self.name = tk.StringVar(value="Neues Profil")
+        ttk.Label(f, text=_("Name"), style="Panel.TLabel").grid(row=0, column=0, sticky="w", pady=4)
+        self.name = tk.StringVar(value=_("New profile"))
         e = ttk.Entry(f, textvariable=self.name, width=34)
         e.grid(row=0, column=1, sticky="ew", pady=4)
-        ttk.Label(f, text="Gerät", style="Panel.TLabel").grid(row=1, column=0, sticky="w", pady=4, padx=(0, 10))
+        ttk.Label(f, text=_("Device"), style="Panel.TLabel").grid(row=1, column=0, sticky="w", pady=4, padx=(0, 10))
         self.codes = list(MODELS)
         self.box = ttk.Combobox(f, state="readonly", width=32, values=[MODELS[c][0] for c in self.codes])
         self.box.current(self.codes.index("20GBA9901"))
         self.box.grid(row=1, column=1, sticky="ew", pady=4)
         row = ttk.Frame(f, style="Panel.TFrame")
         row.grid(row=2, column=0, columnspan=2, sticky="e", pady=(12, 0))
-        ttk.Button(row, text="Abbrechen", command=self.destroy).pack(side="right")
-        ttk.Button(row, text="Anlegen", style="Accent.TButton", command=self.ok).pack(side="right", padx=6)
+        ttk.Button(row, text=_("Cancel"), command=self.destroy).pack(side="right")
+        ttk.Button(row, text=_("Create"), style="Accent.TButton", command=self.ok).pack(side="right", padx=6)
         self.bind("<Return>", lambda ev: self.ok())
         self.bind("<Escape>", lambda ev: self.destroy())
         e.focus_set()
@@ -1674,7 +1688,7 @@ class NewProfileDialog(_Dialog):
         self.wait_window()
 
     def ok(self):
-        self.result = (self.name.get().strip() or "Neues Profil", self.codes[self.box.current()])
+        self.result = (self.name.get().strip() or _("New profile"), self.codes[self.box.current()])
         self.destroy()
 
 
@@ -1735,7 +1749,7 @@ def main(profile=None, store_root=None):
     try:
         root = tk.Tk(className="lindeck-editor")
     except tk.TclError as e:
-        print(f"Keine grafische Oberfläche verfügbar: {e}")
+        print(_("No graphical display available: {error}").format(error=e))
         return 1
     EditorApp(root, store_root=store_root, profile=profile)
     root.mainloop()

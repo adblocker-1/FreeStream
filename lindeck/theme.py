@@ -91,6 +91,10 @@ def apply(root):
     s.configure("Ghost.TButton", background=panel, lightcolor=panel, darkcolor=panel, bordercolor=panel)
     s.map("Ghost.TButton", background=[("active", panel2)], lightcolor=[("active", panel2)],
           darkcolor=[("active", panel2)], bordercolor=[("active", panel2)])
+    s.configure("Ghost.TMenubutton", background=panel, lightcolor=panel, darkcolor=panel, bordercolor=panel,
+                foreground=COL["fg"], arrowcolor=COL["muted"], padding=(8, 4))
+    s.map("Ghost.TMenubutton", background=[("active", panel2)], lightcolor=[("active", panel2)],
+          darkcolor=[("active", panel2)], bordercolor=[("active", panel2)])
     s.configure("Danger.TButton", background=panel2, foreground=COL["danger"])
     s.configure("Page.TButton", padding=(10, 4))
     s.configure("PageOn.TButton", padding=(10, 4), background=COL["accent"], lightcolor=COL["accent"],
@@ -307,6 +311,12 @@ def glyph(name, size=20, color="#ececf0", bg=None, circle=None):
     elif n == "plus":
         line((0.5, 0.1), (0.5, 0.9))
         line((0.1, 0.5), (0.9, 0.5))
+    elif n == "globe":
+        ell(0.04, 0.04, 0.96, 0.96, fill=False)
+        ell(0.3, 0.04, 0.7, 0.96, fill=False)
+        line((0.06, 0.5), (0.94, 0.5))
+        arc(0.12, -0.3, 0.88, 0.36, 40, 140)
+        arc(0.12, 0.64, 0.88, 1.3, 220, 320)
     else:  # Punkt als Ersatz
         ell(0.3, 0.3, 0.7, 0.7)
     return im.resize((size, size), Image.LANCZOS)
@@ -327,6 +337,52 @@ class Icons:
 
 
 # ===================================================================== Widgets
+def language_button(parent, icons, app, restart, bg=None):
+    """Knopf mit Globus und Sprachname; Auswahl speichert die Sprache und bietet einen Neustart an."""
+    from tkinter import messagebox
+
+    from . import i18n
+    from .i18n import _
+
+    cur = i18n.configured()
+    btn = ttk.Menubutton(parent, text=" " + i18n.name(i18n.current()), image=icons.get("globe", 16, COL["muted"]),
+                         compound="left", style="Ghost.TMenubutton")
+    menu = tk.Menu(btn, tearoff=False, bg=COL["panel2"], fg=COL["fg"], activebackground=COL["accent"],
+                   activeforeground="#ffffff", bd=0)
+    var = tk.StringVar(btn, value=cur if cur == "auto" or cur in i18n.available() else "auto")
+    btn._var = var  # am Leben halten
+
+    def pick():
+        code = var.get()
+        i18n.save_language(code)
+        new = i18n.detect()
+        if new == i18n.current():
+            return
+        msg = _("{app} will be shown in {language} after a restart. Restart now?").format(
+            app=app, language=i18n.name(new))
+        if messagebox.askyesno(_("Language"), msg, parent=parent.winfo_toplevel()):
+            restart()
+
+    menu.add_radiobutton(label=_("System language"), value="auto", variable=var, command=pick)
+    menu.add_separator()
+    for code in i18n.available():
+        menu.add_radiobutton(label=i18n.name(code), value=code, variable=var, command=pick)
+    btn["menu"] = menu
+    return btn
+
+
+def restart_later(module):
+    """Startet `python -m <module>` neu, sobald dieser Prozess beendet ist."""
+    import os
+    import subprocess
+    import sys
+    env = dict(os.environ)
+    env.pop("LINDECK_LANG", None)
+    subprocess.Popen(["sh", "-c", 'sleep 2; exec "$@"', "sh", sys.executable, "-m", module],
+                     env=env, start_new_session=True, stdin=subprocess.DEVNULL,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def rounded_rect(cv, x0, y0, x1, y1, r, **kw):
     r = max(0, min(r, (x1 - x0) / 2, (y1 - y0) / 2))
     pts = [x0 + r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y1 - r, x1, y1, x1 - r, y1, x0 + r, y1,

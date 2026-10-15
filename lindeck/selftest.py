@@ -17,6 +17,7 @@ import threading
 import time
 
 from . import __version__, paths, render
+from .i18n import _, pgettext
 from .models import geometry_for_deck, model_for_deck, model_name
 
 try:
@@ -27,6 +28,11 @@ except ImportError:  # pragma: no cover
 
 COLORS = [(200, 60, 60), (60, 160, 60), (60, 90, 200), (200, 160, 40), (160, 60, 180), (40, 170, 170),
           (220, 110, 40), (120, 120, 120)]
+
+
+def _dial_label(what):
+    """Anzeigename für 'left' / 'right' / 'press'."""
+    return {"left": _("left"), "right": _("right"), "press": _("press")}[what]
 
 
 class SelfTest:
@@ -83,9 +89,9 @@ class SelfTest:
 
     def on_dial(self, i, ev, value):
         if DialEventType and ev == DialEventType.TURN:
-            self.dial_seen[i].add("rechts" if value > 0 else "links")
+            self.dial_seen[i].add("right" if value > 0 else "left")
         elif value:
-            self.dial_seen[i].add("drücken")
+            self.dial_seen[i].add("press")
         self.changed.set()
 
     def on_touch(self, ev, value):
@@ -133,61 +139,70 @@ class SelfTest:
         # 1. Display und Helligkeit
         if self.visual:
             for k in range(self.keys):
-                self._key(k, render.text_key(self._size(), str(k + 1), "drücken", bg=COLORS[k % len(COLORS)]))
+                self._key(k, render.text_key(self._size(), str(k + 1), _("press"), bg=COLORS[k % len(COLORS)]))
             for b in (10, 40, 70, 100, 70):
                 d.set_brightness(b)
                 time.sleep(0.15)
             if getattr(d, "SCREEN_PIXEL_WIDTH", 0):
                 w, h = d.screen_image_format()["size"]
-                img = render.compose_infobar((w, h), "Selbsttest", "Touch-Tasten antippen")
+                img = render.compose_infobar((w, h), _("Self-test"), _("Tap the touch keys"))
                 with d:
                     d.set_screen_image(PILHelper.to_native_screen_format(d, img.convert("RGB")))
-            self.results["display"] = "angezeigt (bitte prüfen: Nummern 1…%d in Leserichtung)" % self.keys
+            self.results["display"] = _("shown (please check: numbers 1…{count} in reading order)").format(
+                count=self.keys)
         else:
-            self.results["display"] = "kein Display"
+            self.results["display"] = _("no display")
 
         # 2. Tasten
-        self.out(f" Schritt 1: alle {self.keys} Tasten nacheinander drücken …")
+        self.out(" " + _("Step 1: press all {count} keys one after another …").format(count=self.keys))
         ok = self._wait(lambda: len(self.released) >= self.keys, st,
-                        lambda: f"{len(self.released)}/{self.keys} Tasten erkannt")
+                        lambda: _("{done}/{total} keys detected").format(done=len(self.released), total=self.keys))
         missing = sorted(set(range(self.keys)) - self.released)
-        self.results["tasten"] = "ok" if ok else f"fehlen: {', '.join(str(m + 1) for m in missing)}"
+        self.results["tasten"] = "ok" if ok else _("missing: {keys}").format(
+            keys=", ".join(str(m + 1) for m in missing))
 
         # 3. Dials
         if self.dials:
-            self.out(f" Schritt 2: jeden der {self.dials} Dials links und rechts drehen und drücken …")
-            need = {"links", "rechts", "drücken"}
+            self.out(" " + _("Step 2: turn each of the {count} dials left and right and press it …").format(
+                count=self.dials))
+            need = {"left", "right", "press"}
             ok = self._wait(lambda: all(need <= s for s in self.dial_seen.values()), st,
                             lambda: " | ".join(f"Dial {i + 1}: {len(s & need)}/3" for i, s in self.dial_seen.items()))
             self.results["dials"] = "ok" if ok else "; ".join(
-                f"Dial {i + 1} fehlt {', '.join(sorted(need - s))}" for i, s in self.dial_seen.items() if need - s)
+                _("Dial {number} missing {actions}").format(
+                    number=i + 1, actions=", ".join(sorted(_dial_label(x) for x in need - s)))
+                for i, s in self.dial_seen.items() if need - s)
         # 4. Touchstreifen
         if self.touch:
-            self.out(" Schritt 3: jedes Feld des Touchstreifens antippen und einmal wischen …")
+            self.out(" " + _("Step 3: tap each field of the touch strip and swipe once …"))
 
             def segs():
-                return [(f"Feld {i + 1}", "ok" if i in self.segments else "antippen", i in self.segments)
-                        for i in range(self.dials)]
+                return [(_("Field {number}").format(number=i + 1), "ok" if i in self.segments else _("tap"),
+                         i in self.segments) for i in range(self.dials)]
             self._touchscreen(segs())
 
             def progress():
                 self._touchscreen(segs())
-                return f"{len(self.segments)}/{self.dials} Felder, Wischen: {'ja' if self.swiped else 'nein'}"
+                return _("{done}/{total} fields, swipe: {answer}").format(
+                    done=len(self.segments), total=self.dials,
+                    answer=pgettext("answer", "yes") if self.swiped else pgettext("answer", "no"))
             ok = self._wait(lambda: len(self.segments) >= self.dials and self.swiped, st, progress)
             self.results["touchstreifen"] = "ok" if ok else \
-                f"{len(self.segments)}/{self.dials} Felder, Wischen {'ok' if self.swiped else 'fehlt'}"
+                _("{done}/{total} fields, swipe {status}").format(
+                    done=len(self.segments), total=self.dials, status="ok" if self.swiped else _("missing"))
         # 5. Neo-Touch-Tasten
         if self.touch_keys:
-            self.out(" Schritt 4: beide Touch-Tasten (links/rechts unter dem Display) antippen …")
+            self.out(" " + _("Step 4: tap both touch keys (left/right below the display) …"))
             ok = self._wait(lambda: len(self.touch_keys_seen) >= self.touch_keys, st,
-                            lambda: f"{len(self.touch_keys_seen)}/{self.touch_keys} Touch-Tasten")
+                            lambda: _("{done}/{total} touch keys").format(done=len(self.touch_keys_seen),
+                                                                         total=self.touch_keys))
             self.results["touch_tasten"] = "ok" if ok else f"{len(self.touch_keys_seen)}/{self.touch_keys}"
         d.reset()
         return self.results
 
 
 def report_text(results) -> str:
-    lines = ["LinDeck Hardware-Selbsttest", time.strftime("%Y-%m-%d %H:%M"), ""]
+    lines = [_("LinDeck hardware self-test"), time.strftime("%Y-%m-%d %H:%M"), ""]
     for k, v in results.get("info", {}).items():
         lines.append(f"{k:14} {v}")
     lines.append("")
@@ -205,7 +220,7 @@ def run(transport=None, timeout=60, out=print):
     from StreamDeck.DeviceManager import DeviceManager
     decks = DeviceManager(transport=transport).enumerate() if transport else DeviceManager().enumerate()
     if not decks:
-        out("Kein Stream Deck gefunden.")
+        out(_("No Stream Deck found."))
         return []
     files = []
     for deck in decks:
@@ -225,6 +240,7 @@ def run(transport=None, timeout=60, out=print):
         f.write_text(report_text(res), encoding="utf-8")
         (paths.STATE_DIR / f"{name}.json").write_text(json.dumps(res, indent=2, ensure_ascii=False, default=str),
                                                      encoding="utf-8")
-        out(("\n✔ BESTANDEN" if passed(res) else "\n✘ NICHT VOLLSTÄNDIG") + f" – Bericht: {f}")
+        out("\n" + (_("✔ PASSED – report: {path}") if passed(res) else _("✘ INCOMPLETE – report: {path}"))
+            .format(path=f))
         files.append(f)
     return files

@@ -22,6 +22,7 @@ import threading
 import time
 
 from . import app, wavemic
+from .i18n import _
 from .mixer import Mixer
 
 log = logging.getLogger("lindeck.wave")
@@ -73,12 +74,12 @@ class WaveHost:
                 if not self.mixer.is_active():
                     self.mixer.setup()
             except Exception as e:  # noqa: BLE001
-                self.error = f"Mixer: {e}"
-                log.warning("Mixer nicht eingerichtet: %s", e)
+                self.error = _("Mixer: {error}").format(error=e)
+                log.warning(_("Mixer not set up: {error}").format(error=e))
         try:
             self.mic_service.start()
         except Exception as e:  # noqa: BLE001
-            log.warning("Wave-Mikrofon: %s", e)
+            log.warning(_("Wave microphone: {error}").format(error=e))
 
     def request_reload(self):
         self._reload.set()
@@ -90,7 +91,7 @@ class WaveHost:
             try:
                 self.mic.reload()
             except Exception as e:  # noqa: BLE001
-                log.warning("Wave-Mikrofon: %s", e)
+                log.warning(_("Wave microphone: {error}").format(error=e))
         elif self.cfg.changed_on_disk():
             self.cfg.load()
         if self.mixer_enabled and self.mixer.conf.get("auto_route", True):
@@ -101,7 +102,7 @@ class WaveHost:
         try:
             self.mic_service.tick()
         except Exception as e:  # noqa: BLE001
-            log.debug("Wave-Mikrofon: %s", e)
+            log.debug(_("Wave microphone: {error}").format(error=e))
         self._watch_effects()
 
     def _watch_effects(self):
@@ -115,15 +116,15 @@ class WaveHost:
                 return
             for c in self.mixer.all_channels():
                 if self.mixer.fx.active(c["id"]) and not self.mixer.fx.running(c["id"]):
-                    log.info("Effekte für %s werden neu gestartet", c["name"])
+                    log.info(_("Restarting effects for {name}").format(name=c["name"]))
                     self.mixer.rebuild_channel(c["id"])
         except Exception as e:  # noqa: BLE001
-            log.debug("Effekte: %s", e)
+            log.debug(_("Effects: {error}").format(error=e))
 
     def loop(self):
         while self.running:
             self.tick()
-            for _ in range(10):
+            for _i in range(10):
                 if not self.running or self._reload.is_set():
                     break
                 time.sleep(0.1)
@@ -159,9 +160,9 @@ def main(hidden=False, tray=True, cfg=None):
         if app._app_info(WAVE_APP_FILE).get("gui"):
             os.kill(pid, signal.SIGUSR1)
             return 0
-        log.info("Linewave läuft ohne Fenster – starte neu mit Fenster")
+        log.info(_("Linewave is running without a window – restarting with a window"))
         os.kill(pid, signal.SIGTERM)
-        for _ in range(50):
+        for _i in range(50):
             if not app._alive(pid):
                 break
             time.sleep(0.1)
@@ -171,7 +172,7 @@ def main(hidden=False, tray=True, cfg=None):
         import tkinter as tk
         root = tk.Tk(className="linewave")
     except Exception as e:  # noqa: BLE001
-        log.info("Keine grafische Oberfläche (%s) – Linewave läuft als Dienst", e)
+        log.info(_("No graphical interface ({error}) – Linewave is running as a service").format(error=e))
 
     host = WaveHost(cfg)
     app._write_app_info(root is not None, WAVE_APP_FILE)

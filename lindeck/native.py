@@ -16,6 +16,7 @@ import time
 
 from . import actions as A
 from . import render, system
+from .i18n import _, pgettext
 
 log = logging.getLogger("lindeck.native")
 
@@ -158,22 +159,24 @@ class OBSAction(NativeAction):
             return "OBS offline"
         k, s = self.kind, o.state
         if k == "record":
-            return "pausiert" if s["rec_paused"] else ("läuft" if s["recording"] else "aus")
+            return pgettext("state", "paused") if s["rec_paused"] else (
+                pgettext("state", "running") if s["recording"] else pgettext("state", "off"))
         if k == "stream":
-            return "LIVE" if s["streaming"] else "aus"
+            return "LIVE" if s["streaming"] else pgettext("state", "off")
         if k == "audio":
             db = o.volume_db.get(self._source())
             m = o.muted.get(self._source())
-            return "stumm" if m else (f"{db:.0f} dB" if isinstance(db, (int, float)) else "")
+            return pgettext("state", "muted") if m else (f"{db:.0f} dB" if isinstance(db, (int, float)) else "")
         if k in ("replay", "virtualcam", "studiomode", "source"):
             a = self.active()
-            return "" if a is None else ("an" if a else "aus")
+            return "" if a is None else (pgettext("state", "on") if a else pgettext("state", "off"))
         return ""
 
     def main_text(self):
-        return {"scene": self._scene() or "Szene", "record": "REC", "stream": "Stream", "source": self._source()
-                or "Quelle", "audio": self._source() or "Audio", "replay": "Replay", "virtualcam": "VirtCam",
-                "studiomode": "Studio", "screenshot": "Foto", "transition": "Übergang"}.get(self.kind, "OBS")
+        return {"scene": self._scene() or _("Scene"), "record": "REC", "stream": "Stream", "source": self._source()
+                or _("Source"), "audio": self._source() or "Audio", "replay": "Replay", "virtualcam": "VirtCam",
+                "studiomode": "Studio", "screenshot": _("Snapshot"), "transition": _("Transition")
+                }.get(self.kind, "OBS")
 
     def tick(self):
         v = self.obs.version
@@ -188,7 +191,7 @@ class OBSAction(NativeAction):
         o, k, mode = self.obs, self.kind, self._mode()
         from . import obs
         if not obs.wait_connected(o):
-            raise RuntimeError("OBS nicht verbunden – WebSocket-Server in OBS aktivieren")
+            raise RuntimeError(_("OBS not connected – enable the WebSocket server in OBS"))
         if k == "scene":
             o.set_scene(self._scene())
         elif k in ("record", "stream"):
@@ -304,7 +307,7 @@ class MediaAction(NativeAction):
         return None
 
     def preview_text(self):
-        return "Titel" if self.func == "nowplaying" else self.main_text()
+        return _("Title") if self.func == "nowplaying" else self.main_text()
 
     def main_text(self):
         f = self.func
@@ -327,7 +330,7 @@ class MediaAction(NativeAction):
 
     def key_down(self):
         if not system.have("playerctl"):
-            log.warning("playerctl fehlt (Paket playerctl)")
+            log.warning(_("playerctl is missing (package playerctl)"))
             self.alert()
             return
         f = self.func
@@ -399,14 +402,14 @@ class DiscordAction(NativeAction):
         return None
 
     def main_text(self):
-        return {"mute": "Mikro", "deafen": "Ton", "pushtotalk": "PTT", "pushtomute": "PTM",
-                "voicechannel": "Kanal", "textchannel": "Chat", "leave": "Auflegen"}.get(self.func, "Discord")
+        return {"mute": pgettext("key label", "Mic"), "deafen": pgettext("key label", "Sound"), "pushtotalk": "PTT", "pushtomute": "PTM",
+                "voicechannel": _("Channel"), "textchannel": "Chat", "leave": _("Hang up")}.get(self.func, "Discord")
 
     def status_text(self):
         if not self.dc.ready:
             return "Discord"
         a = self.active()
-        return "" if a is None else ("stumm" if a else "an")
+        return "" if a is None else (pgettext("state", "muted") if a else pgettext("state", "on"))
 
     def tick(self):
         v = self.dc.version
@@ -482,8 +485,8 @@ class MixerAction(NativeAction):
             mx = self.mixer
             mixes = ("monitor", "stream") if self.mix == "both" else (self.mix,)
             vals = [mx.get(self.channel, m) for m in mixes]
-            vols = [v for v, _ in vals if v is not None]
-            self._lv = (max(vols) if vols else None, all(mu for _, mu in vals) if vols else False)
+            vols = [v for v, _mu in vals if v is not None]
+            self._lv = (max(vols) if vols else None, all(mu for _v, mu in vals) if vols else False)
             self._lv_at = now
         return self._lv
 
@@ -495,7 +498,7 @@ class MixerAction(NativeAction):
 
     def main_text(self):
         if self.func == "output":
-            return "Ausgang"
+            return pgettext("key label", "Output")
         ch = self.mixer.channel(self.channel)
         return ch["name"] if ch else self.channel
 
@@ -504,9 +507,9 @@ class MixerAction(NativeAction):
             return _fit(self.mixer.monitor_output_name(), 14)
         vol, mute = self._level()
         if vol is None:
-            return "Mixer aus"
+            return _("Mixer off")
         mixname = {"monitor": "Monitor", "stream": "Stream", "both": ""}[self.mix]
-        return ("stumm" if mute else f"{vol}%") + (f" · {mixname}" if mixname else "")
+        return (pgettext("state", "muted") if mute else f"{vol}%") + (f" · {mixname}" if mixname else "")
 
     def key_down(self):
         mx = self.mixer
@@ -592,7 +595,7 @@ class WaveMicAction(NativeAction):
         return None if vol is None else not mute
 
     def main_text(self):
-        return {"mute": "Mikro", "gain": "Gain", "lowcut": "Low Cut", "clipguard": "Clipguard", "leds": "LEDs",
+        return {"mute": pgettext("key label", "Mic"), "gain": "Gain", "lowcut": "Low Cut", "clipguard": "Clipguard", "leds": "LEDs",
                 "ledsflip": "LED ↕"}.get(self.func, "Wave")
 
     def status_text(self):
@@ -600,14 +603,14 @@ class WaveMicAction(NativeAction):
         if f in ("lowcut", "clipguard", "leds", "ledsflip"):
             on = self._switch(f)
             if on is None:
-                return "nur Wave:3" if f in ("leds", "ledsflip") else "kein Wave"
+                return _("Wave:3 only") if f in ("leds", "ledsflip") else _("no Wave")
             if f == "lowcut" and on and not self.mic.hw():
                 return f"{self.mic.settings.get('lowcut_freq', 80)} Hz"
-            return "an" if on else "aus"
+            return pgettext("state", "on") if on else pgettext("state", "off")
         vol, mute = self._gain()
         if vol is None:
-            return "kein Wave"
-        return "stumm" if mute else f"{vol}%"
+            return _("no Wave")
+        return pgettext("state", "muted") if mute else f"{vol}%"
 
     def key_down(self):
         f = self.func
@@ -659,7 +662,7 @@ def lookup(uuid: str):
     u = (uuid or "").lower()
     if not u:
         return None
-    plugin, _, last = u.rpartition(".")
+    plugin, _sep, last = u.rpartition(".")
     if u.startswith("com.lindeck.obs.") or "obs" in plugin.split(".") or "obsstudio" in plugin:
         kind = next((k for key, k in _OBS_KINDS if key in last), None)
         if kind:

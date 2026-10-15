@@ -1,6 +1,7 @@
-"""Erzeugt die Bilder für die README (docs/bilder/*.png).
+"""Erzeugt die Bilder für README.de.md (docs/bilder/*.png) und README.md (docs/images/*.png).
 
 Aufruf:  xvfb-run -a -s "-screen 0 1400x1000x24" python3 docs/screenshots.py
+         LINDECK_LANG=en xvfb-run -a -s "-screen 0 1400x1000x24" python3 docs/screenshots.py
 
 Alles läuft mit einem Demo-Profil, simuliertem PipeWire und simuliertem
 Wave:3 – es werden keine echten Geräte gebraucht und keine Elgato-Grafiken
@@ -12,6 +13,7 @@ Mixer({}).setup()"`, dann `pavucontrol --tab=3` und den Reiter
 „Output Devices“ abfotografieren.
 """
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -21,7 +23,25 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "docs" / "bilder"
+LANG = os.environ.setdefault("LINDECK_LANG", "de")
+EN = LANG != "de"
+OUT = ROOT / "docs" / ("images" if EN else "bilder")
+# Dateinamen der englischen Bilder
+NAMES_EN = {"lindeck-fenster.png": "lindeck-window.png", "lindeck-hintergrund.png": "lindeck-background.png",
+            "lindeck-hintergrund-dialog.png": "lindeck-background-dialog.png",
+            "linewave-mikrofon.png": "linewave-microphone.png", "linewave-ablauf.png": "linewave-flow.png",
+            "linewave-einrichtung-mikrofon.png": "linewave-setup-microphone.png",
+            "linewave-einrichtung-klang.png": "linewave-setup-sound.png",
+            "linewave-kanal.png": "linewave-channel.png", "linewave-effekte.png": "linewave-effects.png"}
+
+
+def T(de, en):
+    """Beispieltext in der Sprache der Bilder."""
+    return en if EN else de
+
+
+def outname(name):
+    return NAMES_EN.get(name, name) if EN else name
 sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
 
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -46,7 +66,7 @@ def grab(root, name):
     """Fensterinhalt als PNG speichern (ImageMagick `import`)."""
     root.update()
     OUT.mkdir(parents=True, exist_ok=True)
-    path = OUT / name
+    path = OUT / outname(name)
     subprocess.run(["import", "-window", str(root.winfo_id()), str(path)], check=True)
     Image.open(path).convert("RGB").save(path, optimize=True)
     print("geschrieben:", path.relative_to(ROOT))
@@ -116,31 +136,31 @@ def shot_lindeck(tmp):
     icons = tmp / "icons"
     icons.mkdir()
     keys = [
-        (("key", 0, 0), "com.lindeck.wavemic.control", "Stumm", (229, 72, 77), "mic", {"function": "mute"}),
-        (("key", 1, 0), "com.lindeck.obs.record", "Aufnahme", (60, 60, 68), "rec", {"mode": "toggle"}),
+        (("key", 0, 0), "com.lindeck.wavemic.control", T("Stumm", "Mute"), (229, 72, 77), "mic", {"function": "mute"}),
+        (("key", 1, 0), "com.lindeck.obs.record", T("Aufnahme", "Record"), (60, 60, 68), "rec", {"mode": "toggle"}),
         (("key", 2, 0), "com.lindeck.obs.stream", "Live", (191, 90, 242), "live", {"mode": "toggle"}),
-        (("key", 3, 0), "com.lindeck.obs.scene", "Kamera", (10, 132, 255), "scene", {"scene": "Kamera"}),
+        (("key", 3, 0), "com.lindeck.obs.scene", T("Kamera", "Camera"), (10, 132, 255), "scene", {"scene": T("Kamera", "Camera")}),
         (("key", 0, 1), "com.lindeck.media.player", "Spotify", (48, 209, 88), "music", {}),
         (("key", 1, 1), "com.elgato.streamdeck.system.website", "Twitch", (100, 65, 165), "web",
          {"path": "https://twitch.tv", "openInBrowser": True}),
         (("key", 2, 1), "com.lindeck.discord.voice", "Discord", (88, 101, 242), "chat", {"function": "mute"}),
-        (("key", 3, 1), "com.elgato.streamdeck.system.hotkey", "Kopieren", (255, 159, 10), "copy", None),
+        (("key", 3, 1), "com.elgato.streamdeck.system.hotkey", T("Kopieren", "Copy"), (255, 159, 10), "copy", None),
     ]
     for slot, uuid, title, color, glyph, settings in keys:
         a = doc.place(page, slot, uuid)
         if settings:
             a.setdefault("Settings", {}).update(settings)
         if uuid.endswith("hotkey"):
-            doc.set_hotkey(page, slot, 0, C.parse_hotkey("Strg+C"))
+            doc.set_hotkey(page, slot, 0, C.parse_hotkey(T("Strg+C", "Ctrl+C")))
         path = icon(icons / f"{glyph}.png", color, glyph)
         doc.set_icon(page, slot, 0, path)
         doc.update_state(page, slot, 0, "Title", title)
         doc.update_state(page, slot, 0, "TitleAlignment", "bottom")
     for i, (uuid, title, settings) in enumerate((
-            ("com.lindeck.mixer.channel", "Musik", {"channel": "music", "mix": "stream"}),
-            ("com.lindeck.mixer.channel", "Spiel", {"channel": "game", "mix": "monitor"}),
+            ("com.lindeck.mixer.channel", T("Musik", "Music"), {"channel": "music", "mix": "stream"}),
+            ("com.lindeck.mixer.channel", T("Spiel", "Game"), {"channel": "game", "mix": "monitor"}),
             ("com.lindeck.wavemic.control", "Gain", {"function": "gain"}),
-            ("com.elgato.volume-controller.output-device-control", "Lautstärke", {}))):
+            ("com.elgato.volume-controller.output-device-control", T("Lautstärke", "Volume"), {}))):
         a = doc.place(page, ("dial", i), uuid)
         a.setdefault("Settings", {}).update(settings)
         doc.update_state(page, ("dial", i), 0, "Title", title)
@@ -203,7 +223,7 @@ def shot_background(tmp, root, app, _doc):
     strip = tmp / "streifen.png"
     wallpaper(1600, 900).crop((0, 600, 1600, 800)).save(strip)
     pid = doc.add_page()
-    for (c, r), name, title in (((0, 0), "music", "Musik"), ((1, 0), "chat", "Discord"), ((3, 1), "record", "Rec")):
+    for (c, r), name, title in (((0, 0), "music", T("Musik", "Music")), ((1, 0), "chat", "Discord"), ((3, 1), "record", "Rec")):
         f = tmp / f"t_{name}.png"
         g = glyph(name, 120, "#ffffff")
         im = Image.new("RGBA", (144, 144), (0, 0, 0, 0))
@@ -233,20 +253,23 @@ def shot_plugins(tmp, root, daemon):
     from lindeck import paths
     from lindeck.pluginui import PluginManager
     paths.PLUGINS_DIR = tmp / "plugins"
-    demos = [("de.example.timer", "Pomodoro-Timer", "Zeigt einen Timer auf der Taste und klingelt nach Ablauf.",
+    demos = [("de.example.timer", "Pomodoro-Timer", T("Zeigt einen Timer auf der Taste und klingelt nach Ablauf.",
+                                                    "Shows a timer on the key and rings when it is up."),
               "bin/plugin.js", (255, 107, 90), "rec"),
-             ("de.example.homeassist", "Smart Home", "Schaltet Lampen und Szenen über die lokale Zentrale.",
+             ("de.example.homeassist", "Smart Home", T("Schaltet Lampen und Szenen über die lokale Zentrale.",
+                                                     "Switches lights and scenes via the local hub."),
               "bin/plugin.js", (48, 209, 88), "light"),
-             ("de.example.winonly", "Windows-Werkzeug", "Ein Plugin, das nur für Windows gebaut wurde.",
+             ("de.example.winonly", T("Windows-Werkzeug", "Windows tool"),
+              T("Ein Plugin, das nur für Windows gebaut wurde.", "A plugin built for Windows only."),
               "Tool.exe", (142, 155, 176), "keyboard")]
     for uid, name, desc, code, color, glyph in demos:
         d = paths.PLUGINS_DIR / f"{uid}.sdPlugin"
         (d / "bin").mkdir(parents=True)
         icon(d / "icon.png", color, glyph)
         (d / "manifest.json").write_text(json.dumps({
-            "UUID": uid, "Name": name, "Description": desc, "Author": "Beispiel", "Version": "1.2.0",
+            "UUID": uid, "Name": name, "Description": desc, "Author": T("Beispiel", "Example"), "Version": "1.2.0",
             "CodePath": code, "Icon": "icon", "Nodejs": {"Version": "20"},
-            "Actions": [{"UUID": f"{uid}.a{i}", "Name": f"Aktion {i}", "States": [{}]} for i in range(3)]}))
+            "Actions": [{"UUID": f"{uid}.a{i}", "Name": T("Aktion {i}", "Action {i}").format(i=i), "States": [{}]} for i in range(3)]}))
 
     class Proc:
         def __init__(self, ok):
@@ -269,7 +292,7 @@ def shot_plugins(tmp, root, daemon):
 # ------------------------------------------------------------ Linewave
 def shot_linewave(tmp):
     import tkinter as tk
-    import test_waveapp as T
+    import test_waveapp as TW
     from lindeck import effects, mixer, paths, system, wave3hw
     for n, s in (("STATE_DIR", "state"), ("CONFIG_DIR", "config"), ("CONFIG_FILE", "config/config.json"),
                  ("DATA_DIR", "data")):
@@ -277,14 +300,19 @@ def shot_linewave(tmp):
     (tmp / "state").mkdir(exist_ok=True)
     (tmp / "config").mkdir(exist_ok=True)
     channels = [dict(c) for c in mixer.DEFAULT_CHANNELS[:4]] + [
-        {"id": "podcast", "name": "Podcast-Gast", "icon": "chat", "color": "#ff6bd5"},
-        {"id": "capture", "name": "Konsole", "kind": "input", "source": "alsa_input.usb-capture", "icon": "game",
+        {"id": "podcast", "name": T("Podcast-Gast", "Podcast guest"), "icon": "chat", "color": "#ff6bd5"},
+        {"id": "capture", "name": T("Konsole", "Console"), "kind": "input", "source": "alsa_input.usb-capture", "icon": "game",
          "color": "#ff8a3d"}]
     hp, gate = effects.lookup("builtin:highpass"), effects.lookup("builtin:highshelf")
     fx = {"mic": [effects.new_effect(hp), effects.new_effect(gate)], "music": [effects.new_effect(gate)]}
     (tmp / "config" / "config.json").write_text(json.dumps({"mixer": {"enabled": True, "channels": channels,
                                                                        "effects": fx}}))
-    fake = T.FakePactl()
+    fake = TW.FakePactl()
+    if EN:  # Beispielgeräte und -programme auf Englisch
+        fake.sinks[0]["description"] = "Headphones"
+        for inp in fake.inputs.values():
+            if inp["props"].get("application.name") == "Mein Spiel":
+                inp["props"]["application.name"] = "My Game"
     fake.inputs["9"] = {"index": "9", "sink": "1", "volume": 80, "mute": False,
                         "props": {"application.name": "Firefox", "application.process.binary": "firefox"}}
     fake.inputs["10"] = {"index": "10", "sink": "1", "volume": 80, "mute": False,
@@ -295,7 +323,7 @@ def shot_linewave(tmp):
         if what == "sources":
             return [{"name": "alsa_input.usb-Elgato_Wave_3", "description": "Elgato Wave:3 Mono"},
                     {"name": "alsa_input.usb-capture", "description": "USB Capture HDMI – Digital Stereo"},
-                    {"name": "alsa_input.pci-analog", "description": "Eingebautes Audio Analog Stereo"}]
+                    {"name": "alsa_input.pci-analog", "description": T("Eingebautes Audio Analog Stereo", "Built-in Audio Analog Stereo")}]
         return blocks(what)
     system._pactl_blocks = blocks_with_sources
     system.have = lambda c: True
@@ -303,7 +331,7 @@ def shot_linewave(tmp):
     mixer.time.sleep = lambda s: None
     effects.Effects.start = lambda self, c, src: self.node_name(c["id"])  # keine echten Filterprozesse
     wave3hw.present = lambda: True
-    wave3hw.USBTransport = lambda: T.FakeWave3()
+    wave3hw.USBTransport = lambda: TW.FakeWave3()
     from lindeck.wavehost import WaveHost
     from lindeck.waveui import WaveWindow
     host = WaveHost()
@@ -338,7 +366,7 @@ def shot_linewave(tmp):
 
     from lindeck.wavedialogs import ChannelDialog, EffectsDialog
     dlg = ChannelDialog(root, host.mixer.inputs(), on_save=lambda v: None)
-    dlg.name.set("Konsole")
+    dlg.name.set(T("Konsole", "Console"))
     dlg.kind_seg.set("input")
     dlg._kind("input")
     dlg.dev.set("USB Capture HDMI – Digital Stereo")
@@ -380,7 +408,7 @@ def diagram():
     im = Image.new("RGB", (W, H), bg)
     d = ImageDraw.Draw(im)
     f_head, f_box, f_small = font(26), font(19), font(15, bold=False)
-    d.text((W // 2, 34), "So arbeitet Linewave", font=f_head, fill=fg, anchor="mm")
+    d.text((W // 2, 34), T("So arbeitet Linewave", "How Linewave works"), font=f_head, fill=fg, anchor="mm")
 
     def box(x, y, w, h, title, sub="", color=(46, 48, 54)):
         d.rounded_rectangle((x, y, x + w, y + h), radius=12, fill=color)
@@ -399,11 +427,12 @@ def diagram():
         top = y + 44 - int(44 * level)
         d.rounded_rectangle((x, top, x + 10, y + 44), radius=4, fill=color)
 
-    d.text((120, 84), "Programme", font=f_small, fill=muted, anchor="mm")
-    d.text((470, 84), "Kanäle in Linewave (je 2 Regler)", font=f_small, fill=muted, anchor="mm")
-    d.text((990, 84), "Ausgänge", font=f_small, fill=muted, anchor="mm")
-    apps = [("Spotify", "Musik", .7, .35), ("Firefox", "Browser", .55, .0), ("Discord", "Voice Chat", .9, .0),
-            ("Spiel", "Spiel", .8, .6), ("Wave-Mikrofon", "Mikrofon", .0, .9)]
+    d.text((120, 84), T("Programme", "Programs"), font=f_small, fill=muted, anchor="mm")
+    d.text((470, 84), T("Kanäle in Linewave (je 2 Regler)", "Channels in Linewave (2 sliders each)"), font=f_small, fill=muted, anchor="mm")
+    d.text((990, 84), T("Ausgänge", "Outputs"), font=f_small, fill=muted, anchor="mm")
+    apps = [("Spotify", T("Musik", "Music"), .7, .35), ("Firefox", "Browser", .55, .0),
+            ("Discord", "Voice Chat", .9, .0), (T("Spiel", "Game"), T("Spiel", "Game"), .8, .6),
+            (T("Wave-Mikrofon", "Wave mic"), T("Mikrofon", "Microphone"), .0, .9)]
     colors = [(48, 209, 88), (10, 132, 255), (88, 101, 242), (255, 159, 10), (229, 72, 77)]
     bus_m, bus_s = 690, 740
     ys = []
@@ -421,15 +450,16 @@ def diagram():
         d.line((640, y + 42, bus_s, y + 42), fill=purple, width=3)
     d.line((bus_m, ys[0] + 22, bus_m, ys[-1] + 22), fill=blue, width=4)
     d.line((bus_s, ys[0] + 42, bus_s, ys[-1] + 42), fill=purple, width=4)
-    box(860, 150, 260, 110, "Monitor-Mix", "Kopfhörer / Lautsprecher", (34, 84, 150))
-    box(860, 360, 260, 110, "Stream-Mix", "OBS / Discord", (110, 50, 140))
+    box(860, 150, 260, 110, T("Monitor-Mix", "Monitor Mix"), T("Kopfhörer / Lautsprecher", "Headphones / speakers"), (34, 84, 150))
+    box(860, 360, 260, 110, T("Stream-Mix", "Stream Mix"), "OBS / Discord", (110, 50, 140))
     arrow((bus_m, 205), (858, 205), blue, 4)
     arrow((bus_s, 415), (858, 415), purple, 4)
-    d.text((598, 560), "blau = Regler Monitor (was du hörst)      lila = Regler Stream (was dein Publikum hört)",
+    d.text((598, 560), T("blau = Regler Monitor (was du hörst)      lila = Regler Stream (was dein Publikum hört)",
+             "blue = Monitor slider (what you hear)      purple = Stream slider (what your audience hears)"),
            font=f_small, fill=muted, anchor="mm")
     OUT.mkdir(parents=True, exist_ok=True)
-    im.save(OUT / "linewave-ablauf.png", optimize=True)
-    print("geschrieben:", (OUT / "linewave-ablauf.png").relative_to(ROOT))
+    im.save(OUT / outname("linewave-ablauf.png"), optimize=True)
+    print("geschrieben:", (OUT / outname("linewave-ablauf.png")).relative_to(ROOT))
 
 
 if __name__ == "__main__":

@@ -11,6 +11,8 @@ import copy
 import uuid as uuidlib
 from dataclasses import dataclass, field
 
+from .i18n import _, pgettext
+
 KEY, DIAL = "key", "dial"
 
 
@@ -53,201 +55,201 @@ def empty_hotkey():
             "NativeCode": -1, "QTKeyCode": EMPTY_QT, "VKeyCode": -1}
 
 
-MEDIA_CHOICES = [(1, "Wiedergabe / Pause"), (2, "Nächster Titel"), (0, "Vorheriger Titel"), (3, "Stopp"),
-                 (4, "Stumm"), (5, "Lauter"), (6, "Leiser"), (13, "Vorspulen"), (14, "Zurückspulen"),
-                 (18, "Lautstärke (Dial)")]
-BRIGHTNESS_CHOICES = [(0, "Heller"), (1, "Dunkler"), (2, "Minimum"), (3, "Niedrig"), (4, "Mittel"),
-                      (5, "Hoch"), (6, "Maximum")]
-AUDIO_MODES = [(0, "Abspielen / Überlappen"), (1, "Abspielen / Stopp"), (2, "Abspielen / Neustart"),
-               (3, "Schleife / Stopp")]
-VOLUME_MODES = [("mute", "Stummschalten umschalten"), ("up", "Lauter"), ("down", "Leiser"),
-                ("set", "Lautstärke setzen")]
+MEDIA_CHOICES = [(1, _("Play / Pause")), (2, _("Next track")), (0, _("Previous track")), (3, _("Stop")),
+                 (4, _("Mute")), (5, _("Volume up")), (6, _("Volume down")), (13, _("Fast forward")), (14, _("Rewind")),
+                 (18, _("Volume (dial)"))]
+BRIGHTNESS_CHOICES = [(0, _("Brighter")), (1, _("Darker")), (2, _("Minimum")), (3, _("Low")), (4, _("Medium")),
+                      (5, _("High")), (6, _("Maximum"))]
+AUDIO_MODES = [(0, _("Play / Overlap")), (1, _("Play / Stop")), (2, _("Play / Restart")),
+               (3, _("Loop / Stop"))]
+VOLUME_MODES = [("mute", _("Toggle mute")), ("up", _("Volume up")), ("down", _("Volume down")),
+                ("set", _("Set volume"))]
 
-_HK_KEY = [Field("hotkey", 0, "Tastenkombination")]
-_HK_DIAL = [Field("hotkey", 0, "Linksdrehung"), Field("hotkey", 1, "Rechtsdrehung"),
-            Field("hotkey", 2, "Drücken"), Field("hotkey", 3, "Berühren")]
+_HK_KEY = [Field("hotkey", 0, _("Key combination"))]
+_HK_DIAL = [Field("hotkey", 0, _("Rotate left")), Field("hotkey", 1, _("Rotate right")),
+            Field("hotkey", 2, _("Press")), Field("hotkey", 3, _("Touch"))]
 
 CATALOG = [
     # ------------------------------------------------------------ System
-    ActionType("com.elgato.streamdeck.system.hotkey", "Hotkey", "System",
-               {"Coalesce": True, "Hotkeys": [empty_hotkey() for _ in range(4)]},
+    ActionType("com.elgato.streamdeck.system.hotkey", "Hotkey", _("System"),
+               {"Coalesce": True, "Hotkeys": [empty_hotkey() for _i in range(4)]},
                controllers=(KEY, DIAL), fields=_HK_KEY, dial_fields=_HK_DIAL,
-               description="Sendet eine Tastenkombination"),
-    ActionType("com.elgato.streamdeck.system.hotkeyswitch", "Hotkey Switch", "System",
+               description=_("Sends a key combination")),
+    ActionType("com.elgato.streamdeck.system.hotkeyswitch", "Hotkey Switch", _("System"),
                {"Hotkeys": [empty_hotkey(), empty_hotkey()]}, states=2,
-               fields=[Field("hotkey", 0, "Zustand 1"), Field("hotkey", 1, "Zustand 2")],
-               description="Wechselt bei jedem Druck zwischen zwei Tastenkombinationen"),
-    ActionType("com.elgato.streamdeck.system.text", "Text", "System",
+               fields=[Field("hotkey", 0, _("State 1")), Field("hotkey", 1, _("State 2"))],
+               description=_("Switches between two key combinations on each press")),
+    ActionType("com.elgato.streamdeck.system.text", _("Text"), _("System"),
                {"pastedText": "", "isSendingEnter": False, "isTypingMode": False},
-               fields=[Field("multiline", "pastedText", "Text"),
-                       Field("bool", "isSendingEnter", "Danach Enter senden"),
-                       Field("bool", "isTypingMode", "Tippen statt Einfügen")],
-               description="Fügt einen Text ein"),
-    ActionType("com.elgato.streamdeck.system.open", "Öffnen", "System", {"path": ""},
-               fields=[Field("file", "path", "Datei, Ordner oder URL")],
-               description="Öffnet eine Datei, einen Ordner oder eine Adresse"),
-    ActionType("com.elgato.streamdeck.system.openapp", "Programm öffnen", "System",
+               fields=[Field("multiline", "pastedText", _("Text")),
+                       Field("bool", "isSendingEnter", _("Send Enter afterwards")),
+                       Field("bool", "isTypingMode", _("Type instead of pasting"))],
+               description=_("Pastes a text")),
+    ActionType("com.elgato.streamdeck.system.open", _("Open"), _("System"), {"path": ""},
+               fields=[Field("file", "path", _("File, folder or URL"))],
+               description=_("Opens a file, folder or web address")),
+    ActionType("com.elgato.streamdeck.system.openapp", _("Open Application"), _("System"),
                {"exec": "", "args": "", "long_press": "none", "bring_to_front": True},
-               fields=[Field("file", "exec", "Programm / Befehl", hint="z. B. firefox oder flatpak run …"),
-                       Field("text", "args", "Argumente"),
-                       Field("bool", "bring_to_front", "Laufendes Programm in den Vordergrund holen"),
-                       Field("choice", "long_press", "Langes Drücken",
-                             [("none", "nichts"), ("quit", "Programm beenden")])],
-               description="Startet ein Programm"),
-    ActionType("com.elgato.streamdeck.system.close", "Programm schließen", "System",
+               fields=[Field("file", "exec", _("Program / command"), hint=_("e.g. firefox or flatpak run …")),
+                       Field("text", "args", _("Arguments")),
+                       Field("bool", "bring_to_front", _("Bring a running program to the front")),
+                       Field("choice", "long_press", _("Long press"),
+                             [("none", _("nothing")), ("quit", _("Quit program"))])],
+               description=_("Launches a program")),
+    ActionType("com.elgato.streamdeck.system.close", _("Close Application"), _("System"),
                {"exec": "", "app_name": ""},
-               fields=[Field("file", "exec", "Programm"), Field("text", "app_name", "Prozessname")],
-               description="Beendet ein Programm"),
-    ActionType("com.elgato.streamdeck.system.website", "Website", "System",
+               fields=[Field("file", "exec", _("Program")), Field("text", "app_name", _("Process name"))],
+               description=_("Quits a program")),
+    ActionType("com.elgato.streamdeck.system.website", "Website", _("System"),
                {"path": "", "browser": ""},
-               fields=[Field("text", "path", "Adresse", hint="https://…"),
-                       Field("text", "browser", "Browser (leer = Standard)")],
-               description="Öffnet eine Website"),
-    ActionType("com.elgato.streamdeck.system.multimedia", "Multimedia", "System", {"actionIdx": 1},
-               controllers=(KEY, DIAL), fields=[Field("choice", "actionIdx", "Funktion", MEDIA_CHOICES)],
-               description="Wiedergabe steuern und Lautstärke"),
-    ActionType("com.elgato.streamdeck.system.timer", "Timer", "System", {"duration": 300, "alarm": ""},
-               fields=[Field("int", "duration", "Dauer (Sekunden)", min=1, max=86400),
-                       Field("file", "alarm", "Alarmton (optional)")],
-               description="Countdown; langes Drücken setzt zurück"),
-    ActionType("com.elgato.streamdeck.system.mouse-wheel", "Mausrad", "System",
+               fields=[Field("text", "path", _("Address"), hint="https://…"),
+                       Field("text", "browser", _("Browser (empty = default)"))],
+               description=_("Opens a website")),
+    ActionType("com.elgato.streamdeck.system.multimedia", "Multimedia", _("System"), {"actionIdx": 1},
+               controllers=(KEY, DIAL), fields=[Field("choice", "actionIdx", _("Function"), MEDIA_CHOICES)],
+               description=_("Controls playback and volume")),
+    ActionType("com.elgato.streamdeck.system.timer", "Timer", _("System"), {"duration": 300, "alarm": ""},
+               fields=[Field("int", "duration", _("Duration (seconds)"), min=1, max=86400),
+                       Field("file", "alarm", _("Alarm sound (optional)"))],
+               description=_("Countdown; long press resets")),
+    ActionType("com.elgato.streamdeck.system.mouse-wheel", _("Mouse Wheel"), _("System"),
                {"horizontal": False, "invert": False}, controllers=(DIAL,),
-               fields=[Field("bool", "horizontal", "Horizontal scrollen"), Field("bool", "invert", "Umkehren")],
-               description="Scrollt mit dem Dial"),
+               fields=[Field("bool", "horizontal", _("Scroll horizontally")), Field("bool", "invert", _("Invert"))],
+               description=_("Scrolls with the dial")),
     # -------------------------------------------------------- Navigation
-    ActionType("com.elgato.streamdeck.profile.openchild", "Ordner", "Navigation", {"ProfileUUID": ""},
-               description="Unterseite mit eigenen Tasten"),
-    ActionType("com.elgato.streamdeck.profile.backtoparent", "Übergeordneter Ordner", "Navigation",
-               description="Zurück aus einem Ordner"),
-    ActionType("com.elgato.streamdeck.page.next", "Nächste Seite", "Navigation"),
-    ActionType("com.elgato.streamdeck.page.previous", "Vorherige Seite", "Navigation"),
-    ActionType("com.elgato.streamdeck.page.goto", "Gehe zu Seite", "Navigation", {"PageIndex": 1},
-               fields=[Field("page", "PageIndex", "Seite")]),
-    ActionType("com.elgato.streamdeck.page.indicator", "Seitenanzeige", "Navigation"),
-    ActionType("com.elgato.streamdeck.profile.rotate", "Profil wechseln", "Navigation", {"ProfileUUID": ""},
-               fields=[Field("profile", "ProfileUUID", "Profil")]),
+    ActionType("com.elgato.streamdeck.profile.openchild", _("Create Folder"), _("Navigation"), {"ProfileUUID": ""},
+               description=_("Sub-page with its own keys")),
+    ActionType("com.elgato.streamdeck.profile.backtoparent", _("Parent Folder"), _("Navigation"),
+               description=_("Goes back out of a folder")),
+    ActionType("com.elgato.streamdeck.page.next", _("Next Page"), _("Navigation")),
+    ActionType("com.elgato.streamdeck.page.previous", _("Previous Page"), _("Navigation")),
+    ActionType("com.elgato.streamdeck.page.goto", _("Go to Page"), _("Navigation"), {"PageIndex": 1},
+               fields=[Field("page", "PageIndex", _("Page"))]),
+    ActionType("com.elgato.streamdeck.page.indicator", _("Page Indicator"), _("Navigation")),
+    ActionType("com.elgato.streamdeck.profile.rotate", _("Switch Profile"), _("Navigation"), {"ProfileUUID": ""},
+               fields=[Field("profile", "ProfileUUID", _("Profile"))]),
     # --------------------------------------------------------- Stream Deck
-    ActionType("com.elgato.streamdeck.system.keybrightness", "Helligkeit", "Stream Deck", {"actionIdx": 0},
-               controllers=(KEY, DIAL), fields=[Field("choice", "actionIdx", "Funktion", BRIGHTNESS_CHOICES)]),
+    ActionType("com.elgato.streamdeck.system.keybrightness", _("Brightness"), "Stream Deck", {"actionIdx": 0},
+               controllers=(KEY, DIAL), fields=[Field("choice", "actionIdx", _("Function"), BRIGHTNESS_CHOICES)]),
     ActionType("com.elgato.streamdeck.system.sleep", "Sleep", "Stream Deck",
-               description="Schaltet das Display aus"),
-    ActionType("com.elgato.streamdeck.system.digitaltime", "Uhrzeit", "Stream Deck",
+               description=_("Turns the display off")),
+    ActionType("com.elgato.streamdeck.system.digitaltime", _("Time"), "Stream Deck",
                {"24HourFormat": True, "theme": "dark"},
-               fields=[Field("bool", "24HourFormat", "24-Stunden-Format"),
-                       Field("choice", "theme", "Darstellung", [("dark", "dunkel"), ("light", "hell")])]),
+               fields=[Field("bool", "24HourFormat", _("24-hour format")),
+                       Field("choice", "theme", _("Appearance"), [("dark", _("dark")), ("light", _("light"))])]),
     # -------------------------------------------------------- Multi Action
     ActionType("com.elgato.streamdeck.multiactions.routine", "Multi Action", "Multi Action",
-               {"Actions": None}, children=("groups", ["Schritte"]),
-               description="Mehrere Aktionen nacheinander"),
+               {"Actions": None}, children=("groups", [_("Steps")]),
+               description=_("Several actions in sequence")),
     ActionType("com.elgato.streamdeck.multiactions.routine2", "Multi Action Switch", "Multi Action",
-               states=2, children=("groups", ["Zustand 1", "Zustand 2"]),
-               description="Abwechselnd zwei Abläufe"),
-    ActionType("com.elgato.streamdeck.multiactions.random", "Zufällige Aktion", "Multi Action",
-               children=("groups", ["Auswahl"])),
-    ActionType("com.elgato.streamdeck.multiactions.delay", "Verzögerung", "Multi Action", {"delay": 500},
-               fields=[Field("int", "delay", "Wartezeit (ms)", min=0, max=600000)],
-               description="Nur innerhalb einer Multi Action"),
+               states=2, children=("groups", [_("State 1"), _("State 2")]),
+               description=_("Alternates between two sequences")),
+    ActionType("com.elgato.streamdeck.multiactions.random", _("Random Action"), "Multi Action",
+               children=("groups", [_("Selection")])),
+    ActionType("com.elgato.streamdeck.multiactions.delay", _("Delay"), "Multi Action", {"delay": 500},
+               fields=[Field("int", "delay", _("Wait time (ms)"), min=0, max=600000)],
+               description=_("Only inside a Multi Action")),
     ActionType("com.elgato.streamdeck.keys.logic", "Key Logic", "Multi Action",
-               children=("slots", ["Tippen", "Doppeltippen", "Halten"]),
-               description="Unterschiedliche Aktionen für Tippen, Doppeltippen, Halten"),
+               children=("slots", [_("Tap"), _("Double tap"), _("Hold")]),
+               description=_("Different actions for tap, double tap and hold")),
     ActionType("com.elgato.streamdeck.keys.adaptor", "Action Trigger", "Multi Action",
-               controllers=(DIAL,), children=("slots", ["Links drehen", "Drücken", "Rechts drehen"])),
+               controllers=(DIAL,), children=("slots", [_("Turn left"), _("Press"), _("Turn right")])),
     ActionType("com.elgato.streamdeck.keys.stack", "Action Wheel", "Multi Action", {"CurrentIdx": 0},
-               controllers=(DIAL,), children=("groups", ["Aktionen"])),
+               controllers=(DIAL,), children=("groups", [_("Actions")])),
     ActionType("com.elgato.streamdeck.dial.stack", "Dial Stack", "Multi Action", {"CurrentIdx": 0},
-               controllers=(DIAL,), children=("groups", ["Dial-Aktionen"])),
+               controllers=(DIAL,), children=("groups", [_("Dial actions")])),
     # ----------------------------------------------------------- Soundboard
-    ActionType("com.elgato.streamdeck.soundboard.playaudio", "Audio abspielen", "Soundboard",
+    ActionType("com.elgato.streamdeck.soundboard.playaudio", _("Play Audio"), "Soundboard",
                {"path": "", "actionType": 0, "volume": 100},
-               fields=[Field("file", "path", "Audiodatei"), Field("choice", "actionType", "Modus", AUDIO_MODES),
-                       Field("int", "volume", "Lautstärke (%)", min=0, max=100)]),
-    ActionType("com.elgato.streamdeck.soundboard.stopaudioplay", "Audio stoppen", "Soundboard"),
+               fields=[Field("file", "path", _("Audio file")), Field("choice", "actionType", _("Mode"), AUDIO_MODES),
+                       Field("int", "volume", _("Volume (%)"), min=0, max=100)]),
+    ActionType("com.elgato.streamdeck.soundboard.stopaudioplay", _("Stop Audio"), "Soundboard"),
     # ---------------------------------------------------------------- Audio
-    ActionType("com.elgato.volume-controller.output-device-control", "Ausgabegerät", "Audio",
+    ActionType("com.elgato.volume-controller.output-device-control", _("Output Device"), _("Audio"),
                {"action": "mute", "volumeStep": 5, "friendlyName": ""}, controllers=(KEY, DIAL),
-               fields=[Field("choice", "action", "Taste", VOLUME_MODES),
-                       Field("int", "volumeStep", "Schrittweite (%)", min=1, max=50),
-                       Field("text", "friendlyName", "Gerät (leer = Standard)"),
-                       Field("text", "appName", "Nur dieses Programm (optional)")],
+               fields=[Field("choice", "action", _("Key"), VOLUME_MODES),
+                       Field("int", "volumeStep", _("Step size (%)"), min=1, max=50),
+                       Field("text", "friendlyName", _("Device (empty = default)")),
+                       Field("text", "appName", _("Only this program (optional)"))],
                plugin="com.elgato.volume-controller"),
-    ActionType("com.elgato.volume-controller.input-device-control", "Eingabegerät", "Audio",
+    ActionType("com.elgato.volume-controller.input-device-control", _("Input Device"), _("Audio"),
                {"action": "mute", "volumeStep": 5, "friendlyName": ""}, controllers=(KEY, DIAL),
-               fields=[Field("choice", "action", "Taste", VOLUME_MODES),
-                       Field("int", "volumeStep", "Schrittweite (%)", min=1, max=50),
-                       Field("text", "friendlyName", "Gerät (leer = Standard)")],
+               fields=[Field("choice", "action", _("Key"), VOLUME_MODES),
+                       Field("int", "volumeStep", _("Step size (%)"), min=1, max=50),
+                       Field("text", "friendlyName", _("Device (empty = default)"))],
                plugin="com.elgato.volume-controller"),
 ]
 
-_MIX_CHANNELS = [("system", "System"), ("music", "Musik"), ("browser", "Browser"), ("voice", "Voice Chat"),
-                 ("game", "Spiel"), ("sfx", "Effekte"), ("mic", "Mikrofon")]
-_MIXES = [("both", "Monitor- und Stream-Mix"), ("monitor", "nur Monitor-Mix"), ("stream", "nur Stream-Mix")]
-_TOGGLE = [("toggle", "umschalten"), ("start", "starten"), ("stop", "stoppen")]
+_MIX_CHANNELS = [("system", _("System")), ("music", _("Music")), ("browser", _("Browser")), ("voice", _("Voice Chat")),
+                 ("game", _("Game")), ("sfx", _("Effects")), ("mic", _("Microphone"))]
+_MIXES = [("both", _("Monitor and Stream Mix")), ("monitor", _("Monitor Mix only")), ("stream", _("Stream Mix only"))]
+_TOGGLE = [("toggle", _("toggle")), ("start", _("start")), ("stop", _("stop"))]
 
 CATALOG += [
     # ------------------------------------------------------------- OBS
-    ActionType("com.lindeck.obs.scene", "Szene", "OBS Studio", {"scene": ""}, controllers=(KEY, DIAL),
-               fields=[Field("text", "scene", "Szene", hint="Name wie in OBS")],
-               description="Wechselt die Szene (Dial: durch Szenen blättern)"),
-    ActionType("com.lindeck.obs.record", "Aufnahme", "OBS Studio", {"mode": "toggle"}, states=2,
-               fields=[Field("choice", "mode", "Funktion", _TOGGLE + [("pause", "Pause umschalten")])]),
+    ActionType("com.lindeck.obs.scene", _("Scene"), "OBS Studio", {"scene": ""}, controllers=(KEY, DIAL),
+               fields=[Field("text", "scene", _("Scene"), hint=_("Name as in OBS"))],
+               description=_("Switches the scene (dial: cycles through scenes)")),
+    ActionType("com.lindeck.obs.record", _("Record"), "OBS Studio", {"mode": "toggle"}, states=2,
+               fields=[Field("choice", "mode", _("Function"), _TOGGLE + [("pause", _("toggle pause"))])]),
     ActionType("com.lindeck.obs.stream", "Stream", "OBS Studio", {"mode": "toggle"}, states=2,
-               fields=[Field("choice", "mode", "Funktion", _TOGGLE)]),
-    ActionType("com.lindeck.obs.source", "Quelle ein/aus", "OBS Studio", {"scene": "", "source": ""}, states=2,
-               fields=[Field("text", "source", "Quelle"), Field("text", "scene", "Szene (leer = aktuelle)")]),
-    ActionType("com.lindeck.obs.audio", "Audio-Eingang", "OBS Studio", {"source": "", "step_db": 1}, states=2,
+               fields=[Field("choice", "mode", _("Function"), _TOGGLE)]),
+    ActionType("com.lindeck.obs.source", _("Source On/Off"), "OBS Studio", {"scene": "", "source": ""}, states=2,
+               fields=[Field("text", "source", _("Source")), Field("text", "scene", _("Scene (empty = current)"))]),
+    ActionType("com.lindeck.obs.audio", _("Audio Input"), "OBS Studio", {"source": "", "step_db": 1}, states=2,
                controllers=(KEY, DIAL),
-               fields=[Field("text", "source", "Audio-Eingang", hint="z. B. Mic/Aux"),
-                       Field("int", "step_db", "Schritt je Dial-Raste (dB)", min=1, max=10)],
-               description="Taste: stumm schalten · Dial: Lautstärke"),
-    ActionType("com.lindeck.obs.replay", "Replay-Puffer", "OBS Studio", {"mode": "save"},
-               fields=[Field("choice", "mode", "Funktion", [("save", "Replay speichern"),
-                                                            ("toggle", "Puffer ein/aus")])]),
-    ActionType("com.lindeck.obs.virtualcam", "Virtuelle Kamera", "OBS Studio", states=2),
-    ActionType("com.lindeck.obs.studiomode", "Studio-Modus", "OBS Studio", states=2),
-    ActionType("com.lindeck.obs.transition", "Übergang ausführen", "OBS Studio",
-               description="Vorschau → Programm im Studio-Modus"),
+               fields=[Field("text", "source", _("Audio input"), hint=_("e.g. Mic/Aux")),
+                       Field("int", "step_db", _("Step per dial notch (dB)"), min=1, max=10)],
+               description=_("Key: mute · Dial: volume")),
+    ActionType("com.lindeck.obs.replay", _("Replay Buffer"), "OBS Studio", {"mode": "save"},
+               fields=[Field("choice", "mode", _("Function"), [("save", _("Save replay")),
+                                                            ("toggle", _("Buffer on/off"))])]),
+    ActionType("com.lindeck.obs.virtualcam", _("Virtual Camera"), "OBS Studio", states=2),
+    ActionType("com.lindeck.obs.studiomode", _("Studio Mode"), "OBS Studio", states=2),
+    ActionType("com.lindeck.obs.transition", _("Run Transition"), "OBS Studio",
+               description=_("Preview → Program in Studio Mode")),
     ActionType("com.lindeck.obs.screenshot", "Screenshot", "OBS Studio", {"source": ""},
-               fields=[Field("text", "source", "Quelle (leer = Programm)")]),
+               fields=[Field("text", "source", _("Source (empty = program)"))]),
     # ------------------------------------------------------------ Medien
-    ActionType("com.lindeck.media.player", "Medien-Player", "Spotify & Medien",
+    ActionType("com.lindeck.media.player", _("Media Player"), _("Spotify & Media"),
                {"player": "spotify", "function": "playpause"}, controllers=(KEY, DIAL),
-               fields=[Field("text", "player", "Player", hint="spotify, vlc, firefox … (leer = aktiver)"),
-                       Field("choice", "function", "Funktion",
-                             [("playpause", "Wiedergabe/Pause"), ("next", "Nächster Titel"),
-                              ("previous", "Vorheriger Titel"), ("nowplaying", "Aktueller Titel"),
-                              ("shuffle", "Zufallswiedergabe"), ("repeat", "Wiederholen"),
-                              ("volumeup", "Lauter"), ("volumedown", "Leiser"), ("stop", "Stopp")])],
-               description="Steuert Spotify oder jeden MPRIS-Player"),
+               fields=[Field("text", "player", "Player", hint=_("spotify, vlc, firefox … (empty = active)")),
+                       Field("choice", "function", _("Function"),
+                             [("playpause", _("Play/Pause")), ("next", _("Next track")),
+                              ("previous", _("Previous track")), ("nowplaying", _("Now playing")),
+                              ("shuffle", _("Shuffle")), ("repeat", _("Repeat")),
+                              ("volumeup", _("Volume up")), ("volumedown", _("Volume down")), ("stop", _("Stop"))])],
+               description=_("Controls Spotify or any MPRIS player")),
     # ----------------------------------------------------------- Discord
     ActionType("com.lindeck.discord.voice", "Discord", "Discord", {"function": "mute", "channel_id": ""}, states=2,
-               fields=[Field("choice", "function", "Funktion",
-                             [("mute", "Mikrofon stumm"), ("deafen", "Ton aus"), ("pushtotalk", "Push to Talk"),
-                              ("pushtomute", "Push to Mute"), ("voicechannel", "Sprachkanal betreten"),
-                              ("textchannel", "Textkanal öffnen"), ("leave", "Sprachkanal verlassen")]),
-                       Field("text", "channel_id", "Kanal-ID (nur Kanal)")],
-               description="Braucht eine eigene Discord-App (siehe README)"),
+               fields=[Field("choice", "function", _("Function"),
+                             [("mute", _("Mute microphone")), ("deafen", _("Deafen")), ("pushtotalk", "Push to Talk"),
+                              ("pushtomute", "Push to Mute"), ("voicechannel", _("Join voice channel")),
+                              ("textchannel", _("Open text channel")), ("leave", _("Leave voice channel"))]),
+                       Field("text", "channel_id", _("Channel ID (channel only)"))],
+               description=_("Needs your own Discord app (see README)")),
     # ------------------------------------------------------------- Mixer
-    ActionType("com.lindeck.mixer.channel", "Mixer-Kanal", "Linewave",
+    ActionType("com.lindeck.mixer.channel", _("Mixer Channel"), "Linewave",
                {"channel": "music", "mix": "both", "action": "mute", "step": 5}, controllers=(KEY, DIAL),
-               fields=[Field("choice", "channel", "Kanal", _MIX_CHANNELS), Field("choice", "mix", "Mix", _MIXES),
-                       Field("choice", "action", "Taste", [("mute", "stumm umschalten"), ("up", "lauter"),
-                                                           ("down", "leiser"), ("set", "Lautstärke setzen")]),
-                       Field("int", "step", "Schrittweite (%)", min=1, max=50),
-                       Field("int", "volume", "Lautstärke für „setzen“ (%)", min=0, max=150)],
-               description="Wave-Link-Ersatz: Kanal-Lautstärke je Mix"),
-    ActionType("com.lindeck.mixer.output", "Monitor-Ausgang", "Linewave", {"device": ""},
-               fields=[Field("text", "device", "Gerät (leer = nächstes)")],
-               description="Monitor-Mix auf Kopfhörer/Lautsprecher umschalten"),
+               fields=[Field("choice", "channel", _("Channel"), _MIX_CHANNELS), Field("choice", "mix", "Mix", _MIXES),
+                       Field("choice", "action", _("Key"), [("mute", _("toggle mute")), ("up", _("volume up")),
+                                                           ("down", _("volume down")), ("set", _("Set volume"))]),
+                       Field("int", "step", _("Step size (%)"), min=1, max=50),
+                       Field("int", "volume", _("Volume for “set” (%)"), min=0, max=150)],
+               description=_("Wave Link replacement: channel volume per mix")),
+    ActionType("com.lindeck.mixer.output", _("Monitor Output"), "Linewave", {"device": ""},
+               fields=[Field("text", "device", _("Device (empty = next)"))],
+               description=_("Switches the Monitor Mix between headphones and speakers")),
     # -------------------------------------------------------- Wave-Mikro
-    ActionType("com.lindeck.wavemic.control", "Wave-Mikrofon", "Linewave", {"function": "mute", "step": 5},
+    ActionType("com.lindeck.wavemic.control", _("Wave Microphone"), "Linewave", {"function": "mute", "step": 5},
                controllers=(KEY, DIAL),
-               fields=[Field("choice", "function", "Funktion", [("mute", "stumm umschalten"), ("gain", "Gain +"),
-                                                               ("lowcut", "Low Cut ein/aus"),
-                                                               ("clipguard", "Clipguard ein/aus"),
-                                                               ("leds", "LEDs ein/aus (Wave:3)"),
-                                                               ("ledsflip", "LEDs umkehren (Wave:3)")]),
-                       Field("int", "step", "Schrittweite Gain (%)", min=1, max=20)],
-               description="Gain, Stumm, Low Cut, Clipguard, LEDs (Dial: Gain)"),
+               fields=[Field("choice", "function", _("Function"), [("mute", _("toggle mute")), ("gain", "Gain +"),
+                                                               ("lowcut", _("Low Cut on/off")),
+                                                               ("clipguard", _("Clipguard on/off")),
+                                                               ("leds", _("LEDs on/off (Wave:3)")),
+                                                               ("ledsflip", _("Invert LEDs (Wave:3)"))]),
+                       Field("int", "step", _("Gain step size (%)"), min=1, max=20)],
+               description=_("Gain, mute, Low Cut, Clipguard, LEDs (dial: gain)")),
 ]
 
 BY_UUID = {a.uuid: a for a in CATALOG}
@@ -314,12 +316,12 @@ def new_action(uuid: str) -> dict:
         "Resources": None,
         "Settings": settings,
         "State": 0,
-        "States": [default_state() for _ in range(t.states if t else 1)],
+        "States": [default_state() for _i in range(t.states if t else 1)],
         "UUID": uuid,
     }
     if t and t.children:
         kind, labels = t.children
-        data["Actions"] = [{"Actions": []} for _ in labels] if kind == "groups" else [{} for _ in labels]
+        data["Actions"] = [{"Actions": []} for _i in labels] if kind == "groups" else [{} for _i in labels]
     return data
 
 
@@ -351,37 +353,48 @@ def child_lists(data: dict):
 # Hotkeys
 # --------------------------------------------------------------------------
 MOD_SHIFT, MOD_CTRL, MOD_ALT, MOD_META = 1, 2, 4, 8
-MOD_NAMES = [(MOD_CTRL, "Strg"), (MOD_SHIFT, "Umschalt"), (MOD_ALT, "Alt"), (MOD_META, "Super")]
+MOD_NAMES = [(MOD_CTRL, pgettext("key name", "Ctrl")), (MOD_SHIFT, pgettext("key name", "Shift")),
+             (MOD_ALT, "Alt"), (MOD_META, "Super")]
 _MOD_ALIASES = {"strg": MOD_CTRL, "ctrl": MOD_CTRL, "control": MOD_CTRL, "steuerung": MOD_CTRL,
                 "umschalt": MOD_SHIFT, "shift": MOD_SHIFT, "alt": MOD_ALT, "option": MOD_ALT,
                 "super": MOD_META, "win": MOD_META, "meta": MOD_META, "cmd": MOD_META, "windows": MOD_META}
+_MOD_ALIASES.update({"maj": MOD_SHIFT, "mayús": MOD_SHIFT, "mayus": MOD_SHIFT})
+_MOD_ALIASES.update({n.lower(): m for m, n in MOD_NAMES})  # Namen der aktiven Sprache
 
 # Windows-VK -> (Anzeigename, Qt-Keycode)
 _NAMED = {
-    0x08: ("Rücktaste", 0x01000003), 0x09: ("Tab", 0x01000001), 0x0D: ("Enter", 0x01000004),
-    0x13: ("Pause", 0x01000008), 0x1B: ("Esc", 0x01000000), 0x20: ("Leertaste", 0x20),
-    0x21: ("Bild↑", 0x01000016), 0x22: ("Bild↓", 0x01000017), 0x23: ("Ende", 0x01000011),
-    0x24: ("Pos1", 0x01000010), 0x25: ("Links", 0x01000012), 0x26: ("Hoch", 0x01000013),
-    0x27: ("Rechts", 0x01000014), 0x28: ("Runter", 0x01000015), 0x2C: ("Druck", 0x01000009),
-    0x2D: ("Einfg", 0x01000006), 0x2E: ("Entf", 0x01000007),
-    0x6A: ("Num *", 0x2A), 0x6B: ("Num +", 0x2B), 0x6D: ("Num -", 0x2D), 0x6E: ("Num ,", 0x2C),
-    0x6F: ("Num /", 0x2F),
-    0xAD: ("Stumm", 0x01000071), 0xAE: ("Leiser", 0x01000070), 0xAF: ("Lauter", 0x01000072),
-    0xB0: ("Nächster Titel", 0x01000083), 0xB1: ("Vorheriger Titel", 0x01000082),
-    0xB2: ("Stopp", 0x01000081), 0xB3: ("Play/Pause", 0x01000086),
+    0x08: (pgettext("key name", "Backspace"), 0x01000003), 0x09: ("Tab", 0x01000001), 0x0D: ("Enter", 0x01000004),
+    0x13: ("Pause", 0x01000008), 0x1B: ("Esc", 0x01000000), 0x20: (pgettext("key name", "Space"), 0x20),
+    0x21: (pgettext("key name", "PgUp"), 0x01000016), 0x22: (pgettext("key name", "PgDn"), 0x01000017),
+    0x23: (pgettext("key name", "End"), 0x01000011), 0x24: (pgettext("key name", "Home"), 0x01000010),
+    0x25: (pgettext("key name", "Left"), 0x01000012), 0x26: (pgettext("key name", "Up"), 0x01000013),
+    0x27: (pgettext("key name", "Right"), 0x01000014), 0x28: (pgettext("key name", "Down"), 0x01000015),
+    0x2C: (pgettext("key name", "Print"), 0x01000009), 0x2D: (pgettext("key name", "Ins"), 0x01000006),
+    0x2E: (pgettext("key name", "Del"), 0x01000007), 0x6A: ("Num *", 0x2A), 0x6B: ("Num +", 0x2B),
+    0x6D: ("Num -", 0x2D), 0x6E: ("Num ,", 0x2C), 0x6F: ("Num /", 0x2F),
+    0xAD: (pgettext("key name", "Mute"), 0x01000071), 0xAE: (pgettext("key name", "Volume Down"), 0x01000070),
+    0xAF: (pgettext("key name", "Volume Up"), 0x01000072), 0xB0: (pgettext("key name", "Next Track"), 0x01000083),
+    0xB1: (pgettext("key name", "Previous Track"), 0x01000082), 0xB2: (pgettext("key name", "Stop"), 0x01000081),
+    0xB3: ("Play/Pause", 0x01000086),
 }
 for _i in range(10):
     _NAMED[0x60 + _i] = (f"Num {_i}", 0x30 + _i)
 for _i in range(24):
     _NAMED[0x70 + _i] = (f"F{_i + 1}", 0x01000030 + _i)
 
-_NAME_TO_VK = {n.lower(): vk for vk, (n, _) in _NAMED.items()}
+_NAME_TO_VK = {n.lower(): vk for vk, (n, _q) in _NAMED.items()}
 _NAME_TO_VK.update({
     "backspace": 0x08, "return": 0x0D, "eingabe": 0x0D, "escape": 0x1B, "space": 0x20, "leer": 0x20,
     "pageup": 0x21, "pgup": 0x21, "bildauf": 0x21, "pagedown": 0x22, "pgdn": 0x22, "bildab": 0x22,
     "end": 0x23, "home": 0x24, "left": 0x25, "up": 0x26, "right": 0x27, "down": 0x28, "print": 0x2C,
     "insert": 0x2D, "ins": 0x2D, "delete": 0x2E, "del": 0x2E, "mute": 0xAD, "volumedown": 0xAE,
     "volumeup": 0xAF, "playpause": 0xB3, "next": 0xB0, "prev": 0xB1,
+    # Anzeigenamen beider Sprachen (Englisch = Quelltext, Deutsch = frühere Anzeige)
+    "esc": 0x1B, "tab": 0x09, "enter": 0x0D, "pause": 0x13, "rücktaste": 0x08, "leertaste": 0x20,
+    "bild↑": 0x21, "bild↓": 0x22, "ende": 0x23, "pos1": 0x24, "links": 0x25, "hoch": 0x26,
+    "rechts": 0x27, "runter": 0x28, "druck": 0x2C, "einfg": 0x2D, "entf": 0x2E, "stumm": 0xAD,
+    _("volume down"): 0xAE, _("volume up"): 0xAF, "nächster titel": 0xB0, "vorheriger titel": 0xB1, "stopp": 0xB2,
+    "stop": 0xB2, "next track": 0xB0, "previous track": 0xB1, "play/pause": 0xB3,
 })
 
 # Tk-Keysym -> Windows-VK
@@ -471,7 +484,7 @@ def parse_hotkey(text: str):
             mods |= _MOD_ALIASES[low]
             continue
         if i != len(tokens) - 1:
-            raise ValueError(f"Unbekannte Sondertaste: {tok}")
+            raise ValueError(_("Unknown modifier key: {key}").format(key=tok))
         if low in _MOD_ALIASES:
             mods |= _MOD_ALIASES[low]
         elif low.replace(" ", "") in {k.replace(" ", "") for k in _NAME_TO_VK}:
@@ -481,9 +494,9 @@ def parse_hotkey(text: str):
         elif len(tok) == 1:
             qt = ord(tok)
         else:
-            raise ValueError(f"Unbekannte Taste: {tok}")
+            raise ValueError(_("Unknown key: {key}").format(key=tok))
     if vk < 0 and qt is None and not mods:
-        raise ValueError("Keine Taste angegeben")
+        raise ValueError(_("No key specified"))
     return make_hotkey(mods, vk, qt if qt is not None else (None if vk >= 0 else EMPTY_QT))
 
 

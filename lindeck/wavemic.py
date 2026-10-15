@@ -24,6 +24,7 @@ import subprocess
 from pathlib import Path
 
 from . import paths, system
+from .i18n import _
 
 log = logging.getLogger("lindeck.wavemic")
 
@@ -60,14 +61,15 @@ def filter_conf(source: str, lowcut: bool, freq: int, clipguard: bool) -> str:
     nodes, chain = [], []
     if lowcut:
         nodes.append(f'{{ type = builtin name = lowcut label = bq_highpass control = {{ "Freq" = {float(freq):.1f} '
-                     '"Q" = 0.707 }} }}')
+                     '"Q" = 0.707 } }')
         chain.append(("lowcut:In", "lowcut:Out"))
     if clipguard:
         nodes.append(f'{{ type = ladspa name = limiter plugin = {LIMITER_PLUGIN} label = fastLookaheadLimiter '
                      'control = { "Input gain (dB)" = 0.0 "Limit (dB)" = -1.0 "Release time (s)" = 0.08 } }')
         chain.append(("limiter:Input 1", "limiter:Output 1"))
     if not nodes:
-        raise ValueError("Weder Low Cut noch Clipguard aktiv")
+        raise ValueError(_("Neither low cut nor Clipguard is active"))
+    desc = '"' + _("Linewave Microphone").replace('"', "'") + '"'
     links = [f'{{ output = "{chain[i][1]}" input = "{chain[i + 1][0]}" }}' for i in range(len(chain) - 1)]
     return f"""# Von Linewave erzeugt – Wave-Mikrofon mit Low Cut/Clipguard
 context.properties = {{ log.level = 0 }}
@@ -82,8 +84,8 @@ context.modules = [
     {{ name = libpipewire-module-adapter }}
     {{ name = libpipewire-module-filter-chain
         args = {{
-            node.description = "Linewave Mikrofon"
-            media.name       = "Linewave Mikrofon"
+            node.description = {desc}
+            media.name       = {desc}
             filter.graph = {{
                 nodes = [
                     {chr(10).join('                    ' + n for n in nodes).strip()}
@@ -102,7 +104,7 @@ context.modules = [
             }}
             playback.props = {{
                 node.name        = "{PROCESSED}"
-                node.description = "Linewave Mikrofon"
+                node.description = {desc}
                 media.class      = Audio/Source
             }}
         }}
@@ -176,7 +178,8 @@ class WaveMic:
 
     def hw_set(self, key, value):
         if not self.hw():
-            raise RuntimeError("Nur mit Elgato Wave:3 möglich" + (f" ({self._hw_error})" if self._hw_error else ""))
+            raise RuntimeError(_("Only possible with an Elgato Wave:3 ({error})").format(error=self._hw_error)
+                               if self._hw_error else _("Only possible with an Elgato Wave:3"))
         return self._hw_do(lambda h: h.set(key, value))
 
     def status(self):
@@ -194,7 +197,7 @@ class WaveMic:
     def source(self):
         src = find_source()
         if not src:
-            raise RuntimeError("Kein Elgato-Wave-Mikrofon gefunden")
+            raise RuntimeError(_("No Elgato Wave microphone found"))
         return src
 
     def gain(self):
@@ -211,7 +214,7 @@ class WaveMic:
         if self.hw():
             return self._hw_do(lambda h: h.change("gain", delta * 0.4))
         src = self.source()
-        cur, _ = system.device_volume("source", src)
+        cur, _m = system.device_volume("source", src)
         system.device_set("source", src, cur + delta)
         self.version += 1
 
@@ -242,7 +245,7 @@ class WaveMic:
                 self._save()
             return new
         if key in ("leds_off", "leds_flip"):
-            raise RuntimeError("LED-Steuerung gibt es nur für das Elgato Wave:3")
+            raise RuntimeError(_("LED control is only available for the Elgato Wave:3"))
         self.set(**{key: not self.settings.get(key)})
         return self.settings[key]
 
@@ -265,23 +268,23 @@ class WaveMic:
             return False
         lowcut, clip = bool(self.settings.get("lowcut")), bool(self.settings.get("clipguard"))
         if clip and not limiter_available():
-            log.warning("Clipguard braucht den LADSPA-Limiter (Paket swh-plugins) – wird ausgelassen")
+            log.warning(_("Clipguard needs the LADSPA limiter (package swh-plugins) – skipped"))
             clip = False
         if not (lowcut or clip):
             return False
         src = find_source()
         if not src:
-            log.info("Wave-Mikrofon nicht angeschlossen – Filter startet beim Einstecken")
+            log.info(_("Wave microphone not connected – the filter starts when it is plugged in"))
             return False
         exe = shutil.which("pipewire")
         if not exe:
-            raise RuntimeError("pipewire nicht gefunden")
+            raise RuntimeError(_("pipewire not found"))
         self.conf_file.parent.mkdir(parents=True, exist_ok=True)
         self.conf_file.write_text(filter_conf(src, lowcut, int(self.settings.get("lowcut_freq") or 80), clip),
                                   encoding="utf-8")
         self.proc = subprocess.Popen([exe, "-c", str(self.conf_file)], stdin=subprocess.DEVNULL,
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-        log.info("Wave-Filter aktiv (Low Cut: %s, Clipguard: %s)", lowcut, clip)
+        log.info(_("Wave filter active (low cut: {lowcut}, Clipguard: {clipguard})").format(lowcut=lowcut, clipguard=clip))
         if self.settings.get("set_default", True):
             import time
             time.sleep(0.5)

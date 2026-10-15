@@ -17,7 +17,7 @@ cp -r "$ROOT/lindeck" "$PKG/opt/lindeck/"
 cp -r "$SD_LIB" "$PKG/opt/lindeck/vendor/StreamDeck"
 find "$PKG/opt" -name "__pycache__" -prune -exec rm -rf {} +
 cp "$SD_LICENSE" "$PKG/usr/share/doc/lindeck/LICENSE.python-elgato-streamdeck"
-cp "$ROOT/README.md" "$PKG/usr/share/doc/lindeck/README.md"
+cp "$ROOT/README.md" "$ROOT/README.de.md" "$PKG/usr/share/doc/lindeck/"
 
 cat > "$PKG/usr/bin/lindeck" <<'EOF'
 #!/bin/sh
@@ -45,7 +45,11 @@ cat > "$PKG/etc/xdg/autostart/lindeck.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=LinDeck
-Comment=Stream Deck im Hintergrund starten
+Comment=Start the Stream Deck in the background
+Comment[de]=Stream Deck im Hintergrund starten
+Comment[es]=Iniciar el Stream Deck en segundo plano
+Comment[fr]=Démarrer le Stream Deck en arrière-plan
+Comment[pt_BR]=Iniciar o Stream Deck em segundo plano
 Exec=/usr/bin/lindeck run
 Icon=lindeck
 NoDisplay=true
@@ -57,12 +61,17 @@ cat > "$PKG/usr/share/applications/lindeck.desktop" <<'EOF'
 Type=Application
 Name=LinDeck
 GenericName=Stream Deck
-Comment=Stream Deck einrichten: Tasten, Profile, Plugins
+Comment=Set up your Stream Deck: keys, profiles, plugins
+Comment[de]=Stream Deck einrichten: Tasten, Profile, Plugins
+Comment[es]=Configura tu Stream Deck: teclas, perfiles, plugins
+Comment[fr]=Configurer votre Stream Deck : touches, profils, plugins
+Comment[pt_BR]=Configure seu Stream Deck: teclas, perfis, plugins
 Exec=/usr/bin/lindeck
 Icon=lindeck
 Terminal=false
 Categories=Utility;AudioVideo;
-Keywords=Stream Deck;Elgato;Streamdeck;Makro;
+Keywords=Stream Deck;Elgato;Streamdeck;Macro;
+Keywords[de]=Stream Deck;Elgato;Streamdeck;Makro;
 StartupWMClass=Lindeck
 StartupNotify=true
 EOF
@@ -71,7 +80,11 @@ cat > "$PKG/etc/xdg/autostart/linewave.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Linewave
-Comment=Audio-Mixer und Wave-Mikrofon im Hintergrund starten
+Comment=Start the audio mixer and Wave microphone in the background
+Comment[de]=Audio-Mixer und Wave-Mikrofon im Hintergrund starten
+Comment[es]=Iniciar el mezclador de audio y el micrófono Wave en segundo plano
+Comment[fr]=Démarrer le mixeur audio et le micro Wave en arrière-plan
+Comment[pt_BR]=Iniciar o mixer de áudio e o microfone Wave em segundo plano
 Exec=/usr/bin/linewave --hidden
 Icon=linewave
 NoDisplay=true
@@ -82,13 +95,22 @@ cat > "$PKG/usr/share/applications/linewave.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=Linewave
-GenericName=Audio-Mixer
-Comment=Wave-Link-Ersatz: Mixer (Monitor-/Stream-Mix) und Elgato-Wave-Mikrofon
+GenericName=Audio Mixer
+GenericName[de]=Audio-Mixer
+GenericName[es]=Mezclador de audio
+GenericName[fr]=Mixeur audio
+GenericName[pt_BR]=Mixer de áudio
+Comment=Wave Link replacement: mixer (Monitor/Stream Mix) and Elgato Wave microphone
+Comment[de]=Wave-Link-Ersatz: Mixer (Monitor-/Stream-Mix) und Elgato-Wave-Mikrofon
+Comment[es]=Sustituto de Wave Link: mezclador (mezcla de monitor/stream) y micrófono Elgato Wave
+Comment[fr]=Remplaçant de Wave Link : mixeur (mix moniteur/stream) et micro Elgato Wave
+Comment[pt_BR]=Substituto do Wave Link: mixer (mix de monitor/stream) e microfone Elgato Wave
 Exec=/usr/bin/linewave
 Icon=linewave
 Terminal=false
 Categories=AudioVideo;Audio;Mixer;
-Keywords=Wave Link;Elgato;Wave:3;Mixer;Mikrofon;PipeWire;
+Keywords=Wave Link;Elgato;Wave:3;Mixer;Microphone;PipeWire;
+Keywords[de]=Wave Link;Elgato;Wave:3;Mixer;Mikrofon;PipeWire;
 StartupWMClass=Linewave
 StartupNotify=true
 EOF
@@ -110,16 +132,17 @@ Architecture: all
 Maintainer: Felix <noreply@localhost>
 Depends: python3 (>= 3.10), python3-pil, python3-tk, python3-pil.imagetk, python3-evdev, python3-cairosvg, libhidapi-libusb0, libusb-1.0-0, fonts-dejavu-core, xdg-utils, xdg-user-dirs, libnotify-bin, wl-clipboard, xclip, playerctl, pulseaudio-utils, msitools, udev, kmod
 Recommends: python3-pystray, gir1.2-ayatanaappindicator3-0.1, chromium | google-chrome-stable | firefox, mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, wireplumber, pipewire-pulse, nodejs, swh-plugins, tap-plugins, pipewire-bin, lilv-utils, jalv, pipewire-jack, x42-plugins
-Description: Elgato-kompatible Stream-Deck-Software für Linux
- Steuert alle Elgato Stream Decks (Original, MK.2, Mini, XL, Neo, +, + XL,
- Studio, Pedal) und liest Profile der Elgato-App direkt ein. Zwei
- Programme wie bei Elgato: „LinDeck“ für das Stream Deck (Profile,
- Tasten, Plugins bearbeiten) und „Linewave“ als Wave-Link-Ersatz
- (PipeWire-Mixer mit Monitor-/Stream-Mix, Elgato-Wave-Mikrofone).
- Elgato-Plugins (Node.js) laufen über den eingebauten Plugin-Host; OBS,
- Spotify, Discord und Wave Link sind für Linux umgesetzt. Profile,
- Backups und der Elgato-Installer werden automatisch aus Downloads,
- Desktop und USB-Sticks übernommen.
+Description: Elgato-compatible Stream Deck software for Linux
+ Drives every Elgato Stream Deck (Original, MK.2, Mini, XL, Neo, +, + XL,
+ Studio, Pedal) and reads the profiles of the Elgato app directly. Two
+ programs like Elgato's: "LinDeck" for the Stream Deck (edit profiles,
+ keys, plugins) and "Linewave" as a Wave Link replacement (PipeWire mixer
+ with Monitor/Stream Mix, effect plugins, Elgato Wave microphones).
+ Elgato plugins (Node.js) run in the built-in plugin host; OBS, Spotify,
+ Discord and Wave Link are implemented for Linux. Profiles, backups and
+ the Elgato installer are taken over automatically from Downloads,
+ Desktop and USB sticks. Available in English, German, Spanish, French
+ and Portuguese (Brazil).
 EOF
 
 cat > "$PKG/DEBIAN/postinst" <<'EOF'

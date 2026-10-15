@@ -16,6 +16,7 @@ import time
 import uuid as uuidlib
 
 from . import ws
+from .i18n import _
 
 log = logging.getLogger("lindeck.obs")
 
@@ -59,7 +60,7 @@ class OBSClient:
                 self._reader()
             except (OSError, ws.Closed, OBSError, ValueError) as e:
                 if self.connected or self.error != str(e):
-                    log.info("OBS nicht verbunden: %s", e)
+                    log.info(_("OBS not connected: {error}").format(error=e))
                 self.error = str(e)
             self._set_connected(False)
             self._wake.wait(delay)
@@ -70,21 +71,21 @@ class OBSClient:
         conn = ws.connect(self.host, self.port, timeout=3)
         hello = json.loads(conn.recv())
         if hello.get("op") != 0:
-            raise OBSError("Unerwartete Antwort von OBS")
+            raise OBSError(_("Unexpected response from OBS"))
         d = hello.get("d") or {}
         ident = {"rpcVersion": 1, "eventSubscriptions": EVENTS_ALL}
         auth = d.get("authentication")
         if auth:
             if not self.password:
-                raise OBSError("OBS verlangt ein Passwort (config.json → obs.password)")
+                raise OBSError(_("OBS requires a password (config.json → obs.password)"))
             ident["authentication"] = auth_string(self.password, auth["salt"], auth["challenge"])
         conn.send(json.dumps({"op": 1, "d": ident}))
         msg = json.loads(conn.recv())
         if msg.get("op") != 2:
-            raise OBSError("Anmeldung bei OBS fehlgeschlagen (Passwort prüfen)")
+            raise OBSError(_("Login to OBS failed (check the password)"))
         self.conn = conn
         self._set_connected(True)
-        log.info("Mit OBS verbunden (%s:%s)", self.host, self.port)
+        log.info(_("Connected to OBS ({host}:{port})").format(host=self.host, port=self.port))
         threading.Thread(target=self._initial_state, daemon=True).start()
 
     def _set_connected(self, on):
@@ -94,7 +95,7 @@ class OBSClient:
         if not on:
             with self._lock:
                 for ev, box in self._pending.values():
-                    box["error"] = "Verbindung zu OBS getrennt"
+                    box["error"] = _("Connection to OBS lost")
                     ev.set()
                 self._pending.clear()
             self.conn = None
@@ -129,7 +130,7 @@ class OBSClient:
                     if st.get("result"):
                         box["data"] = d.get("responseData") or {}
                     else:
-                        box["error"] = st.get("comment") or f"Fehler {st.get('code')}"
+                        box["error"] = st.get("comment") or _("Error {code}").format(code=st.get("code"))
                     ev.set()
             elif op == 5:
                 self._on_event(d.get("eventType"), d.get("eventData") or {})
@@ -156,7 +157,7 @@ class OBSClient:
         elif et == "InputVolumeChanged":
             self.volume_db[data.get("inputName")] = data.get("inputVolumeDb")
         elif et == "SceneItemEnableStateChanged":
-            for key, (iid, _) in list(self.items.items()):
+            for key, (iid, __) in list(self.items.items()):
                 if key[0] == data.get("sceneName") and iid == data.get("sceneItemId"):
                     self.items[key] = (iid, bool(data.get("sceneItemEnabled")))
         elif et in ("SceneItemCreated", "SceneItemRemoved", "SceneNameChanged", "InputNameChanged"):
@@ -176,7 +177,8 @@ class OBSClient:
         conn = self.conn
         if not conn or not self.connected:
             self._wake.set()
-            raise OBSError("OBS ist nicht verbunden" + (f" ({self.error})" if self.error else ""))
+            raise OBSError(_("OBS is not connected ({error})").format(error=self.error) if self.error else
+                           _("OBS is not connected"))
         rid = uuidlib.uuid4().hex
         ev, box = threading.Event(), {}
         with self._lock:
@@ -191,7 +193,7 @@ class OBSClient:
         if not ev.wait(timeout):
             with self._lock:
                 self._pending.pop(rid, None)
-            raise OBSError(f"Keine Antwort von OBS auf {rtype}")
+            raise OBSError(_("No response from OBS to {request}").format(request=rtype))
         if "error" in box:
             raise OBSError(box["error"])
         return box.get("data", {})

@@ -8,6 +8,7 @@ from PIL import Image
 
 from . import actions as A
 from . import render
+from .i18n import _, pgettext
 from .models import geometry_for_deck, model_for_deck, model_name
 
 log = logging.getLogger("lindeck.engine")
@@ -78,8 +79,9 @@ class DeckController:
         self._worker.start()
         self._ticker.start()
         self.load_profile(profile_id or self._initial_profile_id())
-        log.info("%s (%s, Seriennr. %s) bereit – Profil: %s", model_name(self.model), self.geometry,
-                 self.serial, self.profile.name if self.profile else "keins")
+        log.info(_("{model} ({geometry}, serial no. {serial}) ready – profile: {profile}").format(
+            model=model_name(self.model), geometry=self.geometry, serial=self.serial,
+            profile=self.profile.name if self.profile else pgettext("profile", "none")))
 
     def stop(self):
         self.running = False
@@ -188,7 +190,7 @@ class DeckController:
             return
         pg = self.profile.page(page_uuid)
         if not pg:
-            log.warning("Ordner %s nicht gefunden", page_uuid)
+            log.warning(_("Folder {page} not found").format(page=page_uuid))
             return
         with self.lock:
             self.folder_stack.append(pg)
@@ -249,7 +251,8 @@ class DeckController:
             return
         if self.visual and not self.profile:
             # Noch kein Profil: Hinweis anzeigen
-            msgs = [("LinDeck", "bereit"), ("Profil", "fehlt"), ("Download-", "ordner")]
+            msgs = [("LinDeck", pgettext("no profile", "ready")), (_("Profile"), pgettext("no profile", "missing")),
+                    (pgettext("no profile", "Downloads"), pgettext("no profile", "folder"))]
             for k in range(self.key_count):
                 img = render.text_key(self.key_size, *msgs[k]) if k < len(msgs) else \
                     Image.new("RGBA", self.key_size, (0, 0, 0, 255))
@@ -320,7 +323,7 @@ class DeckController:
         try:
             frames = a.frames(self.key_size)
         except Exception as e:  # noqa: BLE001
-            log.debug("Bildfehler %s: %s", a.uuid, e)
+            log.debug(_("Image error {action}: {error}").format(action=a.uuid, error=e))
             frames = [(render.fallback_icon(*self.key_size, a.name), 0)]
         frame = frames[frame_idx % len(frames)][0] if frames else None
         img = render.compose_key(self.key_size, frame, a.title(), a.state_dict(), self._overlay_for(a), base=tile)
@@ -368,7 +371,7 @@ class DeckController:
                 if self._overlay_for(a) == "alert":
                     render._alert(seg)
             except Exception as e:  # noqa: BLE001
-                log.debug("Dial-Segment %s: %s", i, e)
+                log.debug(_("Dial segment {index}: {error}").format(index=i, error=e))
                 seg = render.fallback_icon(seg_w, h, a.name)
             segs.append(seg)
         img = render.compose_strip((w, h), segs, bg)
@@ -453,7 +456,7 @@ class DeckController:
             try:
                 self._handle(ev)
             except Exception as e:  # noqa: BLE001
-                log.exception("Fehler bei Ereignis %s: %s", ev, e)
+                log.exception(_("Error handling event {event}: {error}").format(event=ev, error=e))
 
     def _handle(self, ev):
         kind = ev[0]
@@ -473,7 +476,7 @@ class DeckController:
         if kind == "key":
             self.on_key(ev[1], ev[2])
         elif kind == "dial":
-            _, i, etype, value = ev
+            __, i, etype, value = ev
             if etype == DialEventType.TURN:
                 self.on_dial_rotate(i, value)
             else:
@@ -546,14 +549,14 @@ class DeckController:
             try:
                 fn(*args)
             except Exception as e:  # noqa: BLE001
-                log.exception("Aktion fehlgeschlagen: %s", e)
+                log.exception(_("Action failed: {error}").format(error=e))
             return
 
         def wrapped():
             try:
                 fn(*args)
             except Exception as e:  # noqa: BLE001
-                log.exception("Aktion fehlgeschlagen: %s", e)
+                log.exception(_("Action failed: {error}").format(error=e))
         threading.Thread(target=wrapped, daemon=True).start()
 
     # ================================================================ Ticker
@@ -571,7 +574,7 @@ class DeckController:
                     idx = (idx + 1) % len(frames)
                     st[1], st[2] = idx, now + max(20, frames[idx][1]) / 1000.0
                     try:
-                        img, _ = self.key_image(k, idx)
+                        img, __ = self.key_image(k, idx)
                         self._set_key(k, img)
                     except Exception:  # noqa: BLE001
                         pass
@@ -622,20 +625,20 @@ class DeckController:
             extra.append(("ts", self.touchscreen_image()))
         if self.screen_size[0]:
             extra.append(("info", self.infobar_image()))
-        for _, im in extra:
+        for __, im in extra:
             width = max(width, im.size[0] + 2 * gap)
             height += im.size[1] + gap
         canvas = Image.new("RGB", (width, height), (28, 28, 32))
         for k in range(self.key_count):
             r, c = divmod(k, cols)
             if self.visual:
-                img, _ = self.key_image(k)
+                img, __ = self.key_image(k)
             else:
                 a = self.keys.get(k)
                 img = render.fallback_icon(kw, kh, a.title() or a.name if a else "–")
             canvas.paste(img.convert("RGB"), (gap + c * (kw + gap), gap + r * (kh + gap)))
         y = rows * kh + (rows + 1) * gap
-        for _, im in extra:
+        for __, im in extra:
             canvas.paste(im.convert("RGB"), ((width - im.size[0]) // 2, y))
             y += im.size[1] + gap
         return canvas

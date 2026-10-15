@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 
 from . import paths
+from .i18n import _
 
 
 def _find_install_root(base: Path):
@@ -30,13 +31,13 @@ def extract(src) -> Path:
             elif shutil.which("7z"):
                 subprocess.run(["7z", "x", "-y", f"-o{tmp}", str(src)], check=True, capture_output=True)
             else:
-                raise RuntimeError("Bitte 'msitools' installieren: sudo apt install msitools")
+                raise RuntimeError(_("Please install 'msitools': sudo apt install msitools"))
             base = tmp
         else:
             base = src
         root = _find_install_root(base)
         if not root:
-            raise RuntimeError("Keine Elgato-Plugins im Installer gefunden")
+            raise RuntimeError(_("No Elgato plugins found in the installer"))
         dst = paths.ASSETS_DIR
         if dst.exists():
             shutil.rmtree(dst)
