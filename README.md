@@ -1,11 +1,12 @@
-# LinDeck: Elgato Stream Deck for Linux
+# Streamlin: Stream Deck and Wave Link for Linux
 
-LinDeck runs every Elgato Stream Deck on Linux and reads the profiles of the
+Streamlin brings the Elgato streaming setup to Linux. Its **LinDeck** program
+runs every Elgato Stream Deck and reads the profiles of the
 Elgato app **directly and unchanged**: keys, icons, folders, pages, multi
 actions, dials and touch strips. Copy your profiles over, plug in the deck, done.
 You can also edit profiles or create new ones right on Linux.
 
-It comes as **two programs**, just like Elgato's:
+Streamlin contains **two programs**, just like Elgato's software:
 
 | Program | Replaces | Purpose |
 |---|---|---|
@@ -23,8 +24,9 @@ Available in **English, German, Spanish, French and Portuguese (Brazil)**.
 
 ## Get started
 
-1. **Install:** download `lindeck_<version>_all.deb` from [Releases](../../releases)
-   and double-click it, or run `sudo apt install ./lindeck_*_all.deb`.
+1. **Install:** download `streamlin_<version>_all.deb` from [Releases](../../releases)
+   and double-click it, or run `sudo apt install ./streamlin_*_all.deb`.
+   It replaces older `lindeck` packages; your profiles and settings stay.
 2. **Bring your profiles:** on Windows, copy the folder
    `%APPDATA%\Elgato\StreamDeck\ProfilesV3` to a USB stick and plug it in on
    Linux. LinDeck imports everything by itself.
@@ -37,9 +39,9 @@ Ubuntu 22.04+, Linux Mint 21+, Pop!_OS, Zorin …), X11 or Wayland. The package
 sets up device access, hotkeys, autostart and menu entries automatically. If
 LinDeck does not start right after installing, log out and back in once.
 
-**Uninstall:** `sudo apt remove lindeck` (your profiles stay in `~/.local/share/lindeck`).
+**Uninstall:** `sudo apt remove streamlin` (your profiles stay in `~/.local/share/lindeck`).
 
-> **Status:** version 0.12, tested with simulated devices of every model.
+> **Status:** version 0.13, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## Supported devices
@@ -293,9 +295,9 @@ report from `lindeck selftest`) when you open an issue.
 
 ## Legal
 
-LinDeck is an independent project and is not affiliated with Elgato or Corsair.
+Streamlin is an independent project and is not affiliated with Elgato or Corsair.
 “Elgato”, “Stream Deck” and “Wave Link” are trademarks of Corsair Memory, Inc.
-LinDeck contains no code and no graphics from Elgato; default icons are only
+It contains no code and no graphics from Elgato; default icons are only
 taken from your own Elgato installer. It bundles
 [python-elgato-streamdeck](https://github.com/abcminiuser/python-elgato-streamdeck)
 (MIT license).

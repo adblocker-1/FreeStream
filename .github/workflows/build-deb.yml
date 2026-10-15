@@ -61,9 +61,9 @@ jobs:
             echo "Release $TAG gibt es schon – Paket bleibt, nur der Text wird aktualisiert"
           elif [ -f "$NOTES" ]; then
             # Ohne vorhandenen Tag legt gh ihn auf dem gebauten Commit an
-            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "LinDeck $TAG" --notes-file "$NOTES"
+            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "Streamlin $TAG" --notes-file "$NOTES"
           else
-            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "LinDeck $TAG" --generate-notes
+            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "Streamlin $TAG" --generate-notes
           fi
 
       - name: Release-Texte aktualisieren
