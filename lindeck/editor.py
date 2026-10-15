@@ -256,6 +256,10 @@ class EditorApp:
         except OSError as e:
             messagebox.showerror("Linewave", _("Could not start Linewave: {error}").format(error=e), parent=self.root)
 
+    def _restart(self):
+        theme.restart_later("lindeck")
+        self.quit_app()
+
     def quit_app(self):
         self.close_doc()
         if self.on_quit:
@@ -289,6 +293,7 @@ class EditorApp:
             ttk.Button(head, text=_("Close window"), style="Ghost.TButton", command=self.hide).pack(side="right")
             ttk.Button(head, text=" Linewave", image=self.icons.get("wave", 16, COL["monitor"]), compound="left",
                        style="Ghost.TButton", command=self.open_wave).pack(side="right", padx=(4, 8))
+            theme.language_button(head, self.icons, "LinDeck", self._restart).pack(side="right", padx=(4, 0))
         # --- Werkzeugleiste
         top = ttk.Frame(r, padding=(14, 10))
         top.pack(side="top", fill="x")

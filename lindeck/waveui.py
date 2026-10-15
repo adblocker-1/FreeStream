@@ -164,6 +164,10 @@ class WaveWindow:
             notify(_("Linewave is still running"),
                    _("Mixer and microphone stay active. Open it again from the “Linewave” menu."))
 
+    def _restart(self):
+        theme.restart_later("lindeck.linewave")
+        self.quit_app()
+
     def quit_app(self):
         self.request_quit()
 
@@ -218,6 +222,7 @@ class WaveWindow:
         ttk.Button(head, text=_("Quit"), command=self.quit_app).pack(side="right", padx=(6, 16))
         ttk.Button(head, text=_("Close window"), style="Ghost.TButton", command=self.hide).pack(side="right")
         ttk.Button(head, text=_("Setup"), style="Ghost.TButton", command=self.open_setup).pack(side="right")
+        theme.language_button(head, self.icons, "Linewave", self._restart).pack(side="right", padx=(0, 4))
         self.tabs = Segmented(head, [("mixer", _("Mixer")), ("mic", _("Microphone"))], command=self.show_view)
         self.tabs.place(relx=0.5, rely=0.5, anchor="center")
 

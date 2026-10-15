@@ -1,0 +1,3683 @@
+# LinDeck / Linewave translation template.
+msgid ""
+msgstr ""
+"Project-Id-Version: lindeck\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: pt_BR\n"
+
+#: lindeck/__main__.py:53
+msgid "Quitting LinDeck"
+msgstr "Encerrando o LinDeck"
+
+#: lindeck/__main__.py:143 lindeck/__main__.py:213 lindeck/plugins.py:679
+msgid "Profile not found"
+msgstr "Perfil não encontrado"
+
+#: lindeck/__main__.py:387 lindeck/native.py:412 lindeck/native.py:609 lindeck/native.py:172
+msgctxt "state"
+msgid "on"
+msgstr "ligado"
+
+#: lindeck/__main__.py:387 lindeck/native.py:165 lindeck/native.py:609 lindeck/native.py:163
+msgctxt "state"
+msgid "off"
+msgstr "desligado"
+
+#: lindeck/__main__.py:391
+msgctxt "state"
+msgid " (muted)"
+msgstr " (mudo)"
+
+#: lindeck/__main__.py:525
+msgid "Reloaded"
+msgstr "Recarregado"
+
+#: lindeck/__main__.py:51 lindeck/__main__.py:523
+msgid "LinDeck is not running"
+msgstr "O LinDeck não está em execução"
+
+#: lindeck/__main__.py:64
+msgid "Quitting Linewave"
+msgstr "Encerrando o Linewave"
+
+#: lindeck/__main__.py:79
+msgid "No profiles found. Expected: .streamDeckProfile, backup file or ProfilesV2/V3 folder."
+msgstr "Nenhum perfil encontrado. Esperado: .streamDeckProfile, arquivo de backup ou pasta ProfilesV2/V3."
+
+#: lindeck/__main__.py:88
+msgid "No profiles imported yet. Use 'lindeck import <file>'."
+msgstr "Nenhum perfil importado ainda. Use 'lindeck import <arquivo>'."
+
+#: lindeck/__main__.py:109
+msgid "No Stream Deck found. Is it connected? Is the udev rule installed (install.sh)?"
+msgstr "Nenhum Stream Deck encontrado. Ele está conectado? A regra udev está instalada (install.sh)?"
+
+#: lindeck/__main__.py:298
+msgid "No plugins installed. 'lindeck plugin install <file.streamDeckPlugin>'"
+msgstr "Nenhum plugin instalado. 'lindeck plugin install <arquivo.streamDeckPlugin>'"
+
+#: lindeck/__main__.py:473
+msgid "In OBS: Tools → WebSocket Server Settings → enable; password in config.json (obs.password)"
+msgstr "No OBS: Ferramentas → Configurações do servidor WebSocket → ativar; senha no config.json (obs.password)"
+
+#: lindeck/__main__.py:490
+msgid "Connecting to Discord – please confirm the request in Discord …"
+msgstr "Conectando ao Discord – confirme a solicitação no Discord …"
+
+#: lindeck/__main__.py:538
+msgid "Stream Deck software for Linux (Elgato compatible)"
+msgstr "Software Stream Deck para Linux (compatível com Elgato)"
+
+#: lindeck/__main__.py:543
+msgid "open the LinDeck window (default without a command)"
+msgstr "abrir a janela do LinDeck (padrão sem comando)"
+
+#: lindeck/__main__.py:548
+msgid "start LinDeck hidden (autostart)"
+msgstr "iniciar o LinDeck oculto (inicialização automática)"
+
+#: lindeck/__main__.py:549
+msgid "start only the service, without a window (e.g. via SSH)"
+msgstr "iniciar apenas o serviço, sem janela (ex.: via SSH)"
+
+#: lindeck/__main__.py:553
+msgid "open the LinDeck window, optionally with a specific profile"
+msgstr "abrir a janela do LinDeck, opcionalmente com um perfil específico"
+
+#: lindeck/__main__.py:554
+msgid "profile (ID or name) to open"
+msgstr "perfil (ID ou nome) a abrir"
+
+#: lindeck/__main__.py:557
+msgid "quit the running LinDeck"
+msgstr "encerrar o LinDeck em execução"
+
+#: lindeck/__main__.py:560
+msgid "import Elgato profiles (.streamDeckProfile, backup, ProfilesV2/V3 folder)"
+msgstr "importar perfis da Elgato (.streamDeckProfile, backup, pasta ProfilesV2/V3)"
+
+#: lindeck/__main__.py:562
+msgid "do not overwrite existing profiles"
+msgstr "não sobrescrever perfis existentes"
+
+#: lindeck/__main__.py:565
+msgid "show imported profiles"
+msgstr "mostrar perfis importados"
+
+#: lindeck/__main__.py:568
+msgid "show connected Stream Decks"
+msgstr "mostrar Stream Decks conectados"
+
+#: lindeck/__main__.py:572
+msgid "permanently assign a profile to a device"
+msgstr "atribuir um perfil a um dispositivo de forma permanente"
+
+#: lindeck/__main__.py:577
+msgid "delete a profile"
+msgstr "excluir um perfil"
+
+#: lindeck/__main__.py:581
+msgid "render profile pages as PNG (no device needed)"
+msgstr "renderizar páginas do perfil como PNG (sem precisar do dispositivo)"
+
+#: lindeck/__main__.py:584
+msgid "also render folders"
+msgstr "renderizar também as pastas"
+
+#: lindeck/__main__.py:587
+msgid "compatibility report for profiles"
+msgstr "relatório de compatibilidade dos perfis"
+
+#: lindeck/__main__.py:591
+msgid "copy the default icons from the Elgato installer"
+msgstr "copiar os ícones padrão do instalador da Elgato"
+
+#: lindeck/__main__.py:592
+msgid "Stream_Deck_*.msi or a copied program folder"
+msgstr "Stream_Deck_*.msi ou uma pasta de programa copiada"
+
+#: lindeck/__main__.py:595
+msgid "manage Elgato plugins (list, install, remove)"
+msgstr "gerenciar plugins da Elgato (listar, instalar, remover)"
+
+#: lindeck/__main__.py:597
+msgid "file (.streamDeckPlugin) or plugin UUID"
+msgstr "arquivo (.streamDeckPlugin) ou UUID do plugin"
+
+#: lindeck/__main__.py:600
+msgid "audio mixer (Wave Link replacement): status, setup, remove, set, mute, assign, output"
+msgstr "mixer de áudio (substituto do Wave Link): status, setup, remove, set, mute, assign, output"
+
+#: lindeck/__main__.py:604
+msgid "set <channel> <monitor|stream|both> <percent> · mute <channel> <mix> · assign <program> <channel> · output [device] · add <name> [input device] · delete <channel>"
+msgstr "set <canal> <monitor|stream|both> <porcentagem> · mute <canal> <mix> · assign <programa> <canal> · output [dispositivo] · add <nome> [dispositivo de entrada] · delete <canal>"
+
+#: lindeck/__main__.py:609
+msgid "Elgato Wave microphone: status, gain, mute, lowcut, clipguard, leds, flip, headphone, monitor"
+msgstr "Microfone Elgato Wave: status, gain, mute, lowcut, clipguard, leds, flip, headphone, monitor"
+
+#: lindeck/__main__.py:613
+msgid "gain <percent> · lowcut on|off [80|120] · clipguard on|off · leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100>"
+msgstr "gain <porcentagem> · lowcut on|off [80|120] · clipguard on|off · leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100>"
+
+#: lindeck/__main__.py:617
+msgid "open Linewave: mixer and microphone (separate program)"
+msgstr "abrir o Linewave: mixer e microfone (programa separado)"
+
+#: lindeck/__main__.py:618
+msgid "start hidden (autostart)"
+msgstr "iniciar oculto (inicialização automática)"
+
+#: lindeck/__main__.py:619
+msgid "no icon in the system tray"
+msgstr "sem ícone na bandeja do sistema"
+
+#: lindeck/__main__.py:620
+msgid "quit the running Linewave"
+msgstr "encerrar o Linewave em execução"
+
+#: lindeck/__main__.py:623
+msgid "test the connection to OBS"
+msgstr "testar a conexão com o OBS"
+
+#: lindeck/__main__.py:626
+msgid "connect to Discord (one-time authorization)"
+msgstr "conectar ao Discord (autorização única)"
+
+#: lindeck/__main__.py:629
+msgid "test connected Stream Decks step by step"
+msgstr "testar os Stream Decks conectados passo a passo"
+
+#: lindeck/__main__.py:630
+msgid "seconds per step"
+msgstr "segundos por passo"
+
+#: lindeck/__main__.py:631
+msgid "stop the running service for the test"
+msgstr "parar o serviço em execução durante o teste"
+
+#: lindeck/__main__.py:635
+msgid "reload the running service"
+msgstr "recarregar o serviço em execução"
+
+#: lindeck/__main__.py:62
+msgid "Linewave is not running"
+msgstr "O Linewave não está em execução"
+
+#: lindeck/__main__.py:92
+#, python-brace-format
+msgid "{n} page"
+msgid_plural "{n} pages"
+msgstr[0] "{n} página"
+msgstr[1] "{n} páginas"
+
+#: lindeck/__main__.py:133
+#, python-brace-format
+msgid "Device {serial} -> {profile}"
+msgstr "Dispositivo {serial} -> {profile}"
+
+#: lindeck/__main__.py:253
+#, python-brace-format
+msgid "Supported actions (built-in, Linux implementation or installed plugin): {count}"
+msgstr "Ações suportadas (integradas, implementação para Linux ou plugin instalado): {count}"
+
+#: lindeck/__main__.py:261
+msgid "Notes:"
+msgstr "Observações:"
+
+#: lindeck/__main__.py:269
+#, python-brace-format
+msgid "Elgato icons copied to {path}"
+msgstr "Ícones da Elgato copiados para {path}"
+
+#: lindeck/__main__.py:277
+msgid "Specify a file: lindeck plugin install <file.streamDeckPlugin>"
+msgstr "Informe um arquivo: lindeck plugin install <arquivo.streamDeckPlugin>"
+
+#: lindeck/__main__.py:294
+msgid "Removed"
+msgstr "Removido"
+
+#: lindeck/__main__.py:294
+msgid "Plugin not found"
+msgstr "Plugin não encontrado"
+
+#: lindeck/__main__.py:301 lindeck/pluginui.py:154
+#, python-brace-format
+msgid "{n} action"
+msgid_plural "{n} actions"
+msgstr[0] "{n} ação"
+msgstr[1] "{n} ações"
+
+#: lindeck/__main__.py:326
+msgid "Mixer set up and enabled at startup. In OBS, choose “Monitor of Linewave Stream Mix” as the audio source."
+msgstr "Mixer configurado e ativado na inicialização. No OBS, escolha “Monitor of Linewave Stream Mix” como fonte de áudio."
+
+#: lindeck/__main__.py:477
+#, python-brace-format
+msgid "Connected to OBS {version} (obs-websocket {ws_version})"
+msgstr "Conectado ao OBS {version} (obs-websocket {ws_version})"
+
+#: lindeck/__main__.py:507
+msgid "The LinDeck service is running and is using the device. With --stop-daemon it is stopped for the test and restarted afterwards."
+msgstr "O serviço do LinDeck está em execução e usando o dispositivo. Com --stop-daemon, ele é parado para o teste e reiniciado depois."
+
+#: lindeck/__main__.py:75
+#, python-brace-format
+msgid "{src}: {n} profile imported"
+msgid_plural "{src}: {n} profiles imported"
+msgstr[0] "{src}: {n} perfil importado"
+msgstr[1] "{src}: {n} perfis importados"
+
+#: lindeck/__main__.py:127 lindeck/__main__.py:174
+#, python-brace-format
+msgid "Profile '{profile}' not found"
+msgstr "Perfil '{profile}' não encontrado"
+
+#: lindeck/__main__.py:140
+#, python-brace-format
+msgid "Profile '{profile}' deleted"
+msgstr "Perfil '{profile}' excluído"
+
+#: lindeck/__main__.py:178
+#, python-brace-format
+msgid "No matching device for geometry {geometry}"
+msgstr "Nenhum dispositivo compatível com a geometria {geometry}"
+
+#: lindeck/__main__.py:257
+#, python-brace-format
+msgid "Unsupported plugin actions: {count}"
+msgstr "Ações de plugin não suportadas: {count}"
+
+#: lindeck/__main__.py:300
+#, python-brace-format
+msgid "cannot start: {reason}"
+msgstr "não é possível iniciar: {reason}"
+
+#: lindeck/__main__.py:332 lindeck/waveui.py:303
+msgid "Mixer removed"
+msgstr "Mixer removido"
+
+#: lindeck/__main__.py:417
+msgid "Note: Clipguard needs the swh-plugins package"
+msgstr "Observação: o Clipguard precisa do pacote swh-plugins"
+
+#: lindeck/__main__.py:472
+#, python-brace-format
+msgid "No connection to OBS: {error}"
+msgstr "Sem conexão com o OBS: {error}"
+
+#: lindeck/__main__.py:492
+#, python-brace-format
+msgid "Connected. Microphone {mic}, sound {sound}"
+msgstr "Conectado. Microfone {mic}, som {sound}"
+
+#: lindeck/__main__.py:106
+#, python-brace-format
+msgid "USB access failed: {error}"
+msgstr "Falha no acesso USB: {error}"
+
+#: lindeck/__main__.py:119
+#, python-brace-format
+msgid "Serial {serial}  FW {firmware}"
+msgstr "Serial {serial}  FW {firmware}"
+
+#: lindeck/__main__.py:381 lindeck/__main__.py:462 lindeck/__main__.py:496 lindeck/wavesetup.py:456
+#, python-brace-format
+msgid "Error: {error}"
+msgstr "Erro: {error}"
+
+#: lindeck/__main__.py:472
+msgid "timeout"
+msgstr "tempo esgotado"
+
+#: lindeck/__main__.py:493 lindeck/__main__.py:377 lindeck/native.py:613 lindeck/native.py:169
+msgctxt "state"
+msgid "muted"
+msgstr "mudo"
+
+#: lindeck/__main__.py:117
+#, python-brace-format
+msgid "(no access: {error})"
+msgstr "(sem acesso: {error})"
+
+#: lindeck/__main__.py:239
+#, python-brace-format
+msgid "{where}: audio file missing: {path}"
+msgstr "{where}: arquivo de áudio ausente: {path}"
+
+#: lindeck/__main__.py:285
+#, python-brace-format
+msgid "Installed: {name} ({uuid})"
+msgstr "Instalado: {name} ({uuid})"
+
+#: lindeck/__main__.py:287
+#, python-brace-format
+msgid "Installed: {name} ({uuid}) – does not start: {reason}"
+msgstr "Instalado: {name} ({uuid}) – não inicia: {reason}"
+
+#: lindeck/__main__.py:403
+#, python-brace-format
+msgid "{setting}: {state} (directly on the Wave:3)"
+msgstr "{setting}: {state} (diretamente no Wave:3)"
+
+#: lindeck/__main__.py:411
+#, python-brace-format
+msgid "{setting}: {state} (software filter in Linewave)"
+msgstr "{setting}: {state} (filtro de software no Linewave)"
+
+#: lindeck/__main__.py:414
+#, python-brace-format
+msgid "{setting}: {state} – saved; the software filter runs as soon as Linewave is started (linewave)"
+msgstr "{setting}: {state} – salvo; o filtro de software é executado assim que o Linewave for iniciado (linewave)"
+
+#: lindeck/__main__.py:234
+#, python-brace-format
+msgid "{where}: '{app}' -> no Linux mapping (config.json app_map/path_map)"
+msgstr "{where}: '{app}' -> sem mapeamento para Linux (config.json app_map/path_map)"
+
+#: lindeck/__main__.py:343
+#, python-brace-format
+msgid "{app} → {channel} ({count} running streams moved)"
+msgstr "{app} → {channel} ({count} streams em execução movidos)"
+
+#: lindeck/__main__.py:346 lindeck/__main__.py:372
+#, python-brace-format
+msgid "Monitor output: {output}"
+msgstr "Saída de monitor: {output}"
+
+#: lindeck/__main__.py:350
+msgid "Specify a name: linewave mixer add <name> [input device]"
+msgstr "Informe um nome: linewave mixer add <nome> [dispositivo de entrada]"
+
+#: lindeck/__main__.py:367
+msgid "Channel deleted"
+msgstr "Canal excluído"
+
+#: lindeck/__main__.py:433 lindeck/wavemic.py:200
+msgid "No Elgato Wave microphone found"
+msgstr "Nenhum microfone Elgato Wave encontrado"
+
+#: lindeck/__main__.py:460
+msgid "LEDs:       only controllable on the Wave:3"
+msgstr "LEDs:       controláveis apenas no Wave:3"
+
+#: lindeck/__main__.py:363
+#, python-brace-format
+msgid "Channel created: {name} ({id})"
+msgstr "Canal criado: {name} ({id})"
+
+#: lindeck/__main__.py:370
+msgid "Mixer not set up – 'linewave mixer setup'"
+msgstr "Mixer não configurado – 'linewave mixer setup'"
+
+#: lindeck/__main__.py:435
+#, python-brace-format
+msgid "Microphone: {source}"
+msgstr "Microfone: {source}"
+
+#: lindeck/__main__.py:437
+#, python-brace-format
+msgid "Wave:3 (firmware API {api}) – settings stored directly in the microphone"
+msgstr "Wave:3 (API de firmware {api}) – configurações salvas diretamente no microfone"
+
+#: lindeck/__main__.py:440 lindeck/__main__.py:458
+#, python-brace-format
+msgid "Low cut:    {state}"
+msgstr "Low Cut:    {state}"
+
+#: lindeck/__main__.py:442
+#, python-brace-format
+msgid "Headphones: {volume} dB{muted}"
+msgstr "Fones:      {volume} dB{muted}"
+
+#: lindeck/__main__.py:444
+#, python-brace-format
+msgid "Monitoring: {percent} % microphone"
+msgstr "Monitoramento: {percent} % microfone"
+
+#: lindeck/__main__.py:447
+#, python-brace-format
+msgid ", flipped: {answer}"
+msgstr ", invertido: {answer}"
+
+#: lindeck/__main__.py:456
+#, python-brace-format
+msgid "{freq} Hz (software)"
+msgstr "{freq} Hz (software)"
+
+#: lindeck/__main__.py:356
+#, python-brace-format
+msgid "Input device “{device}” not found. Available: {available}"
+msgstr "Dispositivo de entrada “{device}” não encontrado. Disponíveis: {available}"
+
+#: lindeck/__main__.py:448 lindeck/selftest.py:188
+msgctxt "answer"
+msgid "yes"
+msgstr "sim"
+
+#: lindeck/__main__.py:448 lindeck/selftest.py:188
+msgctxt "answer"
+msgid "no"
+msgstr "não"
+
+#: lindeck/__main__.py:452
+#, python-brace-format
+msgid "Cannot control the Wave:3: {error}"
+msgstr "Não é possível controlar o Wave:3: {error}"
+
+#: lindeck/__main__.py:459
+msgid "on (software)"
+msgstr "ligado (software)"
+
+#: lindeck/actions.py:403
+msgid "Bright +"
+msgstr "Brilho +"
+
+#: lindeck/actions.py:571 lindeck/wavesetup.py:140
+msgid "Back"
+msgstr "Voltar"
+
+#: lindeck/actions.py:687
+msgctxt "timer"
+msgid "running"
+msgstr "rodando"
+
+#: lindeck/actions.py:1063 lindeck/actions.py:1068 lindeck/catalog.py:184 lindeck/mixer.py:52
+msgid "Microphone"
+msgstr "Microfone"
+
+#: lindeck/actions.py:1063
+msgid "Volume"
+msgstr "Volume"
+
+#: lindeck/actions.py:384 lindeck/actions.py:1069
+msgid "Muted"
+msgstr "Mudo"
+
+#: lindeck/actions.py:403
+msgid "Bright −"
+msgstr "Brilho −"
+
+#: lindeck/actions.py:403 lindeck/catalog.py:132
+msgid "Brightness"
+msgstr "Brilho"
+
+#: lindeck/actions.py:561 lindeck/editdoc.py:256 lindeck/editdoc.py:330 lindeck/editdoc.py:255
+msgid "Folder"
+msgstr "Pasta"
+
+#: lindeck/actions.py:688
+msgctxt "timer"
+msgid "paused"
+msgstr "pausado"
+
+#: lindeck/actions.py:1068
+msgid "Output"
+msgstr "Saída"
+
+#: lindeck/actions.py:1077
+#, python-brace-format
+msgid "Action {uuid} does nothing on Linux"
+msgstr "A ação {uuid} não faz nada no Linux"
+
+#: lindeck/actions.py:473
+#, python-brace-format
+msgid "Program '{name}' not found – add it to app_map in config.json"
+msgstr "Programa '{name}' não encontrado – adicione-o ao app_map no config.json"
+
+#: lindeck/actions.py:682
+msgctxt "timer"
+msgid "done"
+msgstr "fim"
+
+#: lindeck/actions.py:711
+#, python-brace-format
+msgid "Audio file not found: {path}"
+msgstr "Arquivo de áudio não encontrado: {path}"
+
+#: lindeck/actions.py:1123
+#, python-brace-format
+msgid "Plugin action {uuid} not available yet"
+msgstr "Ação de plugin {uuid} ainda não disponível"
+
+#: lindeck/actions.py:1176
+#, python-brace-format
+msgid "Cannot load action {uuid}: {error}"
+msgstr "Não é possível carregar a ação {uuid}: {error}"
+
+#: lindeck/actions.py:551
+#, python-brace-format
+msgid "of {n}"
+msgstr "de {n}"
+
+#: lindeck/actions.py:769
+#, python-brace-format
+msgid "Multi Action step {action} failed: {error}"
+msgstr "Falha na etapa {action} da Multi Action: {error}"
+
+#: lindeck/app.py:96
+msgid "Open LinDeck"
+msgstr "Abrir LinDeck"
+
+#: lindeck/app.py:183
+msgid "LinDeck is running without a window – restarting with a window"
+msgstr "O LinDeck está em execução sem janela – reiniciando com janela"
+
+#: lindeck/app.py:103 lindeck/editor.py:292 lindeck/waveui.py:222
+msgid "Quit"
+msgstr "Sair"
+
+#: lindeck/app.py:195
+#, python-brace-format
+msgid "No graphical interface ({error}) – LinDeck is running as a service"
+msgstr "Sem interface gráfica ({error}) – o LinDeck está em execução como serviço"
+
+#: lindeck/app.py:100
+#, python-brace-format
+msgid "No tray icon (pystray not available: {error})"
+msgstr "Sem ícone na bandeja (pystray indisponível: {error})"
+
+#: lindeck/app.py:108
+#, python-brace-format
+msgid "Tray icon not possible: {error}"
+msgstr "Ícone na bandeja não é possível: {error}"
+
+#: lindeck/assets.py:40
+msgid "No Elgato plugins found in the installer"
+msgstr "Nenhum plugin da Elgato encontrado no instalador"
+
+#: lindeck/assets.py:34
+msgid "Please install 'msitools': sudo apt install msitools"
+msgstr "Instale o 'msitools': sudo apt install msitools"
+
+#: lindeck/autoimport.py:129
+msgid "Default icons imported from the Elgato installer"
+msgstr "Ícones padrão importados do instalador da Elgato"
+
+#: lindeck/autoimport.py:155
+#, python-brace-format
+msgid "Automatic import of {path} failed: {error}"
+msgstr "Falha na importação automática de {path}: {error}"
+
+#: lindeck/autoimport.py:128
+#, python-brace-format
+msgid "Elgato icons imported from {name}"
+msgstr "Ícones da Elgato importados de {name}"
+
+#: lindeck/autoimport.py:135
+#, python-brace-format
+msgid "Plugin {uuid} installed"
+msgstr "Plugin {uuid} instalado"
+
+#: lindeck/autoimport.py:138
+#, python-brace-format
+msgid "Plugin “{name}” installed – cannot run on Linux ({reason})"
+msgstr "Plugin “{name}” instalado – não pode ser executado no Linux ({reason})"
+
+#: lindeck/autoimport.py:141
+#, python-brace-format
+msgid "Plugin “{name}” installed"
+msgstr "Plugin “{name}” instalado"
+
+#: lindeck/autoimport.py:148
+#, python-brace-format
+msgid "{n} profile imported from {path}"
+msgid_plural "{n} profiles imported from {path}"
+msgstr[0] "{n} perfil importado de {path}"
+msgstr[1] "{n} perfis importados de {path}"
+
+#: lindeck/autoimport.py:150
+#, python-brace-format
+msgid "{n} Stream Deck profile imported from “{name}”"
+msgid_plural "{n} Stream Deck profiles imported from “{name}”"
+msgstr[0] "{n} perfil do Stream Deck importado de “{name}”"
+msgstr[1] "{n} perfis do Stream Deck importados de “{name}”"
+
+#: lindeck/bgui.py:12 lindeck/editor.py:1333
+msgid "Images"
+msgstr "Imagens"
+
+#: lindeck/bgui.py:12 lindeck/editor.py:541 lindeck/editor.py:1334 lindeck/pluginui.py:199
+msgid "All files"
+msgstr "Todos os arquivos"
+
+#: lindeck/bgui.py:17 lindeck/bgui.py:116 lindeck/bgui.py:156 lindeck/editor.py:723
+msgid "Background"
+msgstr "Plano de fundo"
+
+#: lindeck/bgui.py:35 lindeck/bgui.py:62 lindeck/editor.py:1470 lindeck/pluginui.py:164
+msgid "Remove"
+msgstr "Remover"
+
+#: lindeck/bgui.py:37
+msgid "Apply to all pages"
+msgstr "Aplicar a todas as páginas"
+
+#: lindeck/bgui.py:110
+msgid "Choose background image"
+msgstr "Escolher imagem de fundo"
+
+#: lindeck/bgui.py:150
+msgid "Image for the touch strip"
+msgstr "Imagem para a faixa de toque"
+
+#: lindeck/bgui.py:23
+msgid "Background image"
+msgstr "Imagem de fundo"
+
+#: lindeck/bgui.py:24
+msgid "The image is spread across all keys of this page – like a desktop wallpaper. Keys with their own icon sit on top; empty keys show the image."
+msgstr "A imagem é distribuída por todas as teclas desta página – como um papel de parede. Teclas com ícone próprio ficam por cima; teclas vazias mostram a imagem."
+
+#: lindeck/bgui.py:40
+msgid "DIM"
+msgstr "ESCURECER"
+
+#: lindeck/bgui.py:48
+msgid "Darkens the image so titles stay easy to read."
+msgstr "Escurece a imagem para que os títulos continuem fáceis de ler."
+
+#: lindeck/bgui.py:133
+#, python-brace-format
+msgid "Background applied to {n} more page"
+msgid_plural "Background applied to {n} more pages"
+msgstr[0] "Plano de fundo aplicado a mais {n} página"
+msgstr[1] "Plano de fundo aplicado a mais {n} páginas"
+
+#: lindeck/bgui.py:34 lindeck/bgui.py:61
+msgid "Choose image …"
+msgstr "Escolher imagem …"
+
+#: lindeck/bgui.py:52
+msgid "Touch strip"
+msgstr "Faixa de toque"
+
+#: lindeck/bgui.py:53
+msgid "Custom image for the whole touch strip of the Stream Deck + (as in the Elgato app)."
+msgstr "Imagem personalizada para toda a faixa de toque do Stream Deck + (como no app da Elgato)."
+
+#: lindeck/bgui.py:66 lindeck/editor.py:1622 lindeck/wavedialogs.py:207 lindeck/wavesetup.py:27
+msgid "Done"
+msgstr "Concluído"
+
+#: lindeck/catalog.py:58
+msgid "Play / Pause"
+msgstr "Reproduzir / Pausar"
+
+#: lindeck/catalog.py:58 lindeck/catalog.py:218
+msgid "Next track"
+msgstr "Próxima faixa"
+
+#: lindeck/catalog.py:58 lindeck/catalog.py:219
+msgid "Previous track"
+msgstr "Faixa anterior"
+
+#: lindeck/catalog.py:58 lindeck/catalog.py:221
+msgid "Stop"
+msgstr "Parar"
+
+#: lindeck/catalog.py:59
+msgid "Mute"
+msgstr "Mudo"
+
+#: lindeck/catalog.py:59 lindeck/catalog.py:65 lindeck/catalog.py:221
+msgid "Volume up"
+msgstr "Aumentar volume"
+
+#: lindeck/catalog.py:59 lindeck/catalog.py:65 lindeck/catalog.py:221
+msgid "Volume down"
+msgstr "Diminuir volume"
+
+#: lindeck/catalog.py:59
+msgid "Fast forward"
+msgstr "Avançar"
+
+#: lindeck/catalog.py:59
+msgid "Rewind"
+msgstr "Retroceder"
+
+#: lindeck/catalog.py:60
+msgid "Volume (dial)"
+msgstr "Volume (botão giratório)"
+
+#: lindeck/catalog.py:61
+msgid "Brighter"
+msgstr "Mais claro"
+
+#: lindeck/catalog.py:61
+msgid "Darker"
+msgstr "Mais escuro"
+
+#: lindeck/catalog.py:61
+msgid "Minimum"
+msgstr "Mínimo"
+
+#: lindeck/catalog.py:61
+msgid "Low"
+msgstr "Baixo"
+
+#: lindeck/catalog.py:61
+msgid "Medium"
+msgstr "Médio"
+
+#: lindeck/catalog.py:62
+msgid "High"
+msgstr "Alto"
+
+#: lindeck/catalog.py:62
+msgid "Maximum"
+msgstr "Máximo"
+
+#: lindeck/catalog.py:63
+msgid "Play / Overlap"
+msgstr "Reproduzir / Sobrepor"
+
+#: lindeck/catalog.py:63
+msgid "Play / Stop"
+msgstr "Reproduzir / Parar"
+
+#: lindeck/catalog.py:63
+msgid "Play / Restart"
+msgstr "Reproduzir / Reiniciar"
+
+#: lindeck/catalog.py:64
+msgid "Loop / Stop"
+msgstr "Repetir / Parar"
+
+#: lindeck/catalog.py:65
+msgid "Toggle mute"
+msgstr "Alternar mudo"
+
+#: lindeck/catalog.py:66 lindeck/catalog.py:236
+msgid "Set volume"
+msgstr "Definir volume"
+
+#: lindeck/catalog.py:68 lindeck/editor.py:1590 lindeck/editor.py:1597
+msgid "Key combination"
+msgstr "Combinação de teclas"
+
+#: lindeck/catalog.py:69
+msgid "Rotate left"
+msgstr "Girar para a esquerda"
+
+#: lindeck/catalog.py:69
+msgid "Rotate right"
+msgstr "Girar para a direita"
+
+#: lindeck/catalog.py:70 lindeck/catalog.py:156
+msgid "Press"
+msgstr "Pressionar"
+
+#: lindeck/catalog.py:70
+msgid "Touch"
+msgstr "Tocar"
+
+#: lindeck/catalog.py:74 lindeck/catalog.py:78 lindeck/catalog.py:82 lindeck/catalog.py:88
+msgid "System"
+msgstr "Sistema"
+
+#: lindeck/catalog.py:82 lindeck/catalog.py:84
+msgid "Text"
+msgstr "Texto"
+
+#: lindeck/catalog.py:88
+msgid "Open"
+msgstr "Abrir"
+
+#: lindeck/catalog.py:91
+msgid "Open Application"
+msgstr "Abrir aplicativo"
+
+#: lindeck/catalog.py:99
+msgid "Close Application"
+msgstr "Fechar aplicativo"
+
+#: lindeck/catalog.py:115
+msgid "Mouse Wheel"
+msgstr "Roda do mouse"
+
+#: lindeck/catalog.py:120
+msgid "Create Folder"
+msgstr "Criar pasta"
+
+#: lindeck/catalog.py:120 lindeck/catalog.py:122 lindeck/catalog.py:124 lindeck/catalog.py:125
+msgid "Navigation"
+msgstr "Navegação"
+
+#: lindeck/catalog.py:122
+msgid "Parent Folder"
+msgstr "Pasta superior"
+
+#: lindeck/catalog.py:124
+msgid "Next Page"
+msgstr "Próxima página"
+
+#: lindeck/catalog.py:125
+msgid "Previous Page"
+msgstr "Página anterior"
+
+#: lindeck/catalog.py:126
+msgid "Go to Page"
+msgstr "Ir para página"
+
+#: lindeck/catalog.py:128
+msgid "Page Indicator"
+msgstr "Indicador de página"
+
+#: lindeck/catalog.py:129
+msgid "Switch Profile"
+msgstr "Trocar perfil"
+
+#: lindeck/catalog.py:136
+msgid "Time"
+msgstr "Hora"
+
+#: lindeck/catalog.py:147
+msgid "Random Action"
+msgstr "Ação aleatória"
+
+#: lindeck/catalog.py:149
+msgid "Delay"
+msgstr "Atraso"
+
+#: lindeck/catalog.py:162
+msgid "Play Audio"
+msgstr "Reproduzir áudio"
+
+#: lindeck/catalog.py:166
+msgid "Stop Audio"
+msgstr "Parar áudio"
+
+#: lindeck/catalog.py:168
+msgid "Output Device"
+msgstr "Dispositivo de saída"
+
+#: lindeck/catalog.py:168 lindeck/catalog.py:175 lindeck/editor.py:33
+msgid "Audio"
+msgstr "Áudio"
+
+#: lindeck/catalog.py:175
+msgid "Input Device"
+msgstr "Dispositivo de entrada"
+
+#: lindeck/catalog.py:183 lindeck/mixer.py:46
+msgid "Music"
+msgstr "Música"
+
+#: lindeck/catalog.py:183 lindeck/mixer.py:47
+msgid "Browser"
+msgstr "Navegador"
+
+#: lindeck/catalog.py:183 lindeck/mixer.py:48
+msgid "Voice Chat"
+msgstr "Chat de voz"
+
+#: lindeck/catalog.py:184 lindeck/mixer.py:49
+msgid "Game"
+msgstr "Jogo"
+
+#: lindeck/catalog.py:184
+msgid "Effects"
+msgstr "Efeitos"
+
+#: lindeck/catalog.py:185
+msgid "Monitor and Stream Mix"
+msgstr "Monitor Mix e Stream Mix"
+
+#: lindeck/catalog.py:185
+msgid "Monitor Mix only"
+msgstr "Só Monitor Mix"
+
+#: lindeck/catalog.py:185
+msgid "Stream Mix only"
+msgstr "Só Stream Mix"
+
+#: lindeck/catalog.py:186
+msgid "toggle"
+msgstr "alternar"
+
+#: lindeck/catalog.py:186
+msgid "start"
+msgstr "iniciar"
+
+#: lindeck/catalog.py:186
+msgid "stop"
+msgstr "parar"
+
+#: lindeck/catalog.py:190 lindeck/catalog.py:191 lindeck/native.py:176
+msgid "Scene"
+msgstr "Cena"
+
+#: lindeck/catalog.py:193
+msgid "Record"
+msgstr "Gravar"
+
+#: lindeck/catalog.py:197
+msgid "Source On/Off"
+msgstr "Fonte lig./desl."
+
+#: lindeck/catalog.py:199
+msgid "Audio Input"
+msgstr "Entrada de áudio"
+
+#: lindeck/catalog.py:204
+msgid "Replay Buffer"
+msgstr "Buffer de replay"
+
+#: lindeck/catalog.py:207
+msgid "Virtual Camera"
+msgstr "Câmera virtual"
+
+#: lindeck/catalog.py:208
+msgid "Studio Mode"
+msgstr "Modo estúdio"
+
+#: lindeck/catalog.py:209
+msgid "Run Transition"
+msgstr "Executar transição"
+
+#: lindeck/catalog.py:214
+msgid "Media Player"
+msgstr "Player de mídia"
+
+#: lindeck/catalog.py:214 lindeck/editor.py:34
+msgid "Spotify & Media"
+msgstr "Spotify e mídia"
+
+#: lindeck/catalog.py:232
+msgid "Mixer Channel"
+msgstr "Canal do mixer"
+
+#: lindeck/catalog.py:240
+msgid "Monitor Output"
+msgstr "Saída de monitor"
+
+#: lindeck/catalog.py:244
+msgid "Wave Microphone"
+msgstr "Microfone Wave"
+
+#: lindeck/catalog.py:356
+msgctxt "key name"
+msgid "Ctrl"
+msgstr "Ctrl"
+
+#: lindeck/catalog.py:356
+msgctxt "key name"
+msgid "Shift"
+msgstr "Shift"
+
+#: lindeck/catalog.py:364
+msgctxt "key name"
+msgid "Backspace"
+msgstr "Backspace"
+
+#: lindeck/catalog.py:365
+msgctxt "key name"
+msgid "Space"
+msgstr "Espaço"
+
+#: lindeck/catalog.py:366
+msgctxt "key name"
+msgid "PgUp"
+msgstr "PgUp"
+
+#: lindeck/catalog.py:366
+msgctxt "key name"
+msgid "PgDn"
+msgstr "PgDn"
+
+#: lindeck/catalog.py:367
+msgctxt "key name"
+msgid "End"
+msgstr "End"
+
+#: lindeck/catalog.py:367
+msgctxt "key name"
+msgid "Home"
+msgstr "Home"
+
+#: lindeck/catalog.py:368
+msgctxt "key name"
+msgid "Left"
+msgstr "Esquerda"
+
+#: lindeck/catalog.py:368
+msgctxt "key name"
+msgid "Up"
+msgstr "Cima"
+
+#: lindeck/catalog.py:369
+msgctxt "key name"
+msgid "Right"
+msgstr "Direita"
+
+#: lindeck/catalog.py:369
+msgctxt "key name"
+msgid "Down"
+msgstr "Baixo"
+
+#: lindeck/catalog.py:370
+msgctxt "key name"
+msgid "Print"
+msgstr "PrtSc"
+
+#: lindeck/catalog.py:370
+msgctxt "key name"
+msgid "Ins"
+msgstr "Ins"
+
+#: lindeck/catalog.py:371
+msgctxt "key name"
+msgid "Del"
+msgstr "Del"
+
+#: lindeck/catalog.py:373
+msgctxt "key name"
+msgid "Mute"
+msgstr "Mudo"
+
+#: lindeck/catalog.py:373
+msgctxt "key name"
+msgid "Volume Down"
+msgstr "Diminuir volume"
+
+#: lindeck/catalog.py:374
+msgctxt "key name"
+msgid "Volume Up"
+msgstr "Aumentar volume"
+
+#: lindeck/catalog.py:374
+msgctxt "key name"
+msgid "Next Track"
+msgstr "Próxima faixa"
+
+#: lindeck/catalog.py:375
+msgctxt "key name"
+msgid "Previous Track"
+msgstr "Faixa anterior"
+
+#: lindeck/catalog.py:375
+msgctxt "key name"
+msgid "Stop"
+msgstr "Parar"
+
+#: lindeck/catalog.py:394 lindeck/catalog.py:236
+msgid "volume down"
+msgstr "diminuir volume"
+
+#: lindeck/catalog.py:394 lindeck/catalog.py:235
+msgid "volume up"
+msgstr "aumentar volume"
+
+#: lindeck/catalog.py:77
+msgid "Sends a key combination"
+msgstr "Envia uma combinação de teclas"
+
+#: lindeck/catalog.py:81
+msgid "Switches between two key combinations on each press"
+msgstr "Alterna entre duas combinações de teclas a cada toque"
+
+#: lindeck/catalog.py:87
+msgid "Pastes a text"
+msgstr "Cola um texto"
+
+#: lindeck/catalog.py:90
+msgid "Opens a file, folder or web address"
+msgstr "Abre um arquivo, pasta ou endereço da web"
+
+#: lindeck/catalog.py:98
+msgid "Launches a program"
+msgstr "Inicia um programa"
+
+#: lindeck/catalog.py:102
+msgid "Quits a program"
+msgstr "Encerra um programa"
+
+#: lindeck/catalog.py:107
+msgid "Opens a website"
+msgstr "Abre um site"
+
+#: lindeck/catalog.py:110
+msgid "Controls playback and volume"
+msgstr "Controla a reprodução e o volume"
+
+#: lindeck/catalog.py:114
+msgid "Countdown; long press resets"
+msgstr "Contagem regressiva; pressionar e segurar reinicia"
+
+#: lindeck/catalog.py:118
+msgid "Scrolls with the dial"
+msgstr "Rola com o botão giratório"
+
+#: lindeck/catalog.py:121
+msgid "Sub-page with its own keys"
+msgstr "Subpágina com teclas próprias"
+
+#: lindeck/catalog.py:123
+msgid "Goes back out of a folder"
+msgstr "Sai de uma pasta"
+
+#: lindeck/catalog.py:135
+msgid "Turns the display off"
+msgstr "Desliga o display"
+
+#: lindeck/catalog.py:143
+msgid "Several actions in sequence"
+msgstr "Várias ações em sequência"
+
+#: lindeck/catalog.py:146
+msgid "Alternates between two sequences"
+msgstr "Alterna entre duas sequências"
+
+#: lindeck/catalog.py:151
+msgid "Only inside a Multi Action"
+msgstr "Somente dentro de uma Multi Action"
+
+#: lindeck/catalog.py:154
+msgid "Different actions for tap, double tap and hold"
+msgstr "Ações diferentes para toque, toque duplo e segurar"
+
+#: lindeck/catalog.py:192
+msgid "Switches the scene (dial: cycles through scenes)"
+msgstr "Troca a cena (botão giratório: percorre as cenas)"
+
+#: lindeck/catalog.py:203
+msgid "Key: mute · Dial: volume"
+msgstr "Tecla: mudo · Botão giratório: volume"
+
+#: lindeck/catalog.py:210
+msgid "Preview → Program in Studio Mode"
+msgstr "Preview → Program no Modo estúdio"
+
+#: lindeck/catalog.py:222
+msgid "Controls Spotify or any MPRIS player"
+msgstr "Controla o Spotify ou qualquer player MPRIS"
+
+#: lindeck/catalog.py:230
+msgid "Needs your own Discord app (see README)"
+msgstr "Requer seu próprio app do Discord (veja o README)"
+
+#: lindeck/catalog.py:239
+msgid "Wave Link replacement: channel volume per mix"
+msgstr "Substituto do Wave Link: volume do canal por mix"
+
+#: lindeck/catalog.py:242
+msgid "Switches the Monitor Mix between headphones and speakers"
+msgstr "Alterna o Monitor Mix entre fones de ouvido e alto-falantes"
+
+#: lindeck/catalog.py:252
+msgid "Gain, mute, Low Cut, Clipguard, LEDs (dial: gain)"
+msgstr "Ganho, mudo, Low Cut, Clipguard, LEDs (botão giratório: ganho)"
+
+#: lindeck/catalog.py:497
+msgid "No key specified"
+msgstr "Nenhuma tecla definida"
+
+#: lindeck/catalog.py:80 lindeck/catalog.py:145
+msgid "State 1"
+msgstr "Estado 1"
+
+#: lindeck/catalog.py:80 lindeck/catalog.py:145
+msgid "State 2"
+msgstr "Estado 2"
+
+#: lindeck/catalog.py:85
+msgid "Send Enter afterwards"
+msgstr "Enviar Enter depois"
+
+#: lindeck/catalog.py:86
+msgid "Type instead of pasting"
+msgstr "Digitar em vez de colar"
+
+#: lindeck/catalog.py:89
+msgid "File, folder or URL"
+msgstr "Arquivo, pasta ou URL"
+
+#: lindeck/catalog.py:93
+msgid "Program / command"
+msgstr "Programa / comando"
+
+#: lindeck/catalog.py:94
+msgid "Arguments"
+msgstr "Argumentos"
+
+#: lindeck/catalog.py:95
+msgid "Bring a running program to the front"
+msgstr "Trazer para a frente um programa em execução"
+
+#: lindeck/catalog.py:96
+msgid "Long press"
+msgstr "Pressionar e segurar"
+
+#: lindeck/catalog.py:101
+msgid "Program"
+msgstr "Programa"
+
+#: lindeck/catalog.py:101
+msgid "Process name"
+msgstr "Nome do processo"
+
+#: lindeck/catalog.py:105
+msgid "Address"
+msgstr "Endereço"
+
+#: lindeck/catalog.py:106
+msgid "Browser (empty = default)"
+msgstr "Navegador (vazio = padrão)"
+
+#: lindeck/catalog.py:109 lindeck/catalog.py:133 lindeck/catalog.py:194 lindeck/catalog.py:196
+msgid "Function"
+msgstr "Função"
+
+#: lindeck/catalog.py:112
+msgid "Duration (seconds)"
+msgstr "Duração (segundos)"
+
+#: lindeck/catalog.py:113
+msgid "Alarm sound (optional)"
+msgstr "Som de alarme (opcional)"
+
+#: lindeck/catalog.py:117
+msgid "Scroll horizontally"
+msgstr "Rolar na horizontal"
+
+#: lindeck/catalog.py:117
+msgid "Invert"
+msgstr "Inverter"
+
+#: lindeck/catalog.py:127
+msgid "Page"
+msgstr "Página"
+
+#: lindeck/catalog.py:130 lindeck/editor.py:558 lindeck/editor.py:300 lindeck/engine.py:254
+msgid "Profile"
+msgstr "Perfil"
+
+#: lindeck/catalog.py:138
+msgid "24-hour format"
+msgstr "Formato 24 horas"
+
+#: lindeck/catalog.py:139
+msgid "Appearance"
+msgstr "Aparência"
+
+#: lindeck/catalog.py:142
+msgid "Steps"
+msgstr "Etapas"
+
+#: lindeck/catalog.py:148
+msgid "Selection"
+msgstr "Seleção"
+
+#: lindeck/catalog.py:150
+msgid "Wait time (ms)"
+msgstr "Tempo de espera (ms)"
+
+#: lindeck/catalog.py:153
+msgid "Tap"
+msgstr "Toque"
+
+#: lindeck/catalog.py:153
+msgid "Double tap"
+msgstr "Toque duplo"
+
+#: lindeck/catalog.py:153
+msgid "Hold"
+msgstr "Segurar"
+
+#: lindeck/catalog.py:156
+msgid "Turn left"
+msgstr "Girar à esquerda"
+
+#: lindeck/catalog.py:156
+msgid "Turn right"
+msgstr "Girar à direita"
+
+#: lindeck/catalog.py:158
+msgid "Actions"
+msgstr "Ações"
+
+#: lindeck/catalog.py:160
+msgid "Dial actions"
+msgstr "Ações do botão giratório"
+
+#: lindeck/catalog.py:164
+msgid "Audio file"
+msgstr "Arquivo de áudio"
+
+#: lindeck/catalog.py:164
+msgid "Mode"
+msgstr "Modo"
+
+#: lindeck/catalog.py:165
+msgid "Volume (%)"
+msgstr "Volume (%)"
+
+#: lindeck/catalog.py:170 lindeck/catalog.py:177 lindeck/catalog.py:235
+msgid "Key"
+msgstr "Tecla"
+
+#: lindeck/catalog.py:171 lindeck/catalog.py:178 lindeck/catalog.py:237
+msgid "Step size (%)"
+msgstr "Incremento (%)"
+
+#: lindeck/catalog.py:172 lindeck/catalog.py:179
+msgid "Device (empty = default)"
+msgstr "Dispositivo (vazio = padrão)"
+
+#: lindeck/catalog.py:173
+msgid "Only this program (optional)"
+msgstr "Somente este programa (opcional)"
+
+#: lindeck/catalog.py:198 lindeck/native.py:177
+msgid "Source"
+msgstr "Fonte"
+
+#: lindeck/catalog.py:198
+msgid "Scene (empty = current)"
+msgstr "Cena (vazio = atual)"
+
+#: lindeck/catalog.py:201
+msgid "Audio input"
+msgstr "Entrada de áudio"
+
+#: lindeck/catalog.py:202
+msgid "Step per dial notch (dB)"
+msgstr "Passo por clique do botão giratório (dB)"
+
+#: lindeck/catalog.py:212
+msgid "Source (empty = program)"
+msgstr "Fonte (vazio = programa)"
+
+#: lindeck/catalog.py:229
+msgid "Channel ID (channel only)"
+msgstr "ID do canal (apenas canal)"
+
+#: lindeck/catalog.py:234 lindeck/native.py:406
+msgid "Channel"
+msgstr "Canal"
+
+#: lindeck/catalog.py:238
+msgid "Volume for “set” (%)"
+msgstr "Volume para “definir” (%)"
+
+#: lindeck/catalog.py:241
+msgid "Device (empty = next)"
+msgstr "Dispositivo (vazio = próximo)"
+
+#: lindeck/catalog.py:251
+msgid "Gain step size (%)"
+msgstr "Incremento do ganho (%)"
+
+#: lindeck/catalog.py:93
+msgid "e.g. firefox or flatpak run …"
+msgstr "ex.: firefox ou flatpak run …"
+
+#: lindeck/catalog.py:191
+msgid "Name as in OBS"
+msgstr "Nome como no OBS"
+
+#: lindeck/catalog.py:201
+msgid "e.g. Mic/Aux"
+msgstr "ex.: Mic/Aux"
+
+#: lindeck/catalog.py:216
+msgid "spotify, vlc, firefox … (empty = active)"
+msgstr "spotify, vlc, firefox … (vazio = ativo)"
+
+#: lindeck/catalog.py:485
+#, python-brace-format
+msgid "Unknown modifier key: {key}"
+msgstr "Tecla modificadora desconhecida: {key}"
+
+#: lindeck/catalog.py:97
+msgid "nothing"
+msgstr "nada"
+
+#: lindeck/catalog.py:97
+msgid "Quit program"
+msgstr "Encerrar programa"
+
+#: lindeck/catalog.py:139
+msgid "dark"
+msgstr "escuro"
+
+#: lindeck/catalog.py:139
+msgid "light"
+msgstr "claro"
+
+#: lindeck/catalog.py:205
+msgid "Save replay"
+msgstr "Salvar replay"
+
+#: lindeck/catalog.py:206
+msgid "Buffer on/off"
+msgstr "Buffer lig./desl."
+
+#: lindeck/catalog.py:218
+msgid "Play/Pause"
+msgstr "Reproduzir/Pausar"
+
+#: lindeck/catalog.py:219
+msgid "Now playing"
+msgstr "Tocando agora"
+
+#: lindeck/catalog.py:220
+msgid "Shuffle"
+msgstr "Aleatório"
+
+#: lindeck/catalog.py:220
+msgid "Repeat"
+msgstr "Repetir"
+
+#: lindeck/catalog.py:226
+msgid "Mute microphone"
+msgstr "Silenciar microfone"
+
+#: lindeck/catalog.py:226
+msgid "Deafen"
+msgstr "Desativar áudio"
+
+#: lindeck/catalog.py:227
+msgid "Join voice channel"
+msgstr "Entrar no canal de voz"
+
+#: lindeck/catalog.py:228
+msgid "Open text channel"
+msgstr "Abrir canal de texto"
+
+#: lindeck/catalog.py:228
+msgid "Leave voice channel"
+msgstr "Sair do canal de voz"
+
+#: lindeck/catalog.py:235 lindeck/catalog.py:246
+msgid "toggle mute"
+msgstr "alternar mudo"
+
+#: lindeck/catalog.py:247
+msgid "Low Cut on/off"
+msgstr "Low Cut lig./desl."
+
+#: lindeck/catalog.py:248
+msgid "Clipguard on/off"
+msgstr "Clipguard lig./desl."
+
+#: lindeck/catalog.py:249
+msgid "LEDs on/off (Wave:3)"
+msgstr "LEDs lig./desl. (Wave:3)"
+
+#: lindeck/catalog.py:250
+msgid "Invert LEDs (Wave:3)"
+msgstr "Inverter LEDs (Wave:3)"
+
+#: lindeck/catalog.py:194
+msgid "toggle pause"
+msgstr "alternar pausa"
+
+#: lindeck/catalog.py:495
+#, python-brace-format
+msgid "Unknown key: {key}"
+msgstr "Tecla desconhecida: {key}"
+
+#: lindeck/config.py:50
+#, python-brace-format
+msgid "Invalid configuration, using defaults: {error}"
+msgstr "Configuração inválida, usando os padrões: {error}"
+
+#: lindeck/daemon.py:80
+msgid "Reloading profiles and configuration"
+msgstr "Recarregando perfis e configuração"
+
+#: lindeck/daemon.py:134 lindeck/daemon.py:135
+msgid "LinDeck is already running"
+msgstr "O LinDeck já está em execução"
+
+#: lindeck/daemon.py:158
+#, python-brace-format
+msgid "LinDeck is running – {count} profile loaded"
+msgid_plural "LinDeck is running – {count} profiles loaded"
+msgstr[0] "LinDeck em execução – {count} perfil carregado"
+msgstr[1] "LinDeck em execução – {count} perfis carregados"
+
+#: lindeck/daemon.py:41
+#, python-brace-format
+msgid "USB access failed: {error} (is libhidapi installed?)"
+msgstr "Falha no acesso USB: {error} (o libhidapi está instalado?)"
+
+#: lindeck/daemon.py:72
+#, python-brace-format
+msgid "Device {serial} disconnected"
+msgstr "Dispositivo {serial} desconectado"
+
+#: lindeck/daemon.py:153
+#, python-brace-format
+msgid "Plugin host not available: {error}"
+msgstr "Host de plugins indisponível: {error}"
+
+#: lindeck/daemon.py:58
+#, python-brace-format
+msgid "Device {device} not usable: {error} (is the udev rule installed?)"
+msgstr "Dispositivo {device} inutilizável: {error} (a regra udev está instalada?)"
+
+#: lindeck/daemon.py:181
+#, python-brace-format
+msgid "Service {name}: {error}"
+msgstr "Serviço {name}: {error}"
+
+#: lindeck/discord.py:122
+msgid "Connection to Discord lost"
+msgstr "Conexão com o Discord perdida"
+
+#: lindeck/discord.py:183
+msgid "Connected to Discord"
+msgstr "Conectado ao Discord"
+
+#: lindeck/discord.py:208
+msgid "client_secret missing in config.json (discord.client_secret)"
+msgstr "client_secret ausente no config.json (discord.client_secret)"
+
+#: lindeck/discord.py:80
+msgid "Discord closed the connection"
+msgstr "O Discord encerrou a conexão"
+
+#: lindeck/discord.py:144
+msgid "Discord error"
+msgstr "Erro do Discord"
+
+#: lindeck/discord.py:153
+msgid "Discord app missing: enter client_id/client_secret in config.json (instructions in the README)"
+msgstr "App do Discord ausente: informe client_id/client_secret no config.json (instruções no README)"
+
+#: lindeck/discord.py:157
+msgid "Discord is not running (no IPC socket found)"
+msgstr "O Discord não está em execução (nenhum socket IPC encontrado)"
+
+#: lindeck/discord.py:139
+#, python-brace-format
+msgid "No response from Discord ({command})"
+msgstr "Sem resposta do Discord ({command})"
+
+#: lindeck/discord.py:174
+msgid "Discord refused the connection"
+msgstr "O Discord recusou a conexão"
+
+#: lindeck/discord.py:168
+#, python-brace-format
+msgid "Discord not reachable: {error}"
+msgstr "Discord inacessível: {error}"
+
+#: lindeck/discord.py:218
+#, python-brace-format
+msgid "Discord login failed: {error}"
+msgstr "Falha no login do Discord: {error}"
+
+#: lindeck/discord.py:182
+#, python-brace-format
+msgid "Voice status: {error}"
+msgstr "Status de voz: {error}"
+
+#: lindeck/discord.py:194
+#, python-brace-format
+msgid "Saved Discord access is invalid ({error}) – logging in again"
+msgstr "Acesso salvo ao Discord inválido ({error}) – fazendo login novamente"
+
+#: lindeck/editdoc.py:161
+msgid "Profiles in format v1 (Stream Deck app 4.x) cannot be edited"
+msgstr "Perfis no formato v1 (app Stream Deck 4.x) não podem ser editados"
+
+#: lindeck/editdoc.py:292
+msgid "The last page cannot be deleted"
+msgstr "A última página não pode ser excluída"
+
+#: lindeck/editdoc.py:724 lindeck/editor.py:1663 lindeck/editor.py:1670 lindeck/editor.py:1691
+msgid "New profile"
+msgstr "Novo perfil"
+
+#: lindeck/editdoc.py:146
+#, python-brace-format
+msgid "Not a profile: {path}"
+msgstr "Não é um perfil: {path}"
+
+#: lindeck/editdoc.py:543 lindeck/editdoc.py:482
+#, python-brace-format
+msgid "Image not readable: {error}"
+msgstr "Imagem ilegível: {error}"
+
+#: lindeck/editor.py:43
+msgid "top"
+msgstr "topo"
+
+#: lindeck/editor.py:43
+msgid "middle"
+msgstr "meio"
+
+#: lindeck/editor.py:43
+msgid "bottom"
+msgstr "base"
+
+#: lindeck/editor.py:44
+msgid "Regular"
+msgstr "Normal"
+
+#: lindeck/editor.py:44
+msgid "Bold"
+msgstr "Negrito"
+
+#: lindeck/editor.py:44
+msgid "Italic"
+msgstr "Itálico"
+
+#: lindeck/editor.py:44
+msgid "Bold italic"
+msgstr "Negrito itálico"
+
+#: lindeck/editor.py:496
+msgid "Duplicate profile"
+msgstr "Duplicar perfil"
+
+#: lindeck/editor.py:496
+msgid "Name of the copy:"
+msgstr "Nome da cópia:"
+
+#: lindeck/editor.py:509
+msgid "Rename profile"
+msgstr "Renomear perfil"
+
+#: lindeck/editor.py:509
+msgid "New name:"
+msgstr "Novo nome:"
+
+#: lindeck/editor.py:594
+msgid "Saving…"
+msgstr "Salvando…"
+
+#: lindeck/editor.py:664
+msgid "Settings page opened – changes are applied automatically"
+msgstr "Página de configurações aberta – as alterações são aplicadas automaticamente"
+
+#: lindeck/editor.py:1424
+msgid "INCLUDED ACTIONS"
+msgstr "AÇÕES INCLUÍDAS"
+
+#: lindeck/editor.py:1590
+msgid "e.g. Ctrl+Shift+T, Alt+F4, Super+E, F13:"
+msgstr "ex.: Ctrl+Shift+T, Alt+F4, Super+E, F13:"
+
+#: lindeck/editor.py:1633
+msgid "Settings (JSON)"
+msgstr "Configurações (JSON)"
+
+#: lindeck/editor.py:232
+msgid "LinDeck keeps running"
+msgstr "O LinDeck continua em execução"
+
+#: lindeck/editor.py:232
+msgid "The Stream Deck stays active. Open it via the “LinDeck” menu."
+msgstr "O Stream Deck continua ativo. Abra-o pelo menu “LinDeck”."
+
+#: lindeck/editor.py:306
+msgid "New…"
+msgstr "Novo…"
+
+#: lindeck/editor.py:306
+msgid "Duplicate"
+msgstr "Duplicar"
+
+#: lindeck/editor.py:307
+msgid "Rename…"
+msgstr "Renomear…"
+
+#: lindeck/editor.py:307 lindeck/editor.py:1001 lindeck/editor.py:1204
+msgid "Delete"
+msgstr "Excluir"
+
+#: lindeck/editor.py:311
+msgid "Import…"
+msgstr "Importar…"
+
+#: lindeck/editor.py:311
+msgid "Export…"
+msgstr "Exportar…"
+
+#: lindeck/editor.py:337
+msgid "↩ Back"
+msgstr "↩ Voltar"
+
+#: lindeck/editor.py:384
+msgid "Drag onto a key or double-click"
+msgstr "Arraste para uma tecla ou clique duas vezes"
+
+#: lindeck/editor.py:473
+msgid ""
+"No profiles yet.\n"
+"\n"
+"“New…” creates an empty profile,\n"
+"“Import…” takes over profiles from the Elgato app."
+msgstr ""
+"Nenhum perfil ainda.\n"
+"\n"
+"“Novo…” cria um perfil vazio,\n"
+"“Importar…” traz perfis do app da Elgato."
+
+#: lindeck/editor.py:520
+msgid "Delete profile"
+msgstr "Excluir perfil"
+
+#: lindeck/editor.py:539
+msgid "Import profiles"
+msgstr "Importar perfis"
+
+#: lindeck/editor.py:559
+msgid "Export profile"
+msgstr "Exportar perfil"
+
+#: lindeck/editor.py:763
+msgid "Folder not found"
+msgstr "Pasta não encontrada"
+
+#: lindeck/editor.py:943
+msgid "There is no free space on the target page"
+msgstr "Não há espaço livre na página de destino"
+
+#: lindeck/editor.py:988
+msgid "Cut"
+msgstr "Recortar"
+
+#: lindeck/editor.py:988
+msgid "Ctrl+X"
+msgstr "Ctrl+X"
+
+#: lindeck/editor.py:990
+msgid "Copy"
+msgstr "Copiar"
+
+#: lindeck/editor.py:990
+msgid "Ctrl+C"
+msgstr "Ctrl+C"
+
+#: lindeck/editor.py:992 lindeck/editor.py:1164
+msgid "Paste"
+msgstr "Colar"
+
+#: lindeck/editor.py:992
+msgid "Ctrl+V"
+msgstr "Ctrl+V"
+
+#: lindeck/editor.py:1001
+msgid "Del"
+msgstr "Del"
+
+#: lindeck/editor.py:1068
+msgid "dials only"
+msgstr "só botões giratórios"
+
+#: lindeck/editor.py:1116
+msgid "No free space – select a key to replace it"
+msgstr "Sem espaço livre – selecione uma tecla para substituí-la"
+
+#: lindeck/editor.py:1218
+msgid "SETTINGS"
+msgstr "CONFIGURAÇÕES"
+
+#: lindeck/editor.py:1305
+msgid "Default"
+msgstr "Padrão"
+
+#: lindeck/editor.py:1326
+msgid "Title color"
+msgstr "Cor do título"
+
+#: lindeck/editor.py:1332
+msgid "Choose icon"
+msgstr "Escolher ícone"
+
+#: lindeck/editor.py:1416
+msgid "Choose file"
+msgstr "Escolher arquivo"
+
+#: lindeck/editor.py:155
+msgid "No Stream Deck connected"
+msgstr "Nenhum Stream Deck conectado"
+
+#: lindeck/editor.py:165
+msgid "● connected"
+msgstr "● conectado"
+
+#: lindeck/editor.py:314 lindeck/pluginui.py:72 lindeck/pluginui.py:216 lindeck/pluginui.py:79
+msgid "Plugins"
+msgstr "Plugins"
+
+#: lindeck/editor.py:450
+msgid "Open profile"
+msgstr "Abrir perfil"
+
+#: lindeck/editor.py:462 lindeck/models.py:91
+msgid "unknown"
+msgstr "desconhecido"
+
+#: lindeck/editor.py:465
+#, python-brace-format
+msgid "{name} opened – changes are saved automatically"
+msgstr "{name} aberto – as alterações são salvas automaticamente"
+
+#: lindeck/editor.py:551
+#, python-brace-format
+msgid "{n} profile imported"
+msgid_plural "{n} profiles imported"
+msgstr[0] "{n} perfil importado"
+msgstr[1] "{n} perfis importados"
+
+#: lindeck/editor.py:575
+msgid "Change device"
+msgstr "Trocar dispositivo"
+
+#: lindeck/editor.py:575
+msgid ""
+"The new device has fewer keys or dials. Actions outside of it stay saved but are not shown.\n"
+"\n"
+"Continue?"
+msgstr ""
+"O novo dispositivo tem menos teclas ou botões giratórios. As ações fora dele continuam salvas, mas não são exibidas.\n"
+"\n"
+"Continuar?"
+
+#: lindeck/editor.py:602
+msgid "Saved ✓  –  the Stream Deck updates automatically"
+msgstr "Salvo ✓  –  o Stream Deck é atualizado automaticamente"
+
+#: lindeck/editor.py:605 lindeck/wavedialogs.py:109
+msgid "Save"
+msgstr "Salvar"
+
+#: lindeck/editor.py:650
+msgid "Settings page"
+msgstr "Página de configurações"
+
+#: lindeck/editor.py:650
+msgid "LinDeck must be running for this (menu: “LinDeck” or `lindeck`), because it runs the plugins."
+msgstr "O LinDeck precisa estar em execução para isso (menu: “LinDeck” ou `lindeck`), pois é ele que executa os plugins."
+
+#: lindeck/editor.py:746
+msgid "Delete page"
+msgstr "Excluir página"
+
+#: lindeck/editor.py:746
+msgid "This page contains actions. Delete it anyway?"
+msgstr "Esta página contém ações. Excluir mesmo assim?"
+
+#: lindeck/editor.py:948
+#, python-brace-format
+msgid "Action moved to page {n}"
+msgstr "Ação movida para a página {n}"
+
+#: lindeck/editor.py:985 lindeck/editor.py:1196
+msgid "Open folder"
+msgstr "Abrir pasta"
+
+#: lindeck/editor.py:1000
+msgid "Move to"
+msgstr "Mover para"
+
+#: lindeck/editor.py:1014
+msgid "Copied"
+msgstr "Copiado"
+
+#: lindeck/editor.py:1068
+msgid "keys and dials"
+msgstr "teclas e botões giratórios"
+
+#: lindeck/editor.py:1069
+msgid "keys"
+msgstr "teclas"
+
+#: lindeck/editor.py:1125
+#, python-brace-format
+msgid "“{name}” only works on dials"
+msgstr "“{name}” só funciona em botões giratórios"
+
+#: lindeck/editor.py:1126
+#, python-brace-format
+msgid "“{name}” only works on keys"
+msgstr "“{name}” só funciona em teclas"
+
+#: lindeck/editor.py:1136
+msgid "Replace folder"
+msgstr "Substituir pasta"
+
+#: lindeck/editor.py:1136
+msgid "The folder and its contents will be replaced. Continue?"
+msgstr "A pasta e seu conteúdo serão substituídos. Continuar?"
+
+#: lindeck/editor.py:1141
+#, python-brace-format
+msgid "{name} added"
+msgstr "{name} adicionado"
+
+#: lindeck/editor.py:1157
+#, python-brace-format
+msgid "Key {col},{row}"
+msgstr "Tecla {col},{row}"
+
+#: lindeck/editor.py:1158
+#, python-brace-format
+msgid "Dial {n}"
+msgstr "Botão giratório {n}"
+
+#: lindeck/editor.py:1340 lindeck/editor.py:1297
+msgid "Icon"
+msgstr "Ícone"
+
+#: lindeck/editor.py:1459 lindeck/wavedialogs.py:385
+msgid "Add"
+msgstr "Adicionar"
+
+#: lindeck/editor.py:1563
+msgid "Press keys…"
+msgstr "Pressione as teclas…"
+
+#: lindeck/editor.py:1617
+#, python-brace-format
+msgid "Edit {name}"
+msgstr "Editar {name}"
+
+#: lindeck/editor.py:1650
+#, python-brace-format
+msgid "A JSON object { … } is expected"
+msgstr "Era esperado um objeto JSON { … }"
+
+#: lindeck/editor.py:166
+msgid "○ no device"
+msgstr "○ nenhum dispositivo"
+
+#: lindeck/editor.py:212
+msgid "Switching device failed: %s"
+msgstr "Falha ao trocar de dispositivo: %s"
+
+#: lindeck/editor.py:347
+msgid "Model"
+msgstr "Modelo"
+
+#: lindeck/editor.py:367
+msgid "ACTIONS"
+msgstr "AÇÕES"
+
+#: lindeck/editor.py:436
+msgid "Cleanup failed: %s"
+msgstr "Falha na limpeza: %s"
+
+#: lindeck/editor.py:497
+#, python-brace-format
+msgid "{name} (copy)"
+msgstr "{name} (cópia)"
+
+#: lindeck/editor.py:521
+#, python-brace-format
+msgid "Permanently delete profile “{name}”?"
+msgstr "Excluir permanentemente o perfil “{name}”?"
+
+#: lindeck/editor.py:540
+msgid "Stream Deck profiles"
+msgstr "Perfis do Stream Deck"
+
+#: lindeck/editor.py:549
+msgid "Import"
+msgstr "Importar"
+
+#: lindeck/editor.py:562
+msgid "Stream Deck profile"
+msgstr "Perfil do Stream Deck"
+
+#: lindeck/editor.py:565
+#, python-brace-format
+msgid "Exported: {path}"
+msgstr "Exportado: {path}"
+
+#: lindeck/editor.py:705 lindeck/editor.py:999 lindeck/editor.py:1396
+#, python-brace-format
+msgid "Page {n}"
+msgstr "Página {n}"
+
+#: lindeck/editor.py:708
+msgid "Pages"
+msgstr "Páginas"
+
+#: lindeck/editor.py:1070
+#, python-brace-format
+msgid ""
+"{name}: {description} ({where}).\n"
+"Drag onto a key or double-click."
+msgstr ""
+"{name}: {description} ({where}).\n"
+"Arraste para uma tecla ou clique duas vezes."
+
+#: lindeck/editor.py:1202
+msgid "Settings (JSON)…"
+msgstr "Configurações (JSON)…"
+
+#: lindeck/editor.py:1246
+msgid "APPEARANCE"
+msgstr "APARÊNCIA"
+
+#: lindeck/editor.py:1261 lindeck/native.py:310
+msgid "Title"
+msgstr "Título"
+
+#: lindeck/editor.py:1272
+msgid "show"
+msgstr "mostrar"
+
+#: lindeck/editor.py:1293
+msgid "underline"
+msgstr "sublinhado"
+
+#: lindeck/editor.py:1304
+msgid "Choose image…"
+msgstr "Escolher imagem…"
+
+#: lindeck/editor.py:1435
+msgid "Choose"
+msgstr "Escolher"
+
+#: lindeck/editor.py:1438 lindeck/editor.py:1468
+msgid "Edit…"
+msgstr "Editar…"
+
+#: lindeck/editor.py:1440
+msgid "Clear"
+msgstr "Limpar"
+
+#: lindeck/editor.py:1567
+msgid "Type in…"
+msgstr "Digitar…"
+
+#: lindeck/editor.py:1635
+msgid "Raw data of the action (“Settings”) – for plugin actions and special cases."
+msgstr "Dados brutos da ação (“Settings”) – para ações de plugins e casos especiais."
+
+#: lindeck/editor.py:1643
+msgid "Apply"
+msgstr "Aplicar"
+
+#: lindeck/editor.py:1644 lindeck/editor.py:1680 lindeck/wavedialogs.py:111
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: lindeck/editor.py:1669
+msgid "Name"
+msgstr "Nome"
+
+#: lindeck/editor.py:1673
+msgid "Device"
+msgstr "Dispositivo"
+
+#: lindeck/editor.py:1681
+msgid "Create"
+msgstr "Criar"
+
+#: lindeck/editor.py:1752
+#, python-brace-format
+msgid "No graphical display available: {error}"
+msgstr "Nenhum display gráfico disponível: {error}"
+
+#: lindeck/editor.py:257
+#, python-brace-format
+msgid "Could not start Linewave: {error}"
+msgstr "Não foi possível iniciar o Linewave: {error}"
+
+#: lindeck/editor.py:293 lindeck/waveui.py:223
+msgid "Close window"
+msgstr "Fechar janela"
+
+#: lindeck/editor.py:604
+#, python-brace-format
+msgid "Saving failed: {error}"
+msgstr "Falha ao salvar: {error}"
+
+#: lindeck/editor.py:1150
+msgid "Select a key to edit it."
+msgstr "Selecione uma tecla para editá-la."
+
+#: lindeck/editor.py:1151
+msgid "Tips: drag actions from the right onto keys · move keys by drag & drop (also onto another page) · right-click to copy/paste · double-click opens folders · Ctrl+Z undoes."
+msgstr "Dicas: arraste ações da direita para as teclas · mova teclas arrastando e soltando (também para outra página) · clique com o botão direito para copiar/colar · clique duplo abre pastas · Ctrl+Z desfaz."
+
+#: lindeck/editor.py:1161
+msgid "Drag an action here from the list on the right, or double-click it there."
+msgstr "Arraste uma ação da lista à direita para cá ou clique duas vezes nela."
+
+#: lindeck/editor.py:1199
+msgid "Settings page…"
+msgstr "Página de configurações…"
+
+#: lindeck/editor.py:1253
+msgid "State"
+msgstr "Estado"
+
+#: lindeck/editor.py:165
+#, python-brace-format
+msgid "● {n} devices connected"
+msgstr "● {n} dispositivos conectados"
+
+#: lindeck/editor.py:1254
+#, python-brace-format
+msgid "State {n}"
+msgstr "Estado {n}"
+
+#: lindeck/editor.py:1160
+#, python-brace-format
+msgid "{where} – empty"
+msgstr "{where} – vazio"
+
+#: lindeck/editor.py:1208
+#, python-brace-format
+msgid "Action of the plugin “{plugin}” – cannot run on Linux (plugin not installed or only for Windows/macOS). Title, icon and settings are kept."
+msgstr "Ação do plugin “{plugin}” – não pode ser executada no Linux (plugin não instalado ou só para Windows/macOS). Título, ícone e configurações são mantidos."
+
+#: lindeck/editor.py:1407
+msgid "(next profile)"
+msgstr "(próximo perfil)"
+
+#: lindeck/effects.py:47
+msgid "High-pass (low cut)"
+msgstr "Passa-altas (Low Cut)"
+
+#: lindeck/effects.py:48
+msgid "Removes hum and rumble below the frequency"
+msgstr "Remove zumbido e ronco abaixo da frequência"
+
+#: lindeck/effects.py:51
+msgid "Low-pass"
+msgstr "Passa-baixas"
+
+#: lindeck/effects.py:52
+msgid "Attenuates high frequencies, e.g. against hiss"
+msgstr "Atenua as frequências altas, ex.: contra chiado"
+
+#: lindeck/effects.py:55
+msgid "Bass"
+msgstr "Graves"
+
+#: lindeck/effects.py:56
+msgid "Boosts or cuts the lows"
+msgstr "Reforça ou corta os graves"
+
+#: lindeck/effects.py:60
+msgid "Treble"
+msgstr "Agudos"
+
+#: lindeck/effects.py:61
+msgid "Boosts or cuts the highs (presence, brilliance)"
+msgstr "Reforça ou corta os agudos (presença, brilho)"
+
+#: lindeck/effects.py:65
+msgid "EQ band"
+msgstr "Banda de EQ"
+
+#: lindeck/effects.py:66
+msgid "A single equalizer band"
+msgstr "Uma única banda de equalizador"
+
+#: lindeck/effects.py:75
+msgid "Noise suppression (RNNoise)"
+msgstr "Supressão de ruído (RNNoise)"
+
+#: lindeck/effects.py:75
+msgid "Filters out keyboard, fans and background"
+msgstr "Remove teclado, ventoinhas e ruído de fundo"
+
+#: lindeck/effects.py:76
+msgid "Noise suppression stereo (RNNoise)"
+msgstr "Supressão de ruído estéreo (RNNoise)"
+
+#: lindeck/effects.py:76
+msgid "Filters out background noise"
+msgstr "Remove o ruído de fundo"
+
+#: lindeck/effects.py:77
+msgid "Noise suppression (DeepFilterNet)"
+msgstr "Supressão de ruído (DeepFilterNet)"
+
+#: lindeck/effects.py:77 lindeck/effects.py:78
+msgid "AI noise filter for voices"
+msgstr "Filtro de ruído com IA para vozes"
+
+#: lindeck/effects.py:78
+msgid "Noise suppression stereo (DeepFilterNet)"
+msgstr "Supressão de ruído estéreo (DeepFilterNet)"
+
+#: lindeck/effects.py:79
+msgid "Compressor (SC4)"
+msgstr "Compressor (SC4)"
+
+#: lindeck/effects.py:79 lindeck/effects.py:80 lindeck/effects.py:192 lindeck/effects.py:194
+msgid "Evens out loud and quiet passages"
+msgstr "Equilibra passagens altas e baixas"
+
+#: lindeck/effects.py:80
+msgid "Compressor mono (SC4)"
+msgstr "Compressor mono (SC4)"
+
+#: lindeck/effects.py:81
+msgid "Noise gate"
+msgstr "Noise gate"
+
+#: lindeck/effects.py:81
+msgid "Mutes the microphone while you are not speaking"
+msgstr "Silencia o microfone enquanto você não está falando"
+
+#: lindeck/effects.py:82
+msgid "Limiter"
+msgstr "Limitador"
+
+#: lindeck/effects.py:82 lindeck/effects.py:198 lindeck/effects.py:199
+msgid "Prevents clipping"
+msgstr "Evita clipping"
+
+#: lindeck/effects.py:83
+msgid "Equalizer (8 bands)"
+msgstr "Equalizador (8 bandas)"
+
+#: lindeck/effects.py:83 lindeck/effects.py:204
+msgid "Tone control"
+msgstr "Controle de tom"
+
+#: lindeck/effects.py:84
+msgid "Reverb"
+msgstr "Reverb"
+
+#: lindeck/effects.py:84
+msgid "Room ambience"
+msgstr "Ambiência de sala"
+
+#: lindeck/effects.py:85
+msgid "De-esser"
+msgstr "De-esser"
+
+#: lindeck/effects.py:85 lindeck/effects.py:203
+msgid "Tames harsh S sounds"
+msgstr "Suaviza sons de S estridentes"
+
+#: lindeck/effects.py:191
+msgid "Compressor (x42 darc)"
+msgstr "Compressor (x42 darc)"
+
+#: lindeck/effects.py:193
+msgid "Compressor stereo (x42 darc)"
+msgstr "Compressor estéreo (x42 darc)"
+
+#: lindeck/effects.py:195
+msgid "Equalizer (x42 fil4)"
+msgstr "Equalizador (x42 fil4)"
+
+#: lindeck/effects.py:196
+msgid "Parametric EQ with high-pass and low-pass"
+msgstr "EQ paramétrico com passa-altas e passa-baixas"
+
+#: lindeck/effects.py:197
+msgid "Equalizer stereo (x42 fil4)"
+msgstr "Equalizador estéreo (x42 fil4)"
+
+#: lindeck/effects.py:197
+msgid "Parametric EQ"
+msgstr "EQ paramétrico"
+
+#: lindeck/effects.py:198
+msgid "Limiter (x42 dpl)"
+msgstr "Limitador (x42 dpl)"
+
+#: lindeck/effects.py:199
+msgid "Limiter stereo (x42 dpl)"
+msgstr "Limitador estéreo (x42 dpl)"
+
+#: lindeck/effects.py:200
+msgid "Noise gate (Calf)"
+msgstr "Noise gate (Calf)"
+
+#: lindeck/effects.py:200
+msgid "Mutes while you are not speaking"
+msgstr "Silencia enquanto você não está falando"
+
+#: lindeck/effects.py:201
+msgid "Compressor (Calf)"
+msgstr "Compressor (Calf)"
+
+#: lindeck/effects.py:203
+msgid "De-esser (Calf)"
+msgstr "De-esser (Calf)"
+
+#: lindeck/effects.py:204
+msgid "Equalizer 5 bands (Calf)"
+msgstr "Equalizador 5 bandas (Calf)"
+
+#: lindeck/effects.py:205
+msgid "Noise suppression (Noise Repellent)"
+msgstr "Supressão de ruído (Noise Repellent)"
+
+#: lindeck/effects.py:206
+msgid "Filters out constant noise"
+msgstr "Remove ruído constante"
+
+#: lindeck/effects.py:539
+msgid "LV2 needs the packages jalv and pipewire-jack (or a PipeWire with LV2 support)"
+msgstr "O LV2 precisa dos pacotes jalv e pipewire-jack (ou de um PipeWire com suporte a LV2)"
+
+#: lindeck/effects.py:425
+msgid "No active effects"
+msgstr "Nenhum efeito ativo"
+
+#: lindeck/effects.py:538
+msgid "via jalv"
+msgstr "via jalv"
+
+#: lindeck/effects.py:434 lindeck/effects.py:694
+#, python-brace-format
+msgid "Linewave {name} (Effects)"
+msgstr "Linewave {name} (Efeitos)"
+
+#: lindeck/effects.py:639 lindeck/wavemic.py:281
+msgid "pipewire not found"
+msgstr "pipewire não encontrado"
+
+#: lindeck/effects.py:692
+msgid "LV2 effects need the packages jalv and pipewire-jack"
+msgstr "Efeitos LV2 precisam dos pacotes jalv e pipewire-jack"
+
+#: lindeck/effects.py:752
+msgid "Effect chain (LV2 via jalv) could not start"
+msgstr "Não foi possível iniciar a cadeia de efeitos (LV2 via jalv)"
+
+#: lindeck/effects.py:653
+msgid "Effect chain could not start (plugin missing or invalid setting)"
+msgstr "Não foi possível iniciar a cadeia de efeitos (plugin ausente ou configuração inválida)"
+
+#: lindeck/effects.py:655
+#, python-brace-format
+msgid "Effects for {name} active ({count})"
+msgstr "Efeitos para {name} ativos ({count})"
+
+#: lindeck/effects.py:758
+#, python-brace-format
+msgid "Effects for {name} active (LV2 via jalv, {count} stages)"
+msgstr "Efeitos para {name} ativos (LV2 via jalv, {count} estágios)"
+
+#: lindeck/effects.py:388
+#, python-brace-format
+msgid "Effect {plugin} not found – skipped"
+msgstr "Efeito {plugin} não encontrado – ignorado"
+
+#: lindeck/effects.py:491
+#, python-brace-format
+msgid "Linewave {name} (Effects {n})"
+msgstr "Linewave {name} (Efeitos {n})"
+
+#: lindeck/effects.py:315
+#, python-brace-format
+msgid "skipped {path}: {error}"
+msgstr "ignorado {path}: {error}"
+
+#: lindeck/effects.py:769
+#, python-brace-format
+msgid "Effects for {name} not started: {error}"
+msgstr "Efeitos para {name} não iniciados: {error}"
+
+#: lindeck/effects.py:341
+#, python-brace-format
+msgid "Could not read plugins: {error}"
+msgstr "Não foi possível ler os plugins: {error}"
+
+#: lindeck/engine.py:82
+#, python-brace-format
+msgid "{model} ({geometry}, serial no. {serial}) ready – profile: {profile}"
+msgstr "{model} ({geometry}, nº de série {serial}) pronto – perfil: {profile}"
+
+#: lindeck/engine.py:254
+msgctxt "no profile"
+msgid "ready"
+msgstr "pronto"
+
+#: lindeck/engine.py:254
+msgctxt "no profile"
+msgid "missing"
+msgstr "ausente"
+
+#: lindeck/engine.py:255
+msgctxt "no profile"
+msgid "Downloads"
+msgstr "Pasta"
+
+#: lindeck/engine.py:255
+msgctxt "no profile"
+msgid "folder"
+msgstr "Downloads"
+
+#: lindeck/engine.py:84
+msgctxt "profile"
+msgid "none"
+msgstr "nenhum"
+
+#: lindeck/engine.py:193
+#, python-brace-format
+msgid "Folder {page} not found"
+msgstr "Pasta {page} não encontrada"
+
+#: lindeck/engine.py:326
+#, python-brace-format
+msgid "Image error {action}: {error}"
+msgstr "Erro de imagem {action}: {error}"
+
+#: lindeck/engine.py:374
+#, python-brace-format
+msgid "Dial segment {index}: {error}"
+msgstr "Segmento do botão giratório {index}: {error}"
+
+#: lindeck/engine.py:459
+#, python-brace-format
+msgid "Error handling event {event}: {error}"
+msgstr "Erro ao processar o evento {event}: {error}"
+
+#: lindeck/engine.py:552 lindeck/engine.py:559
+#, python-brace-format
+msgid "Action failed: {error}"
+msgstr "Falha na ação: {error}"
+
+#: lindeck/keyboard.py:209
+#, python-brace-format
+msgid "tap {codes} (uinput not available)"
+msgstr "tocar {codes} (uinput indisponível)"
+
+#: lindeck/keyboard.py:196
+#, python-brace-format
+msgid "uinput not available ({error}) – hotkeys disabled. Run the installer or add the user to the 'input' group."
+msgstr "uinput indisponível ({error}) – atalhos desativados. Execute o instalador ou adicione o usuário ao grupo 'input'."
+
+#: lindeck/mixer.py:50
+msgid "SFX"
+msgstr "SFX"
+
+#: lindeck/mixer.py:286
+msgid "Linewave Stream Mix"
+msgstr "Linewave Stream Mix"
+
+#: lindeck/mixer.py:185 lindeck/mixer.py:218 lindeck/wavedialogs.py:141
+msgid "Please enter a name"
+msgstr "Informe um nome"
+
+#: lindeck/mixer.py:189 lindeck/wavedialogs.py:144
+msgid "Please choose an input device"
+msgstr "Escolha um dispositivo de entrada"
+
+#: lindeck/mixer.py:235
+msgid "At least one channel for apps must remain"
+msgstr "Deve restar pelo menos um canal para apps"
+
+#: lindeck/mixer.py:275
+msgid "pactl is missing (package pulseaudio-utils) – PipeWire with pipewire-pulse is required"
+msgstr "pactl não encontrado (pacote pulseaudio-utils) – é necessário PipeWire com pipewire-pulse"
+
+#: lindeck/mixer.py:489
+msgid "No output device found"
+msgstr "Nenhum dispositivo de saída encontrado"
+
+#: lindeck/mixer.py:317
+#, python-brace-format
+msgid "Audio mixer set up: {count} channels, monitor → {output}"
+msgstr "Mixer de áudio configurado: {count} canais, monitor → {output}"
+
+#: lindeck/mixer.py:322
+#, python-brace-format
+msgid "Linewave {name} → Monitor Mix"
+msgstr "Linewave {name} → Monitor Mix"
+
+#: lindeck/mixer.py:323
+#, python-brace-format
+msgid "Linewave {name} → Stream Mix"
+msgstr "Linewave {name} → Stream Mix"
+
+#: lindeck/mixer.py:70
+msgid "pactl error"
+msgstr "Erro do pactl"
+
+#: lindeck/mixer.py:187
+#, python-brace-format
+msgid "Unknown kind: {kind}"
+msgstr "Tipo desconhecido: {kind}"
+
+#: lindeck/mixer.py:216 lindeck/mixer.py:233 lindeck/mixer.py:406
+#, python-brace-format
+msgid "Channel {id} not found"
+msgstr "Canal {id} não encontrado"
+
+#: lindeck/mixer.py:559 lindeck/mixer.py:569
+#, python-brace-format
+msgid "Unknown channel: {id}"
+msgstr "Canal desconhecido: {id}"
+
+#: lindeck/mixer.py:454
+#, python-brace-format
+msgid "Channel {id}/{mix} not found – is the mixer set up? (linewave mixer setup)"
+msgstr "Canal {id}/{mix} não encontrado – o mixer está configurado? (linewave mixer setup)"
+
+#: lindeck/mixer.py:462 lindeck/mixer.py:469
+#, python-brace-format
+msgid "Channel {id}/{mix} not found"
+msgstr "Canal {id}/{mix} não encontrado"
+
+#: lindeck/mixer.py:500
+#, python-brace-format
+msgid "Output device “{device}” not found"
+msgstr "Dispositivo de saída “{device}” não encontrado"
+
+#: lindeck/mixer.py:299
+#, python-brace-format
+msgid "Default output not set to Linewave {name}: {error}"
+msgstr "Saída padrão não definida como Linewave {name}: {error}"
+
+#: lindeck/mixer.py:552
+#, python-brace-format
+msgid "Stream {index}"
+msgstr "Stream {index}"
+
+#: lindeck/mixer.py:536
+#, python-brace-format
+msgid "Moving {stream} failed: {error}"
+msgstr "Falha ao mover {stream}: {error}"
+
+#: lindeck/native.py:501
+msgctxt "key label"
+msgid "Output"
+msgstr "Saída"
+
+#: lindeck/native.py:510
+msgid "Mixer off"
+msgstr "Mixer desl."
+
+#: lindeck/native.py:612 lindeck/native.py:606
+msgid "no Wave"
+msgstr "sem Wave"
+
+#: lindeck/native.py:162
+msgctxt "state"
+msgid "paused"
+msgstr "pausado"
+
+#: lindeck/native.py:194
+msgid "OBS not connected – enable the WebSocket server in OBS"
+msgstr "OBS não conectado – ative o servidor WebSocket no OBS"
+
+#: lindeck/native.py:333
+msgid "playerctl is missing (package playerctl)"
+msgstr "playerctl não encontrado (pacote playerctl)"
+
+#: lindeck/native.py:163
+msgctxt "state"
+msgid "running"
+msgstr "rodando"
+
+#: lindeck/native.py:178
+msgid "Snapshot"
+msgstr "Captura"
+
+#: lindeck/native.py:178
+msgid "Transition"
+msgstr "Transição"
+
+#: lindeck/native.py:405 lindeck/native.py:598
+msgctxt "key label"
+msgid "Mic"
+msgstr "Mic"
+
+#: lindeck/native.py:405
+msgctxt "key label"
+msgid "Sound"
+msgstr "Som"
+
+#: lindeck/native.py:406
+msgid "Hang up"
+msgstr "Desligar"
+
+#: lindeck/native.py:606
+msgid "Wave:3 only"
+msgstr "Só Wave:3"
+
+#: lindeck/obs.py:74
+msgid "Unexpected response from OBS"
+msgstr "Resposta inesperada do OBS"
+
+#: lindeck/obs.py:85
+msgid "Login to OBS failed (check the password)"
+msgstr "Falha no login no OBS (verifique a senha)"
+
+#: lindeck/obs.py:80
+msgid "OBS requires a password (config.json → obs.password)"
+msgstr "O OBS exige uma senha (config.json → obs.password)"
+
+#: lindeck/obs.py:88
+#, python-brace-format
+msgid "Connected to OBS ({host}:{port})"
+msgstr "Conectado ao OBS ({host}:{port})"
+
+#: lindeck/obs.py:98
+msgid "Connection to OBS lost"
+msgstr "Conexão com o OBS perdida"
+
+#: lindeck/obs.py:181
+msgid "OBS is not connected"
+msgstr "O OBS não está conectado"
+
+#: lindeck/obs.py:196
+#, python-brace-format
+msgid "No response from OBS to {request}"
+msgstr "Sem resposta do OBS para {request}"
+
+#: lindeck/obs.py:180
+#, python-brace-format
+msgid "OBS is not connected ({error})"
+msgstr "O OBS não está conectado ({error})"
+
+#: lindeck/obs.py:63
+#, python-brace-format
+msgid "OBS not connected: {error}"
+msgstr "OBS não conectado: {error}"
+
+#: lindeck/obs.py:133
+#, python-brace-format
+msgid "Error {code}"
+msgstr "Erro {code}"
+
+#: lindeck/plugins.py:86
+msgid "built for Windows/macOS only"
+msgstr "feito apenas para Windows/macOS"
+
+#: lindeck/plugins.py:83
+msgid "HTML plugin (runs only in the Elgato app)"
+msgstr "Plugin HTML (só funciona no app da Elgato)"
+
+#: lindeck/plugins.py:683
+msgid "Page not found"
+msgstr "Página não encontrada"
+
+#: lindeck/plugins.py:691
+msgid "No action in this slot"
+msgstr "Nenhuma ação neste espaço"
+
+#: lindeck/plugins.py:244
+msgid "Node.js not found (install the “nodejs” package or set node_path)"
+msgstr "Node.js não encontrado (instale o pacote “nodejs” ou defina node_path)"
+
+#: lindeck/plugins.py:266
+#, python-brace-format
+msgid "Plugin started: {name} {version}"
+msgstr "Plugin iniciado: {name} {version}"
+
+#: lindeck/plugins.py:276
+#, python-brace-format
+msgid "Plugin {name} exited (code {code})"
+msgstr "Plugin {name} encerrado (código {code})"
+
+#: lindeck/plugins.py:525
+#, python-brace-format
+msgid "Plugin connected: {name}"
+msgstr "Plugin conectado: {name}"
+
+#: lindeck/plugins.py:739 lindeck/ws.py:191
+msgid "Not found"
+msgstr "Não encontrado"
+
+#: lindeck/plugins.py:505
+#, python-brace-format
+msgid "WebSocket connection from foreign origin rejected: {origin}"
+msgstr "Conexão WebSocket de origem externa rejeitada: {origin}"
+
+#: lindeck/plugins.py:522
+#, python-brace-format
+msgid "Unknown plugin tried to register: {uuid}"
+msgstr "Plugin desconhecido tentou se registrar: {uuid}"
+
+#: lindeck/plugins.py:711
+msgid "Access denied"
+msgstr "Acesso negado"
+
+#: lindeck/plugins.py:217
+#, python-brace-format
+msgid "SVG cannot be rendered: {error}"
+msgstr "Não é possível renderizar o SVG: {error}"
+
+#: lindeck/plugins.py:262
+#, python-brace-format
+msgid "Plugin {name} cannot be started: {error}"
+msgstr "Não é possível iniciar o plugin {name}: {error}"
+
+#: lindeck/plugins.py:719
+msgid "This plugin has no settings page"
+msgstr "Este plugin não tem página de configurações"
+
+#: lindeck/plugins.py:726
+msgid "Plugin not installed"
+msgstr "Plugin não instalado"
+
+#: lindeck/plugins.py:730
+msgid "File not found"
+msgstr "Arquivo não encontrado"
+
+#: lindeck/plugins.py:134
+#, python-brace-format
+msgid "Plugin {name} not readable: {error}"
+msgstr "Plugin {name} ilegível: {error}"
+
+#: lindeck/plugins.py:343
+#, python-brace-format
+msgid "Plugin {name} will not be started: {reason}"
+msgstr "O plugin {name} não será iniciado: {reason}"
+
+#: lindeck/plugins.py:544
+#, python-brace-format
+msgid "Plugin {name}: command {command} failed: {error}"
+msgstr "Plugin {name}: falha no comando {command}: {error}"
+
+#: lindeck/plugins.py:622
+#, python-brace-format
+msgid "Settings not saved: {error}"
+msgstr "Configurações não salvas: {error}"
+
+#: lindeck/plugins.py:790
+#, python-brace-format
+msgid "Settings page {name}: {error}"
+msgstr "Página de configurações {name}: {error}"
+
+#: lindeck/plugins.py:820
+#, python-brace-format
+msgid "[{name} settings] {message}"
+msgstr "[configurações de {name}] {message}"
+
+#: lindeck/plugins.py:610
+#, python-brace-format
+msgid "Plugin {name}: unknown command {command}"
+msgstr "Plugin {name}: comando desconhecido {command}"
+
+#: lindeck/pluginui.py:47
+msgid "running"
+msgstr "em execução"
+
+#: lindeck/pluginui.py:37
+msgid "ready"
+msgstr "pronto"
+
+#: lindeck/pluginui.py:39
+msgid "Node.js missing (package nodejs)"
+msgstr "Node.js ausente (pacote nodejs)"
+
+#: lindeck/pluginui.py:42
+msgid "launching …"
+msgstr "abrindo …"
+
+#: lindeck/pluginui.py:44
+msgid "exited – see log"
+msgstr "encerrado – veja o log"
+
+#: lindeck/pluginui.py:46
+msgid "starting …"
+msgstr "iniciando …"
+
+#: lindeck/pluginui.py:198
+msgid "Install plugin"
+msgstr "Instalar plugin"
+
+#: lindeck/pluginui.py:229
+msgid "Remove plugin"
+msgstr "Remover plugin"
+
+#: lindeck/pluginui.py:80
+msgid "Elgato plugins from the Marketplace also run on Linux if they are built with Node.js (most new plugins). Download the “….streamDeckPlugin” file and install it here – or just put it in your Downloads folder, LinDeck picks it up by itself."
+msgstr "Plugins da Elgato do Marketplace também funcionam no Linux se forem feitos com Node.js (a maioria dos plugins novos). Baixe o arquivo “….streamDeckPlugin” e instale-o aqui – ou simplesmente coloque-o na sua pasta Downloads, o LinDeck o detecta sozinho."
+
+#: lindeck/pluginui.py:93
+msgid "Node.js found – plugins can run"
+msgstr "Node.js encontrado – os plugins podem ser executados"
+
+#: lindeck/pluginui.py:94
+msgid "Node.js missing – please install the “nodejs” package, otherwise most plugins will not start"
+msgstr "Node.js ausente – instale o pacote “nodejs”, senão a maioria dos plugins não vai iniciar"
+
+#: lindeck/pluginui.py:166
+msgid "Log"
+msgstr "Log"
+
+#: lindeck/pluginui.py:86
+msgid "Install plugin …"
+msgstr "Instalar plugin …"
+
+#: lindeck/pluginui.py:87
+msgid "Open Marketplace"
+msgstr "Abrir Marketplace"
+
+#: lindeck/pluginui.py:88
+msgid "Plugin folder"
+msgstr "Pasta de plugins"
+
+#: lindeck/pluginui.py:92
+#, python-brace-format
+msgid "Node.js {version} – plugins can run"
+msgstr "Node.js {version} – os plugins podem ser executados"
+
+#: lindeck/pluginui.py:110 lindeck/wavedialogs.py:346
+msgid "Close"
+msgstr "Fechar"
+
+#: lindeck/pluginui.py:128
+msgid "No plugins installed yet"
+msgstr "Nenhum plugin instalado ainda"
+
+#: lindeck/pluginui.py:129
+msgid "OBS, Spotify, Discord and Wave Link don't need a plugin – LinDeck can do that by itself."
+msgstr "OBS, Spotify, Discord e Wave Link não precisam de plugin – o LinDeck faz isso sozinho."
+
+#: lindeck/pluginui.py:168
+msgid "Restart"
+msgstr "Reiniciar"
+
+#: lindeck/pluginui.py:199
+msgid "Stream Deck plugin"
+msgstr "Plugin do Stream Deck"
+
+#: lindeck/pluginui.py:229
+#, python-brace-format
+msgid "Remove “{name}”? Keys with its actions stay in the profile but no longer do anything."
+msgstr "Remover “{name}”? As teclas com as ações dele continuam no perfil, mas não fazem mais nada."
+
+#: lindeck/pluginui.py:152
+#, python-brace-format
+msgid "Version {version}"
+msgstr "Versão {version}"
+
+#: lindeck/pluginui.py:208
+#, python-brace-format
+msgid "“{name}” installed"
+msgstr "“{name}” instalado"
+
+#: lindeck/pluginui.py:209
+#, python-brace-format
+msgid "“{name}” installed – does not run on Linux ({reason})"
+msgstr "“{name}” instalado – não funciona no Linux ({reason})"
+
+#: lindeck/profiles.py:362
+#, python-brace-format
+msgid "Unsafe path in archive: {path}"
+msgstr "Caminho inseguro no arquivo compactado: {path}"
+
+#: lindeck/profiles.py:245
+#, python-brace-format
+msgid "Profile {name} not readable: {error}"
+msgstr "Perfil {name} ilegível: {error}"
+
+#: lindeck/render.py:107
+#, python-brace-format
+msgid "Cannot load image {path}: {error}"
+msgstr "Não é possível carregar a imagem {path}: {error}"
+
+#: lindeck/selftest.py:205
+msgid "LinDeck hardware self-test"
+msgstr "Autoteste de hardware do LinDeck"
+
+#: lindeck/selftest.py:35
+msgid "left"
+msgstr "esquerda"
+
+#: lindeck/selftest.py:35
+msgid "right"
+msgstr "direita"
+
+#: lindeck/selftest.py:35 lindeck/selftest.py:142
+msgid "press"
+msgstr "pressionar"
+
+#: lindeck/selftest.py:154
+msgid "no display"
+msgstr "sem display"
+
+#: lindeck/selftest.py:223
+msgid "No Stream Deck found."
+msgstr "Nenhum Stream Deck encontrado."
+
+#: lindeck/selftest.py:148
+msgid "Self-test"
+msgstr "Autoteste"
+
+#: lindeck/selftest.py:148
+msgid "Tap the touch keys"
+msgstr "Toque nas teclas de toque"
+
+#: lindeck/selftest.py:151
+#, python-brace-format
+msgid "shown (please check: numbers 1…{count} in reading order)"
+msgstr "exibido (confira: números 1…{count} em ordem de leitura)"
+
+#: lindeck/selftest.py:161
+#, python-brace-format
+msgid "missing: {keys}"
+msgstr "faltando: {keys}"
+
+#: lindeck/selftest.py:177
+msgid "Step 3: tap each field of the touch strip and swipe once …"
+msgstr "Passo 3: toque em cada campo da faixa de toque e deslize uma vez …"
+
+#: lindeck/selftest.py:195
+msgid "Step 4: tap both touch keys (left/right below the display) …"
+msgstr "Passo 4: toque nas duas teclas de toque (esquerda/direita abaixo do display) …"
+
+#: lindeck/selftest.py:157
+#, python-brace-format
+msgid "Step 1: press all {count} keys one after another …"
+msgstr "Passo 1: pressione todas as {count} teclas, uma após a outra …"
+
+#: lindeck/selftest.py:159
+#, python-brace-format
+msgid "{done}/{total} keys detected"
+msgstr "{done}/{total} teclas detectadas"
+
+#: lindeck/selftest.py:186
+#, python-brace-format
+msgid "{done}/{total} fields, swipe: {answer}"
+msgstr "{done}/{total} campos, deslizar: {answer}"
+
+#: lindeck/selftest.py:191
+#, python-brace-format
+msgid "{done}/{total} fields, swipe {status}"
+msgstr "{done}/{total} campos, deslizar {status}"
+
+#: lindeck/selftest.py:166
+#, python-brace-format
+msgid "Step 2: turn each of the {count} dials left and right and press it …"
+msgstr "Passo 2: gire cada um dos {count} botões giratórios para a esquerda e para a direita e pressione-o …"
+
+#: lindeck/selftest.py:180
+msgid "tap"
+msgstr "tocar"
+
+#: lindeck/selftest.py:192
+msgid "missing"
+msgstr "faltando"
+
+#: lindeck/selftest.py:197
+#, python-brace-format
+msgid "{done}/{total} touch keys"
+msgstr "{done}/{total} teclas de toque"
+
+#: lindeck/selftest.py:243
+#, python-brace-format
+msgid "✔ PASSED – report: {path}"
+msgstr "✔ APROVADO – relatório: {path}"
+
+#: lindeck/selftest.py:243
+#, python-brace-format
+msgid "✘ INCOMPLETE – report: {path}"
+msgstr "✘ INCOMPLETO – relatório: {path}"
+
+#: lindeck/selftest.py:172
+#, python-brace-format
+msgid "Dial {number} missing {actions}"
+msgstr "Botão giratório {number} faltando {actions}"
+
+#: lindeck/selftest.py:180
+#, python-brace-format
+msgid "Field {number}"
+msgstr "Campo {number}"
+
+#: lindeck/system.py:220
+#, python-brace-format
+msgid "Target not found: {path}"
+msgstr "Destino não encontrado: {path}"
+
+#: lindeck/system.py:415
+msgid "No audio player found (install mpv, ffplay or pipewire-bin)"
+msgstr "Nenhum player de áudio encontrado (instale mpv, ffplay ou pipewire-bin)"
+
+#: lindeck/system.py:311
+msgid "No clipboard available (install wl-clipboard or xclip)"
+msgstr "Nenhuma área de transferência disponível (instale wl-clipboard ou xclip)"
+
+#: lindeck/system.py:70
+#, python-brace-format
+msgid "Failed to start {cmd}: {error}"
+msgstr "Falha ao iniciar {cmd}: {error}"
+
+#: lindeck/system.py:207
+#, python-brace-format
+msgid "Windows path without mapping: {path} (add it to path_map/app_map in config.json)"
+msgstr "Caminho do Windows sem mapeamento: {path} (adicione-o a path_map/app_map no config.json)"
+
+#: lindeck/system.py:420
+#, python-brace-format
+msgid "Audio playback failed: {error}"
+msgstr "Falha na reprodução de áudio: {error}"
+
+#: lindeck/theme.py:363
+msgid "Language"
+msgstr "Idioma"
+
+#: lindeck/theme.py:366
+msgid "System language"
+msgstr "Idioma do sistema"
+
+#: lindeck/theme.py:361
+#, python-brace-format
+msgid "{app} will be shown in {language} after a restart. Restart now?"
+msgstr "O {app} será exibido em {language} após reiniciar. Reiniciar agora?"
+
+#: lindeck/wave3hw.py:54 lindeck/wavesetup.py:27 lindeck/waveui.py:567
+msgid "Headphones"
+msgstr "Fones de ouvido"
+
+#: lindeck/wave3hw.py:54
+msgid "Mix"
+msgstr "Mix"
+
+#: lindeck/wave3hw.py:107
+msgid "libusb could not be initialized"
+msgstr "Não foi possível inicializar a libusb"
+
+#: lindeck/wave3hw.py:127
+msgid "Wave:3 not found or no access (udev rule, log in again)"
+msgstr "Wave:3 não encontrado ou sem acesso (regra udev, faça login novamente)"
+
+#: lindeck/wave3hw.py:95
+msgid "libusb-1.0 is missing (package libusb-1.0-0)"
+msgstr "libusb-1.0 ausente (pacote libusb-1.0-0)"
+
+#: lindeck/wave3hw.py:169
+#, python-brace-format
+msgid "unexpected block length {length}"
+msgstr "comprimento de bloco inesperado {length}"
+
+#: lindeck/wave3hw.py:178
+#, python-brace-format
+msgid "Unknown setting: {name}"
+msgstr "Configuração desconhecida: {name}"
+
+#: lindeck/wave3hw.py:180
+#, python-brace-format
+msgid "{name} needs firmware API 5.3 (device: {version})"
+msgstr "{name} requer a API de firmware 5.3 (dispositivo: {version})"
+
+#: lindeck/wave3hw.py:140
+#, python-brace-format
+msgid "USB error {code}"
+msgstr "Erro USB {code}"
+
+#: lindeck/wave3hw.py:194
+#, python-brace-format
+msgid "Device unexpectedly changed byte {bytes} – change reverted"
+msgstr "O dispositivo alterou o byte {bytes} inesperadamente – alteração revertida"
+
+#: lindeck/wave3hw.py:139
+msgid "no access to the Wave:3 (udev rule, log in again)"
+msgstr "sem acesso ao Wave:3 (regra udev, faça login novamente)"
+
+#: lindeck/wave3hw.py:140
+msgid "Wave:3 disconnected"
+msgstr "Wave:3 desconectado"
+
+#: lindeck/wavedialogs.py:158
+msgid "on"
+msgstr "ligado"
+
+#: lindeck/wavedialogs.py:158
+msgid "off"
+msgstr "desligado"
+
+#: lindeck/wavedialogs.py:318 lindeck/wavedialogs.py:208 lindeck/wavedialogs.py:321
+msgid "Add effect"
+msgstr "Adicionar efeito"
+
+#: lindeck/wavedialogs.py:63 lindeck/wavedialogs.py:67
+msgid "Edit channel"
+msgstr "Editar canal"
+
+#: lindeck/wavedialogs.py:63
+msgid "New channel"
+msgstr "Novo canal"
+
+#: lindeck/wavedialogs.py:92
+msgid "No input device found"
+msgstr "Nenhum dispositivo de entrada encontrado"
+
+#: lindeck/wavedialogs.py:324
+#, python-brace-format
+msgid "Found {builtin} built-in filters, {ladspa} LADSPA and {lv2} LV2 plugins. More plugins: packages swh-plugins, tap-plugins, x42-plugins, lsp-plugins-lv2, calf-plugins."
+msgstr "Encontrados {builtin} filtros integrados, {ladspa} plugins LADSPA e {lv2} LV2. Mais plugins: pacotes swh-plugins, tap-plugins, x42-plugins, lsp-plugins-lv2, calf-plugins."
+
+#: lindeck/wavedialogs.py:327
+msgid "For LV2 plugins, install the package lilv-utils."
+msgstr "Para plugins LV2, instale o pacote lilv-utils."
+
+#: lindeck/wavedialogs.py:90
+msgid "INPUT DEVICE"
+msgstr "DISPOSITIVO DE ENTRADA"
+
+#: lindeck/wavedialogs.py:99
+msgid "ICON"
+msgstr "ÍCONE"
+
+#: lindeck/wavedialogs.py:102
+msgid "COLOR"
+msgstr "COR"
+
+#: lindeck/wavedialogs.py:194
+#, python-brace-format
+msgid "Effects – {name}"
+msgstr "Efeitos – {name}"
+
+#: lindeck/wavedialogs.py:203
+msgid "Audio flows through the effects from top to bottom. Just like the plugins in Wave Link."
+msgstr "O áudio passa pelos efeitos de cima para baixo. Igual aos plugins do Wave Link."
+
+#: lindeck/wavedialogs.py:332
+msgid "All"
+msgstr "Todos"
+
+#: lindeck/wavedialogs.py:332
+msgid "Built-in"
+msgstr "Integrados"
+
+#: lindeck/wavedialogs.py:67
+msgid "Create new channel"
+msgstr "Criar novo canal"
+
+#: lindeck/wavedialogs.py:68
+msgid "Afterwards, put apps into the channel in the mixer under “Apps”."
+msgstr "Depois, coloque apps no canal pelo mixer, em “Apps”."
+
+#: lindeck/wavedialogs.py:69
+msgid "Changes are applied to the mixer right away."
+msgstr "As alterações são aplicadas ao mixer na hora."
+
+#: lindeck/wavedialogs.py:83
+msgid "TYPE"
+msgstr "TIPO"
+
+#: lindeck/wavedialogs.py:84 lindeck/wavesetup.py:371
+msgid "Apps"
+msgstr "Apps"
+
+#: lindeck/wavedialogs.py:84
+msgid "Input device"
+msgstr "Dispositivo de entrada"
+
+#: lindeck/wavedialogs.py:125
+msgid "A separate channel for apps – e.g. “Podcast” or “Second game”."
+msgstr "Um canal separado para apps – ex.: “Podcast” ou “Segundo jogo”."
+
+#: lindeck/wavedialogs.py:127
+msgid "Bring a device straight into the mix – e.g. a second microphone, line-in or a capture card."
+msgstr "Leva um dispositivo direto para o mix – ex.: um segundo microfone, line-in ou uma placa de captura."
+
+#: lindeck/wavedialogs.py:219
+msgid "No effects yet"
+msgstr "Nenhum efeito ainda"
+
+#: lindeck/wavedialogs.py:220
+msgid "Use “Add effect” to put e.g. noise suppression, a noise gate, a compressor or an equalizer on this channel."
+msgstr "Use “Adicionar efeito” para colocar neste canal, por exemplo, supressão de ruído, noise gate, compressor ou equalizador."
+
+#: lindeck/wavedialogs.py:109
+msgid "Create channel"
+msgstr "Criar canal"
+
+#: lindeck/wavedialogs.py:114 lindeck/waveui.py:450
+msgid "Delete channel"
+msgstr "Excluir canal"
+
+#: lindeck/wavedialogs.py:202
+#, python-brace-format
+msgid "Effects for “{name}”"
+msgstr "Efeitos para “{name}”"
+
+#: lindeck/wavedialogs.py:239
+msgid "Plugin not found – is it installed?"
+msgstr "Plugin não encontrado – ele está instalado?"
+
+#: lindeck/wavedialogs.py:368
+msgid "… more – narrow down your search"
+msgstr "… mais – refine sua busca"
+
+#: lindeck/wavehost.py:163
+msgid "Linewave is running without a window – restarting with a window"
+msgstr "O Linewave está em execução sem janela – reiniciando com janela"
+
+#: lindeck/wavehost.py:175
+#, python-brace-format
+msgid "No graphical interface ({error}) – Linewave is running as a service"
+msgstr "Sem interface gráfica ({error}) – o Linewave está em execução como serviço"
+
+#: lindeck/wavehost.py:77
+#, python-brace-format
+msgid "Mixer: {error}"
+msgstr "Mixer: {error}"
+
+#: lindeck/wavehost.py:82 lindeck/wavehost.py:105 lindeck/wavehost.py:94
+#, python-brace-format
+msgid "Wave microphone: {error}"
+msgstr "Microfone Wave: {error}"
+
+#: lindeck/wavehost.py:122
+#, python-brace-format
+msgid "Effects: {error}"
+msgstr "Efeitos: {error}"
+
+#: lindeck/wavehost.py:78
+#, python-brace-format
+msgid "Mixer not set up: {error}"
+msgstr "Mixer não configurado: {error}"
+
+#: lindeck/wavehost.py:119
+#, python-brace-format
+msgid "Restarting effects for {name}"
+msgstr "Reiniciando efeitos para {name}"
+
+#: lindeck/wavemic.py:71
+msgid "Neither low cut nor Clipguard is active"
+msgstr "Nem Low Cut nem Clipguard estão ativos"
+
+#: lindeck/wavemic.py:248
+msgid "LED control is only available for the Elgato Wave:3"
+msgstr "O controle de LEDs só está disponível no Elgato Wave:3"
+
+#: lindeck/wavemic.py:271
+msgid "Clipguard needs the LADSPA limiter (package swh-plugins) – skipped"
+msgstr "O Clipguard precisa do limitador LADSPA (pacote swh-plugins) – ignorado"
+
+#: lindeck/wavemic.py:277
+msgid "Wave microphone not connected – the filter starts when it is plugged in"
+msgstr "Microfone Wave não conectado – o filtro inicia quando ele for conectado"
+
+#: lindeck/wavemic.py:72
+msgid "Linewave Microphone"
+msgstr "Linewave Microfone"
+
+#: lindeck/wavemic.py:182
+msgid "Only possible with an Elgato Wave:3"
+msgstr "Só é possível com um Elgato Wave:3"
+
+#: lindeck/wavemic.py:287
+#, python-brace-format
+msgid "Wave filter active (low cut: {lowcut}, Clipguard: {clipguard})"
+msgstr "Filtro Wave ativo (Low Cut: {lowcut}, Clipguard: {clipguard})"
+
+#: lindeck/wavemic.py:181
+#, python-brace-format
+msgid "Only possible with an Elgato Wave:3 ({error})"
+msgstr "Só é possível com um Elgato Wave:3 ({error})"
+
+#: lindeck/wavesetup.py:27
+msgid "Welcome"
+msgstr "Boas-vindas"
+
+#: lindeck/wavesetup.py:27
+msgid "Sound"
+msgstr "Som"
+
+#: lindeck/wavesetup.py:27
+msgid "Channels"
+msgstr "Canais"
+
+#: lindeck/wavesetup.py:105
+msgid "Set up Linewave"
+msgstr "Configurar o Linewave"
+
+#: lindeck/wavesetup.py:264
+msgid "Which microphone do you use?"
+msgstr "Qual microfone você usa?"
+
+#: lindeck/wavesetup.py:265
+msgid "The microphone goes into your Stream Mix. Say something – the bar below shows whether it is coming through."
+msgstr "O microfone vai para o seu Stream Mix. Diga alguma coisa – a barra abaixo mostra se o som está chegando."
+
+#: lindeck/wavesetup.py:279
+msgid "What do you listen on?"
+msgstr "Onde você escuta?"
+
+#: lindeck/wavesetup.py:280
+msgid "This is where your Monitor Mix goes – everything you want to hear yourself. Use the test tone to check that it is the right device."
+msgstr "É para cá que vai o seu Monitor Mix – tudo o que você quer ouvir. Use o tom de teste para conferir se é o dispositivo certo."
+
+#: lindeck/wavesetup.py:288
+msgid "Your microphone's sound"
+msgstr "O som do seu microfone"
+
+#: lindeck/wavesetup.py:311
+msgid "Removes hum and footfall noise"
+msgstr "Remove zumbido e ruído de passos"
+
+#: lindeck/wavesetup.py:312 lindeck/waveui.py:557
+msgid "Prevents clipping when you suddenly get loud"
+msgstr "Evita clipping quando você fala alto de repente"
+
+#: lindeck/wavesetup.py:339
+msgid "Which channels do you want?"
+msgstr "Quais canais você quer?"
+
+#: lindeck/wavesetup.py:340
+msgid "Every app goes into a channel with its own controls for headphones and stream. You can create your own channels (e.g. for a capture card) later with “Add channel”."
+msgstr "Cada app vai para um canal com controles próprios para fones e stream. Você pode criar seus próprios canais (ex.: para uma placa de captura) depois com “Adicionar canal”."
+
+#: lindeck/wavesetup.py:362 lindeck/waveui.py:298
+msgid "Setting up mixer …"
+msgstr "Configurando o mixer …"
+
+#: lindeck/wavesetup.py:138 lindeck/wavesetup.py:176
+msgid "Next"
+msgstr "Avançar"
+
+#: lindeck/wavesetup.py:142
+msgid "Set up later"
+msgstr "Configurar depois"
+
+#: lindeck/wavesetup.py:289
+msgid "Your Wave:3 applies Low Cut and Clipguard directly in the microphone. You can also turn on recommended effects – just like the plugins in Wave Link."
+msgstr "Seu Wave:3 aplica Low Cut e Clipguard diretamente no microfone. Você também pode ativar efeitos recomendados – igual aos plugins do Wave Link."
+
+#: lindeck/wavesetup.py:292
+msgid "Low Cut and Clipguard run as filters in Linewave. You can also turn on recommended effects – just like the plugins in Wave Link."
+msgstr "Low Cut e Clipguard funcionam como filtros no Linewave. Você também pode ativar efeitos recomendados – igual aos plugins do Wave Link."
+
+#: lindeck/wavesetup.py:326
+msgid "Noise suppression"
+msgstr "Supressão de ruído"
+
+#: lindeck/wavesetup.py:327
+msgid "Filters out keyboard, fans and background noise (RNNoise)"
+msgstr "Remove teclado, ventoinhas e ruído de fundo (RNNoise)"
+
+#: lindeck/wavesetup.py:328
+msgid "Noise Gate"
+msgstr "Noise Gate"
+
+#: lindeck/wavesetup.py:328
+msgid "Mutes the microphone while you pause speaking"
+msgstr "Silencia o microfone nas pausas da sua fala"
+
+#: lindeck/wavesetup.py:329
+msgid "Compressor"
+msgstr "Compressor"
+
+#: lindeck/wavesetup.py:367
+msgid "Add the audio input “Monitor of Linewave Stream Mix” – it contains everything your audience should hear."
+msgstr "Adicione a entrada de áudio “Monitor of Linewave Stream Mix” – ela contém tudo o que seu público deve ouvir."
+
+#: lindeck/wavesetup.py:371
+msgid "New apps automatically go into the matching channel; you can move them to another channel in the mixer under “Apps”."
+msgstr "Novos apps vão automaticamente para o canal correspondente; você pode movê-los para outro canal no mixer, em “Apps”."
+
+#: lindeck/wavesetup.py:176
+msgid "Finish"
+msgstr "Concluir"
+
+#: lindeck/wavesetup.py:258
+msgid "Welcome to Linewave"
+msgstr "Boas-vindas ao Linewave"
+
+#: lindeck/wavesetup.py:259
+msgid "In a few steps you set up your microphone, your headphones and the mixer – just like the first start of Elgato Wave Link. You can change everything later at any time."
+msgstr "Em poucos passos, você configura seu microfone, seus fones de ouvido e o mixer – igual à primeira inicialização do Elgato Wave Link. Você pode mudar tudo depois, a qualquer momento."
+
+#: lindeck/wavesetup.py:271
+msgid "LEVEL"
+msgstr "NÍVEL"
+
+#: lindeck/wavesetup.py:283
+msgid "Play test tone"
+msgstr "Tocar tom de teste"
+
+#: lindeck/wavesetup.py:321
+msgid "RECOMMENDED EFFECTS"
+msgstr "EFEITOS RECOMENDADOS"
+
+#: lindeck/wavesetup.py:361
+msgid "All set!"
+msgstr "Tudo pronto!"
+
+#: lindeck/wavesetup.py:369
+msgid "Select “Linewave Microphone (Effects)” as the microphone."
+msgstr "Selecione “Linewave Microfone (Efeitos)” como microfone."
+
+#: lindeck/wavesetup.py:370
+msgid "Select your own microphone – or the Stream Mix if others should hear everything."
+msgstr "Selecione seu próprio microfone – ou o Stream Mix, se os outros devem ouvir tudo."
+
+#: lindeck/wavesetup.py:176
+msgid "Let's go"
+msgstr "Vamos lá"
+
+#: lindeck/wavesetup.py:217
+msgid "No device found – is PipeWire (pipewire-pulse) running?"
+msgstr "Nenhum dispositivo encontrado – o PipeWire (pipewire-pulse) está em execução?"
+
+#: lindeck/wavesetup.py:335
+#, python-brace-format
+msgid "{text} – package “{package}” is missing"
+msgstr "{text} – o pacote “{package}” está faltando"
+
+#: lindeck/wavesetup.py:388
+msgid "Level meter not available (parec from pulseaudio-utils is missing)"
+msgstr "Medidor de nível indisponível (falta o parec do pulseaudio-utils)"
+
+#: lindeck/wavesetup.py:458
+msgid "Mixer and microphone are ready."
+msgstr "Mixer e microfone prontos."
+
+#: lindeck/waveui.py:30
+msgid "– not in mixer –"
+msgstr "– fora do mixer –"
+
+#: lindeck/waveui.py:354
+msgid ""
+"Add\n"
+"channel"
+msgstr ""
+"Adicionar\n"
+"canal"
+
+#: lindeck/waveui.py:466
+msgid "Loading effects …"
+msgstr "Carregando efeitos …"
+
+#: lindeck/waveui.py:551
+msgid "Filters out low hum and footfall noise"
+msgstr "Remove zumbido grave e ruído de passos"
+
+#: lindeck/waveui.py:576
+msgid "Monitoring"
+msgstr "Monitoramento"
+
+#: lindeck/waveui.py:576
+msgid "Balance of mic ↔ PC audio in your headphones"
+msgstr "Equilíbrio entre mic ↔ áudio do PC nos seus fones"
+
+#: lindeck/waveui.py:589
+msgid "LEDs off"
+msgstr "LEDs desligados"
+
+#: lindeck/waveui.py:592
+msgid "Flip LEDs"
+msgstr "Inverter LEDs"
+
+#: lindeck/waveui.py:592
+msgid "If the microphone is mounted upside down on a boom arm"
+msgstr "Se o microfone estiver montado de cabeça para baixo em um braço articulado"
+
+#: lindeck/waveui.py:164
+msgid "Linewave is still running"
+msgstr "O Linewave continua em execução"
+
+#: lindeck/waveui.py:165
+msgid "Mixer and microphone stay active. Open it again from the “Linewave” menu."
+msgstr "Mixer e microfone continuam ativos. Abra-o novamente pelo menu “Linewave”."
+
+#: lindeck/waveui.py:218
+msgid "Looking for microphone …"
+msgstr "Procurando microfone …"
+
+#: lindeck/waveui.py:269
+msgid "Monitor Mix – what you hear"
+msgstr "Monitor Mix – o que você ouve"
+
+#: lindeck/waveui.py:270
+msgid "Stream Mix – what your audience hears"
+msgstr "Stream Mix – o que seu público ouve"
+
+#: lindeck/waveui.py:298
+msgid "Removing mixer …"
+msgstr "Removendo o mixer …"
+
+#: lindeck/waveui.py:756
+msgid "No Wave microphone"
+msgstr "Nenhum microfone Wave"
+
+#: lindeck/waveui.py:763
+msgid "All settings are stored directly in the microphone."
+msgstr "Todas as configurações ficam salvas diretamente no microfone."
+
+#: lindeck/waveui.py:770
+msgid "Connect a microphone – the settings are applied as soon as it is detected."
+msgstr "Conecte um microfone – as configurações são aplicadas assim que ele for detectado."
+
+#: lindeck/waveui.py:105
+msgid "Open Linewave"
+msgstr "Abrir Linewave"
+
+#: lindeck/waveui.py:226
+msgid "Mixer"
+msgstr "Mixer"
+
+#: lindeck/waveui.py:258 lindeck/waveui.py:262
+msgid "Set up mixer"
+msgstr "Configurar mixer"
+
+#: lindeck/waveui.py:259
+msgid "Just like in Elgato Wave Link, every app gets a channel – with its own volume for your headphones (Monitor Mix) and for your stream (Stream Mix)."
+msgstr "Igual ao Elgato Wave Link, cada app ganha um canal – com volume próprio para seus fones (Monitor Mix) e para sua stream (Stream Mix)."
+
+#: lindeck/waveui.py:291
+msgid "APPS"
+msgstr "APPS"
+
+#: lindeck/waveui.py:292
+msgid "Choose a channel – Linewave remembers the assignment"
+msgstr "Escolha um canal – o Linewave memoriza a atribuição"
+
+#: lindeck/waveui.py:587
+msgid "Mic"
+msgstr "Mic"
+
+#: lindeck/waveui.py:597
+msgid "More settings with the Elgato Wave:3"
+msgstr "Mais configurações com o Elgato Wave:3"
+
+#: lindeck/waveui.py:598
+msgid "Headphone volume, monitoring and the LEDs can be adjusted directly on the Wave:3. For Wave:1, Wave Neo and Wave XLR the protocol for this is not documented."
+msgstr "O volume dos fones, o monitoramento e os LEDs podem ser ajustados diretamente no Wave:3. Para Wave:1, Wave Neo e Wave XLR, o protocolo para isso não é documentado."
+
+#: lindeck/waveui.py:760
+msgid "No Wave microphone connected"
+msgstr "Nenhum microfone Wave conectado"
+
+#: lindeck/waveui.py:766
+msgid "Low Cut and Clipguard run as PipeWire filters. In Discord/OBS, select the microphone “Linewave Microphone”."
+msgstr "Low Cut e Clipguard funcionam como filtros do PipeWire. No Discord/OBS, selecione o microfone “Linewave Microfone”."
+
+#: lindeck/waveui.py:224
+msgid "Setup"
+msgstr "Configuração"
+
+#: lindeck/waveui.py:275
+msgid "Remove mixer"
+msgstr "Remover mixer"
+
+#: lindeck/waveui.py:303
+msgid "Mixer set up"
+msgstr "Mixer configurado"
+
+#: lindeck/waveui.py:391
+msgid "No app is playing audio right now."
+msgstr "Nenhum app está reproduzindo áudio no momento."
+
+#: lindeck/waveui.py:451
+#, python-brace-format
+msgid "Really delete channel “{name}”?"
+msgstr "Excluir o canal “{name}”?"
+
+#: lindeck/waveui.py:585 lindeck/waveui.py:804
+#, python-brace-format
+msgid "{value:.0f} % mic"
+msgstr "{value:.0f} % mic"
+
+#: lindeck/waveui.py:380
+#, python-brace-format
+msgid "Monitor Mix → {output}"
+msgstr "Monitor Mix → {output}"
+
+#: lindeck/waveui.py:458
+#, python-brace-format
+msgid "Channel “{name}” deleted"
+msgstr "Canal “{name}” excluído"
+
+#: lindeck/waveui.py:505
+#, python-brace-format
+msgid "{app} → channel “{channel}” (remembered)"
+msgstr "{app} → canal “{channel}” (memorizado)"
+
+#: lindeck/waveui.py:768
+msgid "Clipguard needs the package swh-plugins."
+msgstr "O Clipguard precisa do pacote swh-plugins."
+
+#: lindeck/waveui.py:443
+#, python-brace-format
+msgid "Channel “{name}” created"
+msgstr "Canal “{name}” criado"
+
+#: lindeck/waveui.py:443
+#, python-brace-format
+msgid "Channel “{name}” saved"
+msgstr "Canal “{name}” salvo"
+
+#: lindeck/waveui.py:629
+#, python-brace-format
+msgid "{name} on"
+msgstr "{name} ligado"
+
+#: lindeck/waveui.py:629
+#, python-brace-format
+msgid "{name} off"
+msgstr "{name} desligado"
+
+#: lindeck/waveui.py:759
+#, python-brace-format
+msgid "{name} · muted"
+msgstr "{name} · mudo"
+
+#: lindeck/waveui.py:764
+#, python-brace-format
+msgid "Firmware API {api}."
+msgstr "API de firmware {api}."
+
+#: lindeck/ws.py:31
+msgid "Connection closed during handshake"
+msgstr "Conexão encerrada durante o handshake"
+
+#: lindeck/ws.py:34
+msgid "Handshake too large"
+msgstr "Handshake grande demais"
+
+#: lindeck/ws.py:110
+msgid "Connection closed"
+msgstr "Conexão encerrada"
+
+#: lindeck/ws.py:132
+msgid "Closed by the peer"
+msgstr "Encerrada pela outra ponta"
+
+#: lindeck/ws.py:224
+#, python-brace-format
+msgid "Handshake rejected: {status}"
+msgstr "Handshake rejeitado: {status}"

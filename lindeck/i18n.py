@@ -174,6 +174,19 @@ def configured() -> str:
         return "auto"
 
 
+def save_language(lang: str) -> None:
+    """Store the "language" setting in config.json ("auto" = system language)."""
+    try:
+        data = json.loads(paths.CONFIG_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {}
+    data["language"] = lang
+    paths.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = paths.CONFIG_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(paths.CONFIG_FILE)
+
+
 def detect() -> str:
     env = os.environ.get("LINDECK_LANG")
     if env:
