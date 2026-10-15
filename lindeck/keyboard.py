@@ -14,6 +14,8 @@ import subprocess
 import threading
 import time
 
+from .i18n import _
+
 log = logging.getLogger("lindeck.keyboard")
 
 try:
@@ -191,8 +193,8 @@ class VirtualInput:
             self.available = True
             time.sleep(0.2)  # Compositor muss das Gerät erst erkennen
         except Exception as e:  # noqa: BLE001 - OSError, UInputError
-            log.warning("uinput nicht verfügbar (%s) – Hotkeys deaktiviert. "
-                        "Installer ausführen oder Benutzer zur Gruppe 'input' hinzufügen.", e)
+            log.warning(_("uinput not available ({error}) – hotkeys disabled. "
+                          "Run the installer or add the user to the 'input' group.").format(error=e))
             self.available = False
 
     # ---------------------------------------------------------------- Keys
@@ -204,7 +206,7 @@ class VirtualInput:
     def tap(self, codes, hold_ms=15):
         """Drückt eine Kombination (Liste von Keycodes) und lässt sie wieder los."""
         if not self.available or not codes:
-            log.info("tap %s (uinput nicht verfügbar)", codes)
+            log.info(_("tap {codes} (uinput not available)").format(codes=codes))
             return
         with self._lock:
             for c in codes:

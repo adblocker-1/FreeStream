@@ -13,6 +13,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 
 from . import paths
+from .i18n import _
 
 log = logging.getLogger("lindeck.render")
 
@@ -103,7 +104,7 @@ def _load_frames(path: str, w: int, h: int, mtime: float):
             return frames
         return [(_fit(img.convert("RGBA"), w, h), 0)]
     except (OSError, ValueError, Exception) as e:  # noqa: BLE001 - beschädigte Bilder ignorieren
-        log.debug("Bild nicht ladbar %s: %s", path, e)
+        log.debug(_("Cannot load image {path}: {error}").format(path=path, error=e))
         return None
 
 
