@@ -359,6 +359,14 @@ def shot_linewave(tmp):
     pump(root, 1.5)
     grab(dlg, "linewave-effekte.png")
     dlg.destroy()
+
+    from lindeck.wavedialogs import PluginPicker
+    pk = PluginPicker(root, cat, lambda p: None)
+    pk._kind("lv2")
+    pk.geometry("580x620")
+    pump(root, 1)
+    grab(pk, "linewave-plugins-lv2.png")
+    pk.destroy()
     root.destroy()
 
 

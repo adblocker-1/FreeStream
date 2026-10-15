@@ -470,3 +470,145 @@ def test_setup_wizard_window(env, pactl):
         assert not win.needs_setup()
     finally:
         root.destroy()
+
+
+# ==========================================================================
+# LV2-Effekte
+# ==========================================================================
+LV2INFO = """http://example.org/comp#mono
+
+\tName:              Kompressor Test
+\tClass:             Plugin
+\tAuthor:            Beispiel
+\tRequired Features: http://lv2plug.in/ns/ext/urid#map
+\tPort 0:
+\t\tType:        http://lv2plug.in/ns/lv2core#InputPort
+\t\t             http://lv2plug.in/ns/lv2core#ControlPort
+\t\tSymbol:      enable
+\t\tName:        Enable
+\t\tDesignation: http://lv2plug.in/ns/lv2core#enabled
+\t\tMinimum:     0.000000
+\t\tMaximum:     1.000000
+\t\tDefault:     1.000000
+\tPort 1:
+\t\tType:        http://lv2plug.in/ns/lv2core#ControlPort
+\t\t             http://lv2plug.in/ns/lv2core#InputPort
+\t\tSymbol:      threshold
+\t\tName:        Threshold
+\t\tMinimum:     -50.000000
+\t\tMaximum:     -10.000000
+\t\tDefault:     -30.000000
+\tPort 2:
+\t\tType:        http://lv2plug.in/ns/lv2core#ControlPort
+\t\t             http://lv2plug.in/ns/lv2core#InputPort
+\t\tSymbol:      hold
+\t\tName:        Hold
+\t\tMinimum:     0.000000
+\t\tMaximum:     1.000000
+\t\tDefault:     0.000000
+\t\tProperties:  http://lv2plug.in/ns/lv2core#integer
+\t\t             http://lv2plug.in/ns/lv2core#toggled
+\tPort 3:
+\t\tType:        http://lv2plug.in/ns/lv2core#OutputPort
+\t\t             http://lv2plug.in/ns/lv2core#ControlPort
+\t\tSymbol:      gr
+\t\tName:        Gain Reduction
+\tPort 4:
+\t\tType:        http://lv2plug.in/ns/lv2core#AudioPort
+\t\t             http://lv2plug.in/ns/lv2core#InputPort
+\t\tSymbol:      in
+\t\tName:        In
+\tPort 5:
+\t\tType:        http://lv2plug.in/ns/lv2core#OutputPort
+\t\t             http://lv2plug.in/ns/lv2core#AudioPort
+\t\tSymbol:      out
+\t\tName:        Out
+"""
+
+
+def test_parse_lv2info():
+    from lindeck import effects
+    p = effects.parse_lv2info(LV2INFO, "http://example.org/comp#mono")
+    assert p["id"] == "lv2:http://example.org/comp#mono" and p["type"] == "lv2" and p["name"] == "Kompressor Test"
+    assert p["inputs"] == ["in"] and p["outputs"] == ["out"]
+    ctl = {c["name"]: c for c in p["controls"]}
+    assert set(ctl) == {"threshold", "hold"}  # „enable“ und Ausgabewerte fehlen
+    assert ctl["threshold"]["label"] == "Threshold" and ctl["threshold"]["default"] == -30
+    assert ctl["hold"]["toggle"] and ctl["hold"]["int"]
+    # nicht nutzbar: unbekanntes Pflicht-Feature, MIDI-/Atom-Port, Pegelanzeige
+    assert effects.parse_lv2info(LV2INFO.replace("urid#map", "state#mapPath"), "x") is None
+    atom = LV2INFO + "\tPort 6:\n\t\tType:        http://lv2plug.in/ns/ext/atom#AtomPort\n\t\tSymbol: midi\n"
+    assert effects.parse_lv2info(atom, "x") is None
+    assert effects.parse_lv2info(LV2INFO.replace("Class:             Plugin", "Class: Analyser Plugin"), "x") is None
+
+
+def _lv2(uri, stereo):
+    return {"id": f"lv2:{uri}", "type": "lv2", "plugin": uri, "label": uri, "name": uri,
+            "inputs": ["inL", "inR"] if stereo else ["in"], "outputs": ["outL", "outR"] if stereo else ["out"],
+            "controls": [{"name": "threshold", "label": "Threshold", "min": -50, "max": 0, "default": -30}]}
+
+
+def test_lv2_graph_and_stages():
+    from lindeck import effects
+    hp = effects.lookup("builtin:highpass")
+    mono, st = _lv2("urn:mono", False), _lv2("urn:stereo", True)
+    cat = [hp, mono, st]
+    chain = [effects.new_effect(hp), effects.new_effect(mono), effects.new_effect(st), effects.new_effect(hp)]
+    g = effects.graph(chain, cat)
+    assert '{ type = lv2 name = fx1l plugin = "urn:mono" control = { "threshold" = -30 } }' in g["nodes"]
+    assert '{ output = "fx1l:out" input = "fx2:inL" }' in g["links"]
+    sts = effects.stages(chain, cat)
+    assert [(k, [i for i, _, _ in items]) for k, items in sts] == [("fc", [0]), ("lv2", [1]), ("lv2", [2]),
+                                                                   ("fc", [3])]
+
+
+def test_lv2_bridge_wiring(env, pactl, monkeypatch):
+    """Ohne LV2 in PipeWire: Teilketten + jalv, per pw-link der Reihe nach verbunden."""
+    from lindeck import effects
+    from lindeck.mixer import Mixer
+    hp = effects.lookup("builtin:highpass")
+    mono, st = _lv2("urn:mono", False), _lv2("urn:stereo", True)
+    monkeypatch.setattr(effects, "catalog", lambda refresh=False: [hp, mono, st])
+    monkeypatch.setattr(effects, "pipewire_lv2", lambda: False)
+    monkeypatch.setattr(effects, "lv2_bridge_available", lambda: True)
+    import io
+    started, links = [], []
+
+    class P:
+        pid = 999999
+
+        def __init__(self, args, **kw):
+            started.append(args)
+            self.stdin = io.StringIO()
+
+        def poll(self):
+            return None
+    monkeypatch.setattr(effects.subprocess, "Popen", P)
+    node = "linewave_music_fx"
+    ins = [f"{node}_s0_in:input_FL", f"{node}_s0_in:input_FR", f"{node}_s1l:in", f"{node}_s1r:in",
+           f"{node}_s2:inL", f"{node}_s2:inR", f"{node}:input_FL", f"{node}:input_FR"]
+    outs = ["linewave_music:monitor_FL", "linewave_music:monitor_FR", f"{node}_s0_out:output_FL",
+            f"{node}_s0_out:output_FR", f"{node}_s1l:out", f"{node}_s1r:out", f"{node}_s2:outL", f"{node}_s2:outR"]
+    monkeypatch.setattr(effects.Effects, "_ports", staticmethod(lambda d: outs if d == "out" else ins))
+    real_run = effects.subprocess.run
+    monkeypatch.setattr(effects.subprocess, "run", lambda args, **kw: links.append(tuple(args[1:]))
+                        if args[0] == "pw-link" else real_run(args, **kw))
+    cfg = _config(env, {"mixer": {"enabled": True, "effects": {"music": [
+        effects.new_effect(hp), effects.new_effect(mono), effects.new_effect(st)]}}})
+    mx = Mixer(cfg, run=pactl)
+    mx.setup()
+    assert any("media.class=Audio/Source/Virtual" in c and f"sink_name={node}" in c for c in pactl.cmds)
+    jalv = [a for a in started if "jalv" in a]
+    assert [a[a.index("-n") + 1] for a in jalv] == [f"{node}_s1l", f"{node}_s1r", f"{node}_s2"]
+    assert ["-c", "threshold=-30"] == jalv[0][jalv[0].index("-c"):jalv[0].index("-c") + 2]
+    assert links == [("linewave_music:monitor_FL", f"{node}_s0_in:input_FL"),
+                     ("linewave_music:monitor_FR", f"{node}_s0_in:input_FR"),
+                     (f"{node}_s0_out:output_FL", f"{node}_s1l:in"), (f"{node}_s0_out:output_FR", f"{node}_s1r:in"),
+                     (f"{node}_s1l:out", f"{node}_s2:inL"), (f"{node}_s1r:out", f"{node}_s2:inR"),
+                     (f"{node}_s2:outL", f"{node}:input_FL"), (f"{node}_s2:outR", f"{node}:input_FR")]
+    assert {b["source"] for b in _loops(pactl, "music").values()} == {node}
+    # Live-Regler eines LV2-Effekts: Befehl an jalv
+    assert mx.fx.set_live("music", 1, "threshold", -20)
+    assert effects._PROCS["music"][f"{node}_s1l"].stdin.getvalue() == "threshold = -20\n"
+    mx.fx.stop("music")
+    assert any(c[0] == "unload-module" for c in pactl.cmds)
