@@ -39,9 +39,9 @@ Ubuntu 22.04+, Linux Mint 21+, Pop!_OS, Zorin …), X11 or Wayland. The package
 sets up device access, hotkeys, autostart and menu entries automatically. If
 LinDeck does not start right after installing, log out and back in once.
 
-**Uninstall:** `sudo apt remove streamlin` (your profiles stay in `~/.local/share/lindeck`).
+**Uninstall:** `sudo apt remove streamlin` (your profiles stay in `~/.local/share/streamlin`).
 
-> **Status:** version 0.13, tested with simulated devices of every model.
+> **Status:** version 0.14, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## Supported devices
@@ -143,7 +143,7 @@ the built-in plugin host: click **Plugins** → **Install plugin…** and choose
 ### OBS
 
 In OBS, enable *Tools → WebSocket Server Settings → Enable WebSocket server* and
-put the password into `~/.config/lindeck/config.json`:
+put the password into `~/.config/streamlin/config.json`:
 `"obs": {"password": "…"}`. Then `lindeck obs` checks the connection. Scenes,
 recording, streaming, sources, audio, replay buffer and virtual camera are
 supported, with live status on the keys.
@@ -236,10 +236,10 @@ control all of this, even when the Linewave window is closed.
 
 LinDeck and Linewave follow your system language. To change it, click the
 **globe button** at the top of either window. For a single start you can also
-use `LINDECK_LANG=fr lindeck`.
+use `STREAMLIN_LANG=fr lindeck`.
 
 **Help translate:** the texts are standard gettext files in
-[`lindeck/locale/`](lindeck/locale/). Copy `lindeck.pot` to `<language>.po`
+[`streamlin/locale/`](streamlin/locale/). Copy `streamlin.pot` to `<language>.po`
 (e.g. `it.po`), fill it in with Poedit or any text editor, check it with
 `python3 tools/i18n.py check <language>` and open a pull request.
 
@@ -261,7 +261,7 @@ You don't need the terminal for normal use. Useful commands:
 
 ## Settings
 
-Optional settings go into `~/.config/lindeck/config.json`, for example:
+Optional settings go into `~/.config/streamlin/config.json`, for example:
 
 ```json
 {
@@ -290,7 +290,7 @@ Optional settings go into `~/.config/lindeck/config.json`, for example:
 | Key shows a warning symbol | the plugin is missing or Windows-only (`lindeck plugin list`) |
 | No sound after setting up the mixer | choose your headphones at the top of the Linewave mixer; **Remove mixer** restores everything |
 
-Log file: `~/.local/state/lindeck/lindeck.log`. Please attach it (and the
+Log file: `~/.local/state/streamlin/lindeck.log`. Please attach it (and the
 report from `lindeck selftest`) when you open an issue.
 
 ## Legal

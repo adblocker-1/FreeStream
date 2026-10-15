@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Translation helper for LinDeck/Linewave.
 
-    tools/i18n.py extract            write lindeck/locale/lindeck.pot from the code
+    tools/i18n.py extract            write streamlin/locale/streamlin.pot from the code
     tools/i18n.py update             add new strings to every .po (empty), drop unused ones
     tools/i18n.py check [LANG ...]   missing translations and placeholder mismatches
     tools/i18n.py merge LANG FILE..  copy translations from .po fragments into LANG.po
     tools/i18n.py german [FILE ...]  string literals that still look German
     tools/i18n.py check-fragment FRAG FILE..  FRAG (.po/.json) covers all strings of FILE..
 
-New language: ``cp lindeck/locale/lindeck.pot lindeck/locale/<code>.po``,
+New language: ``cp streamlin/locale/streamlin.pot streamlin/locale/<code>.po``,
 fill in the msgstr lines, run ``tools/i18n.py check <code>``.
 """
 import ast
@@ -19,10 +19,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from lindeck.i18n import LOCALE_DIR, parse_po  # noqa: E402
+from streamlin.i18n import LOCALE_DIR, parse_po  # noqa: E402
 
-SRC = ROOT / "lindeck"
-POT = LOCALE_DIR / "lindeck.pot"
+SRC = ROOT / "streamlin"
+POT = LOCALE_DIR / "streamlin.pot"
 FUNCS = {"_": ("msgid",), "N_": ("msgid",), "pgettext": ("msgctxt", "msgid"),
          "ngettext": ("msgid", "msgid_plural")}
 
@@ -108,7 +108,7 @@ POT_HEADER = '''# LinDeck / Linewave translation template.
 # Copy to <language>.po (e.g. it.po, pt_BR.po) and fill in the msgstr lines.
 msgid ""
 msgstr ""
-"Project-Id-Version: lindeck\\n"
+"Project-Id-Version: streamlin\\n"
 "Content-Type: text/plain; charset=UTF-8\\n"
 "Content-Transfer-Encoding: 8bit\\n"
 "Language: \\n"

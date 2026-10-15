@@ -4,17 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "streamlin"
-version = "0.13.0"
+version = "0.14.0"
 description = "Stream Deck and Wave Link replacement for Linux: LinDeck and Linewave"
 requires-python = ">=3.9"
 dependencies = ["streamdeck>=0.10", "pillow", "evdev", "cairosvg"]
 
 [project.scripts]
-lindeck = "lindeck.__main__:main"
-linewave = "lindeck.__main__:wave_main"
+lindeck = "streamlin.__main__:main"
+linewave = "streamlin.__main__:wave_main"
 
 [tool.setuptools]
-packages = ["lindeck"]
+packages = ["streamlin"]
 
 [tool.setuptools.package-data]
-lindeck = ["locale/*.po", "locale/*.pot"]
+streamlin = ["locale/*.po", "locale/*.pot"]

@@ -5,11 +5,11 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image
 
-from lindeck import editdoc as E
-from lindeck import profiles as P
-from lindeck import render
-from lindeck.engine import DeckController
-from lindeck.models import Geometry
+from streamlin import editdoc as E
+from streamlin import profiles as P
+from streamlin import render
+from streamlin.engine import DeckController
+from streamlin.models import Geometry
 
 
 @pytest.fixture

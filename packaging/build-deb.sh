@@ -2,36 +2,36 @@
 # Baut streamlin_<version>_all.deb (LinDeck + Linewave)  (Aufruf: ./packaging/build-deb.sh [Ausgabeordner])
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION=$(python3 -c "import sys;sys.path.insert(0,'$ROOT');import lindeck;print(lindeck.__version__)")
+VERSION=$(python3 -c "import sys;sys.path.insert(0,'$ROOT');import streamlin;print(streamlin.__version__)")
 OUT="${1:-$ROOT/dist}"
 STAGE="$(mktemp -d)"
 PKG="$STAGE/streamlin_${VERSION}_all"
 SD_LIB="$(python3 -c 'import StreamDeck,os;print(os.path.dirname(StreamDeck.__file__))')"
 SD_LICENSE="$(python3 -c 'import importlib.metadata as m;d=m.distribution("streamdeck");print([str(d.locate_file(f)) for f in d.files if f.name=="LICENSE"][0])')"
 
-mkdir -p "$PKG/DEBIAN" "$PKG/opt/lindeck/vendor" "$PKG/usr/bin" "$PKG/lib/udev/rules.d" \
+mkdir -p "$PKG/DEBIAN" "$PKG/opt/streamlin/vendor" "$PKG/usr/bin" "$PKG/lib/udev/rules.d" \
          "$PKG/usr/lib/modules-load.d" "$PKG/etc/xdg/autostart" "$PKG/usr/share/applications" \
          "$PKG/usr/share/doc/streamlin"
 
-cp -r "$ROOT/lindeck" "$PKG/opt/lindeck/"
-cp -r "$SD_LIB" "$PKG/opt/lindeck/vendor/StreamDeck"
+cp -r "$ROOT/streamlin" "$PKG/opt/streamlin/"
+cp -r "$SD_LIB" "$PKG/opt/streamlin/vendor/StreamDeck"
 find "$PKG/opt" -name "__pycache__" -prune -exec rm -rf {} +
 cp "$SD_LICENSE" "$PKG/usr/share/doc/streamlin/LICENSE.python-elgato-streamdeck"
 cp "$ROOT/README.md" "$PKG/usr/share/doc/streamlin/README.md"
 
 cat > "$PKG/usr/bin/lindeck" <<'EOF'
 #!/bin/sh
-export PYTHONPATH="/opt/lindeck:/opt/lindeck/vendor${PYTHONPATH:+:$PYTHONPATH}"
-exec /usr/bin/python3 -m lindeck "$@"
+export PYTHONPATH="/opt/streamlin:/opt/streamlin/vendor${PYTHONPATH:+:$PYTHONPATH}"
+exec /usr/bin/python3 -m streamlin "$@"
 EOF
 cat > "$PKG/usr/bin/linewave" <<'EOF'
 #!/bin/sh
-export PYTHONPATH="/opt/lindeck:/opt/lindeck/vendor${PYTHONPATH:+:$PYTHONPATH}"
-exec /usr/bin/python3 -m lindeck.linewave "$@"
+export PYTHONPATH="/opt/streamlin:/opt/streamlin/vendor${PYTHONPATH:+:$PYTHONPATH}"
+exec /usr/bin/python3 -m streamlin.linewave "$@"
 EOF
 chmod 755 "$PKG/usr/bin/lindeck" "$PKG/usr/bin/linewave"
 
-cat > "$PKG/lib/udev/rules.d/70-lindeck.rules" <<'EOF'
+cat > "$PKG/lib/udev/rules.d/70-streamlin.rules" <<'EOF'
 # Elgato Stream Deck: Zugriff für den angemeldeten Benutzer
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", TAG+="uaccess"
@@ -39,7 +39,7 @@ KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", TAG+="uaccess"
 # Virtuelle Tastatur/Maus für Hotkeys (X11 und Wayland)
 KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
 EOF
-echo uinput > "$PKG/usr/lib/modules-load.d/lindeck-uinput.conf"
+echo uinput > "$PKG/usr/lib/modules-load.d/streamlin-uinput.conf"
 
 cat > "$PKG/etc/xdg/autostart/lindeck.desktop" <<'EOF'
 [Desktop Entry]
@@ -117,9 +117,9 @@ EOF
 # App-Symbole in mehreren Größen
 for sz in 48 64 128 256; do
     mkdir -p "$PKG/usr/share/icons/hicolor/${sz}x${sz}/apps"
-    python3 -c "import sys;sys.path.insert(0,'$ROOT');from lindeck.app import make_icon;make_icon($sz).save(sys.argv[1])" \
+    python3 -c "import sys;sys.path.insert(0,'$ROOT');from streamlin.app import make_icon;make_icon($sz).save(sys.argv[1])" \
         "$PKG/usr/share/icons/hicolor/${sz}x${sz}/apps/lindeck.png"
-    python3 -c "import sys;sys.path.insert(0,'$ROOT');from lindeck.wavehost import make_icon;make_icon($sz).save(sys.argv[1])" \
+    python3 -c "import sys;sys.path.insert(0,'$ROOT');from streamlin.wavehost import make_icon;make_icon($sz).save(sys.argv[1])" \
         "$PKG/usr/share/icons/hicolor/${sz}x${sz}/apps/linewave.png"
 done
 
@@ -163,7 +163,7 @@ if [ "$1" = "configure" ]; then
             [ "$uid" -ge 1000 ] 2>/dev/null || continue
             user=$(getent passwd "$uid" | cut -d: -f1)
             [ -n "$user" ] || continue
-            pkill -u "$uid" -f "python3 -m lindeck" 2>/dev/null || true
+            pkill -u "$uid" -f "python3 -m (streamlin|lindeck)" 2>/dev/null || true
             sleep 1
             runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" HOME="$(getent passwd "$uid" | cut -d: -f6)" \
                 setsid -f /usr/bin/lindeck run >/dev/null 2>&1 < /dev/null || true
@@ -178,7 +178,7 @@ cat > "$PKG/DEBIAN/prerm" <<'EOF'
 #!/bin/sh
 set -e
 if [ "$1" = "remove" ] || [ "$1" = "upgrade" ]; then
-    pkill -f "python3 -m lindeck" 2>/dev/null || true
+    pkill -f "python3 -m (streamlin|lindeck)" 2>/dev/null || true
 fi
 exit 0
 EOF

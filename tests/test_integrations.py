@@ -19,15 +19,15 @@ from pathlib import Path
 
 import pytest
 
-from lindeck import actions as A
-from lindeck import catalog as C
-from lindeck import native, ws
-from lindeck.models import Geometry
+from streamlin import actions as A
+from streamlin import catalog as C
+from streamlin import native, ws
+from streamlin.models import Geometry
 
 
 @pytest.fixture(autouse=True)
 def xdg(tmp_path, monkeypatch):
-    from lindeck import paths
+    from streamlin import paths
     monkeypatch.setattr(paths, "DATA_DIR", tmp_path / "data")
     monkeypatch.setattr(paths, "STATE_DIR", tmp_path / "state")
     monkeypatch.setattr(paths, "PLUGINS_DIR", tmp_path / "data" / "plugins")
@@ -97,7 +97,7 @@ def test_websocket_roundtrip():
 PY_PLUGIN = r'''
 import json, sys
 sys.path.insert(0, %r)
-from lindeck import ws
+from streamlin import ws
 a = sys.argv
 port, uuid, reg = a[a.index("-port") + 1], a[a.index("-pluginUUID") + 1], a[a.index("-registerEvent") + 1]
 info = json.loads(a[a.index("-info") + 1])
@@ -151,7 +151,7 @@ def _make_plugin(tmp, uuid, code, manifest_extra):
 
 
 def test_plugin_host_with_linux_plugin(xdg, tmp_path):
-    from lindeck import plugins, profiles
+    from streamlin import plugins, profiles
     repo = str(Path(__file__).resolve().parents[1])
     zf = _make_plugin(tmp_path, "com.test.py", PY_PLUGIN % repo, {"CodePath": "bin/plugin.exe",
                                                                    "CodePathLin": "bin/plugin"})
@@ -185,7 +185,7 @@ def test_plugin_host_with_linux_plugin(xdg, tmp_path):
         assert act.image_override.getpixel((5, 5))[:3] == (0, 255, 0)
         saved = json.loads((page / "manifest.json").read_text())["Controllers"][0]["Actions"]["0,0"]
         assert saved["Settings"] == {"n": 1}
-        from lindeck import paths
+        from streamlin import paths
         assert wait_for(lambda: (paths.PLUGIN_DATA_DIR / "com.test.py.json").exists())
         # Dial mit Feedback
         dial, _ = make_action({"UUID": "com.test.py.act", "Settings": {}}, ctrl=ctrl, slot=("dial", 1))
@@ -199,7 +199,7 @@ def test_plugin_host_with_linux_plugin(xdg, tmp_path):
 
 @pytest.mark.skipif(not shutil.which("node"), reason="Node.js nicht installiert")
 def test_plugin_host_with_node_plugin(xdg, tmp_path):
-    from lindeck import plugins
+    from streamlin import plugins
     zf = _make_plugin(tmp_path, "com.test.node", NODE_PLUGIN, {"Nodejs": {"Version": "20"}})
     plugins.install(zf)
     assert plugins.installed()["com.test.node"].runtime == "node"
@@ -220,7 +220,7 @@ def test_plugin_host_with_node_plugin(xdg, tmp_path):
 
 
 def test_windows_only_plugin_is_reported(xdg, tmp_path):
-    from lindeck import plugins
+    from streamlin import plugins
     src = tmp_path / "com.win.only.sdPlugin"
     src.mkdir()
     (src / "manifest.json").write_text(json.dumps({"UUID": "com.win.only", "CodePath": "Plugin.exe",
@@ -234,7 +234,7 @@ def test_windows_only_plugin_is_reported(xdg, tmp_path):
 def test_decode_image_variants():
     from PIL import Image
     import io
-    from lindeck.plugins import decode_image
+    from streamlin.plugins import decode_image
     buf = io.BytesIO()
     Image.new("RGB", (4, 4), (1, 2, 3)).save(buf, "PNG")
     b64 = base64.b64encode(buf.getvalue()).decode()
@@ -259,7 +259,7 @@ class FakeOBS:
         conn.send(json.dumps({"op": 0, "d": {"rpcVersion": 1, "authentication": {
             "salt": self.SALT, "challenge": self.CHALLENGE}}}))
         ident = json.loads(conn.recv())["d"]
-        from lindeck.obs import auth_string
+        from streamlin.obs import auth_string
         if ident.get("authentication") != auth_string(self.PASSWORD, self.SALT, self.CHALLENGE):
             conn.close()
             return
@@ -303,7 +303,7 @@ class FakeOBS:
 
 
 def test_obs_actions():
-    from lindeck import obs
+    from streamlin import obs
     fake = FakeOBS()
     cfg = {"obs": {"host": "127.0.0.1", "port": fake.srv.port, "password": FakeOBS.PASSWORD}}
     try:
@@ -334,7 +334,7 @@ def test_obs_actions():
 
 
 def test_obs_auth_string():
-    from lindeck.obs import auth_string
+    from streamlin.obs import auth_string
     secret = base64.b64encode(hashlib.sha256(b"pwsalt").digest()).decode()
     expect = base64.b64encode(hashlib.sha256((secret + "ch").encode()).digest()).decode()
     assert auth_string("pw", "salt", "ch") == expect
@@ -344,7 +344,7 @@ def test_obs_auth_string():
 # Discord (simulierter IPC-Socket)
 # ==========================================================================
 def test_discord_mute_and_ptt(tmp_path):
-    from lindeck import discord
+    from streamlin import discord
     sock_path = tmp_path / "discord-ipc-0"
     srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     srv.bind(str(sock_path))
@@ -401,7 +401,7 @@ def test_discord_mute_and_ptt(tmp_path):
 
 
 def test_discord_without_app_shows_alert():
-    from lindeck import discord
+    from streamlin import discord
     discord._client.update(key=None, obj=None)
     a, ctrl = make_action({"UUID": "com.lindeck.discord.voice", "Settings": {"function": "mute"}}, {})
     a.key_down()
@@ -452,17 +452,17 @@ class FakePactl:
 
 @pytest.fixture
 def pactl(monkeypatch):
-    from lindeck import system
+    from streamlin import system
     fake = FakePactl()
     monkeypatch.setattr(system, "_pactl_blocks", fake.blocks)
     monkeypatch.setattr(system, "have", lambda c: True)
-    from lindeck import mixer
+    from streamlin import mixer
     monkeypatch.setattr(mixer, "_run", fake)
     return fake
 
 
 def test_mixer_setup_volumes_routing(pactl):
-    from lindeck.mixer import Mixer
+    from streamlin.mixer import Mixer
     mx = Mixer({"mixer": {"routes": {"firefox": "game"}}}, run=pactl)
     mods = mx.setup()
     loads = [c for c in pactl.cmds if c[0] == "load-module"]
@@ -498,7 +498,7 @@ def test_mixer_setup_volumes_routing(pactl):
 # Wave-Mikrofon
 # ==========================================================================
 def test_wave_filter_conf():
-    from lindeck.wavemic import PROCESSED, filter_conf
+    from streamlin.wavemic import PROCESSED, filter_conf
     both = filter_conf("alsa_input.usb-Elgato_Wave_3", True, 120, True)
     assert '"Freq" = 120.0' in both and "fast_lookahead_limiter_1913" in both
     assert 'output = "lowcut:Out" input = "limiter:Input 1"' in both
@@ -510,7 +510,7 @@ def test_wave_filter_conf():
 
 
 def test_wave_detection_and_actions(monkeypatch, xdg):
-    from lindeck import system, wavemic
+    from streamlin import system, wavemic
     monkeypatch.setattr(system, "_pactl_blocks", lambda what: [
         {"name": "alsa_input.pci-0000_00_1f.3.analog-stereo", "description": "Eingebautes Mikrofon", "props": {}},
         {"name": "alsa_input.usb-Elgato_Systems_Elgato_Wave_3_BS123-00.mono-fallback",
@@ -553,7 +553,7 @@ def test_native_lookup(uuid, cls, kind):
 
 
 def test_native_catalog_actions_render(xdg):
-    from lindeck import obs
+    from streamlin import obs
     obs_cfg = {"obs": {"host": "127.0.0.1", "port": 1}}
     for t in C.CATALOG:
         if not t.uuid.startswith("com.lindeck."):
@@ -574,7 +574,7 @@ def test_selftest_with_simulated_presses(xdg):
     pytest.importorskip("StreamDeck")
     from StreamDeck.DeviceManager import DeviceManager
     from StreamDeck.Devices.StreamDeck import DialEventType, TouchscreenEventType
-    from lindeck.selftest import SelfTest, passed, report_text
+    from streamlin.selftest import SelfTest, passed, report_text
     deck = next(d for d in DeviceManager(transport="dummy").enumerate() if d.dial_count() == 4)
     deck.open()
     t = SelfTest(deck, out=lambda *a: None)
@@ -612,7 +612,7 @@ class FakeWave3:
             self.block = self.block[:14]
 
     def control(self, req_type, req, value, data):
-        from lindeck import wave3hw as W
+        from streamlin import wave3hw as W
         if req_type == W.RT_IN and value == W.SEL_VERSION:
             return bytes(self.api)
         if req_type == W.RT_IN:
@@ -628,7 +628,7 @@ class FakeWave3:
 
 
 def test_wave3_decode_and_write():
-    from lindeck import wave3hw as W
+    from streamlin import wave3hw as W
     dev = W.Wave3(FakeWave3())
     st = dev.get()
     assert st["gain"] == 40.0 and st["headphone_volume"] == -23.5 and st["lowcut"] and st["clipguard"]
@@ -643,7 +643,7 @@ def test_wave3_decode_and_write():
 
 
 def test_wave3_rollback_and_old_firmware():
-    from lindeck import wave3hw as W
+    from streamlin import wave3hw as W
     bad = W.Wave3(FakeWave3(misbehave=True))
     original = bytes(bad.t.block)
     with pytest.raises(W.Wave3Error):
@@ -656,7 +656,7 @@ def test_wave3_rollback_and_old_firmware():
 
 
 def test_wavemic_uses_wave3_hardware(monkeypatch, xdg):
-    from lindeck import system, wave3hw, wavemic
+    from streamlin import system, wave3hw, wavemic
     monkeypatch.setattr(wave3hw, "present", lambda: True)
     monkeypatch.setattr(wave3hw, "USBTransport", lambda: FakeWave3())
     monkeypatch.setattr(system, "_pactl_blocks", lambda what: [])
@@ -674,7 +674,7 @@ def test_wavemic_uses_wave3_hardware(monkeypatch, xdg):
 
 
 def test_wavemic_leds_need_wave3(monkeypatch, xdg):
-    from lindeck import wave3hw, wavemic
+    from streamlin import wave3hw, wavemic
     monkeypatch.setattr(wave3hw, "present", lambda: False)
     mic = wavemic.WaveMic({})
     with pytest.raises(RuntimeError):
@@ -703,7 +703,7 @@ function connectElgatoStreamDeckSocket(port, uuid, reg, info, actionInfo) {
 PI_PLUGIN = r'''
 import json, sys
 sys.path.insert(0, %r)
-from lindeck import ws
+from streamlin import ws
 a = sys.argv
 c = ws.connect("127.0.0.1", int(a[a.index("-port") + 1]))
 c.send(json.dumps({"event": a[a.index("-registerEvent") + 1], "uuid": a[a.index("-pluginUUID") + 1]}))
@@ -718,8 +718,8 @@ while True:
 
 @pytest.fixture
 def pi_setup(xdg, tmp_path):
-    from lindeck import editdoc, plugins
-    from lindeck.profiles import ProfileStore
+    from streamlin import editdoc, plugins
+    from streamlin.profiles import ProfileStore
     repo = str(Path(__file__).resolve().parents[1])
     # PropertyInspectorPath auf Plugin-Ebene (gilt für alle Aktionen des Plugins)
     zf = _make_plugin(tmp_path, "com.test.pi", PI_PLUGIN % repo, {"CodePath": "x.exe", "CodePathLin": "bin/plugin",
@@ -789,8 +789,8 @@ def test_property_inspector_protocol(pi_setup, xdg):
 
 
 @pytest.mark.skipif(not (shutil.which("node") and Path("/opt/pw-browsers").exists()
-                         and os.environ.get("LINDECK_BROWSER_TEST")),
-                    reason="Browser-Test nur mit LINDECK_BROWSER_TEST=1 und Playwright")
+                         and os.environ.get("STREAMLIN_BROWSER_TEST")),
+                    reason="Browser-Test nur mit STREAMLIN_BROWSER_TEST=1 und Playwright")
 def test_property_inspector_in_chromium(pi_setup, tmp_path):
     import subprocess
     import urllib.parse

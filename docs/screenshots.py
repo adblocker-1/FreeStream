@@ -102,9 +102,9 @@ def icon(path, color, glyph):
 # ------------------------------------------------------------- LinDeck
 def shot_lindeck(tmp):
     import tkinter as tk
-    from lindeck import catalog as C
-    from lindeck import editdoc as E
-    from lindeck import editor
+    from streamlin import catalog as C
+    from streamlin import editdoc as E
+    from streamlin import editor
     store = tmp / "profiles"
     store.mkdir()
     doc = E.ProfileDoc(E.create_profile("Streaming", "20GBD9901", store))  # Stream Deck +
@@ -142,8 +142,8 @@ def shot_lindeck(tmp):
         doc.update_state(page, ("dial", i), 0, "Title", title)
     doc.save()
 
-    from lindeck.models import Geometry
-    from lindeck.profiles import ProfileStore
+    from streamlin.models import Geometry
+    from streamlin.profiles import ProfileStore
     from test_app import FakeCtrl
     ctrl = FakeCtrl("DL41K1A04321", "20GBD9901", Geometry(4, 2, 4), doc.id)
 
@@ -192,8 +192,8 @@ def wallpaper(w, h):
 def shot_background(tmp, root, app, _doc):
     """Zweite Seite mit Hintergrundbild über alle Tasten und eigenem Touchstreifen."""
     doc = app.doc
-    from lindeck.bgui import BackgroundDialog
-    from lindeck.theme import glyph
+    from streamlin.bgui import BackgroundDialog
+    from streamlin.theme import glyph
     wp = tmp / "abendhimmel.jpg"
     wallpaper(1600, 900).save(wp, quality=92)
     strip = tmp / "streifen.png"
@@ -226,8 +226,8 @@ def shot_background(tmp, root, app, _doc):
 
 def shot_plugins(tmp, root, daemon):
     """Plugin-Verwaltung mit zwei Demo-Plugins (selbst erzeugt)."""
-    from lindeck import paths
-    from lindeck.pluginui import PluginManager
+    from streamlin import paths
+    from streamlin.pluginui import PluginManager
     paths.PLUGINS_DIR = tmp / "plugins"
     demos = [("de.example.timer", "Pomodoro-Timer", "Shows a timer on the key and rings when it is up.",
               "bin/plugin.js", (255, 107, 90), "rec"),
@@ -267,7 +267,7 @@ def shot_plugins(tmp, root, daemon):
 def shot_linewave(tmp):
     import tkinter as tk
     import test_waveapp as TW
-    from lindeck import effects, mixer, paths, system, wave3hw
+    from streamlin import effects, mixer, paths, system, wave3hw
     for n, s in (("STATE_DIR", "state"), ("CONFIG_DIR", "config"), ("CONFIG_FILE", "config/config.json"),
                  ("DATA_DIR", "data")):
         setattr(paths, n, tmp / s)
@@ -305,8 +305,8 @@ def shot_linewave(tmp):
     effects.Effects.start = lambda self, c, src: self.node_name(c["id"])  # keine echten Filterprozesse
     wave3hw.present = lambda: True
     wave3hw.USBTransport = lambda: TW.FakeWave3()
-    from lindeck.wavehost import WaveHost
-    from lindeck.waveui import WaveWindow
+    from streamlin.wavehost import WaveHost
+    from streamlin.waveui import WaveWindow
     host = WaveHost()
     host.start()
     host.tick()
@@ -323,7 +323,7 @@ def shot_linewave(tmp):
     grab(root, "linewave-microphone.png")
     win.show_view("mixer")
 
-    from lindeck import wavesetup
+    from streamlin import wavesetup
     data = wavesetup.collect(host)
     data["catalog"] = effects.catalog()
     wiz = wavesetup.SetupWizard(win, data)
@@ -337,7 +337,7 @@ def shot_linewave(tmp):
         grab(wiz, name)
     wiz.destroy()
 
-    from lindeck.wavedialogs import ChannelDialog, EffectsDialog
+    from streamlin.wavedialogs import ChannelDialog, EffectsDialog
     dlg = ChannelDialog(root, host.mixer.inputs(), on_save=lambda v: None)
     dlg.name.set("Console")
     dlg.kind_seg.set("input")
