@@ -27,6 +27,8 @@ import ctypes.util
 import struct
 import threading
 
+from .i18n import _
+
 VID, PID = 0x0FD9, 0x0070
 RT_IN, RT_OUT = 0xA1, 0x21
 REQ_READ, REQ_WRITE = 0x85, 0x05
@@ -49,7 +51,7 @@ FIELDS = {
     "gain_lock": (15, 1, "bool", 0, 1, 1),
 }
 NEEDS_53 = {"leds_flip", "gain_lock"}
-DIAL_MODES = {1: "Mikrofon", 2: "Kopfhörer", 3: "Mix"}
+DIAL_MODES = {1: _("Microphone"), 2: _("Headphones"), 3: _("Mix")}
 
 
 class Wave3Error(RuntimeError):
@@ -90,7 +92,7 @@ class _LibUSB:
         try:
             lib = ctypes.CDLL(path)
         except OSError as e:
-            raise Wave3Error("libusb-1.0 fehlt (Paket libusb-1.0-0)") from e
+            raise Wave3Error(_("libusb-1.0 is missing (package libusb-1.0-0)")) from e
         lib.libusb_init.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
         lib.libusb_open_device_with_vid_pid.argtypes = [ctypes.c_void_p, ctypes.c_uint16, ctypes.c_uint16]
         lib.libusb_open_device_with_vid_pid.restype = ctypes.c_void_p
@@ -102,7 +104,7 @@ class _LibUSB:
         lib.libusb_control_transfer.restype = ctypes.c_int
         self.ctx = ctypes.c_void_p()
         if lib.libusb_init(ctypes.byref(self.ctx)) != 0:
-            raise Wave3Error("libusb konnte nicht initialisiert werden")
+            raise Wave3Error(_("libusb could not be initialized"))
         self.lib = lib
 
 
@@ -122,7 +124,7 @@ class USBTransport:
         u = _lib()
         self.lib, self.handle = u.lib, u.lib.libusb_open_device_with_vid_pid(u.ctx, VID, PID)
         if not self.handle:
-            raise Wave3Error("Wave:3 nicht gefunden oder kein Zugriff (udev-Regel, neu anmelden)")
+            raise Wave3Error(_("Wave:3 not found or no access (udev rule, log in again)"))
 
     def control(self, req_type, req, value, length_or_data):
         if isinstance(length_or_data, int):
@@ -134,8 +136,8 @@ class USBTransport:
             n = len(data)
         r = self.lib.libusb_control_transfer(self.handle, req_type, req, value, WINDEX, buf, n, 1000)
         if r < 0:
-            raise Wave3Error({-3: "kein Zugriff auf das Wave:3 (udev-Regel, neu anmelden)",
-                              -4: "Wave:3 getrennt"}.get(r, f"USB-Fehler {r}"))
+            raise Wave3Error({-3: _("no access to the Wave:3 (udev rule, log in again)"),
+                              -4: _("Wave:3 disconnected")}.get(r) or _("USB error {code}").format(code=r))
         return bytes(buf[:r])
 
     def close(self):
@@ -164,7 +166,7 @@ class Wave3:
         n = self.config_len()
         b = self.t.control(RT_IN, REQ_READ, SEL_CONFIG, n)
         if len(b) != n:
-            raise Wave3Error(f"unerwartete Blocklänge {len(b)}")
+            raise Wave3Error(_("unexpected block length {length}").format(length=len(b)))
         return b
 
     def get(self) -> dict:
@@ -173,9 +175,10 @@ class Wave3:
     def set(self, name, value):
         """Ein Feld setzen (Transaktion mit Rückprüfung). Gibt den neuen Wert zurück."""
         if name not in FIELDS:
-            raise Wave3Error(f"Unbekannte Einstellung: {name}")
+            raise Wave3Error(_("Unknown setting: {name}").format(name=name))
         if name in NEEDS_53 and self.api < (5, 3):
-            raise Wave3Error(f"{name} braucht Firmware-API 5.3 (Gerät: {self.api[0]}.{self.api[1]})")
+            raise Wave3Error(_("{name} needs firmware API 5.3 (device: {version})").format(
+                name=name, version=f"{self.api[0]}.{self.api[1]}"))
         off, size = FIELDS[name][0], FIELDS[name][1]
         with self._lock:
             before = self.read()
@@ -188,7 +191,7 @@ class Wave3:
             bad = [i for i in range(len(want)) if after[i] != want[i] and i not in own]
             if bad:
                 self.t.control(RT_OUT, REQ_WRITE, SEL_CONFIG, before)
-                raise Wave3Error(f"Gerät hat unerwartet Byte {bad} verändert – Änderung zurückgenommen")
+                raise Wave3Error(_("Device unexpectedly changed byte {bytes} – change reverted").format(bytes=bad))
             return decode(after)[name]
 
     def toggle(self, name):
