@@ -1,7 +1,9 @@
-"""Gemeinsames Aussehen von LinDeck und Linewave.
+"""Gemeinsames Aussehen von LinDeck und Linewave (Streamlin-Design).
 
-Dunkles, ruhiges Design im Stil der Elgato-Programme: tiefes Grau, abgerundete
-Karten, eine blaue Akzentfarbe, Monitor-Mix in Cyan und Stream-Mix in Violett.
+Seitenleiste links, Karten mit runden Ecken und feinem Rand, Schrift Inter,
+blauer Akzent, Monitor-Mix in Cyan und Stream-Mix in Violett – als heller und
+dunkler Modus. Der Modus („appearance“ in config.json: auto, dark, light)
+wird beim Start einmal festgelegt; „auto“ folgt der Einstellung des Desktops.
 Alle Symbole zeichnet dieses Modul selbst (keine Grafiken von Elgato).
 
 Bausteine:
@@ -13,21 +15,102 @@ Bausteine:
   Switch               Schalter an/aus
   Segmented            Umschalter für Ansichten (Reiter)
 """
+import json
 import math
+import os
+import subprocess
 import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import ttk
 
 from PIL import Image, ImageDraw, ImageTk
 
-COL = {
-    "bg": "#141518", "panel": "#1d1e22", "panel2": "#26272c", "raised": "#303238", "border": "#2c2e34",
-    "fg": "#ececf0", "muted": "#8d8f99", "faint": "#5d6069",
-    "accent": "#2f7bff", "accent_hi": "#4d8fff",
-    "monitor": "#2fc3ff", "stream": "#a66bff", "danger": "#ff4d5a", "ok": "#30d158", "warn": "#ffb020",
-    # Editor (Gerät)
-    "device": "#0d0e10", "slot": "#24252a", "drop": "#30d158",
+from . import paths
+
+# bg: Hauptfläche, side: Seitenleiste, panel: Karten, panel2: Eingabefelder/Chips,
+# raised: Spuren/gedrückt, border: feine Ränder, accent_soft: gewählte Einträge
+PALETTES = {
+    "dark": {
+        "bg": "#0e1015", "side": "#12151b", "panel": "#171a21", "panel2": "#1e222b", "raised": "#272c37",
+        "border": "#262b35", "fg": "#e9ecf2", "muted": "#8b93a3", "faint": "#5b6372",
+        "accent": "#5b7cff", "accent_hi": "#7590ff", "accent_soft": "#1f2745", "on_accent": "#ffffff",
+        "monitor": "#22c3ee", "stream": "#c084fc", "danger": "#f43f5e", "danger_soft": "#3a1a24",
+        "ok": "#22c55e", "warn": "#f5b13d",
+        "device": "#07080b", "slot": "#1a1d24", "drop": "#22c55e", "shadow": "#05060a",
+    },
+    "light": {
+        "bg": "#f3f5f9", "side": "#eceff5", "panel": "#ffffff", "panel2": "#f2f4f8", "raised": "#e6e9f0",
+        "border": "#e0e4eb", "fg": "#151821", "muted": "#5d6676", "faint": "#9aa2b1",
+        "accent": "#3a5ff0", "accent_hi": "#5175f3", "accent_soft": "#e4e9fd", "on_accent": "#ffffff",
+        "monitor": "#0a9cc4", "stream": "#9341e6", "danger": "#e11d48", "danger_soft": "#fde4ea",
+        "ok": "#16a34a", "warn": "#d48a06",
+        "device": "#16181e", "slot": "#262a33", "drop": "#16a34a", "shadow": "#c9cfda",
+    },
 }
+MODES = ("auto", "light", "dark")
+
+
+def configured_appearance():
+    """„appearance“ aus config.json (auto, light, dark)."""
+    try:
+        v = json.loads(paths.CONFIG_FILE.read_text(encoding="utf-8")).get("appearance")
+    except (OSError, ValueError, AttributeError):
+        v = None
+    return v if v in MODES else "auto"
+
+
+def save_appearance(mode):
+    try:
+        data = json.loads(paths.CONFIG_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {}
+    data["appearance"] = mode
+    paths.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = paths.CONFIG_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(paths.CONFIG_FILE)
+
+
+def _run(cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=1.5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def system_prefers_dark():
+    """Hell oder dunkel laut Desktop (GNOME/GTK, KDE); None, wenn unbekannt."""
+    gtk = os.environ.get("GTK_THEME", "")
+    if gtk:
+        return gtk.lower().endswith(":dark") or "dark" in gtk.lower()
+    scheme = _run(["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"]).strip("'")
+    if scheme in ("prefer-dark", "prefer-light"):
+        return scheme == "prefer-dark"
+    kde = os.path.expanduser("~/.config/kdeglobals")
+    try:
+        text = open(kde, encoding="utf-8").read()
+        for line in text.splitlines():
+            if line.startswith("ColorScheme="):
+                return "dark" in line.lower()
+    except OSError:
+        pass
+    theme = _run(["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"]).strip("'").lower()
+    if theme:
+        return "dark" in theme
+    return None
+
+
+def resolve_mode(mode=None):
+    """Tatsächlicher Modus: STREAMLIN_APPEARANCE > config.json > Desktop > dunkel."""
+    mode = os.environ.get("STREAMLIN_APPEARANCE") or mode or configured_appearance()
+    if mode in ("light", "dark"):
+        return mode
+    dark = system_prefers_dark()
+    return "light" if dark is False else "dark"
+
+
+MODE = resolve_mode()
+COL = dict(PALETTES[MODE])
 FONT_FAMILIES = ("Inter", "Noto Sans", "Cantarell", "Ubuntu", "Segoe UI", "DejaVu Sans")
 
 
@@ -77,8 +160,8 @@ def apply(root):
     s.configure("Section.TLabel", background=panel, foreground=COL["muted"], font=(fam, 9, "bold"))
     s.configure("Status.TLabel", background=panel, foreground=COL["muted"], padding=(12, 5))
     s.configure("Ok.TLabel", background=panel, foreground=COL["ok"])
-    s.configure("TButton", background=panel2, foreground=fg, padding=(12, 5), borderwidth=0, relief="flat",
-                width=-4, lightcolor=panel2, darkcolor=panel2, bordercolor=panel2, focusthickness=0)
+    s.configure("TButton", background=panel2, foreground=fg, padding=(12, 6), borderwidth=1, relief="flat",
+                width=-4, lightcolor=panel2, darkcolor=panel2, bordercolor=COL["border"], focusthickness=0)
     s.map("TButton", background=[("pressed", COL["raised"]), ("active", COL["raised"]), ("disabled", panel)],
           foreground=[("disabled", COL["faint"])],
           lightcolor=[("active", COL["raised"])], darkcolor=[("active", COL["raised"])],
@@ -91,6 +174,15 @@ def apply(root):
     s.configure("Ghost.TButton", background=panel, lightcolor=panel, darkcolor=panel, bordercolor=panel)
     s.map("Ghost.TButton", background=[("active", panel2)], lightcolor=[("active", panel2)],
           darkcolor=[("active", panel2)], bordercolor=[("active", panel2)])
+    side = COL["side"]
+    s.configure("Side.TFrame", background=side)
+    s.configure("Side.TLabel", background=side, foreground=fg)
+    s.configure("SideMuted.TLabel", background=side, foreground=COL["muted"])
+    s.configure("Side.TMenubutton", background=side, lightcolor=side, darkcolor=side, bordercolor=side,
+                foreground=COL["muted"], arrowcolor=COL["faint"], padding=(6, 4))
+    s.map("Side.TMenubutton", background=[("active", COL["raised"])], lightcolor=[("active", COL["raised"])],
+          darkcolor=[("active", COL["raised"])], bordercolor=[("active", COL["raised"])])
+    s.configure("Bg.TButton", background=bg, lightcolor=bg, darkcolor=bg, bordercolor=COL["border"])
     s.configure("Ghost.TMenubutton", background=panel, lightcolor=panel, darkcolor=panel, bordercolor=panel,
                 foreground=COL["fg"], arrowcolor=COL["muted"], padding=(8, 4))
     s.map("Ghost.TMenubutton", background=[("active", panel2)], lightcolor=[("active", panel2)],
@@ -136,7 +228,11 @@ def apply(root):
     root.option_add("*Menu.background", panel2)
     root.option_add("*Menu.foreground", fg)
     root.option_add("*Menu.activeBackground", COL["accent"])
-    root.option_add("*Menu.activeForeground", "#ffffff")
+    root.option_add("*Menu.activeForeground", COL["on_accent"])
+    root.option_add("*Text.background", panel2)
+    root.option_add("*Text.foreground", fg)
+    root.option_add("*Listbox.background", panel2)
+    root.option_add("*Listbox.foreground", fg)
     root.option_add("*Menu.borderWidth", 0)
     return fam
 
@@ -146,8 +242,9 @@ def font(root, size=10, weight="normal"):
 
 
 # ===================================================================== Symbole
-def glyph(name, size=20, color="#ececf0", bg=None, circle=None):
+def glyph(name, size=20, color=None, bg=None, circle=None):
     """Symbol als RGBA-Bild. circle: Hintergrundkreis in dieser Farbe."""
+    color = color or COL["fg"]
     k = 4
     S = size * k
     im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
@@ -317,6 +414,71 @@ def glyph(name, size=20, color="#ececf0", bg=None, circle=None):
         line((0.06, 0.5), (0.94, 0.5))
         arc(0.12, -0.3, 0.88, 0.36, 40, 140)
         arc(0.12, 0.64, 0.88, 1.3, 220, 320)
+    elif n == "sun":
+        ell(0.3, 0.3, 0.7, 0.7, fill=False)
+        for i in range(8):
+            a = i * math.pi / 4
+            line((0.5 + 0.34 * math.cos(a), 0.5 + 0.34 * math.sin(a)),
+                 (0.5 + 0.46 * math.cos(a), 0.5 + 0.46 * math.sin(a)))
+    elif n == "moon":
+        ell(0.06, 0.06, 0.94, 0.94)
+        ink = circle or (0, 0, 0, 0)
+        d.ellipse((*P(0.34, -0.12), *P(1.12, 0.66)), fill=ink)
+    elif n == "auto":
+        ell(0.08, 0.08, 0.92, 0.92, fill=False)
+        d.pieslice((*P(0.08, 0.08), *P(0.92, 0.92)), 90, 270, fill=c)
+    elif n == "gear":
+        ell(0.3, 0.3, 0.7, 0.7, fill=False)
+        for i in range(8):
+            a = i * math.pi / 4
+            line((0.5 + 0.3 * math.cos(a), 0.5 + 0.3 * math.sin(a)),
+                 (0.5 + 0.46 * math.cos(a), 0.5 + 0.46 * math.sin(a)), width=lw + 2)
+    elif n in ("undo", "redo"):
+        sx = (lambda x: x) if n == "undo" else (lambda x: 1 - x)
+        line((sx(0.36), 0.6), (sx(0.1), 0.36), (sx(0.36), 0.12))
+        line((sx(0.12), 0.36), (sx(0.62), 0.36))
+        if n == "undo":
+            d.arc((*P(0.42, 0.36), *P(0.94, 0.86)), -90, 90, fill=c, width=lw)
+        else:
+            d.arc((*P(0.06, 0.36), *P(0.58, 0.86)), 90, 270, fill=c, width=lw)
+        line((sx(0.66), 0.86), (sx(0.48), 0.86))
+    elif n == "spark":
+        d.polygon([P(0.5, 0.02), P(0.62, 0.38), P(0.98, 0.5), P(0.62, 0.62), P(0.5, 0.98), P(0.38, 0.62),
+                   P(0.02, 0.5), P(0.38, 0.38)], fill=c)
+    elif n == "arrow":
+        line((0.1, 0.5), (0.9, 0.5))
+        line((0.58, 0.2), (0.9, 0.5), (0.58, 0.8))
+    elif n == "chevron":
+        line((0.2, 0.36), (0.5, 0.66), (0.8, 0.36))
+    elif n == "folder":
+        d.polygon([P(0.04, 0.16), P(0.38, 0.16), P(0.48, 0.28), P(0.96, 0.28), P(0.96, 0.86), P(0.04, 0.86)],
+                  fill=c)
+    elif n == "text":
+        line((0.14, 0.16), (0.86, 0.16))
+        line((0.5, 0.16), (0.5, 0.9))
+    elif n == "camera":
+        rect(0.02, 0.22, 0.68, 0.78, r=0.1)
+        d.polygon([P(0.7, 0.42), P(0.98, 0.24), P(0.98, 0.76), P(0.7, 0.58)], fill=c)
+    elif n == "check":
+        line((0.12, 0.52), (0.4, 0.8), (0.9, 0.2))
+    elif n == "trash":
+        line((0.1, 0.22), (0.9, 0.22))
+        line((0.38, 0.1), (0.62, 0.1))
+        d.polygon([P(0.18, 0.28), P(0.82, 0.28), P(0.74, 0.94), P(0.26, 0.94)], fill=c)
+    elif n == "edit":
+        d.polygon([P(0.66, 0.08), P(0.92, 0.34), P(0.36, 0.9), P(0.1, 0.9), P(0.1, 0.64)], fill=c)
+    elif n in ("import", "export"):
+        rect(0.06, 0.56, 0.94, 0.94, r=0.08, fill=False)
+        if n == "import":
+            line((0.5, 0.06), (0.5, 0.62))
+            line((0.28, 0.42), (0.5, 0.64), (0.72, 0.42))
+        else:
+            line((0.5, 0.64), (0.5, 0.08))
+            line((0.28, 0.28), (0.5, 0.06), (0.72, 0.28))
+    elif n == "deck":
+        for gy in (0.08, 0.54):
+            for gx in (0.08, 0.54):
+                rect(gx, gy, gx + 0.38, gy + 0.38, r=0.12)
     else:  # Punkt als Ersatz
         ell(0.3, 0.3, 0.7, 0.7)
     return im.resize((size, size), Image.LANCZOS)
@@ -329,7 +491,8 @@ class Icons:
         self.master = master
         self._cache = {}
 
-    def get(self, name, size=20, color=COL["fg"], circle=None):
+    def get(self, name, size=20, color=None, circle=None):
+        color = color or COL["fg"]
         key = (name, size, color, circle)
         if key not in self._cache:
             self._cache[key] = ImageTk.PhotoImage(glyph(name, size, color, circle=circle), master=self.master)
@@ -337,7 +500,7 @@ class Icons:
 
 
 # ===================================================================== Widgets
-def language_button(parent, icons, app, restart, bg=None):
+def language_button(parent, icons, app, restart, bg=None, style="Ghost.TMenubutton"):
     """Knopf mit Globus und Sprachname; Auswahl speichert die Sprache und bietet einen Neustart an."""
     from tkinter import messagebox
 
@@ -346,7 +509,7 @@ def language_button(parent, icons, app, restart, bg=None):
 
     cur = i18n.configured()
     btn = ttk.Menubutton(parent, text=" " + i18n.name(i18n.current()), image=icons.get("globe", 16, COL["muted"]),
-                         compound="left", style="Ghost.TMenubutton")
+                         compound="left", style=style)
     menu = tk.Menu(btn, tearoff=False, bg=COL["panel2"], fg=COL["fg"], activebackground=COL["accent"],
                    activeforeground="#ffffff", bd=0)
     var = tk.StringVar(btn, value=cur if cur == "auto" or cur in i18n.available() else "auto")
@@ -394,8 +557,11 @@ def rounded_rect(cv, x0, y0, x1, y1, r, **kw):
 class Card(tk.Canvas):
     """Fläche mit runden Ecken; Widgets kommen in card.body (tk.Frame)."""
 
-    def __init__(self, master, color=COL["panel"], radius=14, pad=14, outline="", parent_bg=None, stretch=False,
-                 **kw):
+    def __init__(self, master, color=None, radius=14, pad=14, outline=None, parent_bg=None, stretch=False,
+                 stripe=None, **kw):
+        color = color or COL["panel"]
+        outline = COL["border"] if outline is None else outline
+        self.stripe = stripe  # farbiger Streifen oben (Kanal-Karten)
         bg = parent_bg or _bg_of(master)
         super().__init__(master, bg=bg, highlightthickness=0, bd=0, **kw)
         self.color, self.radius, self.pad, self.outline = color, radius, pad, outline
@@ -419,6 +585,8 @@ class Card(tk.Canvas):
         if w < 4 or h < 4:
             w, h = int(self["width"]), int(self["height"])
         rounded_rect(self, 0, 0, w - 1, h - 1, self.radius, fill=self.color, outline=self.outline, tags="bg")
+        if self.stripe:
+            rounded_rect(self, 12, -3, w - 13, 3, 3, fill=self.stripe, outline="", tags="bg")
         self.tag_lower("bg")
         if self._fixed_w or self._fixed_h or (self.stretch and w - 2 * self.pad >= self.body.winfo_reqwidth()):
             self.itemconfigure(self._win, width=max(1, w - 2 * self.pad))
@@ -465,7 +633,8 @@ class Fader(tk.Canvas):
     """
 
     def __init__(self, master, length=200, thickness=34, orient="vertical", from_=0, to=100, value=0,
-                 color=COL["accent"], command=None, **kw):
+                 color=None, command=None, **kw):
+        color = color or COL["accent"]
         self.orient = orient
         w, h = (thickness, length) if orient == "vertical" else (length, thickness)
         super().__init__(master, width=w, height=h, bg=_bg_of(master), highlightthickness=0, bd=0, **kw)
@@ -515,7 +684,7 @@ class Fader(tk.Canvas):
             knob = min(w - 4, 26)
             top, bot = knob / 2 + 2, h - knob / 2 - 2
             y = bot - f * (bot - top)
-            rounded_rect(self, x0, top - tw / 2, x1, bot + tw / 2, tw / 2, fill=COL["bg"], outline="")
+            rounded_rect(self, x0, top - tw / 2, x1, bot + tw / 2, tw / 2, fill=COL["raised"], outline="")
             if f > 0:
                 rounded_rect(self, x0, y, x1, bot + tw / 2, tw / 2, fill=col, outline="")
             cx, cy = w / 2, y
@@ -525,7 +694,7 @@ class Fader(tk.Canvas):
             knob = min(h - 4, 22)
             left, right = knob / 2 + 2, w - knob / 2 - 2
             x = left + f * (right - left)
-            rounded_rect(self, left - th / 2, y0, right + th / 2, y1, th / 2, fill=COL["bg"], outline="")
+            rounded_rect(self, left - th / 2, y0, right + th / 2, y1, th / 2, fill=COL["raised"], outline="")
             if f > 0:
                 rounded_rect(self, left - th / 2, y0, x, y1, th / 2, fill=col, outline="")
             cx, cy = x, h / 2
@@ -578,10 +747,11 @@ def _knob_image(master, d, color, enabled=True):
         dr = ImageDraw.Draw(im)
         o = 2 * k
         dr.ellipse((o, o + 2 * k, o + d * k, o + d * k + 2 * k - 1), fill=(0, 0, 0, 110))
-        dr.ellipse((o, o, o + d * k, o + d * k), fill=rgb("#f4f4f6" if enabled else COL["faint"]) + (255,))
-        r = d * k * 0.17
+        # weißer Knopf mit farbigem Ring (Streamlin-Design)
+        dr.ellipse((o, o, o + d * k, o + d * k), fill=rgb(color if enabled else COL["faint"]) + (255,))
+        r = d * k * 0.3
         c = o + d * k / 2
-        dr.ellipse((c - r, c - r, c + r, c + r), fill=rgb(color) + (255,))
+        dr.ellipse((c - r, c - r, c + r, c + r), fill=rgb("#ffffff") + (255,))
         cache[key] = ImageTk.PhotoImage(im.resize((d + 4, d + 4), Image.LANCZOS), master=master)
     return cache[key]
 
@@ -589,8 +759,10 @@ def _knob_image(master, d, color, enabled=True):
 class RoundToggle(tk.Canvas):
     """Runder Knopf mit Symbol. on = aktiv (z. B. „stumm“ → rot)."""
 
-    def __init__(self, master, icon_off, icon_on, size=34, on_color=COL["danger"], off_color=COL["raised"],
+    def __init__(self, master, icon_off, icon_on, size=34, on_color=None, off_color=None,
                  command=None, tooltip=""):
+        on_color = on_color or COL["danger"]
+        off_color = off_color or COL["raised"]
         super().__init__(master, width=size, height=size, bg=_bg_of(master), highlightthickness=0, bd=0,
                          cursor="hand2")
         self.size = size
@@ -651,7 +823,8 @@ def _disc_image(master, d, color):
 class Switch(tk.Canvas):
     """Schalter an/aus (wie in den Einstellungen von Wave Link)."""
 
-    def __init__(self, master, command=None, width=42, height=24, color=COL["accent"]):
+    def __init__(self, master, command=None, width=42, height=24, color=None):
+        color = color or COL["accent"]
         super().__init__(master, width=width, height=height, bg=_bg_of(master), highlightthickness=0, bd=0,
                          cursor="hand2")
         self.w, self.h = width, height
@@ -841,3 +1014,394 @@ class Segmented(tk.Frame):
                 if self.command:
                     self.command(k)
                 return
+
+
+# ================================================================ Streamlin 2
+_IMG = {}
+
+
+def _img_cache(master):
+    return _IMG.setdefault(master.tk, {})
+
+
+def gradient_mark(master, size, kind="deck"):
+    """App-Zeichen: abgerundetes Quadrat mit Farbverlauf und weißem Symbol."""
+    cache = _img_cache(master)
+    key = ("mark", size, kind)
+    if key not in cache:
+        a, b = (("#5b7cff", "#8a5cff") if kind == "deck" else ("#22c3ee", "#c084fc"))
+        k = 4
+        S = size * k
+        grad = Image.new("RGBA", (S, S))
+        ca, cb = rgb(a), rgb(b)
+        px = grad.load()
+        for y in range(S):
+            for x in range(S):
+                t = (x + y) / (2 * S - 2)
+                px[x, y] = tuple(round(u + (v - u) * t) for u, v in zip(ca, cb)) + (255,)
+        mask = Image.new("L", (S, S), 0)
+        ImageDraw.Draw(mask).rounded_rectangle((0, 0, S - 1, S - 1), radius=S * 0.3, fill=255)
+        im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        im.paste(grad, (0, 0), mask)
+        g = glyph("deck" if kind == "deck" else "wave", int(S * 0.56), "#ffffff")
+        im.alpha_composite(g, (int(S * 0.22), int(S * 0.22)))
+        cache[key] = ImageTk.PhotoImage(im.resize((size, size), Image.LANCZOS), master=master)
+    return cache[key]
+
+
+def icon_tile(master, name, size, color, radius=0.28, fg="#ffffff"):
+    """Farbiges, abgerundetes Quadrat mit Symbol (Aktionen, Kanäle, Taste)."""
+    cache = _img_cache(master)
+    key = ("tile", name, size, color, radius, fg)
+    if key not in cache:
+        k = 4
+        S = size * k
+        im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        ImageDraw.Draw(im).rounded_rectangle((0, 0, S - 1, S - 1), radius=S * radius, fill=rgb(color) + (255,))
+        g = glyph(name, int(S * 0.5), fg)
+        im.alpha_composite(g, (int(S * 0.25), int(S * 0.25)))
+        cache[key] = ImageTk.PhotoImage(im.resize((size, size), Image.LANCZOS), master=master)
+    return cache[key]
+
+
+def section(master, text, bg=None):
+    """Kleine Abschnittsüberschrift in Großbuchstaben (DEVICES, PROFILES …)."""
+    return tk.Label(master, text=text.upper(), bg=bg or _bg_of(master), fg=COL["faint"],
+                    font=font(master, 8, "bold"), anchor="w")
+
+
+class Sidebar(tk.Frame):
+    """Seitenleiste links; Inhalt in .top (oben) und .bottom (unten)."""
+
+    def __init__(self, master, width=236):
+        super().__init__(master, bg=COL["side"], width=width)
+        self.pack_propagate(False)
+        self.top = tk.Frame(self, bg=COL["side"], padx=14, pady=16)
+        self.top.pack(side="top", fill="both", expand=True)
+        self.bottom = tk.Frame(self, bg=COL["side"], padx=14, pady=14)
+        self.bottom.pack(side="bottom", fill="x")
+
+    def brand(self, name, kind):
+        row = tk.Frame(self.top, bg=COL["side"])
+        row.pack(fill="x", padx=4, pady=(0, 14))
+        self._mark = gradient_mark(self, 32, kind)
+        tk.Label(row, image=self._mark, bg=COL["side"]).pack(side="left")
+        tk.Label(row, text=name, bg=COL["side"], fg=COL["fg"], font=font(self, 13, "bold")).pack(side="left", padx=10)
+        return row
+
+    def section(self, text, parent=None):
+        lb = section(parent or self.top, text, bg=COL["side"])
+        lb.pack(fill="x", padx=6, pady=(12, 6))
+        return lb
+
+
+class NavItem(tk.Canvas):
+    """Eintrag der Seitenleiste: Symbol, Text, rechts eine Zahl; gewählt = hinterlegt."""
+
+    def __init__(self, master, text, icon=None, count="", command=None, active=False, accent=False, height=34):
+        bg = _bg_of(master)
+        super().__init__(master, height=height, bg=bg, highlightthickness=0, bd=0, cursor="hand2")
+        self.text, self.icon, self.count, self.command = text, icon, count, command
+        self.active, self.accent, self.hover, self.h = active, accent, False, height
+        self.icons = Icons(self)
+        self.f = font(self, 10, "normal")
+        self.fb = font(self, 10, "bold")
+        self.fs = font(self, 9, "normal")
+        self.bind("<Configure>", lambda e: self._draw())
+        self.bind("<Button-1>", lambda e: self.command and self.command())
+        self.bind("<Enter>", lambda e: self._set_hover(True))
+        self.bind("<Leave>", lambda e: self._set_hover(False))
+        self._draw()
+
+    def _set_hover(self, v):
+        self.hover = v
+        self._draw()
+
+    def set(self, active=None, text=None, count=None):
+        if active is not None:
+            self.active = active
+        if text is not None:
+            self.text = text
+        if count is not None:
+            self.count = count
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        w = max(self.winfo_width(), 40)
+        h = self.h
+        if self.active or self.hover:
+            rounded_rect(self, 0, 1, w - 1, h - 1, 9, outline="",
+                         fill=COL["accent_soft"] if self.active else COL["raised"])
+        fg = COL["accent"] if self.accent else (COL["fg"] if self.active else COL["muted"])
+        x = 10
+        if self.icon:
+            ic = COL["accent"] if (self.active or self.accent) else COL["muted"]
+            self.create_image(x + 8, h / 2, image=self.icons.get(self.icon, 16, ic))
+            x += 26
+        self.create_text(x, h / 2, text=self.text, anchor="w", fill=fg,
+                         font=self.fb if self.active else self.f)
+        if self.count != "":
+            self.create_text(w - 10, h / 2, text=str(self.count), anchor="e", fill=COL["faint"], font=self.fs)
+
+
+class InfoCard(tk.Canvas):
+    """Karte mit Bild links, Titel und Untertitel (Geräte, Mikrofon, Ausgänge)."""
+
+    def __init__(self, master, title, subtitle="", image=None, dot=None, dim=False, command=None, height=56):
+        bg = _bg_of(master)
+        super().__init__(master, height=height, bg=bg, highlightthickness=0, bd=0,
+                         cursor="hand2" if command else "")
+        self.title, self.subtitle, self.image, self.dot, self.dim = title, subtitle, image, dot, dim
+        self.selected = False
+        self.h = height
+        self.command = command
+        self.f = font(self, 10, "bold")
+        self.fs = font(self, 9, "normal")
+        self.bind("<Configure>", lambda e: self._draw())
+        if command:
+            self.bind("<Button-1>", lambda e: command())
+        self._draw()
+
+    def set(self, title=None, subtitle=None, dot=None, dim=None, image=None, selected=None):
+        for k, v in (("title", title), ("subtitle", subtitle), ("dot", dot), ("dim", dim), ("image", image),
+                     ("selected", selected)):
+            if v is not None:
+                setattr(self, k, v)
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        w, h = max(self.winfo_width(), 60), self.h
+        if not self.dim:
+            rounded_rect(self, 0, 0, w - 1, h - 1, 12, fill=COL["panel"],
+                         outline=COL["accent"] if self.selected else COL["border"])
+        else:
+            rounded_rect(self, 0, 0, w - 1, h - 1, 12, fill="", outline=COL["border"])
+        x = 12
+        if self.image is not None:
+            self.create_image(x, h / 2, image=self.image, anchor="w")
+            x += self.image.width() + 10
+        tcol = COL["muted"] if self.dim else COL["fg"]
+        self.create_text(x, h / 2 - 8, text=self.title, anchor="w", fill=tcol, font=self.f)
+        sx = x
+        if self.dot:
+            self.create_oval(x, h / 2 + 5, x + 7, h / 2 + 12, fill=self.dot, outline="")
+            sx += 12
+        self.create_text(sx, h / 2 + 9, text=self.subtitle, anchor="w", fill=COL["muted"] if not self.dim
+                         else COL["faint"], font=self.fs)
+
+
+class SoftSegmented(tk.Canvas):
+    """Umschalter im Stil der Seitenleiste/Reiter: gewähltes Feld hell hinterlegt.
+
+    items: [(key, text, icon or None)]; command(key) beim Wechsel.
+    """
+
+    def __init__(self, master, items, command=None, value=None, fill=False, height=32):
+        bg = _bg_of(master)
+        super().__init__(master, height=height, bg=bg, highlightthickness=0, bd=0, cursor="hand2")
+        self.items, self.command, self.fill, self.h = items, command, fill, height
+        self.value = value or items[0][0]
+        self.icons = Icons(self)
+        self.f = font(self, 9, "bold")
+        self.bind("<Button-1>", self._click)
+        if fill:
+            self.bind("<Configure>", lambda e: self._draw())
+        self._draw()
+
+    def set(self, key):
+        self.value = key
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        fnt = tkfont.Font(self, font=self.f)
+        nat = [fnt.measure(t) + (22 if ic else 0) + 22 for _k, t, ic in self.items]
+        if self.fill:
+            total = max(self.winfo_width(), sum(nat) + 8)
+            widths = [(total - 8) / len(self.items)] * len(self.items)
+        else:
+            widths = nat
+            total = sum(widths) + 8
+            self.configure(width=total)
+        h = self.h
+        rounded_rect(self, 0, 0, total - 1, h - 1, 10, fill=COL["panel2"], outline=COL["border"])
+        x = 4
+        self._hits = []
+        for (k, t, ic), w in zip(self.items, widths):
+            on = k == self.value
+            if on:
+                rounded_rect(self, x, 3, x + w, h - 4, 7, fill=COL["panel"] if MODE == "light" else COL["raised"],
+                             outline="")
+            fg = COL["fg"] if on else COL["muted"]
+            tw = fnt.measure(t) + (20 if ic else 0)
+            cx = x + (w - tw) / 2
+            if ic:
+                self.create_image(cx + 7, h / 2, image=self.icons.get(ic, 13, fg))
+                cx += 20
+            self.create_text(cx, h / 2, text=t, anchor="w", font=self.f, fill=fg)
+            self._hits.append((x, x + w, k))
+            x += w
+
+    def _click(self, e):
+        for a, b, k in self._hits:
+            if a <= e.x <= b and k != self.value:
+                self.set(k)
+                if self.command:
+                    self.command(k)
+                return
+
+
+def mode_switch(parent, app, restart):
+    """Umschalter Hell / Dunkel / Auto; speichert und bietet einen Neustart an."""
+    from tkinter import messagebox
+
+    from .i18n import _
+
+    def pick(mode):
+        save_appearance(mode)
+        if resolve_mode(mode) == MODE:
+            return
+        if messagebox.askyesno(_("Appearance"), _("{app} switches to the new look after a restart. Restart now?")
+                               .format(app=app), parent=parent.winfo_toplevel()):
+            restart()
+
+    return SoftSegmented(parent, [("light", _("Light"), "sun"), ("dark", _("Dark"), "moon"),
+                                  ("auto", _("Auto"), "auto")], command=pick, value=configured_appearance(),
+                         fill=True)
+
+
+class Button(tk.Canvas):
+    """Knopf mit runden Ecken und feinem Rand. kind: default, primary, ghost, danger."""
+
+    def __init__(self, master, text="", icon=None, command=None, kind="default", height=32, padx=12):
+        bg = _bg_of(master)
+        super().__init__(master, height=height, bg=bg, highlightthickness=0, bd=0, cursor="hand2")
+        self.text, self.icon, self.command, self.kind = text, icon, command, kind
+        self.h, self.padx, self.hover, self.enabled = height, padx, False, True
+        self.icons = Icons(self)
+        self.f = font(self, 10, "normal" if kind != "primary" else "bold")
+        self.bind("<ButtonRelease-1>", self._click)
+        self.bind("<Enter>", lambda e: self._set_hover(True))
+        self.bind("<Leave>", lambda e: self._set_hover(False))
+        self._draw()
+
+    def _click(self, e):
+        if self.enabled and self.command and 0 <= e.x <= self.winfo_width() and 0 <= e.y <= self.winfo_height():
+            self.command()
+
+    def _set_hover(self, v):
+        self.hover = v
+        self._draw()
+
+    def configure_text(self, text=None, icon=None, enabled=None):
+        if text is not None:
+            self.text = text
+        if icon is not None:
+            self.icon = icon
+        if enabled is not None:
+            self.enabled = enabled
+            self.configure(cursor="hand2" if enabled else "")
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        fnt = tkfont.Font(self, font=self.f)
+        tw = fnt.measure(self.text) if self.text else 0
+        iw = 16 if self.icon else 0
+        pad = self.padx if self.text else (self.h - iw) / 2
+        w = int(pad * 2 + tw + iw + (7 if tw and iw else 0))
+        self.configure(width=w)
+        k = self.kind
+        if k == "primary":
+            fill, out, fg = (COL["accent_hi"] if self.hover else COL["accent"]), "", COL["on_accent"]
+        elif k == "ghost":
+            fill, out, fg = (COL["raised"] if self.hover else ""), "", COL["muted"]
+        else:
+            fill = COL["raised"] if self.hover else COL["panel2"]
+            out, fg = COL["border"], COL["danger"] if k == "danger" else COL["fg"]
+        if not self.enabled:
+            fg = COL["faint"]
+        rounded_rect(self, 0, 0, w - 1, self.h - 1, 9, fill=fill, outline=out)
+        x = pad
+        if self.icon:
+            self.create_image(x + 8, self.h / 2, image=self.icons.get(self.icon, 16, fg))
+            x += iw + 7
+        if self.text:
+            self.create_text(x, self.h / 2, text=self.text, anchor="w", font=self.f, fill=fg)
+
+
+class Chip(tk.Canvas):
+    """Filter-Chip (rund, mit Rand); aktiv = Akzent hinterlegt."""
+
+    def __init__(self, master, text, command=None, active=False, icon=None, height=26):
+        super().__init__(master, height=height, bg=_bg_of(master), highlightthickness=0, bd=0, cursor="hand2")
+        self.text, self.command, self.active, self.icon, self.h = text, command, active, icon, height
+        self.icons = Icons(self)
+        self.f = font(self, 9, "normal")
+        self.bind("<Button-1>", lambda e: self.command and self.command())
+        self._draw()
+
+    def set(self, active=None, text=None):
+        if active is not None:
+            self.active = active
+        if text is not None:
+            self.text = text
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        fnt = tkfont.Font(self, font=self.f)
+        iw = 18 if self.icon else 0
+        w = fnt.measure(self.text) + 22 + iw
+        self.configure(width=w)
+        h = self.h
+        if self.active:
+            rounded_rect(self, 0, 0, w - 1, h - 1, h / 2, fill=COL["accent_soft"], outline="")
+            fg = COL["accent"]
+        else:
+            rounded_rect(self, 0, 0, w - 1, h - 1, h / 2, fill=COL["panel"], outline=COL["border"])
+            fg = COL["muted"]
+        x = 11
+        if self.icon:
+            self.create_image(x + 6, h / 2, image=self.icons.get(self.icon, 12, fg))
+            x += iw
+        self.create_text(x, h / 2, text=self.text, anchor="w", font=self.f, fill=fg)
+
+
+class LevelMeter(tk.Canvas):
+    """Pegelanzeige: senkrecht als schmaler Streifen (grün → gelb → rot) oder waagerecht in einer Farbe."""
+
+    def __init__(self, master, length=200, thickness=4, orient="vertical", color=None):
+        w, h = (thickness, length) if orient == "vertical" else (length, thickness)
+        super().__init__(master, width=w, height=h, bg=_bg_of(master), highlightthickness=0, bd=0)
+        self.orient, self.color, self.level = orient, color, 0.0
+        self.bind("<Configure>", lambda e: self._draw())
+        self._draw()
+
+    def set(self, level):
+        level = max(0.0, min(1.0, float(level or 0)))
+        if abs(level - self.level) > 0.004:
+            self.level = level
+            self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        w, h = self.winfo_width(), self.winfo_height()
+        if w < 2:
+            w, h = int(self["width"]), int(self["height"])
+        if self.orient == "vertical":
+            rounded_rect(self, 0, 0, w, h, w / 2, fill=COL["raised"], outline="")
+            top = h - self.level * h
+            if self.level > 0:
+                for y0, y1, col in ((h * 0.4, h, COL["ok"]), (h * 0.2, h * 0.4, COL["warn"]),
+                                    (0, h * 0.2, COL["danger"])):
+                    a, b = max(top, y0), y1
+                    if b > a:
+                        self.create_rectangle(0, a, w, b, fill=col, outline="")
+        else:
+            rounded_rect(self, 0, 0, w, h, h / 2, fill=COL["raised"], outline="")
+            if self.level > 0:
+                rounded_rect(self, 0, 0, max(h, self.level * w), h, h / 2, fill=self.color or COL["accent"],
+                             outline="")
