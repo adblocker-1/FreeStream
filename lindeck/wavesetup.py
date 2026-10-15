@@ -20,10 +20,11 @@ import wave
 from tkinter import ttk
 
 from . import effects, paths, wavemic
+from .i18n import _
 from .mixer import DEFAULT_CHANNELS
 from .theme import COL, Card, Fader, Icons, PillButton, Switch, label
 
-STEPS = ["Willkommen", "Mikrofon", "Kopfhörer", "Klang", "Kanäle", "Fertig"]
+STEPS = [_("Welcome"), _("Microphone"), _("Headphones"), _("Sound"), _("Channels"), _("Done")]
 CHANNEL_ICONS = {"system": ("system", "#8e9bb0"), "music": ("music", "#30d158"), "browser": ("browser", "#2f7bff"),
                  "voice": ("chat", "#6b74ff"), "game": ("game", "#ffb020"), "sfx": ("sfx", "#ff6bd5")}
 
@@ -101,7 +102,7 @@ class SetupWizard(tk.Toplevel):
         "wave3": bool, "catalog": [...]} – im Arbeits-Thread gesammelt."""
         super().__init__(win.root)
         self.win, self.data, self.on_done = win, data, on_done
-        self.title("Linewave einrichten")
+        self.title(_("Set up Linewave"))
         self.configure(bg=COL["bg"])
         self.geometry("780x680")
         self.minsize(720, 640)
@@ -134,11 +135,11 @@ class SetupWizard(tk.Toplevel):
         foot.pack(fill="x", side="bottom")
         self.body = tk.Frame(self, bg=COL["bg"], padx=34, pady=20)
         self.body.pack(fill="both", expand=True)
-        self.next_btn = ttk.Button(foot, text="Weiter", style="Accent.TButton", command=self.next)
+        self.next_btn = ttk.Button(foot, text=_("Next"), style="Accent.TButton", command=self.next)
         self.next_btn.pack(side="right")
-        self.back_btn = ttk.Button(foot, text="Zurück", style="Ghost.TButton", command=self.back)
+        self.back_btn = ttk.Button(foot, text=_("Back"), style="Ghost.TButton", command=self.back)
         self.back_btn.pack(side="right", padx=8)
-        self.skip_btn = ttk.Button(foot, text="Später einrichten", style="Ghost.TButton", command=self.skip)
+        self.skip_btn = ttk.Button(foot, text=_("Set up later"), style="Ghost.TButton", command=self.skip)
         self.skip_btn.pack(side="left")
         self.protocol("WM_DELETE_WINDOW", self.skip)
         self.render()
@@ -172,7 +173,7 @@ class SetupWizard(tk.Toplevel):
         getattr(self, f"_step_{self.step}")()
         self.back_btn.state(["!disabled"] if 0 < self.step < len(STEPS) - 1 else ["disabled"])
         last = self.step == len(STEPS) - 1
-        self.next_btn.configure(text="Fertig" if last else ("Los geht's" if self.step == 0 else "Weiter"))
+        self.next_btn.configure(text=_("Finish") if last else (_("Let's go") if self.step == 0 else _("Next")))
         if last:
             self.skip_btn.pack_forget()
 
@@ -213,7 +214,7 @@ class SetupWizard(tk.Toplevel):
         box = tk.Frame(self.body, bg=COL["bg"])
         box.pack(fill="x")
         if not items:
-            label(box, "Kein Gerät gefunden – ist PipeWire (pipewire-pulse) gestartet?", 10, color=COL["warn"],
+            label(box, _("No device found – is PipeWire (pipewire-pulse) running?"), 10, color=COL["warn"],
                   bg=COL["bg"]).pack(anchor="w")
             return
         rows = []
@@ -254,19 +255,20 @@ class SetupWizard(tk.Toplevel):
     def _step_0(self):
         b = self.body
         tk.Label(b, image=self.icons.get("wave", 84, "#ffffff", circle=COL["accent"]), bg=COL["bg"]).pack(pady=(30, 16))
-        label(b, "Willkommen bei Linewave", 20, "bold").pack()
-        label(b, "In wenigen Schritten richtest du dein Mikrofon, deinen Kopfhörer und den Mixer ein – "
-                 "wie beim ersten Start von Elgato Wave Link. Du kannst alles später jederzeit ändern.",
+        label(b, _("Welcome to Linewave"), 20, "bold").pack()
+        label(b, _("In a few steps you set up your microphone, your headphones and the mixer – just like "
+                   "the first start of Elgato Wave Link. You can change everything later at any time."),
               10, color=COL["muted"], wraplength=520, justify="center").pack(pady=(8, 0))
 
     def _step_1(self):
-        self._title("Welches Mikrofon benutzt du?",
-                    "Das Mikrofon geht in deinen Stream-Mix. Sprich etwas – der Balken unten zeigt, ob es ankommt.")
+        self._title(_("Which microphone do you use?"),
+                    _("The microphone goes into your Stream Mix. Say something – the bar below shows whether "
+                      "it is coming through."))
         self._device_list(self.data.get("inputs") or [], self.mic, "mic", on_select=self._start_meter,
                           badge=is_wave)
         lv = tk.Frame(self.body, bg=COL["bg"])
         lv.pack(fill="x", pady=(18, 0))
-        label(lv, "PEGEL", 9, "bold", color=COL["muted"], bg=COL["bg"]).pack(anchor="w")
+        label(lv, _("LEVEL"), 9, "bold", color=COL["muted"], bg=COL["bg"]).pack(anchor="w")
         self.meter_cv = tk.Canvas(lv, height=16, bg=COL["bg"], highlightthickness=0)
         self.meter_cv.pack(fill="x", pady=(6, 0))
         self.meter_hint = label(lv, "", 9, color=COL["faint"], bg=COL["bg"])
@@ -274,19 +276,21 @@ class SetupWizard(tk.Toplevel):
         self._start_meter(self.mic.get())
 
     def _step_2(self):
-        self._title("Worüber hörst du?",
-                    "Hier landet dein Monitor-Mix – alles, was du selbst hören möchtest. Mit dem Testton prüfst "
-                    "du, ob es das richtige Gerät ist.")
+        self._title(_("What do you listen on?"),
+                    _("This is where your Monitor Mix goes – everything you want to hear yourself. Use the "
+                      "test tone to check that it is the right device."))
         self._device_list(self.data.get("outputs") or [], self.out, "headphones")
-        PillButton(self.body, "Testton abspielen", icon="speaker", command=self._tone, height=32).pack(
+        PillButton(self.body, _("Play test tone"), icon="speaker", command=self._tone, height=32).pack(
             anchor="w", pady=(16, 0))
 
     def _step_3(self):
         wave3 = self.data.get("wave3") and is_wave(self.mic.get())
-        self._title("Klang deines Mikrofons",
-                    ("Dein Wave:3 filtert Low Cut und Clipguard direkt im Mikrofon. "
-                     if wave3 else "Low Cut und Clipguard laufen als Filter in Linewave. ")
-                    + "Dazu kannst du empfohlene Effekte einschalten – genau wie die Plugins in Wave Link.")
+        self._title(_("Your microphone's sound"),
+                    _("Your Wave:3 applies Low Cut and Clipguard directly in the microphone. You can also turn "
+                      "on recommended effects – just like the plugins in Wave Link.")
+                    if wave3 else
+                    _("Low Cut and Clipguard run as filters in Linewave. You can also turn on recommended "
+                      "effects – just like the plugins in Wave Link."))
         card = Card(self.body, pad=14, stretch=True)
         card.pack(fill="x")
 
@@ -304,8 +308,8 @@ class SetupWizard(tk.Toplevel):
                 sw.command = lambda: var.set(sw.get())
             sw.set_enabled(enabled)
             return sw
-        row(card.body, "Low Cut", "Entfernt Brummen und Trittschall", self.lowcut)
-        row(card.body, "Clipguard", "Verhindert Übersteuern, wenn du plötzlich laut wirst", self.clipguard,
+        row(card.body, "Low Cut", _("Removes hum and footfall noise"), self.lowcut)
+        row(card.body, "Clipguard", _("Prevents clipping when you suddenly get loud"), self.clipguard,
             enabled=wave3 or bool(self._plugin("fastLookaheadLimiter")))
         if wave3:
             g = tk.Frame(card.body, bg=COL["panel"])
@@ -314,27 +318,27 @@ class SetupWizard(tk.Toplevel):
             self.gain = Fader(g, length=380, thickness=28, orient="horizontal", color=COL["accent"])
             self.gain.set(self.data.get("gain_pct", 70))
             self.gain.pack(side="left")
-        label(self.body, "EMPFOHLENE EFFEKTE", 9, "bold", color=COL["muted"], bg=COL["bg"]).pack(anchor="w",
+        label(self.body, _("RECOMMENDED EFFECTS"), 9, "bold", color=COL["muted"], bg=COL["bg"]).pack(anchor="w",
                                                                                               pady=(14, 6))
         fx = Card(self.body, pad=14, stretch=True)
         fx.pack(fill="x")
         for key, label_, title, text in (
-                ("noise_suppressor_mono", "noise", "Rauschunterdrückung",
-                 "Filtert Tastatur, Lüfter und Hintergrund heraus (RNNoise)"),
-                ("gate", "gate", "Noise Gate", "Schaltet das Mikrofon in Sprechpausen stumm"),
-                ("sc4m", "comp", "Kompressor", "Gleicht laute und leise Stellen aus")):
+                ("noise_suppressor_mono", "noise", _("Noise suppression"),
+                 _("Filters out keyboard, fans and background noise (RNNoise)")),
+                ("gate", "gate", _("Noise Gate"), _("Mutes the microphone while you pause speaking")),
+                ("sc4m", "comp", _("Compressor"), _("Evens out loud and quiet passages"))):
             p = self._plugin(key)
             var = self.fx_choice.setdefault(key, tk.BooleanVar(self, value=bool(p) and key != "sc4m"))
             if not p:
                 var.set(False)
                 pkg = "noise-suppression-for-voice" if key.startswith("noise") else "swh-plugins"
-                text = f"{text} – Paket „{pkg}“ fehlt"
+                text = _("{text} – package “{package}” is missing").format(text=text, package=pkg)
             row(fx.body, title, text, var, enabled=bool(p))
 
     def _step_4(self):
-        self._title("Welche Kanäle möchtest du?",
-                    "Jedes Programm landet in einem Kanal mit eigenem Regler für Kopfhörer und Stream. "
-                    "Eigene Kanäle (z. B. für eine Capture-Karte) legst du später mit „Kanal hinzufügen“ an.")
+        self._title(_("Which channels do you want?"),
+                    _("Every app goes into a channel with its own controls for headphones and stream. You can "
+                      "create your own channels (e.g. for a capture card) later with “Add channel”."))
         grid = tk.Frame(self.body, bg=COL["bg"])
         grid.pack(fill="x")
         for i, c in enumerate(DEFAULT_CHANNELS):
@@ -354,18 +358,18 @@ class SetupWizard(tk.Toplevel):
     def _step_5(self):
         b = self.body
         tk.Label(b, image=self.icons.get("wave", 64, "#ffffff", circle=COL["ok"]), bg=COL["bg"]).pack(pady=(10, 12))
-        label(b, "Fertig eingerichtet!", 18, "bold").pack()
-        self.result = label(b, "Mixer wird eingerichtet …", 10, color=COL["muted"])
+        label(b, _("All set!"), 18, "bold").pack()
+        self.result = label(b, _("Setting up mixer …"), 10, color=COL["muted"])
         self.result.pack(pady=(4, 16))
         card = Card(b, pad=18, stretch=True)
         card.pack(fill="x")
         fx_on = any(v.get() for v in self.fx_choice.values()) or (self.lowcut.get() and not self.data.get("wave3"))
-        tips = [("OBS Studio", "Audio-Eingang „Monitor of Linewave Stream-Mix“ hinzufügen – darin ist alles, "
-                               "was dein Publikum hören soll."),
-                ("Discord, Zoom & Co.", "Als Mikrofon „Linewave Mikrofon (Effekte)“ wählen." if fx_on else
-                 "Als Mikrofon dein Mikrofon wählen – oder den Stream-Mix, wenn andere alles hören sollen."),
-                ("Programme", "Neue Programme landen automatisch im passenden Kanal; im Mixer unter "
-                              "„Programme“ kannst du sie umsortieren.")]
+        tips = [("OBS Studio", _("Add the audio input “Monitor of Linewave Stream Mix” – it contains everything "
+                                 "your audience should hear.")),
+                ("Discord, Zoom & Co.", _("Select “Linewave Microphone (Effects)” as the microphone.") if fx_on
+                 else _("Select your own microphone – or the Stream Mix if others should hear everything.")),
+                (_("Apps"), _("New apps automatically go into the matching channel; you can move them to "
+                              "another channel in the mixer under “Apps”."))]
         for title, text in tips:
             r = tk.Frame(card.body, bg=COL["panel"])
             r.pack(fill="x", pady=6)
@@ -381,7 +385,7 @@ class SetupWizard(tk.Toplevel):
         self.meter = LevelMeter(source)
         if hasattr(self, "meter_hint") and self.meter_hint.winfo_exists():
             self.meter_hint.configure(text="" if self.meter.available else
-                                      "Pegelanzeige nicht möglich (parec aus pulseaudio-utils fehlt)")
+                                      _("Level meter not available (parec from pulseaudio-utils is missing)"))
         self._tick_meter()
 
     def _tick_meter(self):
@@ -449,9 +453,9 @@ class SetupWizard(tk.Toplevel):
             if not self.winfo_exists():
                 return
             if err is not None:
-                self.result.configure(text=f"Fehler: {err}", fg=COL["danger"])
+                self.result.configure(text=_("Error: {error}").format(error=err), fg=COL["danger"])
             else:
-                self.result.configure(text="Mixer und Mikrofon sind bereit.", fg=COL["ok"])
+                self.result.configure(text=_("Mixer and microphone are ready."), fg=COL["ok"])
             if self.on_done:
                 self.on_done()
         self.win.worker.submit(work, done)
@@ -515,6 +519,6 @@ def collect(host):
         except Exception:  # noqa: BLE001
             pass
     src = wavemic.find_source()
-    if src and src not in {n for n, _ in out["inputs"]}:
+    if src and src not in {n for n, _d in out["inputs"]}:
         out["inputs"].insert(0, (src, "Elgato Wave"))
     return out

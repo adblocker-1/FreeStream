@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import effects
+from .i18n import _
 from .theme import COL, Card, Dialog, Fader, Icons, PillButton, Segmented, Switch, label
 
 ICONS = ["music", "browser", "chat", "game", "sfx", "system", "mic", "headphones", "speaker", "wave", "record",
@@ -59,13 +60,13 @@ class ChannelDialog(Dialog):
         edit = channel is not None
         c = channel or {}
         is_mic = c.get("id") == "mic"
-        super().__init__(master, ("Kanal bearbeiten" if edit else "Neuer Kanal"), width=520)
+        super().__init__(master, (_("Edit channel") if edit else _("New channel")), width=520)
         self.inputs = inputs
         self.on_save, self.on_delete = on_save, on_delete
         b = self.body
-        label(b, "Kanal bearbeiten" if edit else "Neuen Kanal anlegen", 15, "bold").pack(anchor="w")
-        label(b, ("Programme legst du danach im Mixer unter „Programme“ in den Kanal."
-                  if not edit else "Änderungen werden sofort im Mixer übernommen."),
+        label(b, _("Edit channel") if edit else _("Create new channel"), 15, "bold").pack(anchor="w")
+        label(b, (_("Afterwards, put apps into the channel in the mixer under “Apps”.")
+                  if not edit else _("Changes are applied to the mixer right away.")),
               9, color=COL["muted"]).pack(anchor="w", pady=(2, 14))
 
         self.name = tk.StringVar(self, value=c.get("name", ""))
@@ -79,38 +80,38 @@ class ChannelDialog(Dialog):
 
         self.kind = c.get("kind", "apps") if edit else "apps"
         if not edit:
-            label(b, "ART", 9, "bold", color=COL["muted"]).pack(anchor="w")
-            self.kind_seg = Segmented(b, [("apps", "Programme"), ("input", "Eingangsgerät")], command=self._kind)
+            label(b, _("TYPE"), 9, "bold", color=COL["muted"]).pack(anchor="w")
+            self.kind_seg = Segmented(b, [("apps", _("Apps")), ("input", _("Input device"))], command=self._kind)
             self.kind_seg.pack(anchor="w", pady=(4, 4))
             self.kind_hint = label(b, "", 9, color=COL["muted"], wraplength=460, justify="left")
             self.kind_hint.pack(anchor="w", pady=(0, 10))
 
         self.dev_frame = tk.Frame(b, bg=COL["bg"])
-        label(self.dev_frame, "EINGANGSGERÄT", 9, "bold", color=COL["muted"]).pack(anchor="w")
+        label(self.dev_frame, _("INPUT DEVICE"), 9, "bold", color=COL["muted"]).pack(anchor="w")
         self.dev = tk.StringVar(self)
-        names = [d for _n, d in inputs] or ["Kein Eingangsgerät gefunden"]
+        names = [d for _n, d in inputs] or [_("No input device found")]
         self.dev_box = ttk.Combobox(self.dev_frame, textvariable=self.dev, values=names, state="readonly")
         self.dev_box.pack(fill="x", pady=(4, 14))
         cur = c.get("source") or ""
         self.dev.set(next((d for n, d in inputs if n == cur), names[0] if inputs else names[0]))
 
         icon, color = c.get("icon") or default_look[0], c.get("color") or default_look[1]
-        label(b, "SYMBOL", 9, "bold", color=COL["muted"]).pack(anchor="w")
+        label(b, _("ICON"), 9, "bold", color=COL["muted"]).pack(anchor="w")
         self.icon = _Picker(b, ICONS, icon, "icon", color=color)
         self.icon.pack(anchor="w", pady=(4, 12))
-        label(b, "FARBE", 9, "bold", color=COL["muted"]).pack(anchor="w")
+        label(b, _("COLOR"), 9, "bold", color=COL["muted"]).pack(anchor="w")
         self.color = _Picker(b, COLORS, color if color in COLORS else COLORS[5], "color",
                              command=self.icon.set_color)
         self.color.pack(anchor="w", pady=(4, 6))
         self.error = label(b, "", 9, color=COL["danger"])
         self.error.pack(anchor="w", pady=(8, 0))
 
-        ttk.Button(self.buttons, text="Speichern" if edit else "Kanal anlegen", style="Accent.TButton",
+        ttk.Button(self.buttons, text=_("Save") if edit else _("Create channel"), style="Accent.TButton",
                    command=self._save).pack(side="right")
-        ttk.Button(self.buttons, text="Abbrechen", style="Ghost.TButton", command=self.destroy).pack(side="right",
+        ttk.Button(self.buttons, text=_("Cancel"), style="Ghost.TButton", command=self.destroy).pack(side="right",
                                                                                                 padx=8)
         if edit and on_delete and not is_mic:
-            ttk.Button(self.buttons, text="Kanal löschen", style="Danger.TButton", command=self._delete).pack(
+            ttk.Button(self.buttons, text=_("Delete channel"), style="Danger.TButton", command=self._delete).pack(
                 side="left")
         self._kind(self.kind)
         self.entry.focus_set()
@@ -121,9 +122,9 @@ class ChannelDialog(Dialog):
         self.kind = kind
         if hasattr(self, "kind_hint"):
             self.kind_hint.configure(text=(
-                "Ein eigener Kanal für Programme – z. B. „Podcast“ oder „Zweites Spiel“."
+                _("A separate channel for apps – e.g. “Podcast” or “Second game”.")
                 if kind == "apps" else
-                "Ein Gerät direkt in den Mix holen – z. B. ein zweites Mikrofon, Line-In oder eine Capture-Karte."))
+                _("Bring a device straight into the mix – e.g. a second microphone, line-in or a capture card.")))
         if kind == "input":
             self.dev_frame.pack(fill="x", after=self.kind_hint if hasattr(self, "kind_hint") else self.entry)
         else:
@@ -137,10 +138,10 @@ class ChannelDialog(Dialog):
     def _save(self):
         v = self.values()
         if not v["name"] and self.entry.cget("state") != "disabled":
-            self.error.configure(text="Bitte einen Namen eingeben")
+            self.error.configure(text=_("Please enter a name"))
             return
         if v["kind"] == "input" and not v["source"]:
-            self.error.configure(text="Bitte ein Eingangsgerät wählen")
+            self.error.configure(text=_("Please choose an input device"))
             return
         self.destroy()
         if self.on_save:
@@ -154,7 +155,7 @@ class ChannelDialog(Dialog):
 
 def _fmt(value, c):
     if c.get("toggle"):
-        return "an" if value >= 0.5 else "aus"
+        return _("on") if value >= 0.5 else _("off")
     unit = f" {c['unit']}" if c.get("unit") else ""
     if c.get("int") or abs(value) >= 100:
         return f"{value:.0f}{unit}"
@@ -190,7 +191,7 @@ class EffectsDialog(Dialog):
     """Effektkette eines Kanals: Effekte hinzufügen, an/aus, Reihenfolge, Regler."""
 
     def __init__(self, master, channel, chain, catalog, on_change, on_control):
-        super().__init__(master, f"Effekte – {channel['name']}", width=600, height=640)
+        super().__init__(master, _("Effects – {name}").format(name=channel["name"]), width=600, height=640)
         self.channel = channel
         self.chain = [dict(fx, controls=dict(fx.get("controls") or {})) for fx in chain]
         self.catalog = catalog
@@ -198,13 +199,13 @@ class EffectsDialog(Dialog):
         self.icons = Icons(self)
         head = tk.Frame(self.body, bg=COL["bg"])
         head.pack(fill="x")
-        label(head, f"Effekte für „{channel['name']}“", 15, "bold").pack(anchor="w")
-        label(head, "Der Ton läuft von oben nach unten durch die Effekte. Wie die Plugins in Wave Link.",
+        label(head, _("Effects for “{name}”").format(name=channel["name"]), 15, "bold").pack(anchor="w")
+        label(head, _("Audio flows through the effects from top to bottom. Just like the plugins in Wave Link."),
               9, color=COL["muted"]).pack(anchor="w", pady=(2, 12))
         self.area = _ScrollArea(self.body)
         self.area.pack(fill="both", expand=True)
-        ttk.Button(self.buttons, text="Fertig", style="Accent.TButton", command=self.destroy).pack(side="right")
-        PillButton(self.buttons, "Effekt hinzufügen", icon="plus", command=self._add, height=30).pack(side="left")
+        ttk.Button(self.buttons, text=_("Done"), style="Accent.TButton", command=self.destroy).pack(side="right")
+        PillButton(self.buttons, _("Add effect"), icon="plus", command=self._add, height=30).pack(side="left")
         self._render()
         self.show()
 
@@ -215,9 +216,9 @@ class EffectsDialog(Dialog):
         if not self.chain:
             card = Card(self.area.inner, pad=22)
             card.pack(fill="x", pady=4)
-            label(card.body, "Noch keine Effekte", 11, "bold").pack(anchor="w")
-            label(card.body, "Mit „Effekt hinzufügen“ z. B. Rauschunterdrückung, Noise Gate, Kompressor oder "
-                             "Equalizer auf diesen Kanal legen.", 9, color=COL["muted"], wraplength=480,
+            label(card.body, _("No effects yet"), 11, "bold").pack(anchor="w")
+            label(card.body, _("Use “Add effect” to put e.g. noise suppression, a noise gate, a compressor or "
+                               "an equalizer on this channel."), 9, color=COL["muted"], wraplength=480,
                   justify="left").pack(anchor="w", pady=(4, 0))
             return
         for i, fx in enumerate(self.chain):
@@ -235,7 +236,7 @@ class EffectsDialog(Dialog):
         names = tk.Frame(top, bg=COL["panel"])
         names.pack(side="left", padx=10, fill="x", expand=True)
         label(names, fx.get("name") or (p or {}).get("name") or fx["plugin"], 11, "bold").pack(anchor="w")
-        label(names, (p or {}).get("info") or ("Plugin nicht gefunden – installiert?" if not p else ""),
+        label(names, (p or {}).get("info") or (_("Plugin not found – is it installed?") if not p else ""),
               8, color=COL["muted"] if p else COL["danger"], wraplength=250, justify="left").pack(anchor="w")
         sw = Switch(top, command=lambda: self._toggle(i, sw.get()))
         sw.set(fx.get("enabled", True))
@@ -314,21 +315,21 @@ class PluginPicker(Dialog):
     """Liste aller Effekte mit Suche – wie der Plugin-Browser in Wave Link."""
 
     def __init__(self, master, catalog, on_pick):
-        super().__init__(master, "Effekt hinzufügen", width=560, height=600)
+        super().__init__(master, _("Add effect"), width=560, height=600)
         self.catalog, self.on_pick = catalog, on_pick
         self.icons = Icons(self)
-        label(self.body, "Effekt hinzufügen", 15, "bold").pack(anchor="w")
+        label(self.body, _("Add effect"), 15, "bold").pack(anchor="w")
         n = {t: sum(1 for p in catalog if p["type"] == t) for t in ("builtin", "ladspa", "lv2")}
         self.lv2_ok, self.lv2_hint = effects.lv2_status()
-        info = (f"{n['builtin']} eingebaute Filter, {n['ladspa']} LADSPA- und {n['lv2']} LV2-Plugins gefunden. "
-                "Mehr Plugins: Pakete swh-plugins, tap-plugins, x42-plugins, lsp-plugins-lv2, calf-plugins.")
+        info = _("Found {builtin} built-in filters, {ladspa} LADSPA and {lv2} LV2 plugins. More plugins: packages "
+                 "swh-plugins, tap-plugins, x42-plugins, lsp-plugins-lv2, calf-plugins.").format(**n)
         if n["lv2"] == 0 and not shutil.which("lv2info"):
-            info += " Für LV2-Plugins das Paket lilv-utils installieren."
+            info += " " + _("For LV2 plugins, install the package lilv-utils.")
         elif not self.lv2_ok:
             info += " " + self.lv2_hint + "."
         label(self.body, info, 9, color=COL["muted"], wraplength=500, justify="left").pack(anchor="w", pady=(2, 8))
         self.kind = "all"
-        self.seg = Segmented(self.body, [("all", "Alle"), ("builtin", "Eingebaut"), ("ladspa", "LADSPA"),
+        self.seg = Segmented(self.body, [("all", _("All")), ("builtin", _("Built-in")), ("ladspa", "LADSPA"),
                                          ("lv2", "LV2")], command=self._kind)
         self.seg.pack(anchor="w", pady=(0, 8))
         sb = tk.Frame(self.body, bg=COL["panel2"])
@@ -342,7 +343,7 @@ class PluginPicker(Dialog):
         self.q.trace_add("write", lambda *a: self._fill())
         self.area = _ScrollArea(self.body)
         self.area.pack(fill="both", expand=True)
-        ttk.Button(self.buttons, text="Schließen", style="Ghost.TButton", command=self.destroy).pack(side="right")
+        ttk.Button(self.buttons, text=_("Close"), style="Ghost.TButton", command=self.destroy).pack(side="right")
         self._fill()
         self.show()
 
@@ -364,7 +365,7 @@ class PluginPicker(Dialog):
                 continue
             shown += 1
             if shown > 150:
-                label(self.area.inner, "… weitere – Suche eingrenzen", 9, color=COL["muted"]).pack(anchor="w")
+                label(self.area.inner, _("… more – narrow down your search"), 9, color=COL["muted"]).pack(anchor="w")
                 break
             row = tk.Frame(self.area.inner, bg=COL["panel"], padx=12, pady=8, cursor="hand2")
             row.pack(fill="x", pady=2)
@@ -381,7 +382,7 @@ class PluginPicker(Dialog):
                   8, color=COL["muted"] if ok else COL["warn"], wraplength=330, justify="left").pack(anchor="w")
             if not ok:
                 continue
-            add = PillButton(row, "Hinzufügen", command=lambda p=p: self._pick(p))
+            add = PillButton(row, _("Add"), command=lambda p=p: self._pick(p))
             add.pack(side="right")
             for w in (row, txt):
                 w.bind("<Double-Button-1>", lambda e, p=p: self._pick(p))
