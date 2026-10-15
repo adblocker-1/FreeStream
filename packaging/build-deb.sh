@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# Baut lindeck_<version>_all.deb  (Aufruf: ./packaging/build-deb.sh [Ausgabeordner])
+# Baut streamlin_<version>_all.deb (LinDeck + Linewave)  (Aufruf: ./packaging/build-deb.sh [Ausgabeordner])
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION=$(python3 -c "import sys;sys.path.insert(0,'$ROOT');import lindeck;print(lindeck.__version__)")
 OUT="${1:-$ROOT/dist}"
 STAGE="$(mktemp -d)"
-PKG="$STAGE/lindeck_${VERSION}_all"
+PKG="$STAGE/streamlin_${VERSION}_all"
 SD_LIB="$(python3 -c 'import StreamDeck,os;print(os.path.dirname(StreamDeck.__file__))')"
 SD_LICENSE="$(python3 -c 'import importlib.metadata as m;d=m.distribution("streamdeck");print([str(d.locate_file(f)) for f in d.files if f.name=="LICENSE"][0])')"
 
 mkdir -p "$PKG/DEBIAN" "$PKG/opt/lindeck/vendor" "$PKG/usr/bin" "$PKG/lib/udev/rules.d" \
          "$PKG/usr/lib/modules-load.d" "$PKG/etc/xdg/autostart" "$PKG/usr/share/applications" \
-         "$PKG/usr/share/doc/lindeck"
+         "$PKG/usr/share/doc/streamlin"
 
 cp -r "$ROOT/lindeck" "$PKG/opt/lindeck/"
 cp -r "$SD_LIB" "$PKG/opt/lindeck/vendor/StreamDeck"
 find "$PKG/opt" -name "__pycache__" -prune -exec rm -rf {} +
-cp "$SD_LICENSE" "$PKG/usr/share/doc/lindeck/LICENSE.python-elgato-streamdeck"
-cp "$ROOT/README.md" "$ROOT/README.de.md" "$PKG/usr/share/doc/lindeck/"
+cp "$SD_LICENSE" "$PKG/usr/share/doc/streamlin/LICENSE.python-elgato-streamdeck"
+cp "$ROOT/README.md" "$PKG/usr/share/doc/streamlin/README.md"
 
 cat > "$PKG/usr/bin/lindeck" <<'EOF'
 #!/bin/sh
@@ -124,7 +124,7 @@ for sz in 48 64 128 256; do
 done
 
 cat > "$PKG/DEBIAN/control" <<EOF
-Package: lindeck
+Package: streamlin
 Version: $VERSION
 Section: utils
 Priority: optional
@@ -132,7 +132,10 @@ Architecture: all
 Maintainer: Felix <noreply@localhost>
 Depends: python3 (>= 3.10), python3-pil, python3-tk, python3-pil.imagetk, python3-evdev, python3-cairosvg, libhidapi-libusb0, libusb-1.0-0, fonts-dejavu-core, xdg-utils, xdg-user-dirs, libnotify-bin, wl-clipboard, xclip, playerctl, pulseaudio-utils, msitools, udev, kmod
 Recommends: python3-pystray, gir1.2-ayatanaappindicator3-0.1, chromium | google-chrome-stable | firefox, mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, wireplumber, pipewire-pulse, nodejs, swh-plugins, tap-plugins, pipewire-bin, lilv-utils, jalv, pipewire-jack, x42-plugins
-Description: Elgato-compatible Stream Deck software for Linux
+Conflicts: lindeck
+Replaces: lindeck
+Provides: lindeck
+Description: Stream Deck and Wave Link replacement for Linux (LinDeck + Linewave)
  Drives every Elgato Stream Deck (Original, MK.2, Mini, XL, Neo, +, + XL,
  Studio, Pedal) and reads the profiles of the Elgato app directly. Two
  programs like Elgato's: "LinDeck" for the Stream Deck (edit profiles,
@@ -190,6 +193,6 @@ chmod 755 "$PKG/DEBIAN/postinst" "$PKG/DEBIAN/prerm" "$PKG/DEBIAN/postrm"
 find "$PKG" -type d -exec chmod 755 {} +
 find "$PKG/opt" "$PKG/usr/share" "$PKG/lib" "$PKG/etc" "$PKG/usr/lib" -type f -exec chmod 644 {} +
 mkdir -p "$OUT"
-dpkg-deb --root-owner-group --build "$PKG" "$OUT/lindeck_${VERSION}_all.deb" >/dev/null
+dpkg-deb --root-owner-group --build "$PKG" "$OUT/streamlin_${VERSION}_all.deb" >/dev/null
 rm -rf "$STAGE"
-echo "$OUT/lindeck_${VERSION}_all.deb"
+echo "$OUT/streamlin_${VERSION}_all.deb"
