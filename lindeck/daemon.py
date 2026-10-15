@@ -8,6 +8,7 @@ import time
 from . import autoimport, paths, system
 from .config import Config, State
 from .engine import DeckController
+from .i18n import _, ngettext
 from .keyboard import VirtualInput
 from .profiles import ProfileStore
 
@@ -37,7 +38,7 @@ class Daemon:
         try:
             decks = self._manager().enumerate()
         except Exception as e:  # noqa: BLE001
-            log.error("USB-Zugriff fehlgeschlagen: %s (ist libhidapi installiert?)", e)
+            log.error(_("USB access failed: {error} (is libhidapi installed?)").format(error=e))
             return
         seen = set()
         for deck in decks:
@@ -54,7 +55,8 @@ class Daemon:
                 if ctrl.plugin_host:
                     ctrl.plugin_host.device_connected(ctrl)
             except Exception as e:  # noqa: BLE001
-                log.error("Gerät %s nicht nutzbar: %s (udev-Regel installiert?)", did, e)
+                log.error(_("Device {device} not usable: {error} (is the udev rule installed?)").format(
+                    device=did, error=e))
                 try:
                     deck.close()
                 except Exception:  # noqa: BLE001
@@ -67,7 +69,7 @@ class Daemon:
             except Exception:  # noqa: BLE001
                 alive = False
             if not alive:
-                log.info("Gerät %s getrennt", ctrl.serial)
+                log.info(_("Device {serial} disconnected").format(serial=ctrl.serial))
                 if getattr(self, "plugin_host", None):
                     self.plugin_host.device_disconnected(ctrl)
                 ctrl.running = False
@@ -75,7 +77,7 @@ class Daemon:
                 del self.controllers[did]
 
     def reload(self):
-        log.info("Lade Profile und Konfiguration neu")
+        log.info(_("Reloading profiles and configuration"))
         self.cfg.load()
         self.store.reload()
         for ctrl in self.controllers.values():
@@ -129,8 +131,8 @@ class Daemon:
     def run(self):
         """Dienst im Vordergrund (ohne Fenster) bis SIGTERM/SIGINT."""
         if self.already_running():
-            log.info("LinDeck läuft bereits")
-            autoimport.notify("LinDeck", "LinDeck läuft bereits")
+            log.info(_("LinDeck is already running"))
+            autoimport.notify("LinDeck", _("LinDeck is already running"))
             return
         signal.signal(signal.SIGHUP, lambda *a: threading.Thread(target=self.reload, daemon=True).start())
         signal.signal(signal.SIGTERM, lambda *a: self.shutdown())
@@ -148,11 +150,13 @@ class Daemon:
             from .plugins import PluginHost
             self.plugin_host = PluginHost(self)
         except Exception as e:  # noqa: BLE001
-            log.warning("Plugin-Host nicht verfügbar: %s", e)
+            log.warning(_("Plugin host not available: {error}").format(error=e))
             self.plugin_host = None
         # Mixer und Wave-Mikrofon laufen im eigenen Programm „Linewave“ (wavehost.py)
         self.services = []
-        log.info("LinDeck läuft – %d Profile geladen", len(self.store.profiles))
+        n = len(self.store.profiles)
+        log.info(ngettext("LinDeck is running – {count} profile loaded", "LinDeck is running – {count} profiles loaded",
+                          n).format(count=n))
 
     def loop(self):
         last_scan = last_import = 0
@@ -174,7 +178,7 @@ class Daemon:
                     try:
                         svc.tick()
                     except Exception as e:  # noqa: BLE001
-                        log.debug("Dienst %s: %s", type(svc).__name__, e)
+                        log.debug(_("Service {name}: {error}").format(name=type(svc).__name__, error=e))
             try:
                 self.smart_profiles()
             except Exception as e:  # noqa: BLE001
