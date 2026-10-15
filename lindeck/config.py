@@ -4,6 +4,7 @@ import threading
 from copy import deepcopy
 
 from . import paths
+from .i18n import _
 
 DEFAULTS = {
     # Helligkeit in Prozent für neue Geräte
@@ -46,7 +47,7 @@ class Config:
                     data.update(user)
                     self.mtime = paths.CONFIG_FILE.stat().st_mtime
                 except (OSError, ValueError) as e:
-                    print(f"[lindeck] Konfiguration fehlerhaft, nutze Standardwerte: {e}")
+                    print("[lindeck] " + _("Invalid configuration, using defaults: {error}").format(error=e))
             self.data = data
 
     def changed_on_disk(self) -> bool:

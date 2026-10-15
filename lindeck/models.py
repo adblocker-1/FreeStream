@@ -1,6 +1,8 @@
 """Zuordnung der Elgato-Gerätecodes zu Geometrie und USB-Product-IDs."""
 from dataclasses import dataclass
 
+from .i18n import _
+
 
 @dataclass(frozen=True)
 class Geometry:
@@ -86,7 +88,7 @@ def model_name(code: str) -> str:
     base = code.split("-")[0]
     if base.endswith("LL"):
         base = base[:-2]
-    return MODELS.get(base, (code or "unbekannt", None))[0]
+    return MODELS.get(base, (code or _("unknown"), None))[0]
 
 
 def model_geometry(code: str):

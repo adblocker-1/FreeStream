@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import paths
+from .i18n import _
 from .models import Geometry, model_geometry, model_name
 
 _B32_FIX = str.maketrans("UV", "VW")
@@ -199,13 +200,13 @@ def load_page(page_uuid: str, d: Path, manifest: dict = None) -> Page:
             pg.encoder_background = c.get("Background") or ""
             for k, a in actions.items():
                 if isinstance(a, dict) and a.get("UUID"):
-                    col, _ = parse_pos(k)
+                    col, __ = parse_pos(k)
                     pg.encoders[col] = a
         else:
             # "Neo" und "{Invalid}" – Infobar-Aktionen des Stream Deck Neo
             for k, a in actions.items():
                 if isinstance(a, dict) and a.get("UUID"):
-                    col, _ = parse_pos(k)
+                    col, __ = parse_pos(k)
                     pg.infobar[col] = a
     return pg
 
@@ -241,7 +242,7 @@ class ProfileStore:
                         p = Profile(d)
                         profiles[p.id] = p
                     except (OSError, ValueError, KeyError) as e:
-                        print(f"[lindeck] Profil {d.name} nicht lesbar: {e}")
+                        print("[lindeck] " + _("Profile {name} not readable: {error}").format(name=d.name, error=e))
         self.profiles = profiles
         self.mtime = self._scan_mtime()
 
@@ -358,7 +359,7 @@ def _safe_extract(z: zipfile.ZipFile, dest: Path) -> None:
         name = member.filename.replace("\\", "/")
         target = (dest / name).resolve()
         if dest not in target.parents and target != dest:
-            raise ValueError(f"Unsicherer Pfad im Archiv: {member.filename}")
+            raise ValueError(_("Unsafe path in archive: {path}").format(path=member.filename))
         if name.endswith("/"):
             target.mkdir(parents=True, exist_ok=True)
             continue

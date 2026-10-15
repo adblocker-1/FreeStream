@@ -25,6 +25,7 @@ import uuid as uuidlib
 from pathlib import Path
 
 from . import paths
+from .i18n import _
 
 log = logging.getLogger("lindeck.discord")
 
@@ -76,7 +77,7 @@ class DiscordClient:
         while len(buf) < n:
             chunk = self.sock.recv(n - len(buf))
             if not chunk:
-                raise DiscordError("Discord hat die Verbindung geschlossen")
+                raise DiscordError(_("Discord closed the connection"))
             buf += chunk
         return buf
 
@@ -118,7 +119,7 @@ class DiscordClient:
                 pass
         with self._lock:
             for ev, box in self._pending.values():
-                box["error"] = "Verbindung zu Discord getrennt"
+                box["error"] = _("Connection to Discord lost")
                 ev.set()
             self._pending.clear()
         self.version += 1
@@ -135,12 +136,12 @@ class DiscordClient:
         if not ev.wait(timeout):
             with self._lock:
                 self._pending.pop(nonce, None)
-            raise DiscordError(f"Keine Antwort von Discord ({cmd})")
+            raise DiscordError(_("No response from Discord ({command})").format(command=cmd))
         if "error" in box:
             raise DiscordError(box["error"])
         msg = box["msg"]
         if msg.get("evt") == "ERROR":
-            raise DiscordError((msg.get("data") or {}).get("message") or "Discord-Fehler")
+            raise DiscordError((msg.get("data") or {}).get("message") or _("Discord error"))
         return msg.get("data") or {}
 
     # ---------------------------------------------------------- Anmeldung
@@ -149,11 +150,11 @@ class DiscordClient:
             if self.ready:
                 return
             if not self.client_id:
-                raise DiscordError("Discord-App fehlt: client_id/client_secret in config.json eintragen "
-                                   "(Anleitung in der README)")
+                raise DiscordError(_("Discord app missing: enter client_id/client_secret in config.json "
+                                     "(instructions in the README)"))
             cands = self.sock_paths if self.sock_paths is not None else socket_paths()
             if not cands:
-                raise DiscordError("Discord läuft nicht (kein IPC-Socket gefunden)")
+                raise DiscordError(_("Discord is not running (no IPC socket found)"))
             last = None
             for p in cands:
                 try:
@@ -164,13 +165,13 @@ class DiscordClient:
                 except OSError as e:
                     last = e
             else:
-                raise DiscordError(f"Discord nicht erreichbar: {last}")
+                raise DiscordError(_("Discord not reachable: {error}").format(error=last))
             self.sock = s
             self._send(OP_HANDSHAKE, {"v": 1, "client_id": self.client_id})
             op, msg = self._recv()
             if op == OP_CLOSE or msg.get("evt") != "READY":
                 self._disconnect(s)
-                raise DiscordError((msg or {}).get("message") or "Discord hat die Verbindung abgelehnt")
+                raise DiscordError((msg or {}).get("message") or _("Discord refused the connection"))
             threading.Thread(target=self._reader, args=(s,), name="discord", daemon=True).start()
             self._authenticate()
             self.ready = True
@@ -178,8 +179,8 @@ class DiscordClient:
                 self._voice(self.command("GET_VOICE_SETTINGS"))
                 self.command("SUBSCRIBE", evt="VOICE_SETTINGS_UPDATE")
             except DiscordError as e:
-                log.debug("Voice-Status: %s", e)
-            log.info("Mit Discord verbunden")
+                log.debug(_("Voice status: {error}").format(error=e))
+            log.info(_("Connected to Discord"))
 
     def _authenticate(self):
         tok = self._load_token()
@@ -190,7 +191,7 @@ class DiscordClient:
                 self.command("AUTHENTICATE", {"access_token": tok["access_token"]})
                 return
             except DiscordError as e:
-                log.info("Gespeicherter Discord-Zugang ungültig (%s) – neue Anmeldung", e)
+                log.info(_("Saved Discord access is invalid ({error}) – logging in again").format(error=e))
         data = self.command("AUTHORIZE", {"client_id": self.client_id, "scopes": SCOPES}, timeout=120)
         tok = self._token_request({"grant_type": "authorization_code", "code": data["code"],
                                    "redirect_uri": "http://localhost"})
@@ -204,7 +205,7 @@ class DiscordClient:
 
     def _token_request(self, fields):
         if not self.client_secret:
-            raise DiscordError("client_secret fehlt in config.json (discord.client_secret)")
+            raise DiscordError(_("client_secret missing in config.json (discord.client_secret)"))
         body = urllib.parse.urlencode(dict(fields, client_id=self.client_id,
                                            client_secret=self.client_secret)).encode()
         req = urllib.request.Request(TOKEN_URL, data=body,
@@ -214,7 +215,7 @@ class DiscordClient:
             with urllib.request.urlopen(req, timeout=10) as r:
                 tok = json.loads(r.read())
         except Exception as e:  # noqa: BLE001
-            raise DiscordError(f"Discord-Anmeldung fehlgeschlagen: {e}") from e
+            raise DiscordError(_("Discord login failed: {error}").format(error=e)) from e
         tok["expires_at"] = time.time() + int(tok.get("expires_in", 0))
         self.token_file.parent.mkdir(parents=True, exist_ok=True)
         self.token_file.write_text(json.dumps(tok), encoding="utf-8")

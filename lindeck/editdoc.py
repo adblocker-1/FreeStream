@@ -23,6 +23,7 @@ from PIL import Image, ImageOps
 from . import actions as A
 from . import catalog as C
 from . import paths, render
+from .i18n import _
 from .models import Geometry, model_geometry
 from .profiles import decode_page_dir, encode_page_dir, load_page, read_json
 
@@ -142,7 +143,7 @@ class ProfileDoc:
     def __init__(self, root):
         self.root = Path(root)
         if not (self.root / "manifest.json").exists():
-            raise EditError(f"Kein Profil: {self.root}")
+            raise EditError(_("Not a profile: {path}").format(path=self.root))
         self.id = self.root.name[: -len(".sdProfile")] if self.root.name.endswith(".sdProfile") else self.root.name
         self.manifest = read_json(self.root / "manifest.json")
         self.pages = {}
@@ -157,7 +158,7 @@ class ProfileDoc:
                 except (ValueError, OSError):
                     continue
         if not self.pages and "Actions" in self.manifest:
-            raise EditError("Profile im Format v1 (Stream-Deck-App 4.x) können nicht bearbeitet werden")
+            raise EditError(_("Profiles in format v1 (Stream Deck app 4.x) cannot be edited"))
         self.v3_names = any(self._is_uuid_name(p.dir.name) for p in self.pages.values())
         # Verweise im Manifest auf die tatsächliche Schreibweise der Seiten-UUIDs abbilden
         for pid in self.page_ids:
@@ -198,7 +199,7 @@ class ProfileDoc:
             return g
         cols = rows = dials = 0
         for p in self.pages.values():
-            for slot, _ in p.items():
+            for slot, __ in p.items():
                 if slot[0] == "key":
                     cols, rows = max(cols, slot[1] + 1), max(rows, slot[2] + 1)
                 else:
@@ -239,7 +240,7 @@ class ProfileDoc:
             if k in seen or k not in self.pages:
                 continue
             seen.add(k)
-            for _, a in self.pages[k].items():
+            for __, a in self.pages[k].items():
                 todo += [_norm(u) for u in self.folder_refs(a)]
         return seen
 
@@ -248,11 +249,11 @@ class ProfileDoc:
         if pg and pg.name:
             return pg.name
         for p in self.pages.values():
-            for _, a in p.items():
+            for __, a in p.items():
                 if a.get("UUID") == C.FOLDER_UUID and _norm((a.get("Settings") or {}).get("ProfileUUID")) == _norm(uuid):
                     st = (a.get("States") or [{}])[0]
-                    return st.get("Title") or "Ordner"
-        return "Ordner"
+                    return st.get("Title") or _("Folder")
+        return _("Folder")
 
     def _new_page(self, name="", folder=False):
         u = str(uuidlib.uuid4())
@@ -288,7 +289,7 @@ class ProfileDoc:
     def remove_page(self, uuid: str):
         ids = self.page_ids
         if len(ids) <= 1:
-            raise EditError("Die letzte Seite kann nicht gelöscht werden")
+            raise EditError(_("The last page cannot be deleted"))
         self.checkpoint()
         ids = [p for p in ids if _norm(p) != _norm(uuid)]
         pages = self.manifest["Pages"]
@@ -326,7 +327,7 @@ class ProfileDoc:
         if type_uuid == C.FOLDER_UUID:
             folder = self._new_page(folder=True)
             data["Settings"]["ProfileUUID"] = folder.uuid
-            data["States"][0]["Title"] = "Ordner"
+            data["States"][0]["Title"] = _("Folder")
         self.page(page_uuid).set(slot, data)
         self._changed()
         return data
@@ -478,7 +479,7 @@ class ProfileDoc:
             try:
                 im = Image.open(src).convert("RGBA")
             except (OSError, ValueError) as e:
-                raise EditError(f"Bild nicht lesbar: {e}") from e
+                raise EditError(_("Image not readable: {error}").format(error=e)) from e
             im.thumbnail((ICON_SIZE, ICON_SIZE), Image.LANCZOS)
             canvas = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (0, 0, 0, 0))
             canvas.alpha_composite(im, ((ICON_SIZE - im.size[0]) // 2, (ICON_SIZE - im.size[1]) // 2))
@@ -539,7 +540,7 @@ class ProfileDoc:
                 dst = img_dir / (("Strip" if strip else "Background") + uuidlib.uuid4().hex[:12].upper() + ".png")
                 im.save(dst)
         except (OSError, ValueError) as e:
-            raise EditError(f"Bild nicht lesbar: {e}") from e
+            raise EditError(_("Image not readable: {error}").format(error=e)) from e
         self._created_images.add(dst)
         return f"Images/{dst.name}"
 
@@ -661,7 +662,7 @@ class ProfileDoc:
         used = set()
         for k in reach:
             p = self.pages[k]
-            for _, a in p.items():
+            for __, a in p.items():
                 for holder, key in _image_refs(a):
                     used.add((p.dir / holder[key]).resolve())
             bg = (p.manifest.get("LinDeckBackground") or {}).get("Image")
@@ -720,7 +721,7 @@ def create_profile(name: str, model: str, store_root=None) -> Path:
     _write_json(pdir / "manifest.json", {"Controllers": ctrls, "Icon": "", "Name": ""})
     _write_json(root / "manifest.json", {
         "Device": {"Model": model, "UUID": ""},
-        "Name": name.strip() or "Neues Profil",
+        "Name": name.strip() or _("New profile"),
         "Pages": {"Current": page, "Default": page, "Pages": [page]},
         "Version": "2.0",
     })

@@ -6,22 +6,23 @@ from PIL import Image, ImageTk
 
 from . import editdoc as E
 from . import render
+from .i18n import _, ngettext
 from .theme import COL, Card, Dialog, Fader, Icons, label
 
-IMAGE_TYPES = [("Bilder", "*.png *.jpg *.jpeg *.webp *.gif *.bmp"), ("Alle Dateien", "*")]
+IMAGE_TYPES = [(_("Images"), "*.png *.jpg *.jpeg *.webp *.gif *.bmp"), (_("All files"), "*")]
 
 
 class BackgroundDialog(Dialog):
     def __init__(self, master, app, page_uuid):
-        super().__init__(master, "Hintergrund", width=560)
+        super().__init__(master, _("Background"), width=560)
         self.app, self.doc, self.page_uuid = app, app.doc, page_uuid
         self.icons = Icons(self)
         self._job = None
         g = self.doc.geometry
         b = self.body
-        label(b, "Hintergrundbild", 15, "bold").pack(anchor="w")
-        label(b, "Das Bild wird über alle Tasten dieser Seite verteilt – wie ein Hintergrundbild auf dem "
-                 "Desktop. Tasten mit eigenem Symbol liegen darüber; leere Tasten zeigen das Bild.",
+        label(b, _("Background image"), 15, "bold").pack(anchor="w")
+        label(b, _("The image is spread across all keys of this page – like a desktop wallpaper. "
+                   "Keys with their own icon sit on top; empty keys show the image."),
               9, color=COL["muted"], wraplength=500, justify="left").pack(anchor="w", pady=(2, 12))
 
         card = Card(b, pad=16, stretch=True)
@@ -30,13 +31,13 @@ class BackgroundDialog(Dialog):
         self.preview.pack(side="left")
         side = tk.Frame(card.body, bg=COL["panel"])
         side.pack(side="left", padx=16, fill="x", expand=True, anchor="n")
-        ttk.Button(side, text="Bild wählen …", style="Accent.TButton", command=self.choose).pack(anchor="w")
-        self.remove_btn = ttk.Button(side, text="Entfernen", command=self.remove)
+        ttk.Button(side, text=_("Choose image …"), style="Accent.TButton", command=self.choose).pack(anchor="w")
+        self.remove_btn = ttk.Button(side, text=_("Remove"), command=self.remove)
         self.remove_btn.pack(anchor="w", pady=(6, 0))
-        self.all_btn = ttk.Button(side, text="Auf alle Seiten übernehmen", style="Ghost.TButton",
+        self.all_btn = ttk.Button(side, text=_("Apply to all pages"), style="Ghost.TButton",
                                   command=self.apply_all)
         self.all_btn.pack(anchor="w", pady=(6, 0))
-        label(side, "ABDUNKELN", 9, "bold", color=COL["muted"]).pack(anchor="w", pady=(14, 4))
+        label(side, _("DIM"), 9, "bold", color=COL["muted"]).pack(anchor="w", pady=(14, 4))
         row = tk.Frame(side, bg=COL["panel"])
         row.pack(anchor="w")
         self.dim = Fader(row, length=200, thickness=28, orient="horizontal", from_=0, to=80, color=COL["accent"],
@@ -44,12 +45,12 @@ class BackgroundDialog(Dialog):
         self.dim.pack(side="left")
         self.dim_val = tk.StringVar(self, value="")
         label(row, textvariable=self.dim_val, size=9, width=6).pack(side="left", padx=6)
-        label(side, "Macht das Bild dunkler, damit Titel gut lesbar bleiben.", 8, color=COL["faint"]).pack(
+        label(side, _("Darkens the image so titles stay easy to read."), 8, color=COL["faint"]).pack(
             anchor="w", pady=(2, 0))
 
         if g.dials:
-            label(b, "Touchstreifen", 13, "bold").pack(anchor="w", pady=(18, 2))
-            label(b, "Eigenes Bild für den ganzen Touchstreifen des Stream Deck + (wie in der Elgato-App).",
+            label(b, _("Touch strip"), 13, "bold").pack(anchor="w", pady=(18, 2))
+            label(b, _("Custom image for the whole touch strip of the Stream Deck + (as in the Elgato app)."),
                   9, color=COL["muted"]).pack(anchor="w", pady=(0, 8))
             sc = Card(b, pad=16, stretch=True)
             sc.pack(fill="x")
@@ -57,12 +58,12 @@ class BackgroundDialog(Dialog):
             self.strip_prev.pack(side="left")
             sb = tk.Frame(sc.body, bg=COL["panel"])
             sb.pack(side="left", padx=16, anchor="n")
-            ttk.Button(sb, text="Bild wählen …", command=self.choose_strip).pack(anchor="w")
-            self.strip_remove = ttk.Button(sb, text="Entfernen", command=self.remove_strip)
+            ttk.Button(sb, text=_("Choose image …"), command=self.choose_strip).pack(anchor="w")
+            self.strip_remove = ttk.Button(sb, text=_("Remove"), command=self.remove_strip)
             self.strip_remove.pack(anchor="w", pady=(6, 0))
         else:
             self.strip_prev = None
-        ttk.Button(self.buttons, text="Fertig", style="Accent.TButton", command=self.destroy).pack(side="right")
+        ttk.Button(self.buttons, text=_("Done"), style="Accent.TButton", command=self.destroy).pack(side="right")
         self.refresh()
         self.show()
 
@@ -106,13 +107,13 @@ class BackgroundDialog(Dialog):
 
     # -------------------------------------------------------------- Aktionen
     def choose(self):
-        f = filedialog.askopenfilename(parent=self, title="Hintergrundbild wählen", filetypes=IMAGE_TYPES)
+        f = filedialog.askopenfilename(parent=self, title=_("Choose background image"), filetypes=IMAGE_TYPES)
         if not f:
             return
         try:
             self.doc.set_background(self.page_uuid, f)
         except E.EditError as e:
-            messagebox.showerror("Hintergrund", str(e), parent=self)
+            messagebox.showerror(_("Background"), str(e), parent=self)
             return
         self._changed()
 
@@ -129,7 +130,8 @@ class BackgroundDialog(Dialog):
             if pid != self.page_uuid:
                 self.doc.set_background(pid, path, dim)
                 n += 1
-        self.app.status(f"Hintergrund auf {n} weitere Seite(n) übernommen")
+        self.app.status(ngettext("Background applied to {n} more page", "Background applied to {n} more pages",
+                                  n).format(n=n))
         self._changed()
 
     def _dim_changed(self, value):
@@ -145,13 +147,13 @@ class BackgroundDialog(Dialog):
         self._changed()
 
     def choose_strip(self):
-        f = filedialog.askopenfilename(parent=self, title="Bild für den Touchstreifen", filetypes=IMAGE_TYPES)
+        f = filedialog.askopenfilename(parent=self, title=_("Image for the touch strip"), filetypes=IMAGE_TYPES)
         if not f:
             return
         try:
             self.doc.set_strip_background(self.page_uuid, f)
         except E.EditError as e:
-            messagebox.showerror("Hintergrund", str(e), parent=self)
+            messagebox.showerror(_("Background"), str(e), parent=self)
             return
         self._changed()
 

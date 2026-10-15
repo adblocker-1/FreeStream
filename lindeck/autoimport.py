@@ -12,6 +12,7 @@ import zipfile
 from pathlib import Path
 
 from . import assets, paths, profiles
+from .i18n import _, ngettext
 
 log = logging.getLogger("lindeck.autoimport")
 
@@ -124,27 +125,34 @@ def run_once(state) -> bool:
                 if kind == "msi":
                     if not (paths.ASSETS_DIR / "Plugins").exists():
                         assets.extract(p)
-                        log.info("Elgato-Icons aus %s übernommen", p.name)
-                        notify("LinDeck", "Standard-Icons aus dem Elgato-Installer übernommen")
+                        log.info(_("Elgato icons imported from {name}").format(name=p.name))
+                        notify("LinDeck", _("Default icons imported from the Elgato installer"))
                         imported_any = True
                 elif kind == "plugin":
                     from . import plugins
                     for uid in plugins.install(p):
                         info = plugins.installed().get(uid)
-                        log.info("Plugin %s installiert", uid)
-                        msg = f"Plugin „{info.name if info else uid}“ installiert"
+                        log.info(_("Plugin {uuid} installed").format(uuid=uid))
+                        name = info.name if info else uid
                         if info and not info.runnable:
-                            msg += f" – unter Linux nicht lauffähig ({info.reason})"
+                            msg = _("Plugin “{name}” installed – cannot run on Linux ({reason})").format(
+                                name=name, reason=info.reason)
+                        else:
+                            msg = _("Plugin “{name}” installed").format(name=name)
                         notify("LinDeck", msg)
                         imported_any = True
                 else:
                     ids = profiles.import_path(p)
                     if ids:
-                        log.info("%d Profil(e) aus %s importiert", len(ids), p)
-                        notify("LinDeck", f"{len(ids)} Stream-Deck-Profil(e) aus „{p.name}“ importiert")
+                        n = len(ids)
+                        log.info(ngettext("{n} profile imported from {path}", "{n} profiles imported from {path}",
+                                          n).format(n=n, path=p))
+                        notify("LinDeck", ngettext("{n} Stream Deck profile imported from “{name}”",
+                                                   "{n} Stream Deck profiles imported from “{name}”",
+                                                   n).format(n=n, name=p.name))
                         imported_any = True
             except Exception as e:  # noqa: BLE001
-                log.warning("Automatischer Import von %s fehlgeschlagen: %s", p, e)
+                log.warning(_("Automatic import of {path} failed: {error}").format(path=p, error=e))
             done[key] = stamp
     if imported_any:
         state.save()
