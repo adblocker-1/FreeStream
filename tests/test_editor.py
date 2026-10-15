@@ -10,9 +10,9 @@ import zipfile
 import pytest
 from PIL import Image
 
-from lindeck import catalog as C
-from lindeck import editdoc as E
-from lindeck import profiles as P
+from streamlin import catalog as C
+from streamlin import editdoc as E
+from streamlin import profiles as P
 
 HOTKEY = "com.elgato.streamdeck.system.hotkey"
 TEXT = "com.elgato.streamdeck.system.text"
@@ -44,7 +44,7 @@ def test_hotkey_roundtrip():
 
 
 def test_hotkey_from_tk_matches_runtime():
-    from lindeck.keyboard import VirtualInput
+    from streamlin.keyboard import VirtualInput
 
     class NoDev(VirtualInput):
         def _open(self):
@@ -94,7 +94,7 @@ def test_actions_created_by_editor_run(store, doc):
         img = E.preview_action(doc, p0, data, (72, 72)) if slot[0] == "key" else \
             E.preview_dial(doc, p0, data, (200, 100))
         assert img.size in ((72, 72), (200, 100))
-        assert __import__("lindeck.actions", fromlist=["is_builtin"]).is_builtin(t.uuid), t.uuid
+        assert __import__("streamlin.actions", fromlist=["is_builtin"]).is_builtin(t.uuid), t.uuid
 
 
 def test_folders_copy_move_and_cleanup(store, doc, tmp_path):
@@ -164,7 +164,7 @@ def test_child_actions(doc):
     logic = doc.place(p0, ("key", 1, 0), "com.elgato.streamdeck.keys.logic")
     C.child_lists(logic)[2] = C.new_action(TEXT)
     doc.save()
-    from lindeck import actions as A
+    from streamlin import actions as A
     ctx = A.Context(None, {}, None, None)
     ma = A.create_action(doc.get(p0, ("key", 0, 0)), None, ctx)
     assert [type(a).__name__ for g in ma.groups for a in g] == ["Hotkey", "Delay"]
@@ -225,7 +225,7 @@ def app(store, doc, monkeypatch):
     tk = pytest.importorskip("tkinter")
     if not os.environ.get("DISPLAY"):
         pytest.skip("kein Display (xvfb-run verwenden)")
-    from lindeck import editor
+    from streamlin import editor
     monkeypatch.setattr(editor.messagebox, "askyesno", lambda *a, **k: True)
     doc.place(doc.page_ids[0], ("key", 0, 0), HOTKEY)
     doc.cleanup()

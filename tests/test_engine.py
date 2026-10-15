@@ -1,6 +1,6 @@
 """Tests mit simulierten Geräten (Dummy-Transport der StreamDeck-Bibliothek).
 
-Aufruf: LINDECK_TEST_PROFILES=<Ordner mit .streamDeckProfile> pytest -q tests
+Aufruf: STREAMLIN_TEST_PROFILES=<Ordner mit .streamDeckProfile> pytest -q tests
 """
 import glob
 import os
@@ -10,14 +10,14 @@ import pytest
 from StreamDeck.DeviceManager import DeviceManager
 from StreamDeck.Devices.StreamDeck import TouchscreenEventType
 
-from lindeck import actions as A
-from lindeck import profiles as P
-from lindeck import system
-from lindeck.config import Config, State
-from lindeck.engine import DeckController
-from lindeck.keyboard import VirtualInput
+from streamlin import actions as A
+from streamlin import profiles as P
+from streamlin import system
+from streamlin.config import Config, State
+from streamlin.engine import DeckController
+from streamlin.keyboard import VirtualInput
 
-SRC = os.environ.get("LINDECK_TEST_PROFILES", "")
+SRC = os.environ.get("STREAMLIN_TEST_PROFILES", "")
 
 
 class RecInput(VirtualInput):
@@ -50,7 +50,7 @@ class RecSound:
 @pytest.fixture(scope="module")
 def store(tmp_path_factory):
     if not SRC:
-        pytest.skip("LINDECK_TEST_PROFILES nicht gesetzt")
+        pytest.skip("STREAMLIN_TEST_PROFILES nicht gesetzt")
     root = tmp_path_factory.mktemp("store")
     for f in glob.glob(os.path.join(SRC, "*.streamDeckProfile")):
         P.import_path(f, root / "profiles", root / "res")
@@ -235,7 +235,7 @@ def test_soundboard_resource(store, tmp_path, monkeypatch):
     ctrl = make(store, "Stream Deck + XL", tmp_path, monkeypatch)
     pid = ctrl._initial_profile_id()
     p = store.get(pid)
-    from lindeck import paths
+    from streamlin import paths
     monkeypatch.setattr(paths, "RESOURCES_DIR", store.root.parent / "res")
     ctrl.load_profile(pid, 0)
     for pg in p.all_pages():

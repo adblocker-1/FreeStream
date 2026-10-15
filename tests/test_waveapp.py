@@ -13,7 +13,7 @@ from test_integrations import FakeWave3
 
 @pytest.fixture
 def env(tmp_path, monkeypatch):
-    from lindeck import paths, wavemic
+    from streamlin import paths, wavemic
     for name, sub in (("DATA_DIR", "data"), ("STATE_DIR", "state"), ("CONFIG_DIR", "config"),
                       ("CONFIG_FILE", "config/config.json"), ("PROFILES_DIR", "data/profiles"),
                       ("RESOURCES_DIR", "data/resources"), ("PID_FILE", "state/lindeck.pid")):
@@ -83,7 +83,7 @@ class FakePactl:
 
 @pytest.fixture
 def pactl(monkeypatch):
-    from lindeck import mixer, system, wave3hw
+    from streamlin import mixer, system, wave3hw
     fake = FakePactl()
     monkeypatch.setattr(system, "_pactl_blocks", fake.blocks)
     monkeypatch.setattr(system, "have", lambda c: True)
@@ -95,14 +95,14 @@ def pactl(monkeypatch):
 
 
 def _config(env, data):
-    from lindeck.config import Config
+    from streamlin.config import Config
     (env / "config").mkdir(exist_ok=True)
     (env / "config" / "config.json").write_text(json.dumps(data))
     return Config()
 
 
 def test_pactl_sink_of_stream(monkeypatch):
-    from lindeck import system
+    from streamlin import system
     out = "Sink Input #42\n\tDriver: PipeWire\n\tSink: 57\n\tMute: no\n\tVolume: front-left: 65536 / 100% / 0,00 dB\n"
     monkeypatch.setattr(system, "run_out", lambda *a, **k: out)
     b = system._pactl_blocks("sink-inputs")[0]
@@ -110,8 +110,8 @@ def test_pactl_sink_of_stream(monkeypatch):
 
 
 def test_host_sets_up_mixer_and_routes(env, pactl):
-    from lindeck import wavemic
-    from lindeck.wavehost import WaveHost
+    from streamlin import wavemic
+    from streamlin.wavehost import WaveHost
     cfg = _config(env, {"mixer": {"enabled": True, "routes": {"game.exe": "game"}}})
     host = WaveHost(cfg)
     assert wavemic.OWNER is True  # Linewave besitzt die Filterkette
@@ -132,7 +132,7 @@ def test_host_sets_up_mixer_and_routes(env, pactl):
 
 
 def test_host_reload_applies_mic_settings(env, pactl):
-    from lindeck.wavehost import WaveHost
+    from streamlin.wavehost import WaveHost
     host = WaveHost(_config(env, {}))
     host.start()
     assert not host.mixer.is_active()  # Mixer erst nach „Mixer einrichten“
@@ -144,7 +144,7 @@ def test_host_reload_applies_mic_settings(env, pactl):
 
 
 def test_stream_deck_app_delegates_filter_to_wave_app(env, monkeypatch):
-    from lindeck import app, wave3hw, wavemic
+    from streamlin import app, wave3hw, wavemic
     monkeypatch.setattr(wave3hw, "present", lambda: False)
     flag = env / "hup"
     code = ("import signal, sys, time\n"
@@ -170,12 +170,12 @@ def test_stream_deck_app_delegates_filter_to_wave_app(env, monkeypatch):
 
 
 def test_cli_wave_app_quit_and_entry(env):
-    from lindeck.__main__ import main
+    from streamlin.__main__ import main
     assert main(["linewave", "--quit"]) == 1  # läuft nicht
 
 
 def test_icon():
-    from lindeck.wavehost import make_icon
+    from streamlin.wavehost import make_icon
     img = make_icon(64)
     assert img.size == (64, 64) and img.getpixel((32, 32))[3] == 255
 
@@ -193,8 +193,8 @@ def _pump(root, cond, timeout=5.0):
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
 def test_wave_window(env, pactl):
     import tkinter as tk
-    from lindeck.wavehost import WaveHost
-    from lindeck.waveui import WaveWindow
+    from streamlin.wavehost import WaveHost
+    from streamlin.waveui import WaveWindow
     host = WaveHost(_config(env, {"mixer": {"enabled": True}}))
     host.start()
     root = tk.Tk()
@@ -228,7 +228,7 @@ def test_wave_window(env, pactl):
 
 
 def test_linewave_command_routes_audio_subcommands(env, monkeypatch):
-    from lindeck import __main__ as M
+    from streamlin import __main__ as M
     seen = []
     monkeypatch.setattr(M, "main", lambda argv=None: seen.append(argv) or 0)
     M.wave_main(["mic", "lowcut", "on"])
@@ -238,8 +238,8 @@ def test_linewave_command_routes_audio_subcommands(env, monkeypatch):
 
 
 def test_legacy_lindeck_channels_are_cleaned_up(env, pactl, monkeypatch):
-    from lindeck import system
-    from lindeck.mixer import Mixer
+    from streamlin import system
+    from streamlin.mixer import Mixer
     old = {"index": "55", "argument": "sink_name=lindeck_music sink_properties=device.description='LinDeck", "props": {}}
     blocks = pactl.blocks
     monkeypatch.setattr(system, "_pactl_blocks", lambda what: [old] if what == "modules" else blocks(what))
@@ -256,7 +256,7 @@ def _loops(pactl, cid):
 
 
 def test_custom_channels(env, pactl):
-    from lindeck.mixer import Mixer
+    from streamlin.mixer import Mixer
     cfg = _config(env, {"mixer": {"enabled": True}})
     mx = Mixer(cfg, run=pactl)
     mx.setup()
@@ -292,7 +292,7 @@ def test_custom_channels(env, pactl):
 
 
 def test_last_app_channel_stays(env, pactl):
-    from lindeck.mixer import Mixer
+    from streamlin.mixer import Mixer
     mx = Mixer(_config(env, {"mixer": {"channels": [{"id": "system", "name": "System"}]}}), run=pactl)
     with pytest.raises(RuntimeError):
         mx.remove_channel("system")
@@ -302,7 +302,7 @@ def test_last_app_channel_stays(env, pactl):
 # Effekte (Plugins) je Kanal
 # ==========================================================================
 def test_effect_graph_mono_and_stereo():
-    from lindeck import effects
+    from streamlin import effects
     stereo = {"id": "ladspa:x.so:lim", "type": "ladspa", "plugin": "/usr/lib/ladspa/x.so", "label": "lim",
               "name": "Limiter", "inputs": ["In L", "In R"], "outputs": ["Out L", "Out R"],
               "controls": [{"name": "Limit (dB)", "min": -20, "max": 0, "default": -1}]}
@@ -322,7 +322,7 @@ def test_effect_graph_mono_and_stereo():
 
 
 def test_effect_presets_and_catalog(env):
-    from lindeck import effects
+    from streamlin import effects
     gate = {"id": "ladspa:gate_1410.so:gate", "label": "gate", "name": "Noise Gate",
             "controls": [{"name": "Threshold (dB)", "min": -70, "max": 20, "default": -70}]}
     assert effects.new_effect(gate)["controls"]["Threshold (dB)"] == -45.0  # sinnvoller Startwert
@@ -331,7 +331,7 @@ def test_effect_presets_and_catalog(env):
 
 
 def test_ladspa_reader_on_real_plugin():
-    from lindeck import effects
+    from streamlin import effects
     lib = next(iter(effects._ladspa_files()), None)
     if lib is None:
         pytest.skip("keine LADSPA-Plugins installiert")
@@ -340,8 +340,8 @@ def test_ladspa_reader_on_real_plugin():
 
 
 def test_mixer_routes_channel_through_effects(env, pactl, monkeypatch):
-    from lindeck import effects
-    from lindeck.mixer import Mixer
+    from streamlin import effects
+    from streamlin.mixer import Mixer
     hp = effects.lookup("builtin:highpass")
     cfg = _config(env, {"mixer": {"enabled": True, "effects": {"music": [effects.new_effect(hp)]}}})
     started = []
@@ -359,8 +359,8 @@ def test_mixer_routes_channel_through_effects(env, pactl, monkeypatch):
 
 
 def test_effects_fall_back_without_pipewire(env, pactl, monkeypatch):
-    from lindeck import effects
-    from lindeck.mixer import Mixer
+    from streamlin import effects
+    from streamlin.mixer import Mixer
     monkeypatch.setattr(effects.shutil, "which", lambda name: None)
     hp = effects.lookup("builtin:highpass")
     mx = Mixer(_config(env, {"mixer": {"effects": {"music": [effects.new_effect(hp)]}}}), run=pactl)
@@ -371,9 +371,9 @@ def test_effects_fall_back_without_pipewire(env, pactl, monkeypatch):
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
 def test_dialogs_open(env, pactl, monkeypatch):
     import tkinter as tk
-    from lindeck import effects, paths
-    from lindeck.pluginui import PluginManager
-    from lindeck.wavedialogs import ChannelDialog, EffectsDialog, PluginPicker
+    from streamlin import effects, paths
+    from streamlin.pluginui import PluginManager
+    from streamlin.wavedialogs import ChannelDialog, EffectsDialog, PluginPicker
     root = tk.Tk()
     try:
         saved = []
@@ -402,8 +402,8 @@ def test_dialogs_open(env, pactl, monkeypatch):
 # Einrichtungsassistent
 # ==========================================================================
 def test_setup_wizard_applies_choices(env, pactl, monkeypatch):
-    from lindeck import effects, wavesetup
-    from lindeck.wavehost import WaveHost
+    from streamlin import effects, wavesetup
+    from streamlin.wavehost import WaveHost
     host = WaveHost(_config(env, {}))
     data = wavesetup.collect(host)
     assert ("alsa_input.usb-capture", "USB Capture") in data["inputs"] and data["wave3"] is True
@@ -424,8 +424,8 @@ def test_setup_wizard_applies_choices(env, pactl, monkeypatch):
 
 
 def test_setup_wizard_wave3_hardware(env, pactl):
-    from lindeck import wavesetup
-    from lindeck.wavehost import WaveHost
+    from streamlin import wavesetup
+    from streamlin.wavehost import WaveHost
     host = WaveHost(_config(env, {}))
     wavesetup.apply_choices(host, {"mic": "alsa_input.wave3", "output": "", "wave3": True, "lowcut": False,
                                    "clipguard": True, "gain": 50, "channels": [], "mic_fx": []})
@@ -437,7 +437,7 @@ def test_setup_wizard_wave3_hardware(env, pactl):
 
 def test_test_tone_and_level_meter(env, monkeypatch):
     import wave as wav
-    from lindeck import wavesetup
+    from streamlin import wavesetup
     p = wavesetup.test_tone_file()
     with wav.open(str(p)) as w:
         assert w.getnchannels() == 2 and w.getframerate() == 48000
@@ -450,9 +450,9 @@ def test_test_tone_and_level_meter(env, monkeypatch):
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
 def test_setup_wizard_window(env, pactl):
     import tkinter as tk
-    from lindeck import wavesetup
-    from lindeck.wavehost import WaveHost
-    from lindeck.waveui import WaveWindow
+    from streamlin import wavesetup
+    from streamlin.wavehost import WaveHost
+    from streamlin.waveui import WaveWindow
     host = WaveHost(_config(env, {}))
     root = tk.Tk()
     try:
@@ -527,7 +527,7 @@ LV2INFO = """http://example.org/comp#mono
 
 
 def test_parse_lv2info():
-    from lindeck import effects
+    from streamlin import effects
     p = effects.parse_lv2info(LV2INFO, "http://example.org/comp#mono")
     assert p["id"] == "lv2:http://example.org/comp#mono" and p["type"] == "lv2" and p["name"] == "Kompressor Test"
     assert p["inputs"] == ["in"] and p["outputs"] == ["out"]
@@ -549,7 +549,7 @@ def _lv2(uri, stereo):
 
 
 def test_lv2_graph_and_stages():
-    from lindeck import effects
+    from streamlin import effects
     hp = effects.lookup("builtin:highpass")
     mono, st = _lv2("urn:mono", False), _lv2("urn:stereo", True)
     cat = [hp, mono, st]
@@ -564,8 +564,8 @@ def test_lv2_graph_and_stages():
 
 def test_lv2_bridge_wiring(env, pactl, monkeypatch):
     """Ohne LV2 in PipeWire: Teilketten + jalv, per pw-link der Reihe nach verbunden."""
-    from lindeck import effects
-    from lindeck.mixer import Mixer
+    from streamlin import effects
+    from streamlin.mixer import Mixer
     hp = effects.lookup("builtin:highpass")
     mono, st = _lv2("urn:mono", False), _lv2("urn:stereo", True)
     monkeypatch.setattr(effects, "catalog", lambda refresh=False: [hp, mono, st])

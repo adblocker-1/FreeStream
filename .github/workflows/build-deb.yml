@@ -27,7 +27,7 @@ jobs:
           pip install --break-system-packages "streamdeck>=0.10" pyflakes pytest
 
       - name: Code prüfen
-        run: python3 -m pyflakes lindeck tests
+        run: python3 -m pyflakes streamlin tests tools
 
       - name: Tests
         run: xvfb-run -a python3 -m pytest -q tests
@@ -43,7 +43,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: lindeck-deb
+          name: streamlin-deb
           path: dist/*.deb
 
       - name: Release anlegen
@@ -54,7 +54,7 @@ jobs:
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             TAG="${GITHUB_REF_NAME}"
           else
-            TAG="v$(python3 -c 'import lindeck; print(lindeck.__version__)')"
+            TAG="v$(python3 -c 'import streamlin; print(streamlin.__version__)')"
           fi
           NOTES="packaging/release-notes/$TAG.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
