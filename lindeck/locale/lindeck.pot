@@ -1,0 +1,8 @@
+# LinDeck / Linewave translation template.
+# Copy to <language>.po (e.g. it.po, pt_BR.po) and fill in the msgstr lines.
+msgid ""
+msgstr ""
+"Project-Id-Version: lindeck\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: \n"
