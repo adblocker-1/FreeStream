@@ -31,6 +31,7 @@ import time
 from pathlib import Path
 
 from . import paths, system
+from .i18n import _
 
 log = logging.getLogger("lindeck.effects")
 
@@ -43,26 +44,26 @@ CACHE = "plugin-cache.json"
 
 # Eingebaute Filter von PipeWire (Typ builtin, Ports „In“/„Out“)
 BUILTIN = [
-    {"id": "builtin:highpass", "label": "bq_highpass", "name": "Hochpass (Low Cut)",
-     "info": "Entfernt Brummen und Trittschall unterhalb der Frequenz",
+    {"id": "builtin:highpass", "label": "bq_highpass", "name": _("High-pass (low cut)"),
+     "info": _("Removes hum and rumble below the frequency"),
      "controls": [{"name": "Freq", "min": 20, "max": 400, "default": 90, "unit": "Hz", "log": True},
                   {"name": "Q", "min": 0.3, "max": 2.0, "default": 0.707}]},
-    {"id": "builtin:lowpass", "label": "bq_lowpass", "name": "Tiefpass",
-     "info": "Dämpft hohe Frequenzen, z. B. gegen Zischen",
+    {"id": "builtin:lowpass", "label": "bq_lowpass", "name": _("Low-pass"),
+     "info": _("Attenuates high frequencies, e.g. against hiss"),
      "controls": [{"name": "Freq", "min": 2000, "max": 20000, "default": 12000, "unit": "Hz", "log": True},
                   {"name": "Q", "min": 0.3, "max": 2.0, "default": 0.707}]},
-    {"id": "builtin:lowshelf", "label": "bq_lowshelf", "name": "Bass",
-     "info": "Hebt oder senkt die Tiefen",
+    {"id": "builtin:lowshelf", "label": "bq_lowshelf", "name": _("Bass"),
+     "info": _("Boosts or cuts the lows"),
      "controls": [{"name": "Freq", "min": 40, "max": 500, "default": 150, "unit": "Hz", "log": True},
                   {"name": "Q", "min": 0.3, "max": 2.0, "default": 0.707},
                   {"name": "Gain", "min": -15, "max": 15, "default": 3, "unit": "dB"}]},
-    {"id": "builtin:highshelf", "label": "bq_highshelf", "name": "Höhen",
-     "info": "Hebt oder senkt die Höhen (Präsenz, Brillanz)",
+    {"id": "builtin:highshelf", "label": "bq_highshelf", "name": _("Treble"),
+     "info": _("Boosts or cuts the highs (presence, brilliance)"),
      "controls": [{"name": "Freq", "min": 2000, "max": 16000, "default": 6000, "unit": "Hz", "log": True},
                   {"name": "Q", "min": 0.3, "max": 2.0, "default": 0.707},
                   {"name": "Gain", "min": -15, "max": 15, "default": 3, "unit": "dB"}]},
-    {"id": "builtin:peaking", "label": "bq_peaking", "name": "EQ-Band",
-     "info": "Ein einzelnes Equalizer-Band",
+    {"id": "builtin:peaking", "label": "bq_peaking", "name": _("EQ band"),
+     "info": _("A single equalizer band"),
      "controls": [{"name": "Freq", "min": 60, "max": 16000, "default": 1000, "unit": "Hz", "log": True},
                   {"name": "Q", "min": 0.3, "max": 6.0, "default": 1.0},
                   {"name": "Gain", "min": -15, "max": 15, "default": 0, "unit": "dB"}]},
@@ -71,17 +72,17 @@ BUILTIN_BY_ID = {b["id"]: b for b in BUILTIN}
 
 # Bekannte LADSPA-Plugins mit verständlichem Namen (Label -> Name, Beschreibung)
 FRIENDLY = {
-    "noise_suppressor_mono": ("Rauschunterdrückung (RNNoise)", "Filtert Tastatur, Lüfter und Hintergrund heraus"),
-    "noise_suppressor_stereo": ("Rauschunterdrückung Stereo (RNNoise)", "Filtert Hintergrundgeräusche heraus"),
-    "deep_filter_mono": ("Rauschunterdrückung (DeepFilterNet)", "KI-Rauschfilter für Stimmen"),
-    "deep_filter_stereo": ("Rauschunterdrückung Stereo (DeepFilterNet)", "KI-Rauschfilter für Stimmen"),
-    "sc4": ("Kompressor (SC4)", "Gleicht laute und leise Stellen aus"),
-    "sc4m": ("Kompressor mono (SC4)", "Gleicht laute und leise Stellen aus"),
-    "gate": ("Noise Gate", "Schaltet das Mikrofon in Sprechpausen stumm"),
-    "fastLookaheadLimiter": ("Limiter", "Verhindert Übersteuern"),
-    "tap_equalizer": ("Equalizer (8 Bänder)", "Klangregelung"),
-    "tap_reverb": ("Hall", "Raumklang"),
-    "tap_deesser": ("De-Esser", "Dämpft scharfe S-Laute"),
+    "noise_suppressor_mono": (_("Noise suppression (RNNoise)"), _("Filters out keyboard, fans and background")),
+    "noise_suppressor_stereo": (_("Noise suppression stereo (RNNoise)"), _("Filters out background noise")),
+    "deep_filter_mono": (_("Noise suppression (DeepFilterNet)"), _("AI noise filter for voices")),
+    "deep_filter_stereo": (_("Noise suppression stereo (DeepFilterNet)"), _("AI noise filter for voices")),
+    "sc4": (_("Compressor (SC4)"), _("Evens out loud and quiet passages")),
+    "sc4m": (_("Compressor mono (SC4)"), _("Evens out loud and quiet passages")),
+    "gate": (_("Noise gate"), _("Mutes the microphone while you are not speaking")),
+    "fastLookaheadLimiter": (_("Limiter"), _("Prevents clipping")),
+    "tap_equalizer": (_("Equalizer (8 bands)"), _("Tone control")),
+    "tap_reverb": (_("Reverb"), _("Room ambience")),
+    "tap_deesser": (_("De-esser"), _("Tames harsh S sounds")),
 }
 # Bessere Startwerte für den Einsatz am Mikrofon
 PRESETS = {
@@ -187,18 +188,22 @@ LV2_SUPPORTED = {LV2 + "ext/urid#map", LV2 + "ext/urid#unmap", LV2 + "ext/option
                  LV2 + "ext/buf-size#boundedBlockLength", LV2 + "ext/worker#schedule", LV2 + "ext/log#log",
                  LV2 + "lv2core#isLive", LV2 + "lv2core#hardRTCapable"}
 FRIENDLY_LV2 = {
-    "http://gareus.org/oss/lv2/darc#mono": ("Kompressor (x42 darc)", "Gleicht laute und leise Stellen aus"),
-    "http://gareus.org/oss/lv2/darc#stereo": ("Kompressor Stereo (x42 darc)", "Gleicht laute und leise Stellen aus"),
-    "http://gareus.org/oss/lv2/fil4#mono": ("Equalizer (x42 fil4)", "Parametrischer EQ mit Hoch- und Tiefpass"),
-    "http://gareus.org/oss/lv2/fil4#stereo": ("Equalizer Stereo (x42 fil4)", "Parametrischer EQ"),
-    "http://gareus.org/oss/lv2/dpl#mono": ("Limiter (x42 dpl)", "Verhindert Übersteuern"),
-    "http://gareus.org/oss/lv2/dpl#stereo": ("Limiter Stereo (x42 dpl)", "Verhindert Übersteuern"),
-    "http://calf.sourceforge.net/plugins/Gate": ("Noise Gate (Calf)", "Schaltet in Sprechpausen stumm"),
-    "http://calf.sourceforge.net/plugins/Compressor": ("Kompressor (Calf)", "Gleicht laute und leise Stellen aus"),
-    "http://calf.sourceforge.net/plugins/Deesser": ("De-Esser (Calf)", "Dämpft scharfe S-Laute"),
-    "http://calf.sourceforge.net/plugins/Equalizer5Band": ("Equalizer 5 Bänder (Calf)", "Klangregelung"),
-    "urn:jeremy.salwen:plugins:noise-repellent-mono": ("Rauschunterdrückung (Noise Repellent)",
-                                                       "Filtert gleichmäßiges Rauschen heraus"),
+    "http://gareus.org/oss/lv2/darc#mono": (_("Compressor (x42 darc)"),
+                                               _("Evens out loud and quiet passages")),
+    "http://gareus.org/oss/lv2/darc#stereo": (_("Compressor stereo (x42 darc)"),
+                                                 _("Evens out loud and quiet passages")),
+    "http://gareus.org/oss/lv2/fil4#mono": (_("Equalizer (x42 fil4)"),
+                                              _("Parametric EQ with high-pass and low-pass")),
+    "http://gareus.org/oss/lv2/fil4#stereo": (_("Equalizer stereo (x42 fil4)"), _("Parametric EQ")),
+    "http://gareus.org/oss/lv2/dpl#mono": (_("Limiter (x42 dpl)"), _("Prevents clipping")),
+    "http://gareus.org/oss/lv2/dpl#stereo": (_("Limiter stereo (x42 dpl)"), _("Prevents clipping")),
+    "http://calf.sourceforge.net/plugins/Gate": (_("Noise gate (Calf)"), _("Mutes while you are not speaking")),
+    "http://calf.sourceforge.net/plugins/Compressor": (_("Compressor (Calf)"),
+                                                    _("Evens out loud and quiet passages")),
+    "http://calf.sourceforge.net/plugins/Deesser": (_("De-esser (Calf)"), _("Tames harsh S sounds")),
+    "http://calf.sourceforge.net/plugins/Equalizer5Band": (_("Equalizer 5 bands (Calf)"), _("Tone control")),
+    "urn:jeremy.salwen:plugins:noise-repellent-mono": (_("Noise suppression (Noise Repellent)"),
+                                                       _("Filters out constant noise")),
 }
 LV2_FAVORITES = list(FRIENDLY_LV2)
 
@@ -307,7 +312,7 @@ def _scan_all():
         try:
             found += read_ladspa(f)
         except (OSError, AttributeError) as e:
-            print(f"übersprungen {f}: {e}", file=sys.stderr)
+            print(_("skipped {path}: {error}").format(path=f, error=e), file=sys.stderr)
     return found + read_lv2()
 
 
@@ -333,12 +338,16 @@ def catalog(refresh=False):
                                    env=dict(os.environ, PYTHONPATH=os.pathsep.join(sys.path)))
                 plugins = json.loads(r.stdout or "[]")
             except (OSError, ValueError, subprocess.TimeoutExpired) as e:
-                log.warning("Plugins nicht lesbar: %s", e)
+                log.warning(_("Could not read plugins: {error}").format(error=e))
         try:
             cache.parent.mkdir(parents=True, exist_ok=True)
             cache.write_text(json.dumps({"stamp": stamp, "plugins": plugins}), encoding="utf-8")
         except OSError:
             pass
+    for p in plugins:  # Anzeigenamen in der aktuellen Sprache (der Cache kann aus einer anderen stammen)
+        friendly = FRIENDLY_LV2.get(p.get("plugin")) if p.get("type") == "lv2" else FRIENDLY.get(p.get("label"))
+        if friendly:
+            p["name"], p["info"] = friendly
     rank = {lab: i for i, lab in enumerate(FAVORITES)}
     rank.update({f"lv2:{u}": 100 + i for i, u in enumerate(LV2_FAVORITES)})
     plugins.sort(key=lambda p: (rank.get(p["id"], rank.get(p["label"], 999) if p["type"] == "ladspa" else 999),
@@ -376,7 +385,7 @@ def graph(chain, cat=None):
             continue
         p = lookup(fx["plugin"], cat)
         if not p:
-            log.warning("Effekt %s nicht gefunden – ausgelassen", fx["plugin"])
+            log.warning(_("Effect {plugin} not found – skipped").format(plugin=fx["plugin"]))
             continue
         ctl = " ".join(f"{_q(k)} = {float(v):g}" for k, v in (fx.get("controls") or {}).items()
                        if any(c["name"] == k for c in p.get("controls", [])))
@@ -413,7 +422,7 @@ def conf(cid, label, source, chain, cat=None, stage=None):
     """
     g = graph(chain, cat)
     if g is None:
-        raise ValueError("Keine aktiven Effekte")
+        raise ValueError(_("No active effects"))
     node = f"linewave_{cid}_fx"
     if stage is not None:
         return _stage_conf(node, stage, label, g)
@@ -422,6 +431,7 @@ def conf(cid, label, source, chain, cat=None, stage=None):
     else:
         target = f"target.object = {_q(source)}"
     nl = "\n                    "
+    desc = _q(_("Linewave {name} (Effects)").format(name=label))
     return f"""# Von Linewave erzeugt – Effekte für {label}
 context.properties = {{ log.level = 0 }}
 context.spa-libs = {{
@@ -435,8 +445,8 @@ context.modules = [
     {{ name = libpipewire-module-adapter }}
     {{ name = libpipewire-module-filter-chain
         args = {{
-            node.description = {_q(f"Linewave {label} (Effekte)")}
-            media.name       = {_q(f"Linewave {label} (Effekte)")}
+            node.description = {desc}
+            media.name       = {desc}
             filter.graph = {{
                 nodes = [
                     {nl.join(g["nodes"])}
@@ -454,7 +464,7 @@ context.modules = [
             }}
             playback.props = {{
                 node.name        = "{node}"
-                node.description = {_q(f"Linewave {label} (Effekte)")}
+                node.description = {desc}
                 media.class      = Audio/Source
             }}
         }}
@@ -478,7 +488,7 @@ context.modules = [
     {{ name = libpipewire-module-adapter }}
     {{ name = libpipewire-module-filter-chain
         args = {{
-            node.description = {_q(f"Linewave {label} (Effekte {stage + 1})")}
+            node.description = {_q(_("Linewave {name} (Effects {n})").format(name=label, n=stage + 1))}
             filter.graph = {{
                 nodes = [
                     {nl.join(g["nodes"])}
@@ -525,8 +535,8 @@ def lv2_status():
     if pipewire_lv2():
         return True, ""
     if lv2_bridge_available():
-        return True, "über jalv"
-    return False, "LV2 braucht die Pakete jalv und pipewire-jack (oder ein PipeWire mit LV2-Unterstützung)"
+        return True, _("via jalv")
+    return False, _("LV2 needs the packages jalv and pipewire-jack (or a PipeWire with LV2 support)")
 
 
 def stages(chain, cat=None):
@@ -615,7 +625,7 @@ class Effects:
     def _needs_bridge(self, cid, cat=None):
         if pipewire_lv2():
             return False
-        return any(kind == "lv2" for kind, _ in stages(self.chain(cid), cat))
+        return any(kind == "lv2" for kind, _s in stages(self.chain(cid), cat))
 
     def start(self, c, source):
         """Effektkette eines Kanals starten; gibt den Namen der bearbeiteten Quelle zurück."""
@@ -626,7 +636,7 @@ class Effects:
             return self._start_bridge(c, source, cat)
         exe = shutil.which("pipewire")
         if not exe:
-            raise RuntimeError("pipewire nicht gefunden")
+            raise RuntimeError(_("pipewire not found"))
         path = paths.STATE_DIR / f"effects-{cid}.conf"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(conf(cid, c["name"], source, self.chain(cid), cat), encoding="utf-8")
@@ -636,13 +646,14 @@ class Effects:
         st[cid] = {"pid": proc.pid, "conf": str(path)}
         self._save(st)
         node = self.node_name(cid)
-        for _ in range(30):  # bis die neue Quelle bei PipeWire angemeldet ist
+        for _i in range(30):  # bis die neue Quelle bei PipeWire angemeldet ist
             if any(b.get("name") == node for b in system._pactl_blocks("sources")):
                 break
             if proc.poll() is not None:
-                raise RuntimeError("Effektkette konnte nicht starten (Plugin fehlt oder Einstellung ungültig)")
+                raise RuntimeError(_("Effect chain could not start (plugin missing or invalid setting)"))
             time.sleep(0.1)
-        log.info("Effekte für %s aktiv (%d)", c["name"], sum(1 for fx in self.chain(cid) if fx.get("enabled", True)))
+        log.info(_("Effects for {name} active ({count})").format(
+            name=c["name"], count=sum(1 for fx in self.chain(cid) if fx.get("enabled", True))))
         return node
 
     # ------------------------------------------------------ Brücken-Modus
@@ -678,9 +689,9 @@ class Effects:
         """Kette mit LV2-Effekten ohne LV2 in PipeWire: Teilketten + jalv, per pw-link verbunden."""
         cid = c["id"]
         if not lv2_bridge_available():
-            raise RuntimeError("LV2-Effekte brauchen die Pakete jalv und pipewire-jack")
+            raise RuntimeError(_("LV2 effects need the packages jalv and pipewire-jack"))
         node = self.node_name(cid)
-        desc = f"Linewave {c['name']} (Effekte)"
+        desc = _("Linewave {name} (Effects)").format(name=c["name"])
         from .mixer import _props
         mid = self.mixer.run(["load-module", "module-null-sink", "media.class=Audio/Source/Virtual",
                               f"sink_name={node}", "channel_map=front-left,front-right",
@@ -695,7 +706,7 @@ class Effects:
         for i, (kind, items) in enumerate(chain_stages):
             if kind == "fc":
                 path = paths.STATE_DIR / f"effects-{cid}-s{i}.conf"
-                path.write_text(conf(cid, c["name"], source, [fx for _, fx, _ in items], cat, stage=i),
+                path.write_text(conf(cid, c["name"], source, [fx for _i, fx, _p in items], cat, stage=i),
                                 encoding="utf-8")
                 pr = subprocess.Popen([shutil.which("pipewire") or "pipewire", "-c", str(path)],
                                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -703,7 +714,7 @@ class Effects:
                 entry["procs"].append({"pid": pr.pid, "tag": str(path)})
                 ins = [f"{node}_s{i}_in:input_FL", f"{node}_s{i}_in:input_FR"]
                 outs = [f"{node}_s{i}_out:output_FL", f"{node}_s{i}_out:output_FR"]
-                entry["stages"].append({"kind": "fc", "index": [ix for ix, _, _ in items], "node": f"{node}_s{i}_in"})
+                entry["stages"].append({"kind": "fc", "index": [ix for ix, _f, _p in items], "node": f"{node}_s{i}_in"})
             else:
                 ix, fx, p = items[0]
                 stereo = len(p["inputs"]) == 2
@@ -729,22 +740,22 @@ class Effects:
         self._save(st)
         final = [f"{node}:input_FL", f"{node}:input_FR"]
         src = None
-        for _ in range(60):  # bis alle Ports da sind (jalv braucht einen Moment)
+        for _i in range(60):  # bis alle Ports da sind (jalv braucht einen Moment)
             have_in, src = set(self._ports("in")), self._source_ports(source)
-            if src and all(p in have_in for ins, _ in wanted for p in ins) and all(p in have_in for p in final):
+            if src and all(p in have_in for ins, _o in wanted for p in ins) and all(p in have_in for p in final):
                 have_out = set(self._ports("out"))
-                if all(p in have_out for _, outs in wanted for p in outs):
+                if all(p in have_out for _n, outs in wanted for p in outs):
                     break
             time.sleep(0.1)
         else:
             self.stop(cid)
-            raise RuntimeError("Effektkette (LV2 über jalv) konnte nicht starten")
+            raise RuntimeError(_("Effect chain (LV2 via jalv) could not start"))
         prev = src
         for ins, outs in wanted + [(final, None)]:
             for a, b in zip(prev, ins):
                 subprocess.run(["pw-link", a, b], capture_output=True, timeout=3)
             prev = outs
-        log.info("Effekte für %s aktiv (LV2 über jalv, %d Stufen)", c["name"], len(wanted))
+        log.info(_("Effects for {name} active (LV2 via jalv, {count} stages)").format(name=c["name"], count=len(wanted)))
         return node
 
     def source_for(self, c, source):
@@ -755,7 +766,7 @@ class Effects:
         try:
             return self.start(c, source)
         except (RuntimeError, ValueError, OSError) as e:
-            log.warning("Effekte für %s nicht gestartet: %s", c["name"], e)
+            log.warning(_("Effects for {name} not started: {error}").format(name=c["name"], error=e))
             return source
 
     def stop(self, cid):

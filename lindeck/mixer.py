@@ -34,6 +34,7 @@ import subprocess
 import time
 
 from . import paths, system
+from .i18n import _
 
 log = logging.getLogger("lindeck.mixer")
 
@@ -41,14 +42,14 @@ PREFIX = "linewave_"
 LEGACY_PREFIXES = ("lindeck_",)  # Namen bis Version 0.6
 STREAM_SINK = PREFIX + "streammix"
 DEFAULT_CHANNELS = [
-    {"id": "system", "name": "System"},
-    {"id": "music", "name": "Musik"},
-    {"id": "browser", "name": "Browser"},
-    {"id": "voice", "name": "Voice Chat"},
-    {"id": "game", "name": "Spiel"},
-    {"id": "sfx", "name": "Effekte"},
+    {"id": "system", "name": _("System")},
+    {"id": "music", "name": _("Music")},
+    {"id": "browser", "name": _("Browser")},
+    {"id": "voice", "name": _("Voice Chat")},
+    {"id": "game", "name": _("Game")},
+    {"id": "sfx", "name": _("SFX")},
 ]
-MIC = {"id": "mic", "name": "Mikrofon", "kind": "input"}
+MIC = {"id": "mic", "name": _("Microphone"), "kind": "input"}
 RESERVED_IDS = {"mic", "streammix", "micfilter", "stream", "monitor"}
 MIXES = ("monitor", "stream")
 DEFAULT_ROUTES = {
@@ -66,7 +67,7 @@ STATE_FILE = "mixer.json"
 def _run(args):
     r = subprocess.run(["pactl"] + args, capture_output=True, text=True, timeout=5)
     if r.returncode != 0:
-        raise RuntimeError((r.stderr or r.stdout or "pactl-Fehler").strip())
+        raise RuntimeError((r.stderr or r.stdout or _("pactl error")).strip())
     return r.stdout.strip()
 
 
@@ -181,11 +182,11 @@ class Mixer:
         """Eigenen Kanal anlegen; läuft der Mixer, wird er sofort eingerichtet."""
         name = (name or "").strip()
         if not name:
-            raise RuntimeError("Bitte einen Namen eingeben")
+            raise RuntimeError(_("Please enter a name"))
         if kind not in ("apps", "input"):
-            raise RuntimeError(f"Unbekannte Art: {kind}")
+            raise RuntimeError(_("Unknown kind: {kind}").format(kind=kind))
         if kind == "input" and not source:
-            raise RuntimeError("Bitte ein Eingangsgerät wählen")
+            raise RuntimeError(_("Please choose an input device"))
         c = {"id": self.new_id(name), "name": name, "kind": kind}
         if kind == "input":
             c["source"] = source
@@ -212,9 +213,9 @@ class Mixer:
             return self.channel("mic")
         c = next((c for c in self._cfg_channels() if c["id"] == cid), None)
         if c is None:
-            raise RuntimeError(f"Kanal {cid} nicht gefunden")
+            raise RuntimeError(_("Channel {id} not found").format(id=cid))
         if "name" in changes and not (changes["name"] or "").strip():
-            raise RuntimeError("Bitte einen Namen eingeben")
+            raise RuntimeError(_("Please enter a name"))
         rebuild = any(k in changes and changes[k] != c.get(k) for k in ("name", "source"))
         for k in ("name", "icon", "color", "source"):
             if k in changes and changes[k] is not None:
@@ -229,9 +230,9 @@ class Mixer:
         chans = self._cfg_channels()
         c = next((c for c in chans if c["id"] == cid), None)
         if c is None:
-            raise RuntimeError(f"Kanal {cid} nicht gefunden")
+            raise RuntimeError(_("Channel {id} not found").format(id=cid))
         if c.get("kind", "apps") == "apps" and len(self.app_channels()) <= 1:
-            raise RuntimeError("Mindestens ein Kanal für Programme muss bleiben")
+            raise RuntimeError(_("At least one channel for apps must remain"))
         chans.remove(c)
         mx = self.cfg.data["mixer"]
         mx["routes"] = {k: v for k, v in (mx.get("routes") or {}).items() if v != cid}
@@ -271,7 +272,7 @@ class Mixer:
     def setup(self):
         """Kanäle und Mixe anlegen (vorhandene Linewave-Module werden vorher entfernt)."""
         if not system.have("pactl"):
-            raise RuntimeError("pactl fehlt (Paket pulseaudio-utils) – PipeWire mit pipewire-pulse wird benötigt")
+            raise RuntimeError(_("pactl is missing (package pulseaudio-utils) – PipeWire with pipewire-pulse is required"))
         old = self._state()
         self.teardown(restore_default=False)
         prev_default = old.get("previous_default") or self.default_sink()
@@ -282,7 +283,7 @@ class Mixer:
         mic = self.conf.get("mic") or ("linewave_micfilter" if "linewave_micfilter" in sources else self.default_source())
         modules, per_channel = [], {}
         ctx = {"monitor": monitor_out, "mic": mic}
-        stream_desc = "Linewave Stream-Mix"
+        stream_desc = _("Linewave Stream Mix")
         modules.append(self.run(["load-module", "module-null-sink", f"sink_name={STREAM_SINK}",
                                  "sink_properties=" + _props(device_description=stream_desc,
                                                              node_description=stream_desc)]))
@@ -295,7 +296,7 @@ class Mixer:
             try:
                 self.run(["set-default-sink", self.sink_name(first["id"])])
             except RuntimeError as e:  # z. B. ohne Session-Manager (WirePlumber)
-                log.warning("Standardausgabe nicht auf Linewave %s gesetzt: %s", first["name"], e)
+                log.warning(_("Default output not set to Linewave {name}: {error}").format(name=first["name"], error=e))
         self._save_state({"modules": modules, "channels": per_channel, "previous_default": prev_default,
                           "monitor_output": monitor_out, "mic": mic, "created": time.time()})
         time.sleep(0.3)
@@ -313,11 +314,13 @@ class Mixer:
             except RuntimeError:
                 pass
         self._moved.clear()
-        log.info("Audio-Mixer eingerichtet: %d Kanäle, Monitor → %s", len(self.channels()), monitor_out)
+        log.info(_("Audio mixer set up: {count} channels, monitor → {output}").format(
+            count=len(self.channels()), output=monitor_out))
         return modules
 
     def _loop_props(self, cid, name, mix):
-        label = f"Linewave {name} → {'Monitor-Mix' if mix == 'monitor' else 'Stream-Mix'}"
+        label = (_("Linewave {name} → Monitor Mix") if mix == "monitor" else
+                 _("Linewave {name} → Stream Mix")).format(name=name)
         return _props(linewave_loop=self.loop_name(cid, mix), media_name=label, node_description=label)
 
     def _source_of(self, c, ctx):
@@ -400,7 +403,7 @@ class Mixer:
         """Kanal neu einrichten (z. B. nach Umbenennen oder geänderten Effekten); Lautstärken bleiben."""
         c = self.channel(cid)
         if c is None:
-            raise RuntimeError(f"Kanal {cid} nicht gefunden")
+            raise RuntimeError(_("Channel {id} not found").format(id=cid))
         levels = self._unload_channel(cid)
         self.fx.stop(cid)
         self._add_live(c, levels)
@@ -448,21 +451,22 @@ class Mixer:
         for m in (MIXES if mix == "both" else (mix,)):
             b = self._loop_input(cid, m)
             if not b:
-                raise RuntimeError(f"Kanal {cid}/{m} nicht gefunden – Mixer eingerichtet? (linewave mixer setup)")
+                raise RuntimeError(_("Channel {id}/{mix} not found – is the mixer set up? (linewave mixer setup)").format(
+                    id=cid, mix=m))
             self.run(["set-sink-input-volume", b["index"], f"{max(0, min(150, int(pct)))}%"])
 
     def change_volume(self, cid, mix, delta):
         for m in (MIXES if mix == "both" else (mix,)):
-            vol, _ = self.get(cid, m)
+            vol, _m = self.get(cid, m)
             if vol is None:
-                raise RuntimeError(f"Kanal {cid}/{m} nicht gefunden")
+                raise RuntimeError(_("Channel {id}/{mix} not found").format(id=cid, mix=m))
             self.set_volume(cid, m, vol + delta)
 
     def set_mute(self, cid, mix, mute):
         for m in (MIXES if mix == "both" else (mix,)):
             b = self._loop_input(cid, m)
             if not b:
-                raise RuntimeError(f"Kanal {cid}/{m} nicht gefunden")
+                raise RuntimeError(_("Channel {id}/{mix} not found").format(id=cid, mix=m))
             self.run(["set-sink-input-mute", b["index"], "toggle" if mute == "toggle" else ("1" if mute else "0")])
 
     def levels(self):
@@ -482,7 +486,7 @@ class Mixer:
         """Monitor-Mix auf ein anderes Ausgabegerät legen (Name, Teil der Beschreibung oder 'next')."""
         outs = self.outputs()
         if not outs:
-            raise RuntimeError("Kein Ausgabegerät gefunden")
+            raise RuntimeError(_("No output device found"))
         st = self._state()
         cur = st.get("monitor_output", "")
         if device in ("", "next", None):
@@ -493,7 +497,7 @@ class Mixer:
             target = next((o["name"] for o in outs if o["name"] == device or d in (o.get("description") or "").lower()),
                           None)
             if not target:
-                raise RuntimeError(f"Ausgabegerät „{device}“ nicht gefunden")
+                raise RuntimeError(_("Output device “{device}” not found").format(device=device))
         for b in system._pactl_blocks("sink-inputs"):
             name = _loop_id(b["props"])
             if name.startswith(PREFIX) and name.endswith("_monitor"):
@@ -529,7 +533,7 @@ class Mixer:
                         self.run(["move-sink-input", idx, self.sink_name(cid)])
                         moved += 1
                     except RuntimeError as e:
-                        log.debug("Verschieben von %s fehlgeschlagen: %s", idx, e)
+                        log.debug(_("Moving {stream} failed: {error}").format(stream=idx, error=e))
                     break
         return moved
 
@@ -545,14 +549,14 @@ class Mixer:
             cid = sink[len(PREFIX):] if sink.startswith(PREFIX) and sink != STREAM_SINK else None
             out.append({"index": b["index"], "channel": cid, "sink": sink,
                         "app": (p.get("application.name") or p.get("application.process.binary")
-                                or p.get("node.name") or f"Stream {b['index']}"),
+                                or p.get("node.name") or _("Stream {index}").format(index=b["index"])),
                         "key": (p.get("application.process.binary") or p.get("application.name") or "").lower()})
         return out
 
     def move_stream(self, index, cid, remember=""):
         """Einen Stream in einen Kanal verschieben; mit remember (Programmname) dauerhaft merken."""
         if cid not in {c["id"] for c in self.app_channels()}:
-            raise RuntimeError(f"Unbekannter Kanal: {cid}")
+            raise RuntimeError(_("Unknown channel: {id}").format(id=cid))
         self.run(["move-sink-input", str(index), self.sink_name(cid)])
         if remember and self.cfg is not None and hasattr(self.cfg, "save"):
             self.cfg.data.setdefault("mixer", {}).setdefault("routes", {})[remember.lower()] = cid
@@ -562,7 +566,7 @@ class Mixer:
         """Programm dauerhaft einem Kanal zuordnen (laufende Streams werden sofort verschoben)."""
         c = self.channel(cid)
         if not c or c["id"] not in {a["id"] for a in self.app_channels()}:
-            raise RuntimeError(f"Unbekannter Kanal: {cid}")
+            raise RuntimeError(_("Unknown channel: {id}").format(id=cid))
         cid = c["id"]
         n = 0
         for b in system.app_streams(app):
