@@ -44,7 +44,8 @@ import uuid as uuidlib
 import zipfile
 from pathlib import Path
 
-from . import __version__, paths, system, ws
+from . import __version__, i18n, paths, system, ws
+from .i18n import _
 from .models import model_name
 
 log = logging.getLogger("lindeck.plugins")
@@ -79,10 +80,10 @@ class PluginInfo:
         if code.endswith(NODE_EXT) or (m.get("Nodejs") and code and not code.endswith((".exe", ".html", ".htm"))):
             return code, "node", ""
         if code.endswith((".html", ".htm")):
-            return code, None, "HTML-Plugin (läuft nur in der Elgato-App)"
+            return code, None, _("HTML plugin (runs only in the Elgato app)")
         if code and (self.dir / code).is_file() and _is_elf(self.dir / code):
             return code, "exec", ""
-        return code, None, "nur für Windows/macOS gebaut"
+        return code, None, _("built for Windows/macOS only")
 
     @property
     def runnable(self):
@@ -130,7 +131,7 @@ def installed(plugins_dir=None) -> dict:
                 info = PluginInfo(d)
                 found[info.uuid] = info
             except (OSError, ValueError) as e:
-                log.warning("Plugin %s nicht lesbar: %s", d.name, e)
+                log.warning(_("Plugin {name} not readable: {error}").format(name=d.name, error=e))
     _cache.update(mtime=mtime, plugins=found)
     return found
 
@@ -195,7 +196,7 @@ def decode_image(data: str, plugin_dir: Path = None, size=144):
         return None
     raw, is_svg = None, False
     if data.startswith("data:"):
-        header, _, body = data.partition(",")
+        header, __, body = data.partition(",")
         is_svg = "svg" in header
         raw = base64.b64decode(body) if ";base64" in header else urllib.parse.unquote(body).encode()
     elif data.lstrip().startswith("<svg") or data.lstrip().startswith("<?xml"):
@@ -213,7 +214,7 @@ def decode_image(data: str, plugin_dir: Path = None, size=144):
             import cairosvg
             raw = cairosvg.svg2png(bytestring=raw, output_width=size, output_height=size)
         except Exception as e:  # noqa: BLE001
-            log.debug("SVG nicht darstellbar: %s", e)
+            log.debug(_("SVG cannot be rendered: {error}").format(error=e))
             return None
     try:
         return Image.open(io.BytesIO(raw)).convert("RGBA")
@@ -240,7 +241,7 @@ class PluginProcess:
         if self.info.runtime == "node":
             node = self.host.node
             if not node:
-                raise RuntimeError("Node.js nicht gefunden (Paket „nodejs“ installieren oder node_path setzen)")
+                raise RuntimeError(_("Node.js not found (install the “nodejs” package or set node_path)"))
             return [node, str(exe)]
         return [str(exe)]
 
@@ -258,11 +259,11 @@ class PluginProcess:
             self.proc = subprocess.Popen(cmd, cwd=str(self.info.dir), stdin=subprocess.DEVNULL, stdout=logf,
                                          stderr=subprocess.STDOUT, start_new_session=True)
         except OSError as e:
-            log.warning("Plugin %s nicht startbar: %s", self.info.name, e)
+            log.warning(_("Plugin {name} cannot be started: {error}").format(name=self.info.name, error=e))
             return False
         finally:
             logf.close()
-        log.info("Plugin gestartet: %s %s", self.info.name, self.info.version)
+        log.info(_("Plugin started: {name} {version}").format(name=self.info.name, version=self.info.version))
         threading.Thread(target=self._watch, daemon=True).start()
         return True
 
@@ -272,7 +273,7 @@ class PluginProcess:
         if self.stopping or proc is not self.proc:
             return
         self.conn = None
-        log.warning("Plugin %s beendet (Code %s)", self.info.name, code)
+        log.warning(_("Plugin {name} exited (code {code})").format(name=self.info.name, code=code))
         if self.restarts < self.MAX_RESTARTS:
             self.restarts += 1
             time.sleep(min(30, 2 ** self.restarts))
@@ -339,7 +340,7 @@ class PluginHost:
         for uid, info in plugins.items():
             if uid in self.procs or not info.runnable:
                 if not info.runnable and uid not in self.procs:
-                    log.info("Plugin %s wird nicht gestartet: %s", info.name, info.reason)
+                    log.info(_("Plugin {name} will not be started: {reason}").format(name=info.name, reason=info.reason))
                     self.procs[uid] = None
                 continue
             p = PluginProcess(self, info)
@@ -356,7 +357,7 @@ class PluginHost:
         for ctrl in self._controllers():
             devices.append(self._device_info(ctrl))
         return {
-            "application": {"font": "", "language": (os.environ.get("LANG") or "de")[:2], "platform": "linux",
+            "application": {"font": "", "language": i18n.current().split("_")[0], "platform": "linux",
                             "platformVersion": platform.release(), "version": SDK_APP_VERSION},
             "plugin": {"uuid": info.uuid, "version": info.version},
             "devicePixelRatio": 2,
@@ -501,7 +502,8 @@ class PluginHost:
 
     def _on_connect(self, conn):
         if not self._origin_ok(conn.headers):
-            log.warning("WebSocket-Verbindung von fremder Herkunft abgelehnt: %s", conn.headers.get("origin"))
+            log.warning(_("WebSocket connection from foreign origin rejected: {origin}").format(
+                origin=conn.headers.get("origin")))
             conn.close()
             return
         try:
@@ -517,10 +519,10 @@ class PluginHost:
             return
         proc = self.procs.get(first.get("uuid"))
         if proc is None:
-            log.warning("Unbekanntes Plugin meldet sich an: %s", first.get("uuid"))
+            log.warning(_("Unknown plugin tried to register: {uuid}").format(uuid=first.get("uuid")))
             conn.close()
             return
-        log.info("Plugin verbunden: %s", proc.info.name)
+        log.info(_("Plugin connected: {name}").format(name=proc.info.name))
         proc.attach(conn)
         for ctrl in self._controllers():
             proc.send({"event": "deviceDidConnect", "device": ctrl.serial, "deviceInfo": self._device_info(ctrl)})
@@ -539,7 +541,8 @@ class PluginHost:
             try:
                 self.handle(proc, msg)
             except Exception as e:  # noqa: BLE001 - ein fehlerhaftes Plugin darf den Dienst nicht stören
-                log.warning("Plugin %s: Befehl %s fehlgeschlagen: %s", proc.info.name, msg.get("event"), e)
+                log.warning(_("Plugin {name}: command {command} failed: {error}").format(
+                    name=proc.info.name, command=msg.get("event"), error=e))
         if proc.conn is conn:
             proc.conn = None
 
@@ -604,7 +607,7 @@ class PluginHost:
         elif ev in ("setFeedbackLayout", "setTriggerDescription"):
             pass
         else:
-            log.debug("Plugin %s: unbekannter Befehl %s", proc.info.name, ev)
+            log.debug(_("Plugin {name}: unknown command {command}").format(name=proc.info.name, command=ev))
 
     def _store_settings(self, action, settings):
         old = json.dumps(action.data, sort_keys=True)
@@ -616,7 +619,7 @@ class PluginHost:
             try:
                 save_action_settings(page.dir, old, settings)
             except (OSError, ValueError) as e:
-                log.warning("Einstellungen nicht gespeichert: %s", e)
+                log.warning(_("Settings not saved: {error}").format(error=e))
 
     def _switch_profile(self, device, profile):
         for ctrl in self._controllers():
@@ -673,19 +676,19 @@ class PluginHost:
             store.reload()
             prof = store.get(profile_id)
         if prof is None:
-            raise LookupError("Profil nicht gefunden")
+            raise LookupError(_("Profile not found"))
         prof._page_cache.clear()
         page = prof.page(page_uuid)
         if page is None:
-            raise LookupError("Seite nicht gefunden")
-        kind, _, pos = slot.partition(":")
+            raise LookupError(_("Page not found"))
+        kind, __, pos = slot.partition(":")
         if kind == "dial":
             data, coords = page.encoders.get(int(pos)), {"column": int(pos), "row": 0}
         else:
             c, r = (int(x) for x in pos.split(","))
             data, coords = page.keypad.get((c, r)), {"column": c, "row": r}
         if not data:
-            raise LookupError("Keine Aktion auf diesem Platz")
+            raise LookupError(_("No action in this slot"))
         # Läuft die Aktion schon auf einem Gerät? Dann denselben Kontext nehmen
         with self._lock:
             for ctx, a in self.contexts.items():
@@ -705,7 +708,7 @@ class PluginHost:
         parts = [urllib.parse.unquote(x) for x in url.path.split("/") if x]
         q = dict(urllib.parse.parse_qsl(url.query))
         if len(parts) < 2 or not secrets.compare_digest(parts[1], self.token):
-            return 403, "text/plain; charset=utf-8", b"Zugriff verweigert", {}
+            return 403, "text/plain; charset=utf-8", _("Access denied").encode(), {}
         if parts[0] == "pi":
             try:
                 a = self.open_context(q.get("profile", ""), q.get("page", ""), q.get("slot", ""))
@@ -713,18 +716,18 @@ class PluginHost:
                 return 404, "text/plain; charset=utf-8", str(e).encode(), {}
             info, rel = self.pi_path(a)
             if not rel:
-                return 404, "text/plain; charset=utf-8", "Dieses Plugin hat keine Einstellungsseite".encode(), {}
+                return 404, "text/plain; charset=utf-8", _("This plugin has no settings page").encode(), {}
             loc = f"/plugin/{self.token}/{urllib.parse.quote(info.uuid)}/{urllib.parse.quote(rel)}" \
                   f"?ctx={self.context(a)}"
             return 302, "text/plain", b"", {"Location": loc}
         if parts[0] == "plugin" and len(parts) >= 4:
             info = installed(self.plugins_dir).get(parts[2])
             if not info:
-                return 404, "text/plain; charset=utf-8", b"Plugin nicht installiert", {}
+                return 404, "text/plain; charset=utf-8", _("Plugin not installed").encode(), {}
             base = info.dir.resolve()
             f = (base / "/".join(parts[3:])).resolve()
             if base not in f.parents or not f.is_file():
-                return 404, "text/plain; charset=utf-8", b"Datei nicht gefunden", {}
+                return 404, "text/plain; charset=utf-8", _("File not found").encode(), {}
             body = f.read_bytes()
             ctype = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
             if f.suffix.lower() in (".html", ".htm") and q.get("ctx") in self.contexts:
@@ -733,7 +736,7 @@ class PluginHost:
             elif ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
                 ctype += "; charset=utf-8"
             return 200, ctype, body, {}
-        return 404, "text/plain; charset=utf-8", b"Nicht gefunden", {}
+        return 404, "text/plain; charset=utf-8", _("Not found").encode(), {}
 
     def _inject(self, html: bytes, info, a) -> bytes:
         ctx = self.context(a)
@@ -748,7 +751,7 @@ class PluginHost:
                 f"var port={self.port},uuid={json.dumps(ctx)},info={js(self.info_for(info))},ai={js(action_info)};"
                 "function go(){if(typeof window.connectElgatoStreamDeckSocket==='function'){"
                 "window.connectElgatoStreamDeckSocket(port,uuid,'registerPropertyInspector',info,ai);}"
-                "else{console.error('connectElgatoStreamDeckSocket fehlt');}}"
+                "else{console.error('connectElgatoStreamDeckSocket missing');}}"
                 "if(document.readyState==='complete'){setTimeout(go,0);}else{window.addEventListener('load',go);}"
                 "})();</script>")
         text = html.decode("utf-8", errors="replace")
@@ -784,7 +787,7 @@ class PluginHost:
                 try:
                     self._pi_handle(proc, a, ctx, conn, msg)
                 except Exception as e:  # noqa: BLE001
-                    log.warning("Einstellungsseite %s: %s", proc.info.name, e)
+                    log.warning(_("Settings page {name}: {error}").format(name=proc.info.name, error=e))
         except ws.Closed:
             pass
         if self.pis.get(ctx) is conn:
@@ -814,4 +817,5 @@ class PluginHost:
             if url.startswith(("http://", "https://", "mailto:")):
                 system.run_bg(["xdg-open", url])
         elif ev == "logMessage":
-            log.info("[%s Einstellungen] %s", proc.info.name, (payload or {}).get("message"))
+            log.info(_("[{name} settings] {message}").format(name=proc.info.name,
+                                                         message=(payload or {}).get("message")))

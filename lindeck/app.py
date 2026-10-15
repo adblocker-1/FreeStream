@@ -22,6 +22,7 @@ import threading
 import time
 
 from . import paths
+from .i18n import _
 
 log = logging.getLogger("lindeck.app")
 APP_FILE = "app.json"
@@ -90,20 +91,21 @@ class Tray:
     """Symbol in der Taskleiste (optional, über pystray)."""
 
     def __init__(self, on_show, on_quit, icon=None, title="LinDeck (Stream Deck)", ident="lindeck",
-                 open_label="LinDeck öffnen"):
+                 open_label=None):
         self.icon = None
+        open_label = open_label or _("Open LinDeck")
         try:
             import pystray
         except Exception as e:  # noqa: BLE001 - pystray fehlt oder kein Backend
-            log.info("Kein Taskleisten-Symbol (pystray nicht verfügbar: %s)", e)
+            log.info(_("No tray icon (pystray not available: {error})").format(error=e))
             return
         menu = pystray.Menu(pystray.MenuItem(open_label, lambda *a: on_show(), default=True),
-                            pystray.MenuItem("Beenden", lambda *a: on_quit()))
+                            pystray.MenuItem(_("Quit"), lambda *a: on_quit()))
         try:
             self.icon = pystray.Icon(ident, icon or make_icon(64), title, menu)
             threading.Thread(target=self.icon.run, name="tray", daemon=True).start()
         except Exception as e:  # noqa: BLE001
-            log.info("Taskleisten-Symbol nicht möglich: %s", e)
+            log.info(_("Tray icon not possible: {error}").format(error=e))
             self.icon = None
 
     def stop(self):
@@ -178,9 +180,9 @@ def main(hidden=False, profile=None, transport=None, tray=True):
             os.kill(pid, signal.SIGUSR1)
             return 0
         # läuft nur als Dienst ohne Fenster -> ablösen
-        log.info("LinDeck läuft ohne Fenster – starte neu mit Fenster")
+        log.info(_("LinDeck is running without a window – restarting with a window"))
         os.kill(pid, signal.SIGTERM)
-        for _ in range(50):
+        for _i in range(50):
             if not _alive(pid):
                 break
             time.sleep(0.1)
@@ -190,7 +192,7 @@ def main(hidden=False, profile=None, transport=None, tray=True):
         import tkinter as tk
         root = tk.Tk(className="lindeck")
     except Exception as e:  # noqa: BLE001 - kein Display oder kein Tk
-        log.info("Keine grafische Oberfläche (%s) – LinDeck läuft als Dienst", e)
+        log.info(_("No graphical interface ({error}) – LinDeck is running as a service").format(error=e))
 
     daemon = Daemon(transport=transport)
     if root is None:

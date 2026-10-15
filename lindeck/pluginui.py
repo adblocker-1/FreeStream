@@ -14,6 +14,7 @@ from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
 
 from . import paths, plugins
+from .i18n import _, ngettext
 from .theme import COL, Card, Dialog, Icons, PillButton, label
 
 MARKET = "https://marketplace.elgato.com/stream-deck/plugins"
@@ -33,17 +34,17 @@ def status(info, host):
     if not info.runnable:
         return info.reason, COL["danger"]
     if host is None:
-        return "bereit", COL["muted"]
+        return _("ready"), COL["muted"]
     if info.runtime == "node" and not host.node:
-        return "Node.js fehlt (Paket nodejs)", COL["warn"]
+        return _("Node.js missing (package nodejs)"), COL["warn"]
     proc = host.procs.get(info.uuid)
     if proc is None or proc.proc is None:
-        return "wird gestartet …", COL["warn"]
+        return _("launching …"), COL["warn"]
     if proc.proc.poll() is not None:
-        return "beendet – siehe Log", COL["danger"]
+        return _("exited – see log"), COL["danger"]
     if proc.conn is None:
-        return "startet …", COL["warn"]
-    return "läuft", COL["ok"]
+        return _("starting …"), COL["warn"]
+    return _("running"), COL["ok"]
 
 
 def _plugin_icon(info, size=48):
@@ -68,29 +69,30 @@ def _plugin_icon(info, size=48):
 
 class PluginManager(Dialog):
     def __init__(self, master, host=None, on_change=None):
-        super().__init__(master, "Plugins", width=720, height=640)
+        super().__init__(master, _("Plugins"), width=720, height=640)
         self.host = host
         self.on_change = on_change
         self.icons = Icons(self)
         self._photos = []
         self._rows = {}
         b = self.body
-        label(b, "Plugins", 16, "bold").pack(anchor="w")
-        label(b, "Elgato-Plugins aus dem Marketplace laufen auch unter Linux, wenn sie mit Node.js gebaut sind "
-                 "(die meisten neuen Plugins). Lade die Datei „….streamDeckPlugin“ herunter und installiere sie "
-                 "hier – oder lege sie einfach in den Download-Ordner, LinDeck übernimmt sie dann von selbst.",
+        label(b, _("Plugins"), 16, "bold").pack(anchor="w")
+        label(b, _("Elgato plugins from the Marketplace also run on Linux if they are built with Node.js "
+                   "(most new plugins). Download the “….streamDeckPlugin” file and install it here – "
+                   "or just put it in your Downloads folder, LinDeck picks it up by itself."),
               9, color=COL["muted"], wraplength=660, justify="left").pack(anchor="w", pady=(4, 10))
         bar = tk.Frame(b, bg=COL["bg"])
         bar.pack(fill="x", pady=(0, 12))
-        ttk.Button(bar, text="Plugin installieren …", style="Accent.TButton", command=self.install).pack(side="left")
-        ttk.Button(bar, text="Marketplace öffnen", command=lambda: self._open(MARKET)).pack(side="left", padx=8)
-        ttk.Button(bar, text="Plugin-Ordner", style="Ghost.TButton",
+        ttk.Button(bar, text=_("Install plugin …"), style="Accent.TButton", command=self.install).pack(side="left")
+        ttk.Button(bar, text=_("Open Marketplace"), command=lambda: self._open(MARKET)).pack(side="left", padx=8)
+        ttk.Button(bar, text=_("Plugin folder"), style="Ghost.TButton",
                    command=lambda: self._open(str(paths.PLUGINS_DIR))).pack(side="left")
         node = host.node if host else (shutil.which("node") or shutil.which("nodejs"))
         ver = node_version(node)
-        text = (f"● Node.js {ver} – Plugins können laufen" if ver else
-                "● Node.js gefunden – Plugins können laufen" if node else
-                "● Node.js fehlt – bitte das Paket „nodejs“ installieren, sonst starten die meisten Plugins nicht")
+        text = "● " + (_("Node.js {version} – plugins can run").format(version=ver) if ver else
+                       _("Node.js found – plugins can run") if node else
+                       _("Node.js missing – please install the “nodejs” package, "
+                         "otherwise most plugins will not start"))
         label(b, text, 9, color=COL["ok"] if node else COL["warn"], bg=COL["bg"]).pack(anchor="w", pady=(0, 10),
                                                                                       before=bar)
 
@@ -105,7 +107,7 @@ class PluginManager(Dialog):
         self._win = self.cv.create_window(0, 0, window=self.list, anchor="nw")
         self.list.bind("<Configure>", lambda e: self.cv.configure(scrollregion=self.cv.bbox("all")))
         self.cv.bind("<Configure>", lambda e: self.cv.itemconfigure(self._win, width=e.width))
-        ttk.Button(self.buttons, text="Schließen", style="Ghost.TButton", command=self.destroy).pack(side="right")
+        ttk.Button(self.buttons, text=_("Close"), style="Ghost.TButton", command=self.destroy).pack(side="right")
         self.render()
         self._tick()
         self.show()
@@ -123,8 +125,8 @@ class PluginManager(Dialog):
                      bg=COL["panel"]).pack(side="left")
             txt = tk.Frame(card.body, bg=COL["panel"])
             txt.pack(side="left", padx=14)
-            label(txt, "Noch keine Plugins installiert", 12, "bold").pack(anchor="w")
-            label(txt, "OBS, Spotify, Discord und Wave Link brauchen kein Plugin – das kann LinDeck schon selbst.",
+            label(txt, _("No plugins installed yet"), 12, "bold").pack(anchor="w")
+            label(txt, _("OBS, Spotify, Discord and Wave Link don't need a plugin – LinDeck can do that by itself."),
                   9, color=COL["muted"], wraplength=480, justify="left").pack(anchor="w")
             return
         for info in sorted(found.values(), key=lambda i: i.name.lower()):
@@ -146,8 +148,10 @@ class PluginManager(Dialog):
         txt.pack(side="left", padx=14, fill="x", expand=True, anchor="n")
         m = info.manifest
         label(txt, info.name, 12, "bold").pack(anchor="w")
-        meta = " · ".join(x for x in (f"Version {info.version}" if info.version else "", m.get("Author") or "",
-                                      f"{len(info.actions)} Aktionen") if x)
+        n = len(info.actions)
+        meta = " · ".join(x for x in (_("Version {version}").format(version=info.version) if info.version else "",
+                                      m.get("Author") or "",
+                                      ngettext("{n} action", "{n} actions", n).format(n=n)) if x)
         label(txt, meta, 9, color=COL["muted"]).pack(anchor="w")
         if m.get("Description"):
             label(txt, m["Description"], 9, color=COL["muted"], wraplength=300, justify="left").pack(anchor="w",
@@ -157,11 +161,11 @@ class PluginManager(Dialog):
         stl.pack(anchor="w", pady=(6, 0))
         btns = tk.Frame(b, bg=COL["panel"])
         btns.pack(side="right", anchor="n")
-        PillButton(btns, "Entfernen", command=lambda i=info: self.remove(i)).pack(side="right", padx=(6, 0))
+        PillButton(btns, _("Remove"), command=lambda i=info: self.remove(i)).pack(side="right", padx=(6, 0))
         log = paths.STATE_DIR / "plugins" / f"{info.uuid}.log"
-        PillButton(btns, "Log", command=lambda p=log: self._open(str(p))).pack(side="right", padx=(6, 0))
+        PillButton(btns, _("Log"), command=lambda p=log: self._open(str(p))).pack(side="right", padx=(6, 0))
         if info.runnable and self.host is not None:
-            PillButton(btns, "Neu starten", command=lambda i=info: self.restart(i)).pack(side="right")
+            PillButton(btns, _("Restart"), command=lambda i=info: self.restart(i)).pack(side="right")
         self._rows[info.uuid] = (info, st, stl)
         self._update_status()
 
@@ -191,8 +195,8 @@ class PluginManager(Dialog):
 
     def install(self):
         files = filedialog.askopenfilenames(
-            parent=self, title="Plugin installieren",
-            filetypes=[("Stream-Deck-Plugin", "*.streamDeckPlugin *.zip"), ("Alle Dateien", "*")])
+            parent=self, title=_("Install plugin"),
+            filetypes=[(_("Stream Deck plugin"), "*.streamDeckPlugin *.zip"), (_("All files"), "*")])
         if not files:
             return
         msgs = []
@@ -200,14 +204,16 @@ class PluginManager(Dialog):
             try:
                 for uid in plugins.install(f):
                     info = plugins.installed().get(uid)
-                    msgs.append(f"„{info.name if info else uid}“ installiert" + (
-                        "" if not info or info.runnable else f" – läuft nicht unter Linux ({info.reason})"))
+                    name = info.name if info else uid
+                    msgs.append(_("“{name}” installed").format(name=name) if not info or info.runnable else
+                                _("“{name}” installed – does not run on Linux ({reason})").format(
+                                    name=name, reason=info.reason))
             except Exception as e:  # noqa: BLE001
                 msgs.append(f"{f}: {e}")
         self._sync()
         self.render()
         if msgs:
-            messagebox.showinfo("Plugins", "\n".join(msgs), parent=self)
+            messagebox.showinfo(_("Plugins"), "\n".join(msgs), parent=self)
 
     def restart(self, info):
         host = self.host
@@ -220,8 +226,9 @@ class PluginManager(Dialog):
         threading.Thread(target=work, daemon=True).start()
 
     def remove(self, info):
-        if not messagebox.askyesno("Plugin entfernen", f"„{info.name}“ entfernen? Tasten mit seinen Aktionen bleiben "
-                                   "im Profil erhalten, tun aber nichts mehr.", parent=self):
+        if not messagebox.askyesno(_("Remove plugin"), _(
+                "Remove “{name}”? Keys with its actions stay in the profile but no longer do anything.").format(
+                name=info.name), parent=self):
             return
         plugins.remove(info.uuid)
         self._sync()
