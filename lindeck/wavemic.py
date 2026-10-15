@@ -61,7 +61,7 @@ def filter_conf(source: str, lowcut: bool, freq: int, clipguard: bool) -> str:
     nodes, chain = [], []
     if lowcut:
         nodes.append(f'{{ type = builtin name = lowcut label = bq_highpass control = {{ "Freq" = {float(freq):.1f} '
-                     '"Q" = 0.707 }} }}')
+                     '"Q" = 0.707 } }')
         chain.append(("lowcut:In", "lowcut:Out"))
     if clipguard:
         nodes.append(f'{{ type = ladspa name = limiter plugin = {LIMITER_PLUGIN} label = fastLookaheadLimiter '
