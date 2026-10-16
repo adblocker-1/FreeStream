@@ -24,7 +24,10 @@ Konfiguration (config.json):
         „apps“  = Kanal für Programme (Null-Sink), „input“ = Eingangsgerät (z. B. 2. Mikrofon, Capture-Karte)
     "monitor_output": "",                                  (leer = aktuelles Standardgerät)
     "mic": "",                                             (leer = Standardmikrofon)
-    "routes": {"spotify": "music", "firefox": "browser"}   (Programm -> Kanal)
+    "routes": {"spotify": "music", "firefox": "browser"},  (Programm -> Kanal)
+    "scenes": [{"id": "gaming", "name": "Gaming",           (Mixer-Szenen: Lautstärke/stumm je Kanal und Mix)
+                "levels": {"music": {"monitor": [40, false], "stream": [30, false]}, …}}],
+    "ducking": {"enabled": false, "channels": ["music"], …} (Auto-Ducking, siehe ducking.py)
     "noise": {"enabled": true, "backend": "auto", "strength": 50}   (Rauschunterdrückung, siehe noise.py)
   }
 """
@@ -63,6 +66,8 @@ DEFAULT_ROUTES = {
     "java": "game",
 }
 STATE_FILE = "mixer.json"
+DUCK_FILE = "ducking.json"
+DUCK_USER_FILE = "ducking-user.json"
 
 
 def _run(args):
@@ -107,7 +112,55 @@ def _is_ours(props):
     return bool(_loop_id(props)) or _ours(props.get("media.name", ""))
 
 
+class DuckFile:
+    """Auto-Ducking des Linewave-Hosts aus Sicht anderer Programme (LinDeck, Kommandozeile).
+
+    Der Host schreibt während des Absenkens STATE_DIR/ducking.json: {"time", "factor", "bases"}.
+    Lautstärken, die hier gesetzt werden, gelten als Nutzerwert und landen in ducking-user.json;
+    der Host übernimmt sie und senkt relativ dazu ab.
+    """
+    MAX_AGE = 3.0
+
+    def __init__(self, data):
+        self.data = data
+
+    @classmethod
+    def load(cls):
+        try:
+            data = json.loads((paths.STATE_DIR / DUCK_FILE).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        if not isinstance(data, dict) or abs(time.time() - float(data.get("time") or 0)) > cls.MAX_AGE:
+            return None
+        return cls(data)
+
+    def base(self, key):
+        v = (self.data.get("bases") or {}).get(key)
+        return None if v is None else int(v)
+
+    def user_set(self, key, pct):
+        self.data.setdefault("bases", {})[key] = pct
+        f = paths.STATE_DIR / DUCK_USER_FILE
+        try:
+            req = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            req = {}
+        req[key] = pct
+        try:
+            f.write_text(json.dumps(req), encoding="utf-8")
+        except OSError:
+            pass
+        return duck_volume(pct, float(self.data.get("factor") or 1.0))
+
+
+def duck_volume(base, factor):
+    """Abgesenkte Lautstärke (Prozent) zu einem Nutzerwert."""
+    return max(0, min(150, int(round(base * factor))))
+
+
 class Mixer:
+    ducker = None  # Auto-Ducking im selben Prozess (Linewave-Host), sonst über DuckFile
+
     def __init__(self, cfg=None, run=None):
         self.cfg = cfg
         self.run = run or _run
@@ -451,17 +504,36 @@ class Mixer:
                 return b
         return None
 
+    def _duck(self):
+        """Laufendes Auto-Ducking (im Linewave-Host oder über dessen Zustandsdatei) oder None."""
+        if self.ducker is not None:
+            return self.ducker
+        return DuckFile.load()
+
     def get(self, cid, mix):
+        """(Lautstärke, stumm). Während Auto-Ducking gilt die Lautstärke des Nutzers, nicht die abgesenkte."""
         b = self._loop_input(cid, mix)
-        return (b.get("volume", 0), bool(b.get("mute"))) if b else (None, False)
+        if not b:
+            return (None, False)
+        vol = b.get("volume", 0)
+        duck = self._duck()
+        base = duck.base(f"{cid}_{mix}") if duck else None
+        return (vol if base is None else base), bool(b.get("mute"))
 
     def set_volume(self, cid, mix, pct):
+        duck = self._duck()
         for m in (MIXES if mix == "both" else (mix,)):
             b = self._loop_input(cid, m)
             if not b:
                 raise RuntimeError(_("Channel {id}/{mix} not found – is the mixer set up? (linewave mixer setup)").format(
                     id=cid, mix=m))
-            self.run(["set-sink-input-volume", b["index"], f"{max(0, min(150, int(pct)))}%"])
+            self._write_volume(b["index"], f"{cid}_{m}", pct, duck)
+
+    def _write_volume(self, index, key, pct, duck=None):
+        pct = max(0, min(150, int(pct)))
+        if duck is not None and duck.base(key) is not None:
+            pct = duck.user_set(key, pct)  # abgesenkt schreiben, Nutzerwert merken
+        self.run(["set-sink-input-volume", index, f"{pct}%"])
 
     def change_volume(self, cid, mix, delta):
         for m in (MIXES if mix == "both" else (mix,)):
@@ -477,13 +549,134 @@ class Mixer:
                 raise RuntimeError(_("Channel {id}/{mix} not found").format(id=cid, mix=m))
             self.run(["set-sink-input-mute", b["index"], "toggle" if mute == "toggle" else ("1" if mute else "0")])
 
-    def levels(self):
+    def raw_levels(self, with_index=False):
+        """Tatsächliche Lautstärken der Loopbacks: {"music_monitor": (Prozent, stumm[, Index])}."""
         out = {}
         for b in system._pactl_blocks("sink-inputs"):
             name = _loop_id(b["props"])
             if name.startswith(PREFIX) and name.rsplit("_", 1)[-1] in MIXES:
-                out[name[len(PREFIX):]] = (b.get("volume", 0), bool(b.get("mute")))
+                v = (b.get("volume", 0), bool(b.get("mute")))
+                out[name[len(PREFIX):]] = v + (b["index"],) if with_index else v
         return out
+
+    def levels(self):
+        """Lautstärken und Stummschaltung je Kanal und Mix (beim Auto-Ducking die Werte des Nutzers)."""
+        out = self.raw_levels()
+        duck = self._duck()
+        if duck:
+            for key, (vol, mute) in out.items():
+                base = duck.base(key)
+                if base is not None:
+                    out[key] = (base, mute)
+        return out
+
+    # ------------------------------------------------------------- Szenen
+    def scenes(self):
+        """Gespeicherte Mixer-Szenen: [{"id", "name", "levels": {Kanal: {Mix: [Prozent, stumm]}}}]."""
+        return [s for s in (self.conf.get("scenes") or []) if isinstance(s, dict) and s.get("id")]
+
+    def scene(self, ref):
+        """Szene nach id oder Name (ohne Groß-/Kleinschreibung) oder None."""
+        ref = str(ref or "").strip().lower()
+        if not ref:
+            return None
+        for s in self.scenes():
+            if s["id"].lower() == ref:
+                return s
+        return next((s for s in self.scenes() if str(s.get("name", "")).lower() == ref), None)
+
+    def _need_scene(self, ref):
+        s = self.scene(ref)
+        if s is None:
+            raise RuntimeError(_("Scene “{name}” not found").format(name=ref))
+        return s
+
+    def _cfg_scenes(self):
+        mx = self.cfg.data.setdefault("mixer", {})
+        mx["scenes"] = self.scenes()
+        return mx["scenes"]
+
+    def snapshot(self):
+        """Aktueller Mixer-Zustand für eine Szene: {Kanal: {Mix: [Prozent, stumm]}}."""
+        out = {}
+        for key, (vol, mute) in self.levels().items():
+            cid, mix = key.rsplit("_", 1)
+            out.setdefault(cid, {})[mix] = [int(vol), bool(mute)]
+        return out
+
+    def save_scene(self, name):
+        """Aktuellen Zustand unter einem Namen speichern (gleicher Name = überschreiben)."""
+        name = (name or "").strip()
+        if not name:
+            raise RuntimeError(_("Please enter a name"))
+        snap = self.snapshot()
+        if not snap:
+            raise RuntimeError(_("Mixer not set up – 'linewave mixer setup'"))
+        scenes = self._cfg_scenes()
+        s = next((x for x in scenes if x.get("name", "").lower() == name.lower()), None)
+        if s is None:
+            base = re.sub(r"[^a-z0-9]+", "-", name.lower().replace("ä", "ae").replace("ö", "oe")
+                          .replace("ü", "ue").replace("ß", "ss")).strip("-")[:24] or "scene"
+            taken = {x["id"] for x in scenes}
+            sid, n = base, 2
+            while sid in taken:
+                sid, n = f"{base}-{n}", n + 1
+            s = {"id": sid, "name": name}
+            scenes.append(s)
+        s["name"] = name
+        s["levels"] = snap
+        self._save_cfg()
+        return s
+
+    def apply_scene(self, ref):
+        """Szene anwenden: Lautstärken und Stummschaltungen aller gespeicherten Kanäle setzen."""
+        s = self._need_scene(ref)
+        live = self.raw_levels(with_index=True)
+        if not live:
+            raise RuntimeError(_("Mixer not set up – 'linewave mixer setup'"))
+        duck = self._duck()
+        for cid, mixes in (s.get("levels") or {}).items():
+            for mix, val in (mixes or {}).items():
+                cur = live.get(f"{cid}_{mix}")
+                if cur is None or not isinstance(val, (list, tuple)) or len(val) < 2:
+                    continue  # Kanal gibt es nicht mehr
+                self._write_volume(cur[2], f"{cid}_{mix}", val[0], duck)
+                if bool(val[1]) != cur[1]:
+                    self.run(["set-sink-input-mute", cur[2], "1" if val[1] else "0"])
+        return s
+
+    def rename_scene(self, ref, name):
+        name = (name or "").strip()
+        if not name:
+            raise RuntimeError(_("Please enter a name"))
+        s = self._need_scene(ref)
+        if any(x["id"] != s["id"] and x.get("name", "").lower() == name.lower() for x in self.scenes()):
+            raise RuntimeError(_("A scene named “{name}” already exists").format(name=name))
+        for x in self._cfg_scenes():
+            if x["id"] == s["id"]:
+                x["name"] = name
+                s = x
+        self._save_cfg()
+        return s
+
+    def delete_scene(self, ref):
+        s = self._need_scene(ref)
+        self.cfg.data.setdefault("mixer", {})["scenes"] = [x for x in self.scenes() if x["id"] != s["id"]]
+        self._save_cfg()
+        return s
+
+    def active_scene(self, levels=None):
+        """Die Szene, die dem aktuellen Zustand entspricht (±1 %), oder None."""
+        levels = self.levels() if levels is None else levels
+        if not levels:
+            return None
+        for s in self.scenes():
+            items = [(f"{cid}_{mix}", v) for cid, mixes in (s.get("levels") or {}).items()
+                     for mix, v in (mixes or {}).items()]
+            items = [(k, v) for k, v in items if k in levels]
+            if items and all(abs(levels[k][0] - v[0]) <= 1 and bool(levels[k][1]) == bool(v[1]) for k, v in items):
+                return s
+        return None
 
     # ---------------------------------------------------------- Ausgänge
     def outputs(self):

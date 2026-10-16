@@ -22,7 +22,7 @@ class Field:
     kind: str            # text, multiline, int, bool, choice, file, hotkey, page, profile, entity
     key: str             # Schlüssel in "Settings" (bei hotkey: Index in "Hotkeys")
     label: str
-    options: list = None  # choice: [(Wert, Anzeige), ...]
+    options: list = None  # choice: [(Wert, Anzeige), ...] oder Funktion, die diese Liste liefert
     min: int = 0
     max: int = 100000
     hint: str = ""
@@ -189,6 +189,17 @@ _TOGGLE = [("toggle", _("toggle")), ("start", _("start")), ("stop", _("stop"))]
 HA_TOGGLE_DOMAINS = ["light", "switch", "fan", "cover", "input_boolean", "automation", "lock", "climate",
                      "media_player", "siren", "humidifier", "input_number", "number", "button", "input_button"]
 
+
+def _scene_choices():
+    """Mixer-Szenen aus der Linewave-Konfiguration (für das Auswahlfeld im Editor)."""
+    try:
+        from .config import Config
+        scenes = [s for s in ((Config().get("mixer") or {}).get("scenes") or []) if isinstance(s, dict) and s.get("id")]
+    except Exception:  # noqa: BLE001
+        scenes = []
+    return [(s["id"], s.get("name") or s["id"]) for s in scenes] or [("", _("(no scenes saved in Linewave yet)"))]
+
+
 CATALOG += [
     # ------------------------------------------------------------- OBS
     ActionType("com.lindeck.obs.scene", _("Scene"), "OBS Studio", {"scene": ""}, controllers=(KEY, DIAL),
@@ -266,6 +277,9 @@ CATALOG += [
     ActionType("com.lindeck.mixer.output", _("Monitor Output"), "Linewave", {"device": ""},
                fields=[Field("text", "device", _("Device (empty = next)"))],
                description=_("Switches the Monitor Mix between headphones and speakers")),
+    ActionType("com.lindeck.mixer.scene", _("Mixer Scene"), "Linewave", {"scene": ""}, states=2,
+               fields=[Field("choice", "scene", _("Scene"), _scene_choices)],
+               description=_("Applies a mixer scene saved in Linewave and shows when it is active")),
     # -------------------------------------------------------- Wave-Mikro
     ActionType("com.lindeck.wavemic.control", _("Wave Microphone"), "Linewave", {"function": "mute", "step": 5},
                controllers=(KEY, DIAL),
