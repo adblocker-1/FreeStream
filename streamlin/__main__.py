@@ -534,11 +534,27 @@ def _signal_daemon():
         return False
 
 
+def cmd_support_report(args):
+    """Support-Bericht für ein GitHub-Issue schreiben."""
+    from . import support
+    try:
+        path = support.write_report(args.file, app=args.prog_name)
+    except OSError as e:
+        print(_("Could not create the support report: {error}").format(error=e), file=sys.stderr)
+        return 1
+    print(_("Support report saved: {path}").format(path=path))
+    print(_("Attach it to a new issue: {url}").format(url=support.ISSUE_URL))
+    return 0
+
+
 LINEWAVE_CMDS = ("mixer", "wave", "linewave", "wave-app")
+SHARED_CMDS = ("support-report",)  # gehören zu beiden Programmen
 
 
 def _installed(cmd):
     """Gehört der Befehl zu einem Programm, das nicht installiert ist: Hinweis ausgeben."""
+    if cmd in SHARED_CMDS:
+        return True
     if cmd in LINEWAVE_CMDS:
         ok, program, package = parts.has_linewave(), "Linewave", "linewave"
     else:
@@ -650,6 +666,10 @@ def main(argv=None, prog="lindeck"):
     s = sub.add_parser("reload", help=_("reload the running service"))
     s.set_defaults(fn=cmd_reload)
 
+    s = sub.add_parser("support-report", help=_("create a support report for a GitHub issue (secrets removed)"))
+    s.add_argument("file", nargs="?", help=_("file or folder for the report (default: home folder)"))
+    s.set_defaults(fn=cmd_support_report, prog_name="Linewave" if prog == "linewave" else "LinDeck")
+
     args = ap.parse_args(argv)
     _setup_logging(args.verbose)
     if not getattr(args, "fn", None):
@@ -663,7 +683,7 @@ def wave_main(argv=None):
     """Einstieg für `linewave`: ohne Befehl Fenster öffnen; `linewave mixer …`, `linewave mic …`."""
     argv = list(sys.argv[1:] if argv is None else argv)
     cmd = next((a for a in argv if not a.startswith("-")), "")
-    if cmd in ("mixer", "mic", "wave"):
+    if cmd in ("mixer", "mic", "wave") + SHARED_CMDS:
         i = argv.index(cmd)
         argv[i] = "wave" if cmd == "mic" else cmd
         return main(argv, prog="linewave")

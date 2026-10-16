@@ -1,14 +1,20 @@
 """Automatische Updates aus den GitHub-Releases.
 
 Beim Start fragt LinDeck bzw. Linewave nach dem neuesten Release. Ist eine neuere
-Version da, lädt das Programm nach Rückfrage die .deb-Dateien der installierten
-Pakete (streamlin, lindeck, linewave) herunter, prüft ihre SHA-256-Summe und
-installiert sie mit `pkexec apt-get install`. Das Paket startet die Programme
-danach selbst neu.
+Version da, lädt das Programm nach Rückfrage die .deb- bzw. .rpm-Dateien der
+installierten Pakete (streamlin, lindeck, linewave) herunter, prüft ihre
+SHA-256-Summe und installiert sie mit `pkexec apt-get install` bzw.
+`pkexec dnf install` (ohne dnf: `pkexec rpm -U`). Das Paket startet die
+Programme danach selbst neu.
 
 Abschalten: „Check for updates at start“ im Menü (config.json "check_updates")
 oder STREAMLIN_NO_UPDATE_CHECK=1. Updates gibt es nur für die installierten
-.deb-Pakete, nicht für einen Start aus dem Quellcode.
+Pakete, nicht für einen Start aus dem Quellcode und nie in Flatpak (dort
+aktualisiert das Software-Center bzw. `flatpak update`).
+
+Kanal (config.json "update_channel"): "stable" (Standard) nimmt /releases/latest,
+"beta" das neueste Release der Liste einschließlich Vorabversionen (nie Entwürfe).
+Ältere Versionen zum Zurückstufen kommen aus derselben Liste.
 """
 import fcntl
 import hashlib
@@ -28,10 +34,12 @@ log = logging.getLogger("streamlin.updater")
 
 REPO = "adblocker-1/Streamlin"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
+RELEASES_URL = f"https://api.github.com/repos/{REPO}/releases?per_page=100"
 DOWNLOAD_PREFIX = f"https://github.com/{REPO}/releases/download/"
 PACKAGES = ("streamlin", "lindeck", "linewave")
 LATER_SECONDS = 15 * 60  # „Später“: das zweite Programm fragt beim gleichen Anmelden nicht noch einmal
 STATE_FILE = "update.json"
+CHANNELS = ("stable", "beta")
 
 
 # ------------------------------------------------------------------ Einstellung
@@ -41,6 +49,15 @@ def _read_config():
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         return {}
+
+
+def _write_config(key, value):
+    data = _read_config()
+    data[key] = value
+    paths.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = paths.CONFIG_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(paths.CONFIG_FILE)
 
 
 def configured():
@@ -54,12 +71,22 @@ def enabled():
 
 
 def set_enabled(on):
-    data = _read_config()
-    data["check_updates"] = bool(on)
-    paths.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = paths.CONFIG_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(paths.CONFIG_FILE)
+    _write_config("check_updates", bool(on))
+
+
+def channel():
+    """Update-Kanal: "stable" (Standard) oder "beta"."""
+    ch = _read_config().get("update_channel")
+    return ch if ch in CHANNELS else "stable"
+
+
+def set_channel(ch):
+    _write_config("update_channel", ch if ch in CHANNELS else "stable")
+
+
+def in_flatpak():
+    """Läuft das Programm in Flatpak? Dann nie selbst aktualisieren."""
+    return bool(os.environ.get("FLATPAK_ID")) or os.path.exists("/.flatpak-info")
 
 
 # ------------------------------------------------------------------ Zustand (übersprungen, später, installiert)
@@ -120,43 +147,101 @@ def parse_version(text):
     return tuple(int(n) for n in nums[:4])
 
 
+def version_key(text):
+    """Sortierschlüssel: Vorabversion (0.20.0-beta.1) vor der fertigen Version (0.20.0)."""
+    text = (text or "").strip().lstrip("vV").split("+")[0].replace("~", "-")
+    main, _sep, pre = text.partition("-")
+    nums = parse_version(main)
+    if not pre:
+        return nums, (1, ())
+    parts = tuple((0, int(p), "") if p.isdigit() else (1, 0, p.lower()) for p in re.findall(r"\d+|[A-Za-z]+", pre))
+    return nums, (0, parts)
+
+
 def is_newer(candidate, current=__version__):
-    a, b = parse_version(candidate), parse_version(current)
-    return bool(a) and a > b
+    a, b = version_key(candidate), version_key(current)
+    return bool(a[0]) and a > b
 
 
-def installed_packages():
-    """Installierte Streamlin-Pakete, aus denen dieses Programm läuft: {Paket: Version}.
+def is_older(candidate, current=__version__):
+    a, b = version_key(candidate), version_key(current)
+    return bool(a[0]) and a < b
 
-    Leer, wenn das Programm nicht aus /opt/<Paket> läuft (z. B. aus dem Quellcode).
-    """
-    here = Path(__file__).resolve()
-    if len(here.parts) < 3 or here.parts[1] != "opt" or here.parts[2] not in PACKAGES:
-        return {}
+
+def _query(cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout or ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def dpkg_packages():
+    """Per dpkg installierte Streamlin-Pakete: {Paket: Version}."""
     if not shutil.which("dpkg-query"):
         return {}
-    try:
-        out = subprocess.run(["dpkg-query", "-W", "-f=${Package}\t${Status}\t${Version}\n", *PACKAGES],
-                             capture_output=True, text=True, timeout=10).stdout
-    except (OSError, subprocess.SubprocessError):
-        return {}
     found = {}
-    for line in out.splitlines():
+    for line in _query(["dpkg-query", "-W", "-f=${Package}\t${Status}\t${Version}\n", *PACKAGES]).splitlines():
         parts = line.split("\t")
-        if len(parts) == 3 and parts[1].endswith(" installed"):
+        if len(parts) == 3 and parts[0] in PACKAGES and parts[1].endswith(" installed"):
             found[parts[0]] = parts[2]
     return found
 
 
+def rpm_packages():
+    """Per rpm installierte Streamlin-Pakete: {Paket: Version} („package … is not installed“ fällt weg)."""
+    if not shutil.which("rpm"):
+        return {}
+    found = {}
+    for line in _query(["rpm", "-q", "--qf", "%{NAME}\t%{VERSION}\n", *PACKAGES]).splitlines():
+        parts = line.split("\t")
+        if len(parts) == 2 and parts[0] in PACKAGES and parts[1]:
+            found[parts[0]] = parts[1]
+    return found
+
+
+def _runs_from_opt():
+    here = Path(__file__).resolve()
+    return len(here.parts) >= 3 and here.parts[1] == "opt" and here.parts[2] in PACKAGES
+
+
+def detect_installed():
+    """(Paketformat, {Paket: Version}): ("deb" | "rpm", …) oder (None, {}).
+
+    Leer, wenn das Programm nicht aus /opt/<Paket> läuft (z. B. aus dem Quellcode)
+    oder in Flatpak. dpkg hat Vorrang; rpm nur, wenn dpkg die Pakete nicht kennt.
+    """
+    if in_flatpak() or not _runs_from_opt():
+        return None, {}
+    found = dpkg_packages()
+    if found:
+        return "deb", found
+    found = rpm_packages()
+    if found:
+        return "rpm", found
+    return None, {}
+
+
+def installed_packages():
+    """Installierte Streamlin-Pakete, aus denen dieses Programm läuft: {Paket: Version}."""
+    return detect_installed()[1]
+
+
 # ------------------------------------------------------------------ Release abfragen
 class Update:
-    """Ein verfügbares Release mit den passenden .deb-Dateien."""
+    """Ein Release mit den passenden .deb- bzw. .rpm-Dateien."""
 
-    def __init__(self, version, notes, page, files):
+    def __init__(self, version, notes, page, files, kind="deb", date="", prerelease=False):
         self.version = version  # z. B. "0.17.0"
         self.notes = notes
         self.page = page  # Release-Seite im Browser
         self.files = files  # [{"name", "url", "sha256", "size"}]
+        self.kind = kind  # "deb" oder "rpm"
+        self.date = date  # Veröffentlichung, z. B. "2026-10-01"
+        self.prerelease = prerelease
+
+    @property
+    def downgrade(self):
+        return is_older(self.version)
 
 
 def _get_json(url, timeout):
@@ -173,19 +258,24 @@ def english_notes(body):
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-def release_update(release, packages, current=__version__):
-    """Update aus der API-Antwort, wenn sie neuer ist und alle Pakete enthält; sonst None."""
-    if not release or release.get("draft") or release.get("prerelease"):
-        return None
+def asset_names(pkg, version, kind="deb"):
+    """Mögliche Dateinamen eines Pakets im Release (Vorabversion auch mit ~ statt -)."""
+    out = []
+    for v in dict.fromkeys((version, version.replace("-", "~"))):
+        out.append(f"{pkg}_{v}_all.deb" if kind == "deb" else f"{pkg}-{v}-1.noarch.rpm")
+    return out
+
+
+def release_files(release, packages, kind="deb"):
+    """Dateien der Pakete eines Releases ([{name, url, sha256, size}]); None, wenn eines fehlt
+    oder eine Datei nicht sicher ist (fremde Adresse, keine SHA-256-Summe)."""
     version = (release.get("tag_name") or "").lstrip("v")
-    if not packages or not is_newer(version, current):
-        return None
     assets = {a.get("name"): a for a in release.get("assets") or []}
     files = []
     for pkg in sorted(packages):
-        a = assets.get(f"{pkg}_{version}_all.deb")
+        a = next((assets[n] for n in asset_names(pkg, version, kind) if n in assets), None)
         if not a:
-            log.info("Release %s has no package %s", version, pkg)
+            log.info("Release %s has no %s package %s", version, kind, pkg)
             return None
         url = a.get("browser_download_url") or ""
         digest = a.get("digest") or ""
@@ -193,15 +283,83 @@ def release_update(release, packages, current=__version__):
             return None
         files.append({"name": a["name"], "url": url, "sha256": digest.split(":", 1)[1].lower(),
                       "size": int(a.get("size") or 0)})
-    return Update(version, english_notes(release.get("body")), release.get("html_url") or "", files)
+    return files
 
 
-def check(packages=None, timeout=10):
+def make_update(release, packages, kind="deb"):
+    """Update für genau dieses Release (ohne Versionsvergleich) oder None."""
+    if not release or release.get("draft") or not packages:
+        return None
+    files = release_files(release, packages, kind)
+    if files is None:
+        return None
+    version = (release.get("tag_name") or "").lstrip("v")
+    return Update(version, english_notes(release.get("body")), release.get("html_url") or "", files, kind=kind,
+                  date=(release.get("published_at") or release.get("created_at") or "")[:10],
+                  prerelease=bool(release.get("prerelease")))
+
+
+def release_update(release, packages, current=__version__, kind="deb", beta=False):
+    """Update aus der API-Antwort, wenn sie neuer ist und alle Pakete enthält; sonst None."""
+    if not release or release.get("draft") or (release.get("prerelease") and not beta):
+        return None
+    version = (release.get("tag_name") or "").lstrip("v")
+    if not packages or not is_newer(version, current):
+        return None
+    return make_update(release, packages, kind)
+
+
+def published(releases, beta=True):
+    """Veröffentlichte Releases (nie Entwürfe), neueste zuerst; Vorabversionen nur mit beta."""
+    out = [r for r in releases or [] if isinstance(r, dict) and r.get("tag_name") and not r.get("draft")
+           and (beta or not r.get("prerelease"))]
+    return sorted(out, key=lambda r: version_key(r["tag_name"]), reverse=True)
+
+
+def newest_update(releases, packages, current=__version__, kind="deb", beta=True):
+    """Beta-Kanal: das neueste Release der Liste (auch eine Vorabversion), wenn es neuer ist."""
+    rel = published(releases, beta)
+    return release_update(rel[0], packages, current, kind, beta) if rel else None
+
+
+def earlier_versions(releases, packages, current=__version__, kind="deb", beta=False):
+    """Ältere Versionen zum Zurückstufen, neueste zuerst (nur Releases mit allen Paketen)."""
+    out = []
+    for r in published(releases, beta):
+        if is_older(r["tag_name"], current):
+            up = make_update(r, packages, kind)
+            if up:
+                out.append(up)
+    return out
+
+
+def fetch_releases(timeout=10):
+    """Liste der Releases (GitHub-API). Wirft OSError/ValueError bei Netzfehlern."""
+    data = _get_json(RELEASES_URL, timeout)
+    if not isinstance(data, list):
+        raise ValueError("unexpected answer from GitHub")
+    return data
+
+
+def check(packages=None, timeout=10, kind=None, beta=None):
     """Neuere Version für die installierten Pakete oder None. Wirft OSError/ValueError bei Netzfehlern."""
-    packages = installed_packages() if packages is None else packages
+    if packages is None:
+        kind, packages = detect_installed()
     if not packages:
         return None
-    return release_update(_get_json(API_URL, timeout), packages)
+    kind = kind or "deb"
+    beta = channel() == "beta" if beta is None else beta
+    if beta:
+        return newest_update(fetch_releases(timeout), packages, kind=kind)
+    return release_update(_get_json(API_URL, timeout), packages, kind=kind)
+
+
+def rollback_choices(timeout=10):
+    """Ältere Versionen für die installierten Pakete (fragt GitHub)."""
+    kind, packages = detect_installed()
+    if not packages:
+        return []
+    return earlier_versions(fetch_releases(timeout), packages, kind=kind, beta=channel() == "beta")
 
 
 # ------------------------------------------------------------------ Herunterladen und installieren
@@ -213,8 +371,9 @@ def download(update, dest=None, progress=None, timeout=30):
     """Lädt alle Dateien, prüft SHA-256 und gibt die Pfade zurück. progress(done, total) optional."""
     dest = Path(dest or paths.STATE_DIR / "updates")
     dest.mkdir(parents=True, exist_ok=True)
-    for old in dest.glob("*.deb"):
-        old.unlink(missing_ok=True)
+    for pattern in ("*.deb", "*.rpm"):
+        for old in dest.glob(pattern):
+            old.unlink(missing_ok=True)
     total = sum(f["size"] for f in update.files) or 1
     done = 0
     out = []
@@ -241,21 +400,30 @@ def download(update, dest=None, progress=None, timeout=30):
     return out
 
 
-def install_command(files):
+def install_command(files, kind="deb", downgrade=False):
     """Befehl, der die Pakete mit Administratorrechten installiert, oder None (kein pkexec)."""
     pkexec = shutil.which("pkexec")
-    apt = shutil.which("apt-get") or "/usr/bin/apt-get"
     if not pkexec:
         return None
+    names = [str(Path(f).resolve()) for f in files]
+    if kind == "rpm":
+        dnf = shutil.which("dnf")
+        if dnf:
+            if downgrade:
+                return [pkexec, dnf, "downgrade", "-y", "--allowerasing", *names]
+            return [pkexec, dnf, "install", "-y", *names]
+        rpm = shutil.which("rpm") or "/usr/bin/rpm"
+        return [pkexec, rpm, "-U", *(["--oldpackage"] if downgrade else []), *names]
+    apt = shutil.which("apt-get") or "/usr/bin/apt-get"
     # ohne Terminal: bei geänderten Konfigurationsdateien nie nachfragen, die eigene Fassung behalten
     return [pkexec, apt, "install", "-y", "--allow-downgrades", "-o", "Dpkg::Options::=--force-confdef",
-            "-o", "Dpkg::Options::=--force-confold", *[str(Path(f).resolve()) for f in files]]
+            "-o", "Dpkg::Options::=--force-confold", *names]
 
 
-def start_install(files, version):
+def start_install(files, version, kind="deb", downgrade=False):
     """Startet die Installation in einer eigenen Sitzung (überlebt das Beenden des Programms
     durch das Paket). Gibt den Prozess zurück; None, wenn kein pkexec da ist."""
-    cmd = install_command(files)
+    cmd = install_command(files, kind, downgrade)
     if not cmd:
         return None
     save_state(installing=version)
