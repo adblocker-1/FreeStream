@@ -22,7 +22,7 @@ from tkinter import font as tkfont
 
 from PIL import Image, ImageDraw, ImageTk
 
-from . import levels, theme, wavemic
+from . import levels, parts, theme, wavemic
 from .i18n import _
 from .theme import (COL, Button, Card, Fader, HScroll, InfoCard, LevelMeter, NavItem, RoundToggle, Segmented,
                     Sidebar, Switch, icon_tile, label, rounded_rect)
@@ -308,7 +308,7 @@ class WaveWindow:
             pass
         self.tray = None
         if tray:
-            from .app import Tray
+            from .desktop import Tray
             from .wavehost import make_icon
             self.tray = Tray(self.request_show, self.request_quit, icon=make_icon(64), title="Linewave",
                              ident="linewave", open_label=_("Open Linewave"))
@@ -377,9 +377,10 @@ class WaveWindow:
         self.levels.stop()
         if not self._hidden_once:
             self._hidden_once = True
-            from .autoimport import notify
+            from .desktop import notify
             notify(_("Linewave is still running"),
-                   _("Mixer and microphone stay active. Open it again from the “Linewave” menu."))
+                   _("Mixer and microphone stay active. Open it again from the “Linewave” menu."),
+                   app="Linewave", icon="audio-volume-high")
 
     def _restart(self):
         theme.restart_later("streamlin.linewave")
@@ -496,14 +497,16 @@ class WaveWindow:
         sw.pack(fill="x")
         row = tk.Frame(sb.bottom, bg=COL["side"])
         row.pack(fill="x", pady=(10, 0))
-        link = tk.Label(row, text=" LinDeck", image=self.icons.get("grid", 15, COL["muted"]), compound="left",
-                        bg=COL["side"], fg=COL["fg"], font=theme.font(self.root, 10), cursor="hand2", padx=6, pady=4)
-        link.pack(side="right")
+        if parts.has_lindeck():  # Link zum Schwesterprogramm, falls installiert
+            link = tk.Label(row, text=" LinDeck", image=self.icons.get("grid", 15, COL["muted"]), compound="left",
+                            bg=COL["side"], fg=COL["fg"], font=theme.font(self.root, 10), cursor="hand2", padx=6,
+                            pady=4)
+            link.pack(side="right")
+            link.bind("<Button-1>", lambda e: self.open_lindeck())
+            link.bind("<Enter>", lambda e: link.configure(bg=COL["raised"]))
+            link.bind("<Leave>", lambda e: link.configure(bg=COL["side"]))
         theme.language_button(row, self.icons, "Linewave", self._restart, style="Side.TMenubutton").pack(
             side="left", fill="x", expand=True, anchor="w")
-        link.bind("<Button-1>", lambda e: self.open_lindeck())
-        link.bind("<Enter>", lambda e: link.configure(bg=COL["raised"]))
-        link.bind("<Leave>", lambda e: link.configure(bg=COL["side"]))
 
     def _output_menu(self):
         """Ausgabegerät des Monitor-Mixes wählen (Kopfhörer, Lautsprecher …)."""
@@ -554,7 +557,8 @@ class WaveWindow:
         else:
             menu.add_command(label=_("Set up mixer"), command=lambda: self._mixer_enable(True))
         menu.add_separator()
-        menu.add_command(label=_("Open LinDeck"), command=self.open_lindeck)
+        if parts.has_lindeck():
+            menu.add_command(label=_("Open LinDeck"), command=self.open_lindeck)
         menu.add_command(label=_("Close window"), command=self.hide)
         menu.add_command(label=_("Quit"), command=self.quit_app)
         b = self.more_btn

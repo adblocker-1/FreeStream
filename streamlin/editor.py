@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageTk
 from . import actions as A
 from . import catalog as C
 from . import editdoc as E
-from . import paths, render, theme
+from . import parts, paths, render, theme
 from .i18n import _, ngettext
 from .models import MODELS, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
@@ -468,7 +468,7 @@ class EditorApp:
         self.root.withdraw()
         if not self._hidden_once:
             self._hidden_once = True
-            from .autoimport import notify
+            from .desktop import notify
             notify(_("LinDeck keeps running"), _("The Stream Deck stays active. Open it via the “LinDeck” menu."))
 
     def open_background(self):
@@ -562,7 +562,8 @@ class EditorApp:
         b.pack(fill="x")
         self.plugins_item = theme.NavItem(b, _("Plugins"), "puzzle", command=self.open_plugins)
         self.plugins_item.pack(fill="x")
-        theme.NavItem(b, _("Open Linewave"), "wave", command=self.open_wave).pack(fill="x", pady=(2, 0))
+        if parts.has_linewave():
+            theme.NavItem(b, _("Open Linewave"), "wave", command=self.open_wave).pack(fill="x", pady=(2, 0))
         theme.mode_switch(sb.bottom, "LinDeck", self._restart).pack(fill="x", pady=(12, 8))
         row = tk.Frame(sb.bottom, bg=COL["side"], padx=9)
         row.pack(fill="x")
@@ -631,7 +632,8 @@ class EditorApp:
         m.add_cascade(label=_("Model"), menu=self._models_menu(m), state=on)
         m.add_command(label=_("Background"), command=self.open_background, state=on)
         m.add_command(label=_("Plugins"), command=self.open_plugins)
-        m.add_command(label=_("Open Linewave"), command=self.open_wave)
+        if parts.has_linewave():
+            m.add_command(label=_("Open Linewave"), command=self.open_wave)
         m.add_separator()
         if self.daemon is not None:
             m.add_command(label=_("Close window"), command=self.hide)

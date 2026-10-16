@@ -15,7 +15,7 @@ import logging
 import time
 
 from . import actions as A
-from . import render, system
+from . import parts, render, system
 from .i18n import _, pgettext
 
 log = logging.getLogger("streamlin.native")
@@ -672,6 +672,8 @@ def lookup(uuid: str):
         return MediaAction
     if u.startswith("com.lindeck.discord.") or "discord" in plugin:
         return DiscordAction
+    if not parts.has_linewave():  # Mixer und Wave-Mikrofon kommen von Linewave
+        return None
     if u.startswith("com.lindeck.wavemic.") or ("wavelink" in plugin and ("mic" in last or "lowcut" in last
                                                                          or "clip" in last or "gain" in last)):
         return WaveMicAction

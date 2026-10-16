@@ -14,46 +14,20 @@ ein eigenes Programm: „Linewave“ (wavehost.py).
     (python3-pystray, gir1.2-ayatanaappindicator3-0.1).
   * Ohne grafische Oberfläche (z. B. Server, SSH) läuft nur der Dienst.
 """
-import json
 import logging
 import os
 import signal
 import threading
 import time
 
-from . import paths
 from .i18n import _
 
 log = logging.getLogger("streamlin.app")
 APP_FILE = "app.json"
 
 
-def _app_info(name=APP_FILE):
-    try:
-        return json.loads((paths.STATE_DIR / name).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
-
-
-def _write_app_info(gui, name=APP_FILE):
-    paths.ensure_dirs()
-    (paths.STATE_DIR / name).write_text(json.dumps({"pid": os.getpid(), "gui": gui}), encoding="utf-8")
-
-
-def _clear_app_info(name=APP_FILE):
-    try:
-        if _app_info(name).get("pid") == os.getpid():
-            (paths.STATE_DIR / name).unlink()
-    except OSError:
-        pass
-
-
-def _alive(pid):
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
+from .desktop import _alive, _app_info, _clear_app_info, _write_app_info  # noqa: F401 (auch für Tests)
+from . import desktop
 
 
 def running_instance(name=APP_FILE):
@@ -63,10 +37,7 @@ def running_instance(name=APP_FILE):
         pid = Daemon.already_running()
         if pid:
             return pid
-    pid = _app_info(name).get("pid")
-    if pid and pid != os.getpid() and _alive(pid):
-        return pid
-    return None
+    return desktop.running_instance(name)
 
 
 def make_icon(size=256):
@@ -87,33 +58,12 @@ def make_icon(size=256):
     return img
 
 
-class Tray:
-    """Symbol in der Taskleiste (optional, über pystray)."""
+class Tray(desktop.Tray):
+    """Symbol in der Taskleiste für LinDeck."""
 
     def __init__(self, on_show, on_quit, icon=None, title="LinDeck (Stream Deck)", ident="lindeck",
                  open_label=None):
-        self.icon = None
-        open_label = open_label or _("Open LinDeck")
-        try:
-            import pystray
-        except Exception as e:  # noqa: BLE001 - pystray fehlt oder kein Backend
-            log.info(_("No tray icon (pystray not available: {error})").format(error=e))
-            return
-        menu = pystray.Menu(pystray.MenuItem(open_label, lambda *a: on_show(), default=True),
-                            pystray.MenuItem(_("Quit"), lambda *a: on_quit()))
-        try:
-            self.icon = pystray.Icon(ident, icon or make_icon(64), title, menu)
-            threading.Thread(target=self.icon.run, name="tray", daemon=True).start()
-        except Exception as e:  # noqa: BLE001
-            log.info(_("Tray icon not possible: {error}").format(error=e))
-            self.icon = None
-
-    def stop(self):
-        if self.icon is not None:
-            try:
-                self.icon.stop()
-            except Exception:  # noqa: BLE001
-                pass
+        super().__init__(on_show, on_quit, icon or make_icon(64), title, ident, open_label or _("Open LinDeck"))
 
 
 class App:

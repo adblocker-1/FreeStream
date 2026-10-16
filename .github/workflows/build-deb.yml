@@ -37,9 +37,20 @@ jobs:
 
       - name: Paket testen
         run: |
-          sudo apt-get install -y ./dist/*.deb
+          # beide Programme in einem Paket
+          sudo apt-get install -y ./dist/streamlin_*.deb
           lindeck --version
           lindeck profiles
+          linewave mixer --help
+          # einzeln: ersetzt das Paket streamlin, beide arbeiten zusammen
+          sudo apt-get install -y ./dist/lindeck_*.deb ./dist/linewave_*.deb
+          lindeck --version
+          lindeck mixer --help
+          linewave mixer --help
+          # nur LinDeck: Linewave-Befehle melden sich als nicht installiert
+          sudo apt-get remove -y linewave
+          lindeck profiles
+          ! lindeck mixer
 
       - uses: actions/upload-artifact@v4
         with:
