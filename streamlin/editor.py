@@ -323,6 +323,7 @@ class EditorApp:
         self._build()
         self._bind_keys()
         root.protocol("WM_DELETE_WINDOW", self.close)
+        root.bind("<FocusIn>", lambda e: self._check_disk() if e.widget is root else None, add="+")
 
         self.refresh_profiles()
         target = self.store.get(profile) if profile else None
@@ -459,6 +460,18 @@ class EditorApp:
                 log.debug(_("Switching device failed: %s"), e)
         import threading
         threading.Thread(target=work, daemon=True).start()
+
+    def _check_disk(self, _e=None):
+        """Fenster bekommt den Fokus: Profil neu laden, wenn es außerhalb geändert wurde
+        (z. B. Kanäle aus Linewave auf das Deck gelegt) und hier nichts ungespeichert ist."""
+        doc = self.doc
+        if doc is None or self._save_job or doc.dirty or not doc.disk_changed():
+            return
+        page = self.page_uuid
+        self.open_profile(doc.id, from_device=True)
+        if self.doc and page in self.doc.page_ids:
+            self.nav = [page]
+            self.refresh_all()
 
     # ======================================================= Fenster
     def show(self):

@@ -25,7 +25,7 @@ import threading
 import time
 
 from . import levels, paths
-from .mixer import DUCK_FILE, DUCK_USER_FILE, MIXES, duck_volume
+from .mixer import DUCK_FILE, DUCK_USER_FILE, MAX_VOLUME, MIXES, duck_volume
 
 log = logging.getLogger("streamlin.ducking")
 
@@ -257,7 +257,7 @@ class Ducker:
             elif abs(int(vol) - self.applied.get(key, vol)) > 1:
                 # jemand anderes hat den Regler bewegt: das ist der neue (abgesenkte) Wert
                 f = self.factor if self.factor > 0 else 1.0
-                self.bases[key] = max(0, min(150, int(round(vol / f))))
+                self.bases[key] = max(0, min(MAX_VOLUME, int(round(vol / f))))
                 self.applied[key] = int(vol)
 
     def _apply(self, key, vol):
@@ -332,7 +332,7 @@ class Ducker:
             return
         for key, pct in (req or {}).items():
             if key in self.bases:
-                self.bases[key] = max(0, min(150, int(pct)))
+                self.bases[key] = max(0, min(MAX_VOLUME, int(pct)))
                 self.applied[key] = duck_volume(self.bases[key], self.factor)
 
     def _recover(self):
