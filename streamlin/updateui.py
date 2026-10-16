@@ -2,6 +2,7 @@
 
 start(): beim Programmstart im Hintergrund nach Updates suchen (wenn eingeschaltet)
 und bei einer neuen Version fragen. check_now(): Menüpunkt „Check for updates…“.
+choose_earlier(): ältere Version auswählen und installieren (Zurückstufen).
 """
 import logging
 import subprocess
@@ -11,9 +12,9 @@ import webbrowser
 from tkinter import messagebox, ttk
 
 from . import __version__, desktop, updater
-from .dialogkit import footer, header, slim_scrollbar
+from .dialogkit import ScrollArea, footer, header, slim_scrollbar
 from .i18n import _
-from .theme import COL, Button, Card, Dialog, Switch, font, label
+from .theme import COL, Button, Card, Dialog, InfoCard, Switch, font, label
 
 log = logging.getLogger("streamlin.updateui")
 
@@ -66,13 +67,27 @@ def start(root, app, restart):
     _in_background(root, updater.check, done)
 
 
+def flatpak_text():
+    return _("This copy runs as a Flatpak. Updates come through your software center or “flatpak update”.")
+
+
+def _no_packages(parent, app):
+    """Hinweis, wenn sich diese Kopie nicht selbst aktualisieren kann. True: Hinweis gezeigt."""
+    if updater.in_flatpak():
+        messagebox.showinfo(_("Updates"), flatpak_text(), parent=parent)
+        return True
+    if not updater.installed_packages():
+        messagebox.showinfo(_("Updates"), _("Automatic updates work for the installed .deb and .rpm packages only. "
+                                            "This copy of {app} was started from the source code.").format(app=app),
+                            parent=parent)
+        return True
+    return False
+
+
 def check_now(root, app, restart):
     """Menüpunkt: sofort suchen und das Ergebnis immer anzeigen."""
     parent = root.winfo_toplevel()
-    if not updater.installed_packages():
-        messagebox.showinfo(_("Updates"), _("Automatic updates work for the installed .deb packages only. "
-                                            "This copy of {app} was started from the source code.").format(app=app),
-                            parent=parent)
+    if _no_packages(parent, app):
         return
 
     def done(update, error):
@@ -113,21 +128,101 @@ def show_notes(txt, notes):
         txt.insert("end", "\n", tags)
 
 
-class UpdateDialog(Dialog):
-    """Neue Version: Notizen zeigen, nach Bestätigung herunterladen und installieren."""
+def choose_earlier(root, app, restart):
+    """Einstellungen → „Install an earlier version…“: Liste der älteren Releases zeigen."""
+    parent = root.winfo_toplevel()
+    if _no_packages(parent, app):
+        return None
+    return RollbackDialog(root, app, restart)
 
-    def __init__(self, master, update, app, restart, lock=None, automatic=False):
-        super().__init__(master, _("Update available"), width=540)
+
+class RollbackDialog(Dialog):
+    """Ältere Versionen (neueste zuerst) mit Datum; die gewählte geht an den UpdateDialog."""
+
+    def __init__(self, master, app, restart, load=None):
+        super().__init__(master, _("Install an earlier version"), width=500, height=540)
+        self.master_widget, self.app, self.restart = master, app, restart
+        self.choices, self.cards, self.selected = [], [], None
+        b = self.body
+        header(b, _("Install an earlier version"),
+               _("Go back to an older release if the current version causes problems."), icon="undo")
+        warn = Card(b, pad=12, stretch=True)
+        warn.pack(fill="x", pady=(0, 12))
+        label(warn.body, _("Before you go back"), 10, "bold", color=COL["warn"], bg=COL["panel"]).pack(anchor="w")
+        label(warn.body, _("Older versions may not read settings or profiles that a newer version saved. "
+                           "Automatic update checks will offer the newest version again – choose “Skip this "
+                           "version” to stay on the older one."), 9, color=COL["fg"], wraplength=420,
+              justify="left", bg=COL["panel"]).pack(anchor="w", pady=(4, 0))
+        self.status = label(b, _("Loading the list of versions…"), 10, color=COL["muted"], wraplength=440,
+                            justify="left")
+        self.status.pack(anchor="w", pady=(4, 8))
+        self.area = ScrollArea(b)
+        self.area.pack(fill="both", expand=True)
+
+        footer(self)
+        self.next_btn = Button(self.buttons, _("Continue"), icon="arrow", kind="primary", command=self._continue)
+        self.next_btn.pack(side="right")
+        Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right", padx=8)
+        self.update_idletasks()
+        self.focus_set()
+        _in_background(self, load or updater.rollback_choices, self._loaded)
+
+    def _loaded(self, choices, error):
+        if not self.winfo_exists():
+            return
+        if error is not None:
+            log.info("Release list failed: %s", error)
+            self.status.configure(text=_("Could not load the list of versions: {error}").format(error=error),
+                                  fg=COL["danger"])
+            return
+        self.choices = list(choices or [])
+        if not self.choices:
+            self.status.configure(text=_("No earlier versions are available."))
+            return
+        self.status.configure(text=_("Choose the version to install:"))
+        for up in self.choices:
+            when = _("Published {date}").format(date=up.date) if up.date else ""
+            if up.prerelease:
+                when = (when + " · " if when else "") + _("Beta")
+            card = InfoCard(self.area.inner, _("Version {version}").format(version=up.version), when, height=50,
+                            command=lambda u=up: self.select(u))
+            card.pack(fill="x", pady=(0, 6))
+            self.cards.append(card)
+        self.select(self.choices[0])
+
+    def select(self, update):
+        self.selected = update
+        for up, card in zip(self.choices, self.cards):
+            card.set(selected=up is update)
+
+    def _continue(self):
+        if self.selected is None:
+            return None
+        up, master = self.selected, self.master_widget
+        self.destroy()
+        return UpdateDialog(master, up, self.app, self.restart, rollback=True)
+
+
+class UpdateDialog(Dialog):
+    """Neue (mit rollback: ältere) Version: Notizen zeigen, nach Bestätigung herunterladen und installieren."""
+
+    def __init__(self, master, update, app, restart, lock=None, automatic=False, rollback=False):
+        title = _("Install an earlier version") if rollback else _("Update available")
+        super().__init__(master, title, width=540)
         self.update_info, self.app, self.restart = update, app, restart
-        self.lock, self.automatic = lock, automatic
+        self.lock, self.automatic, self.rollback = lock, automatic, rollback
         self.proc = None
         self.busy = False
         if master.winfo_toplevel().state() == "withdrawn":
             self.wm_transient("")  # Programm läuft unsichtbar: Dialog als eigenes Fenster zeigen
         b = self.body
-        header(b, _("Update available"),
-               _("Streamlin {version} is ready to install. You are using version {current}.")
-               .format(version=update.version, current=__version__), icon="spark")
+        if rollback:
+            header(b, title, _("Streamlin {version} will replace version {current}. Your settings and profiles "
+                               "stay, but an older version may not understand everything a newer one saved.")
+                   .format(version=update.version, current=__version__), icon="undo", color=COL["warn"])
+        else:
+            header(b, title, _("Streamlin {version} is ready to install. You are using version {current}.")
+                   .format(version=update.version, current=__version__), icon="spark")
 
         if update.notes:
             card = Card(b, pad=14, stretch=True)
@@ -145,7 +240,8 @@ class UpdateDialog(Dialog):
                    command=lambda: webbrowser.open(update.page)).pack(anchor="w", pady=(8, 0))
 
         row = tk.Frame(b, bg=COL["bg"])
-        row.pack(fill="x", pady=(14, 0))
+        if not rollback:
+            row.pack(fill="x", pady=(14, 0))
         self.auto = Switch(row, command=self._toggle_auto)
         self.auto.set(updater.configured())
         self.auto.pack(side="left")
@@ -158,13 +254,15 @@ class UpdateDialog(Dialog):
         self.bar = ttk.Progressbar(b, mode="determinate", maximum=1000, style="Update.Horizontal.TProgressbar")
 
         footer(self)
-        self.install_btn = Button(self.buttons, _("Install update"), icon="check", kind="primary",
-                                  command=self._install)
+        install_text = _("Install version {version}").format(version=update.version) if rollback \
+            else _("Install update")
+        self.install_btn = Button(self.buttons, install_text, icon="check", kind="primary", command=self._install)
         self.install_btn.pack(side="right")
-        self.later_btn = Button(self.buttons, _("Later"), command=self._later)
+        self.later_btn = Button(self.buttons, _("Cancel") if rollback else _("Later"), command=self._later)
         self.later_btn.pack(side="right", padx=8)
         self.skip_btn = Button(self.buttons, _("Skip this version"), kind="ghost", command=self._skip)
-        self.skip_btn.pack(side="left")
+        if not rollback:
+            self.skip_btn.pack(side="left")
         self.protocol("WM_DELETE_WINDOW", self._later)
         self.bind("<Escape>", lambda e: self._later())
         self.bind("<Destroy>", self._on_destroy, add="+")
@@ -197,7 +295,7 @@ class UpdateDialog(Dialog):
 
     def _set_busy(self, busy):
         self.busy = busy
-        for w in (self.install_btn, self.later_btn, self.skip_btn):
+        for w in (self.install_btn, self.later_btn) + (() if self.rollback else (self.skip_btn,)):
             if busy:
                 w.pack_forget()
             elif not w.winfo_manager():
@@ -242,7 +340,9 @@ class UpdateDialog(Dialog):
         self._show_status(_("Installing… Enter your password when asked. {app} restarts by itself afterwards.")
                           .format(app=self.app))
         try:
-            self.proc = updater.start_install(files, self.update_info.version)
+            up = self.update_info
+            self.proc = updater.start_install(files, up.version, kind=getattr(up, "kind", "deb"),
+                                              downgrade=self.rollback or up.downgrade)
         except OSError as e:
             return self._failed(_("Could not start the installation: {error}").format(error=e))
         if self.proc is None:
@@ -265,7 +365,10 @@ class UpdateDialog(Dialog):
         output = (self.proc.stdout.read() if self.proc.stdout else "") or ""
         if rc == 0:
             self.bar.stop()
-            self._show_status(_("Update installed. {app} restarts now.").format(app=self.app), COL["ok"], bar=False)
+            done = (_("Version {version} installed. {app} restarts now.")
+                    .format(version=self.update_info.version, app=self.app) if self.rollback
+                    else _("Update installed. {app} restarts now.").format(app=self.app))
+            self._show_status(done, COL["ok"], bar=False)
             self.after(2500, self._restart)
             return
         updater.save_state(installing=None)
