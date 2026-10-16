@@ -27,7 +27,7 @@ from PIL import Image, ImageDraw, ImageTk
 
 from . import ducking, levels, parts, shortcuts, theme, wavemic
 from .dialogkit import ScrollArea
-from .i18n import _
+from .i18n import _, ngettext
 from .theme import (COL, Button, Card, Chip, Fader, HScroll, InfoCard, LevelMeter, NavItem, RoundToggle, Segmented,
                     Sidebar, SoftSegmented, Switch, icon_tile, label, rounded_rect)
 
@@ -585,14 +585,21 @@ class WaveWindow:
         self.more_btn = more
         self.add_btn = Button(head, _("Add channel"), "plus", kind="primary", command=self._new_channel)
         self.scene_btn = Button(head, _("Scenes"), "layers", command=self._scene_menu)
+        self.deck_btn = Button(head, _("Stream Deck"), "deck", command=self.open_deck_export)
         self.setup_btn = Button(head, _("Set up mixer"), "wave", kind="primary",
                                 command=lambda: self._mixer_enable(True))
-        self.legend = tk.Frame(head, bg=COL["bg"])
-        for mix, text in (("monitor", _("Monitor – what you hear")), ("stream", _("Stream – what your audience hears"))):
-            dot = tk.Canvas(self.legend, width=10, height=10, bg=COL["bg"], highlightthickness=0)
-            rounded_rect(dot, 0, 0, 10, 10, 3, fill=mix_color(mix), outline="")
-            dot.pack(side="left", padx=(14, 6))
-            label(self.legend, text, 9, color=COL["muted"]).pack(side="left")
+        # Farblegende lang und kurz; die kurze, wenn die Kopfzeile zu schmal ist
+        self.legend_long, self.legend_short = tk.Frame(head, bg=COL["bg"]), tk.Frame(head, bg=COL["bg"])
+        for frame, texts in ((self.legend_long, (_("Monitor – what you hear"), _("Stream – what your audience hears"))),
+                             (self.legend_short, ("Monitor", "Stream"))):
+            for mix, text in zip(("monitor", "stream"), texts):
+                dot = tk.Canvas(frame, width=10, height=10, bg=COL["bg"], highlightthickness=0)
+                rounded_rect(dot, 0, 0, 10, 10, 3, fill=mix_color(mix), outline="")
+                dot.pack(side="left", padx=(14, 6))
+                label(frame, text, 9, color=COL["muted"]).pack(side="left")
+        self.legend = self.legend_long
+        self.head, self.head_left = head, left
+        head.bind("<Configure>", lambda e: self._fit_legend(), add="+")
         tk.Frame(parent, bg=COL["border"], height=1).pack(fill="x")
 
     def _more_menu(self):
@@ -619,19 +626,16 @@ class WaveWindow:
     def _update_header(self):
         st = self.state
         active = bool(st.get("mixer_active"))
-        for w in (self.add_btn, self.scene_btn, self.setup_btn, self.legend):
-            w.pack_forget()
+        shown = ()
         if self.view == "mixer":
             self.title_var.set(_("Mixer"))
             if active:
                 n = len(st.get("channels") or [])
                 self.sub_var.set(_("{count} channels · everything is live").format(count=n))
-                self.add_btn.pack(side="right")
-                self.scene_btn.pack(side="right", padx=(0, 8))
-                self.legend.pack(side="right", padx=(0, 18))
+                shown = ("add", "deck", "scene", "legend")
             else:
                 self.sub_var.set(_("The mixer is off – set it up to give every app its own channel."))
-                self.setup_btn.pack(side="right")
+                shown = ("setup",)
         elif self.view == "mic":
             self.title_var.set(_("Microphone"))
             self.sub_var.set(self.mic_name.get())
@@ -642,7 +646,37 @@ class WaveWindow:
             self.title_var.set(_("Apps"))
             self.sub_var.set(_("Click an app to move it to another channel"))
             if active:
-                self.add_btn.pack(side="right")
+                shown = ("add",)
+        if not parts.has_lindeck():
+            shown = tuple(k for k in shown if k != "deck")
+        # nur bei einer Änderung neu anordnen – sonst flackert die Kopfzeile bei jeder Aktualisierung
+        if shown == getattr(self, "_header_shown", None):
+            return
+        self._header_shown = shown
+        self._pack_header()
+        self.root.after_idle(self._fit_legend)
+
+    def _pack_header(self):
+        widgets = {"add": (self.add_btn, {}), "deck": (self.deck_btn, {"padx": (0, 8)}),
+                   "scene": (self.scene_btn, {"padx": (0, 8)}), "legend": (self.legend, {"padx": (0, 18)}),
+                   "setup": (self.setup_btn, {})}
+        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.legend_long, self.legend_short, self.setup_btn):
+            w.pack_forget()
+        for key in self._header_shown:
+            w, kw = widgets[key]
+            w.pack(side="right", **kw)
+
+    def _fit_legend(self):
+        """Lange Legende nur, wenn sie neben Titel und Knöpfen ganz Platz hat."""
+        if "legend" not in (getattr(self, "_header_shown", None) or ()):
+            return
+        others = sum(w.winfo_reqwidth() + 8 for w in (self.add_btn, self.deck_btn, self.scene_btn, self.more_btn)
+                     if w.winfo_manager())
+        room = self.head.winfo_width() - 44 - self.head_left.winfo_reqwidth() - others - 18
+        want = self.legend_long if self.legend_long.winfo_reqwidth() <= room else self.legend_short
+        if want is not self.legend:
+            self.legend = want
+            self._pack_header()
 
     def show_view(self, key):
         self.view = key
@@ -1016,6 +1050,17 @@ class WaveWindow:
         keys = (st or self.state).get("shortcuts") or {}
         return {k[len(SCENE_SHORTCUT):]: v.get("binding", "") for k, v in keys.items()
                 if k.startswith(SCENE_SHORTCUT)}
+
+    def open_deck_export(self):
+        """Kanäle als neue Seite in ein LinDeck-Profil legen."""
+        from .wavedialogs import DeckExportDialog
+        chans = [(c["id"], c.get("name") or c["id"]) for c in self.state.get("channels") or []]
+
+        def done(profile, pages):
+            self.status(ngettext("Page {pages} added to the profile “{profile}”.",
+                                 "Pages {pages} added to the profile “{profile}”.", len(pages))
+                        .format(pages=", ".join(pages), profile=profile))
+        return DeckExportDialog(self.root, chans, on_done=done)
 
     def open_scenes(self):
         from .wavedialogs import ScenesDialog

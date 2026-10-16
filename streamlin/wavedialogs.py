@@ -617,3 +617,104 @@ class ScenesDialog(Dialog):
             label(row, _("Keyboard shortcut"), 9, color=COL["muted"]).pack(side="left", padx=(44, 12))
             ShortcutField(row, keys.get(s["id"], ""), on_set=lambda bnd, s=s: self.actions["shortcut"](s, bnd),
                           on_remove=lambda s=s: self.actions["shortcut"](s, None)).pack(side="left")
+
+
+class DeckExportDialog(Dialog):
+    """Kanäle als neue Seite in ein LinDeck-Profil legen (Lautstärke direkt am Stream Deck)."""
+
+    def __init__(self, master, channels, on_done=None):
+        from . import deckexport
+        super().__init__(master, _("Channels on the Stream Deck"), width=560)
+        self.dx, self.on_done = deckexport, on_done
+        self.channels = channels  # [(id, Name)]
+        b = self.body
+        header(b, _("Channels on the Stream Deck"),
+               _("Adds a page “Linewave” to a LinDeck profile with volume controls for the chosen channels."),
+               icon="deck", wrap=460)
+        self.targets = deckexport.targets()
+        footer(self)
+        self.create_btn = Button(self.buttons, _("Create page"), icon="plus", kind="primary", command=self._create)
+        self.create_btn.pack(side="right")
+        Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right", padx=8)
+        if not self.targets:
+            label(b, _("There is no LinDeck profile yet. Open LinDeck, connect your Stream Deck or create a "
+                       "profile, then try again."), color=COL["muted"], wraplength=500, justify="left").pack(anchor="w")
+            self.create_btn.configure_text(enabled=False)
+            self.show()
+            return
+
+        field(b, _("PROFILE"))
+        names = [self._target_label(t) for t in self.targets]
+        self.target = tk.StringVar(self, value=names[0])
+        self.target_box = ttk.Combobox(b, textvariable=self.target, values=names, state="readonly")
+        self.target_box.pack(fill="x", pady=(0, 14))
+        self.target_box.bind("<<ComboboxSelected>>", lambda e: self._update_hint())
+
+        field(b, _("CHANNELS"))
+        box = tk.Frame(b, bg=COL["bg"])
+        box.pack(fill="x", pady=(0, 14))
+        self.chosen = {cid: True for cid, _n in channels}
+        self.chips = {}
+        for i, (cid, name) in enumerate(channels):
+            chip = Chip(box, name, active=True, command=lambda c=cid: self._toggle(c))
+            chip.grid(row=i // 4, column=i % 4, sticky="w", padx=(0, 6), pady=(0, 6))
+            self.chips[cid] = chip
+
+        field(b, "MIX")
+        self.mix = "both"
+        SoftSegmented(b, [("both", _("Both mixes"), None), ("monitor", "Monitor", "headphones"),
+                          ("stream", "Stream", "stream")], command=self._set_mix, value="both",
+                      fill=True).pack(fill="x", pady=(0, 14))
+
+        self.hint = label(b, "", 9, color=COL["muted"], wraplength=500, justify="left")
+        self.hint.pack(anchor="w")
+        self.result = label(b, "", 9, color=COL["muted"], wraplength=500, justify="left")
+        self.result.pack(anchor="w", pady=(8, 0))
+        self._update_hint()
+        self.show()
+
+    @staticmethod
+    def _target_label(t):
+        text = t["name"] + (f" – {t['model']}" if t["model"] else "")
+        return text + (" · " + _("in use") if t["in_use"] else "")
+
+    def _selected_target(self):
+        return self.targets[max(0, self.target_box.current())]
+
+    def _selected_channels(self):
+        return [(cid, name) for cid, name in self.channels if self.chosen.get(cid)]
+
+    def _toggle(self, cid):
+        self.chosen[cid] = not self.chosen[cid]
+        self.chips[cid].set(active=self.chosen[cid])
+        self._update_hint()
+
+    def _set_mix(self, value):
+        self.mix = value
+
+    def _update_hint(self):
+        t = self._selected_target()
+        try:
+            geo = self.dx.profile_geometry(t["id"])
+            text = self.dx.describe(geo)
+            n = len(self.dx.plan(geo, [c for c, _n in self._selected_channels()]))
+            if n > 1:
+                text += " " + _("The channels need {count} pages.").format(count=n)
+            ok = True
+        except self.dx.ExportError as e:
+            text, ok = str(e), False
+        self.hint.configure(text=text, fg=COL["muted"] if ok else COL["danger"])
+        self.create_btn.configure_text(enabled=ok)
+
+    def _create(self):
+        if not self.create_btn.enabled:
+            return
+        t = self._selected_target()
+        try:
+            pages = self.dx.export(t["id"], self._selected_channels(), mix=self.mix)
+        except (self.dx.ExportError, OSError) as e:
+            self.result.configure(text=_("Error: {error}").format(error=e), fg=COL["danger"])
+            return
+        self.destroy()
+        if self.on_done:
+            self.on_done(t["name"], pages)

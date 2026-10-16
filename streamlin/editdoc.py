@@ -556,6 +556,14 @@ class ProfileDoc:
         """Nach direkter Bearbeitung eines Aktions-Dicts (vorher checkpoint() aufrufen)."""
         self._changed()
 
+    def disk_changed(self) -> bool:
+        """Wurde das Profil-Manifest außerhalb geändert (z. B. neue Seite aus Linewave)?"""
+        try:
+            disk = read_json(self.root / "manifest.json")
+        except (OSError, ValueError):
+            return False
+        return json.dumps(disk, sort_keys=True) != self._disk_profile
+
     def reload_external(self):
         """Seiten neu einlesen, die außerhalb des Editors geändert wurden (z. B. von einer Plugin-
         Einstellungsseite). Seiten mit ungespeicherten Änderungen im Editor bleiben unberührt."""

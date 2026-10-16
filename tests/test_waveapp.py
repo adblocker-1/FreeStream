@@ -213,6 +213,15 @@ def test_wave_window(env, pactl):
         assert "linewave_music.monitor" in meters and "linewave_streammix.monitor" in meters
         assert win.mix_meters["stream"]["meter"].level == pytest.approx(0.9)
         assert win.strips["mic"]["monitor"]["meter"].level == 0  # stumm
+        # Kopfzeile wird bei Aktualisierungen nicht neu angeordnet (kein Flackern)
+        forgets = []
+        win.scene_btn.pack_forget = lambda: forgets.append(1)
+        win._update_header()
+        win.refresh()
+        assert _pump(root, lambda: not win._refreshing)
+        win._update_header()
+        assert forgets == [] and win.scene_btn.winfo_manager() == "pack"
+        del win.scene_btn.pack_forget
         # Effekte- und Programme-Ansicht
         win.show_view("effects")
         win.show_view("apps")

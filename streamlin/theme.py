@@ -1331,6 +1331,9 @@ class Button(tk.Canvas):
         self._draw()
 
     def configure_text(self, text=None, icon=None, enabled=None):
+        if (text is None or text == self.text) and (icon is None or icon == self.icon) and \
+                (enabled is None or enabled == self.enabled):
+            return  # nichts geändert: nicht neu zeichnen (kein Flackern)
         if text is not None:
             self.text = text
         if icon is not None:

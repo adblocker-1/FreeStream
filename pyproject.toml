@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "streamlin"
-version = "0.19.0"
+version = "0.20.0"
 description = "Stream Deck and Wave Link replacement for Linux: LinDeck and Linewave"
 requires-python = ">=3.9"
 dependencies = ["streamdeck>=0.10", "pillow", "evdev", "cairosvg"]

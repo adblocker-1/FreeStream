@@ -510,7 +510,11 @@ class MixerAction(NativeAction):
         if vol is None:
             return _("Mixer off")
         mixname = {"monitor": "Monitor", "stream": "Stream", "both": ""}[self.mix]
-        return (pgettext("state", "muted") if mute else f"{vol}%") + (f" · {mixname}" if mixname else "")
+        sign = {"up": "+ ", "down": "− "}.get(self.key_action, "") if not self._on_dial() else ""
+        return sign + (pgettext("state", "muted") if mute else f"{vol}%") + (f" · {mixname}" if mixname else "")
+
+    def _on_dial(self):
+        return bool(self.slot) and self.slot[0] == "dial"
 
     def key_down(self):
         mx = self.mixer
