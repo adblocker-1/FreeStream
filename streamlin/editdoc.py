@@ -805,5 +805,11 @@ def preview_dial(doc, page_uuid, data, size=(100, 100)):
     except Exception:  # noqa: BLE001
         path = None
     icon = render.load_frames(path, 48, 48) if path else None
+    try:
+        own = getattr(act, "encoder_icon_image", None)  # selbst gezeichnetes Symbol (z. B. Live-Tasten)
+    except Exception:  # noqa: BLE001
+        own = None
+    if own is not None:
+        icon = [(own, 0)]
     title = act.title() or C.display_name(data)
     return render.compose_dial_segment(size, icon[0][0] if icon else None, title, "", None)

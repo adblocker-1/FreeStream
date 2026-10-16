@@ -662,6 +662,9 @@ def lookup(uuid: str):
     u = (uuid or "").lower()
     if not u:
         return None
+    if u.startswith(("com.lindeck.clock.", "com.lindeck.sysmon.")):
+        from . import livekeys  # Uhr, Countdown, Stoppuhr, Systemmonitor
+        return livekeys.lookup(u)
     plugin, _sep, last = u.rpartition(".")
     if u.startswith("com.lindeck.obs.") or "obs" in plugin.split(".") or "obsstudio" in plugin:
         kind = next((k for key, k in _OBS_KINDS if key in last), None)

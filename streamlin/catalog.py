@@ -253,6 +253,69 @@ CATALOG += [
                description=_("Gain, mute, Low Cut, Clipguard, LEDs (dial: gain)")),
 ]
 
+_COLORS = [("blue", _("Blue")), ("green", _("Green")), ("orange", _("Orange")), ("red", _("Red")),
+           ("purple", _("Purple")), ("teal", _("Turquoise")), ("white", _("White"))]
+_COLOR = Field("choice", "color", _("Accent color"), _COLORS)
+_GRAPH = Field("bool", "graph", _("Show graph"))
+CLOCK_CAT, SYSMON_CAT = _("Clock & timer"), _("System monitor")
+
+CATALOG += [
+    # -------------------------------------------------------- Uhr & Timer
+    ActionType("com.lindeck.clock.clock", _("Clock"), CLOCK_CAT,
+               {"hour24": True, "seconds": False, "show": "both", "date_format": "weekday", "timezone": "",
+                "color": "blue"}, controllers=(KEY, DIAL),
+               fields=[Field("choice", "show", _("Show"), [("both", _("Time and date")), ("time", _("Time only")),
+                                                          ("date", _("Date only"))]),
+                       Field("choice", "date_format", _("Date format"),
+                             [("weekday", _("Weekday and date")), ("dmy", "31.12.2026"), ("mdy", "12/31/2026"),
+                              ("iso", "2026-12-31")]),
+                       Field("bool", "hour24", _("24-hour format")), Field("bool", "seconds", _("Show seconds")),
+                       Field("text", "timezone", _("Time zone"), hint=_("e.g. Europe/Berlin (empty = local)")),
+                       _COLOR],
+               description=_("Shows the time and date, optionally in another time zone")),
+    ActionType("com.lindeck.clock.countdown", _("Countdown"), CLOCK_CAT,
+               {"duration": "5:00", "label": "", "play_sound": True, "sound": "", "volume": 100,
+                "repeat_sound": False, "notify": True, "dial_step": 30, "color": "orange"}, controllers=(KEY, DIAL),
+               fields=[Field("text", "duration", _("Duration"), hint=_("e.g. 5:00, 90s or 1h30m")),
+                       Field("text", "label", _("Label")), _COLOR,
+                       Field("bool", "play_sound", _("Sound at the end")),
+                       Field("bool", "notify", _("Notification at the end")),
+                       Field("file", "sound", _("Alarm sound"), hint=_("empty = default sound")),
+                       Field("int", "volume", _("Volume (%)"), min=0, max=100),
+                       Field("bool", "repeat_sound", _("Repeat sound")),
+                       Field("int", "dial_step", _("Dial step (seconds)"), min=1, max=3600)],
+               description=_("Press: start/pause · long press: reset · dial: change duration")),
+    ActionType("com.lindeck.clock.stopwatch", _("Stopwatch"), CLOCK_CAT, {"label": "", "color": "green"},
+               controllers=(KEY, DIAL), fields=[Field("text", "label", _("Label")), _COLOR],
+               description=_("Press: start/stop · long press: reset")),
+    # ------------------------------------------------------ Systemmonitor
+    ActionType("com.lindeck.sysmon.cpu", _("CPU Load"), SYSMON_CAT, {"graph": True, "color": "blue"},
+               controllers=(KEY, DIAL), fields=[_GRAPH, _COLOR], description=_("Processor load in percent")),
+    ActionType("com.lindeck.sysmon.memory", _("Memory"), SYSMON_CAT, {"graph": True, "color": "purple"},
+               controllers=(KEY, DIAL), fields=[_GRAPH, _COLOR], description=_("Used RAM in percent")),
+    ActionType("com.lindeck.sysmon.temperature", _("Temperature"), SYSMON_CAT,
+               {"graph": True, "unit": "c", "sensor": "", "color": "orange"}, controllers=(KEY, DIAL),
+               fields=[Field("choice", "unit", _("Unit"), [("c", "°C"), ("f", "°F")]), _GRAPH,
+                       Field("text", "sensor", _("Sensor"), hint=_("e.g. coretemp or k10temp (empty = automatic)")),
+                       _COLOR],
+               description=_("Temperature from the hardware sensors")),
+    ActionType("com.lindeck.sysmon.network", _("Network"), SYSMON_CAT,
+               {"interface": "", "graph": True, "color": "teal"}, controllers=(KEY, DIAL),
+               fields=[Field("text", "interface", _("Network interface"), hint=_("e.g. wlan0 (empty = all)")),
+                       _GRAPH, _COLOR],
+               description=_("Download and upload rate")),
+    ActionType("com.lindeck.sysmon.battery", _("Battery"), SYSMON_CAT, {"graph": False, "battery": "",
+                                                                         "color": "green"},
+               controllers=(KEY, DIAL),
+               fields=[_GRAPH, Field("text", "battery", _("Battery"), hint=_("e.g. BAT1 (empty = first)")), _COLOR],
+               description=_("Charge level and charging state")),
+    ActionType("com.lindeck.sysmon.disk", _("Disk Space"), SYSMON_CAT, {"path": "/", "graph": False,
+                                                                         "color": "blue"},
+               controllers=(KEY, DIAL),
+               fields=[Field("text", "path", _("Folder"), hint=_("e.g. / or /home")), _GRAPH, _COLOR],
+               description=_("Used space of a drive")),
+]
+
 if not parts.has_linewave():  # Mixer und Wave-Mikrofon gibt es nur mit Linewave
     CATALOG = [a for a in CATALOG if a.category != "Linewave"]
 BY_UUID = {a.uuid: a for a in CATALOG}
