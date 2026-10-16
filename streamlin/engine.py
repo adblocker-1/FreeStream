@@ -48,6 +48,9 @@ class DeckController:
         dstate = self.state_store.device(self.serial)
         dcfg = self.cfg.device(self.serial)
         self.brightness = int(dcfg.get("brightness") or dstate.get("brightness") or cfg.get("brightness", 70))
+        self.rotated = dcfg.get("rotation") == 180   # Gerät steht auf dem Kopf (Einstellungen › Geräte)
+        self.enabled = dcfg.get("enabled", True) is not False
+        self.firmware = ""
         self.sleeping = False
         self.last_input = time.time()
 
@@ -70,7 +73,11 @@ class DeckController:
     def start(self, profile_id=None):
         d = self.deck
         d.reset()
-        d.set_brightness(self.brightness)
+        try:
+            self.firmware = d.get_firmware_version() or ""
+        except Exception:  # noqa: BLE001
+            self.firmware = ""
+        d.set_brightness(self.brightness if self.enabled else 0)
         d.set_key_callback(lambda deck, k, s: self.events.put(("key", k, s)))
         if self.dial_count:
             d.set_dial_callback(lambda deck, i, ev, v: self.events.put(("dial", i, ev, v)))
@@ -100,6 +107,9 @@ class DeckController:
             if pid and self.store.get(pid):
                 return self.store.get(pid).id
         cands = self.store.for_model(self.model, self.geometry)
+        default = self.store.get(self.cfg.get("default_profile") or "")
+        if default is not None and default in cands:  # Einstellungen › Profile › Standardprofil
+            return default.id
         if cands:
             return cands[0].id
         return None  # kein passendes Profil -> Hinweis auf dem Gerät
@@ -247,7 +257,7 @@ class DeckController:
             self.render_all()
 
     def render_all(self):
-        if self.sleeping:
+        if self.sleeping or not self.enabled:
             return
         if self.visual and not self.profile:
             # Noch kein Profil: Hinweis anzeigen
@@ -271,7 +281,7 @@ class DeckController:
         self.update_touch_keys()
 
     def redraw_action(self, action):
-        if self.sleeping:
+        if self.sleeping or not self.enabled:
             return
         slot = action.slot
         if not slot:
@@ -299,6 +309,8 @@ class DeckController:
         return None
 
     def _set_key(self, k, img):
+        if self.rotated:  # Taste k liegt auf dem gedrehten Gerät gegenüber
+            k, img = self.key_count - 1 - k, img.rotate(180)
         native = PILHelper.to_native_key_format(self.deck, img.convert("RGB"))
         with self.deck:
             self.deck.set_key_image(k, native)
@@ -382,6 +394,8 @@ class DeckController:
             return
         with self.lock:
             img = self.touchscreen_image()
+        if self.rotated:
+            img = img.rotate(180)
         native = PILHelper.to_native_touchscreen_format(self.deck, img.convert("RGB"))
         try:
             with self.deck:
@@ -403,6 +417,8 @@ class DeckController:
             return
         with self.lock:
             img = self.infobar_image()
+        if self.rotated:
+            img = img.rotate(180)
         try:
             native = PILHelper.to_native_screen_format(self.deck, img.convert("RGB"))
             with self.deck:
@@ -423,7 +439,7 @@ class DeckController:
     # ============================================================ Helligkeit
     def set_brightness(self, value):
         self.brightness = max(0, min(100, int(value)))
-        if not self.sleeping:
+        if not self.sleeping and self.enabled:
             with self.deck:
                 self.deck.set_brightness(self.brightness)
         self._remember()
@@ -440,7 +456,7 @@ class DeckController:
             pass
 
     def wake(self):
-        if not self.sleeping:
+        if not self.sleeping or not self.enabled:
             return
         self.sleeping = False
         with self.deck:
@@ -458,8 +474,54 @@ class DeckController:
             except Exception as e:  # noqa: BLE001
                 log.exception(_("Error handling event {event}: {error}").format(event=ev, error=e))
 
+    # ===================================================== Geräte-Einstellungen
+    def set_rotation(self, degrees):
+        """0 = normal, 180 = Gerät steht auf dem Kopf (Tasten, Dials und Touchstreifen gespiegelt)."""
+        self.rotated = degrees == 180
+        self.render_all()
+
+    def set_enabled(self, on):
+        """Gerät aus (dunkel, reagiert nicht) oder wieder an."""
+        self.enabled = bool(on)
+        try:
+            with self.deck:
+                self.deck.set_brightness(self.brightness if self.enabled and not self.sleeping else 0)
+        except Exception:  # noqa: BLE001
+            pass
+        if self.enabled:
+            self.last_input = time.time()
+            self.render_all()
+
+    def _physical(self, ev):
+        """Ereignis vom gedrehten Gerät auf die Tasten/Dials im Profil umrechnen."""
+        kind = ev[0]
+        if kind == "key":
+            k = ev[1]
+            if k < self.key_count:
+                k = self.key_count - 1 - k
+            else:  # Neo-Touchtasten: links/rechts tauschen
+                k = self.key_count + self.touch_key_count - 1 - (k - self.key_count)
+            return ("key", k, ev[2])
+        if kind == "dial":
+            return ("dial", self.dial_count - 1 - ev[1], ev[2], ev[3])
+        if kind == "touch" and isinstance(ev[2], dict):
+            w, h = self.ts_size
+            v = dict(ev[2])
+            for kx in ("x", "x_out"):
+                if kx in v:
+                    v[kx] = w - v[kx]
+            for ky in ("y", "y_out"):
+                if ky in v:
+                    v[ky] = h - v[ky]
+            return ("touch", ev[1], v)
+        return ev
+
     def _handle(self, ev):
         kind = ev[0]
+        if not self.enabled:
+            return
+        if self.rotated:
+            ev = self._physical(ev)
         self.last_input = time.time()
         if self.sleeping:
             # Erster Tastendruck weckt nur auf (wie bei Elgato)
@@ -565,7 +627,7 @@ class DeckController:
         while self.running:
             time.sleep(0.04)
             now = time.time()
-            if self.sleeping:
+            if self.sleeping or not self.enabled:
                 continue
             # GIF-Animationen
             for k, st in list(self.anim.items()):
@@ -583,7 +645,8 @@ class DeckController:
                 self._second_tick(now)
 
     def _second_tick(self, now):
-        mins = self.cfg.get("sleep_after_minutes", 0) or 0
+        dcfg = self.cfg.device(self.serial)
+        mins = dcfg.get("sleep_after_minutes", self.cfg.get("sleep_after_minutes", 0)) or 0
         if mins and now - self.last_input > mins * 60:
             self.sleep_device()
             return

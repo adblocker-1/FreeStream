@@ -320,6 +320,12 @@ class EditorApp:
         self._lib_selected = None
         self._tiles_by_uuid = {}
 
+        try:  # Einstellungen › Stil: Schrift für neue Tasten
+            from .lindecksettings import config_of
+            C.set_title_defaults(config_of(self).get("title_style") or {})
+        except Exception:  # noqa: BLE001
+            pass
+
         root.title("LinDeck")
         root.geometry("1280x800")
         root.minsize(1100, 720)
@@ -395,8 +401,10 @@ class EditorApp:
                 card.pack(fill="x", pady=(0, 8))
                 self.device_cards[""] = card
             return
+        from .lindecksettings import config_of, device_title
+        cfg = config_of(self)
         for c in ctrls:
-            card = theme.InfoCard(self.devbox, model_name(c.model), _("Connected"), image=on_img, dot=COL["ok"],
+            card = theme.InfoCard(self.devbox, device_title(cfg, c), _("Connected"), image=on_img, dot=COL["ok"],
                                   command=lambda s=c.serial: self.select_device(s))
             card.selected = c.serial == self.device
             card.pack(fill="x", pady=(0, 8))
@@ -494,9 +502,9 @@ class EditorApp:
         BackgroundDialog(self.root, self, self.nav[-1])
 
     def open_plugins(self):
-        """Plugin-Verwaltung öffnen."""
-        from .pluginui import PluginManager
-        PluginManager(self.root, host=getattr(self.daemon, "plugin_host", None), on_change=self._plugins_changed)
+        """Plugin-Verwaltung: Einstellungen › Plugins."""
+        from .settingsui import open_settings
+        return open_settings(self.root, "LinDeck", self._restart, lindeck=self, tab="plugins")
 
     def _plugins_changed(self):
         self.fill_catalog()
@@ -612,7 +620,7 @@ class EditorApp:
     def open_settings(self):
         """Design, Sprache und Updates."""
         from .settingsui import open_settings
-        return open_settings(self.root, "LinDeck", self._restart)
+        return open_settings(self.root, "LinDeck", self._restart, lindeck=self)
 
     def _update_header(self):
         st = self.status_var.get()
