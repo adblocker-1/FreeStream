@@ -56,6 +56,7 @@ DEFAULT_CHANNELS = [
 MIC = {"id": "mic", "name": _("Microphone"), "kind": "input"}
 RESERVED_IDS = {"mic", "streammix", "micfilter", "stream", "monitor"}
 MIXES = ("monitor", "stream")
+MAX_VOLUME = 100  # wie Wave Link: nie über 100 % (keine Übersteuerung)
 DEFAULT_ROUTES = {
     "spotify": "music", "rhythmbox": "music", "lollypop": "music", "elisa": "music", "amarok": "music",
     "firefox": "browser", "chromium": "browser", "chrome": "browser", "brave": "browser", "vivaldi": "browser",
@@ -155,7 +156,7 @@ class DuckFile:
 
 def duck_volume(base, factor):
     """Abgesenkte Lautstärke (Prozent) zu einem Nutzerwert."""
-    return max(0, min(150, int(round(base * factor))))
+    return max(0, min(MAX_VOLUME, int(round(base * factor))))
 
 
 class Mixer:
@@ -530,7 +531,7 @@ class Mixer:
             self._write_volume(b["index"], f"{cid}_{m}", pct, duck)
 
     def _write_volume(self, index, key, pct, duck=None):
-        pct = max(0, min(150, int(pct)))
+        pct = max(0, min(MAX_VOLUME, int(pct)))
         if duck is not None and duck.base(key) is not None:
             pct = duck.user_set(key, pct)  # abgesenkt schreiben, Nutzerwert merken
         self.run(["set-sink-input-volume", index, f"{pct}%"])

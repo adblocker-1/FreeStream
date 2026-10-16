@@ -53,7 +53,7 @@ install it after you confirm. You can switch this off in **Settings**.
 **Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`); your
 profiles stay in `~/.local/share/streamlin`.
 
-> **Status:** version 0.20, tested with simulated devices of every model.
+> **Status:** version 0.21, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## The LinDeck window
@@ -134,7 +134,7 @@ or a capture card.
 | Feature | |
 |---|---|
 | **Effects** | **FX** below a channel: high-pass, EQ, gate, compressor, reverb and any LADSPA/LV2 plugin (`swh-plugins`, `tap-plugins`, `x42-plugins` …) |
-| **Channels on the Stream Deck** | **Stream Deck** in the Mixer header adds a page with volume controls for the channels you pick to a LinDeck profile: dials on the Stream Deck + (turn = volume, press = mute), otherwise volume up / mute / volume down keys |
+| **Channels on the Stream Deck** | **Stream Deck** in the Mixer header creates a LinDeck profile “Linewave” for your model with volume controls for the channels you pick – like the Wave Link plugin – and keeps it up to date when you add or delete channels: dials on the Stream Deck + (turn = volume, press = mute), otherwise volume up / mute / volume down keys |
 | **Scenes** | save the whole mix under a name and switch with one click, a shortcut or the Stream Deck key **Mixer Scene** |
 | **Auto-ducking** | music gets quieter while you speak and comes back exactly afterwards |
 | **Noise suppression** | for any microphone; uses [RNNoise](https://github.com/werman/noise-suppression-for-voice) if installed, otherwise PipeWire's built-in filter |

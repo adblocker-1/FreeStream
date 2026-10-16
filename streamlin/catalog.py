@@ -272,7 +272,7 @@ CATALOG += [
                        Field("choice", "action", _("Key"), [("mute", _("toggle mute")), ("up", _("volume up")),
                                                            ("down", _("volume down")), ("set", _("Set volume"))]),
                        Field("int", "step", _("Step size (%)"), min=1, max=50),
-                       Field("int", "volume", _("Volume for “set” (%)"), min=0, max=150)],
+                       Field("int", "volume", _("Volume for “set” (%)"), min=0, max=100)],
                description=_("Wave Link replacement: channel volume per mix")),
     ActionType("com.lindeck.mixer.output", _("Monitor Output"), "Linewave", {"device": ""},
                fields=[Field("text", "device", _("Device (empty = next)"))],

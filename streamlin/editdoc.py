@@ -718,7 +718,12 @@ def create_profile(name: str, model: str, store_root=None) -> Path:
     """Leeres Profil im Format v2 der Elgato-App anlegen."""
     store_root = Path(store_root or paths.PROFILES_DIR)
     pid = str(uuidlib.uuid4()).upper()
-    root = store_root / f"{pid}.sdProfile"
+    return init_profile(store_root / f"{pid}.sdProfile", name, model)
+
+
+def init_profile(root, name: str, model: str) -> Path:
+    """Profilordner root (neu oder geleert) als leeres Profil mit einer Seite anlegen."""
+    root = Path(root)
     page = str(uuidlib.uuid4())
     pdir = root / "Profiles" / encode_page_dir(page)
     pdir.mkdir(parents=True)

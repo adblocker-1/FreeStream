@@ -27,7 +27,8 @@ from PIL import Image, ImageDraw, ImageTk
 
 from . import ducking, levels, parts, shortcuts, theme, wavemic
 from .dialogkit import ScrollArea
-from .i18n import _, ngettext
+from .i18n import _
+from .parts import has_lindeck
 from .theme import (COL, Button, Card, Chip, Fader, HScroll, InfoCard, LevelMeter, NavItem, RoundToggle, Segmented,
                     Sidebar, SoftSegmented, Switch, icon_tile, label, rounded_rect)
 
@@ -1056,11 +1057,19 @@ class WaveWindow:
         from .wavedialogs import DeckExportDialog
         chans = [(c["id"], c.get("name") or c["id"]) for c in self.state.get("channels") or []]
 
-        def done(profile, pages):
-            self.status(ngettext("Page {pages} added to the profile “{profile}”.",
-                                 "Pages {pages} added to the profile “{profile}”.", len(pages))
-                        .format(pages=", ".join(pages), profile=profile))
+        def done(profile, created):
+            self.status((_("Profile “{name}” created – choose it in LinDeck for your Stream Deck.") if created
+                         else _("Profile “{name}” updated.")).format(name=profile))
         return DeckExportDialog(self.root, chans, on_done=done)
+
+    @staticmethod
+    def _sync_deck(ids):
+        from . import deckexport
+        return deckexport.sync(list(ids))
+
+    def _deck_synced(self, changed, err):
+        if err is None and changed:
+            self.status(_("Profile “{name}” updated.").format(name=", ".join(changed)))
 
     def open_scenes(self):
         from .wavedialogs import ScenesDialog
@@ -1753,6 +1762,12 @@ class WaveWindow:
             self.monitor_card.set(subtitle=_("Mixer is off"), dim=True)
         if st.get("error"):
             self.status(st["error"])
+
+        # --- Linewave-Profile auf dem Stream Deck an die Kanäle anpassen
+        ids = tuple(c["id"] for c in st.get("channels") or [])
+        if st.get("mixer_active") and ids and ids != getattr(self, "_deck_ids", None) and has_lindeck():
+            self._deck_ids = ids
+            self.worker.submit(lambda: self._sync_deck(ids), self._deck_synced)
 
         # --- Szenen und Tastenkürzel
         scenes = st.get("scenes") or []
