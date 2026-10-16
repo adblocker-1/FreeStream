@@ -769,7 +769,7 @@ class WaveWindow:
     def _build_table(self, channels, mixes):
         for w in self.table.winfo_children():
             w.destroy()
-        self.strips, self.mix_meters, self.mix_heads = {}, {}, {}
+        self.strips, self.mix_meters, self.mix_heads, self.cells = {}, {}, {}, {}
         tb = self.table
         # oben links: Abhören (welches Gerät, welcher Mix)
         lb = tk.Frame(tb, bg=COL["bg"], width=CH_W, height=HEAD_H)
@@ -852,14 +852,22 @@ class WaveWindow:
         fx.set(ch.get("fx_names") or [])
         strip = {"channel": ch, "apps": apps, "card": card, "fx": fx,
                  "master": {"fader": fader, "val": val, "mute": mute, "meter": meter}}
-        for col, m in enumerate(mixes, start=1):
-            mid = m["id"]
-            if cid in (m.get("exclude") or []):
-                cell = EmptyCell(tb, MIX_W, ROW_H, command=lambda mm=mid: self._toggle_member(cid, mm, True))
-                cell.grid(row=row, column=col, sticky="nw", padx=(0, 10), pady=(0, 8))
-                continue
-            strip[mid] = self._mix_cell(tb, cid, m, row, col)
         self.strips[cid] = strip
+        for col, m in enumerate(mixes, start=1):
+            self._place_cell(tb, cid, m, row, col, cid not in (m.get("exclude") or []))
+
+    def _place_cell(self, tb, cid, m, row, col, member):
+        """Zelle Kanal × Mix: Regler (im Mix) oder leer mit „+ hinzufügen“."""
+        mid = m["id"]
+        if member:
+            part = self._mix_cell(tb, cid, m, row, col)
+            self.strips[cid][mid] = part
+            widget = part["card"]
+        else:
+            self.strips[cid].pop(mid, None)
+            widget = EmptyCell(tb, MIX_W, ROW_H, command=lambda: self._toggle_member(cid, mid, True))
+            widget.grid(row=row, column=col, sticky="nw", padx=(0, 10), pady=(0, 8))
+        self.cells[(cid, mid)] = (widget, row, col, m)
 
     def _mix_cell(self, tb, cid, m, row, col):
         mid = m["id"]
@@ -881,7 +889,7 @@ class WaveWindow:
         lb.grid(row=0, column=2, rowspan=2)
         for w in (card, body, lb):
             w.bind("<Button-3>", lambda e: self._cell_menu(e, cid, mid))
-        return {"fader": fader, "val": val, "mute": mute, "meter": meter, "label": lb}
+        return {"fader": fader, "val": val, "mute": mute, "meter": meter, "label": lb, "card": card}
 
     def _cell_menu(self, e, cid, mid):
         mname = next((m["name"] for m in self.state.get("mixes") or [] if m["id"] == mid), mid)
@@ -915,14 +923,34 @@ class WaveWindow:
         self.worker.submit(lambda: self.mixer.set_master_mute(cid, on))
 
     def _toggle_member(self, cid, mid, on):
-        self._strip_ids = None
+        """Nur die eine Zelle tauschen – sofort, ohne die Tabelle neu aufzubauen."""
         self._touch("member")
+        cell = getattr(self, "cells", {}).get((cid, mid))
+        if cell:
+            widget, row, col, m = cell
+            widget.destroy()
+            cur = next((list(x[4]) for x in (self._strip_ids or ((), ()))[1] if x[0] == mid), m.get("exclude") or [])
+            excl = [x for x in cur if x != cid] + ([] if on else [cid])
+            m = dict(m, exclude=excl)
+            self._place_cell(self.table, cid, m, row, col, on)
+            if on:
+                self.strips[cid][mid]["fader"].set_dimmed(True)  # bis der Ausgang steht
+            self._strip_ids = self._ids_with(mid, excl)
 
         def done(_res, err):
             if err is None:
                 self.status(_("Channel added to the mix") if on else _("Channel removed from the mix"))
+            else:
+                self._strip_ids = None  # fehlgeschlagen: Tabelle aus dem echten Zustand neu aufbauen
             self.refresh()
         self.worker.submit(lambda: self.mixer.set_member(cid, mid, on), done)
+
+    def _ids_with(self, mid, excl):
+        """Kennung der Tabelle (siehe apply_state) mit geänderter Zuordnung eines Mixes."""
+        if not self._strip_ids:
+            return None
+        chans, mixes = self._strip_ids
+        return chans, tuple(x[:4] + (tuple(excl),) + x[5:] if x[0] == mid else x for x in mixes)
 
     def _on_listen(self, mid):
         cur = getattr(self, "_listen_now", None) or self.state.get("listen") or "monitor"
@@ -974,7 +1002,9 @@ class WaveWindow:
 
         def work():
             if m is None:
-                return self.mixer.add_mix(v["name"], v["icon"], v["color"], v["devices"], v["virtual"])
+                # neuer Mix startet leer: welche Kanäle hinein, wählt man selbst in der Tabelle
+                return self.mixer.add_mix(v["name"], v["icon"], v["color"], v["devices"], v["virtual"],
+                                          exclude=[c["id"] for c in self.mixer.all_channels()])
             return self.mixer.update_mix(m["id"], **v)
 
         def done(res, err):

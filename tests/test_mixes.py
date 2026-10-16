@@ -218,6 +218,19 @@ def test_window_mix_table(env, pactl):
         win._save_mix(None, {"name": "Aufnahme", "icon": "record", "color": "#ff4d5a", "devices": [],
                              "virtual": True})
         assert _pump(root, lambda: "aufnahme" in win.mix_heads)
+        # neuer Mix startet leer: man ordnet die Kanäle selbst zu
+        assert not any("aufnahme" in st for st in win.strips.values())
+        # Zuordnung ändern tauscht nur die eine Zelle, die Tabelle bleibt stehen
+        keep = win.strips["system"]["master"]["fader"]
+        win._toggle_member("system", "chat", False)
+        assert "chat" not in win.strips["system"]
+        assert _pump(root, lambda: "system" in host.mixer.mix("chat")["exclude"])
+        win.refresh()
+        assert _pump(root, lambda: not win._refreshing) and win.strips["system"]["master"]["fader"] is keep
+        win._toggle_member("system", "chat", True)
+        assert "chat" in win.strips["system"]
+        assert _pump(root, lambda: "system" not in host.mixer.mix("chat")["exclude"])
+        assert win.strips["system"]["master"]["fader"] is keep
         win._edit_mix(win.state["mixes"][-1])
         root.update()
         dlg = [w for w in root.winfo_children() if isinstance(w, tk.Toplevel)][-1]
