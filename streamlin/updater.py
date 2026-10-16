@@ -1,20 +1,19 @@
 """Automatische Updates aus den GitHub-Releases.
 
 Beim Start fragt LinDeck bzw. Linewave nach dem neuesten Release. Ist eine neuere
-Version da, lädt das Programm nach Rückfrage die .deb- bzw. .rpm-Dateien der
-installierten Pakete (streamlin, lindeck, linewave) herunter, prüft ihre
-SHA-256-Summe und installiert sie mit `pkexec apt-get install` bzw.
-`pkexec dnf install` (ohne dnf: `pkexec rpm -U`). Das Paket startet die
-Programme danach selbst neu.
+Version da, lädt das Programm nach Rückfrage die .deb-Dateien der installierten
+Pakete (streamlin, lindeck, linewave) herunter, prüft ihre SHA-256-Summe und
+installiert sie mit `pkexec apt-get install`. Das Paket startet die Programme
+danach selbst neu.
 
 Abschalten: „Check for updates at start“ im Menü (config.json "check_updates")
 oder STREAMLIN_NO_UPDATE_CHECK=1. Updates gibt es nur für die installierten
-Pakete, nicht für einen Start aus dem Quellcode und nie in Flatpak (dort
-aktualisiert das Software-Center bzw. `flatpak update`).
+.deb-Pakete, nicht für einen Start aus dem Quellcode.
 
 Kanal (config.json "update_channel"): "stable" (Standard) nimmt /releases/latest,
 "beta" das neueste Release der Liste einschließlich Vorabversionen (nie Entwürfe).
-Ältere Versionen zum Zurückstufen kommen aus derselben Liste.
+Ältere Versionen zum Zurückstufen kommen aus derselben Liste (apt-get mit
+--allow-downgrades).
 """
 import fcntl
 import hashlib
@@ -82,11 +81,6 @@ def channel():
 
 def set_channel(ch):
     _write_config("update_channel", ch if ch in CHANNELS else "stable")
-
-
-def in_flatpak():
-    """Läuft das Programm in Flatpak? Dann nie selbst aktualisieren."""
-    return bool(os.environ.get("FLATPAK_ID")) or os.path.exists("/.flatpak-info")
 
 
 # ------------------------------------------------------------------ Zustand (übersprungen, später, installiert)
@@ -187,55 +181,30 @@ def dpkg_packages():
     return found
 
 
-def rpm_packages():
-    """Per rpm installierte Streamlin-Pakete: {Paket: Version} („package … is not installed“ fällt weg)."""
-    if not shutil.which("rpm"):
-        return {}
-    found = {}
-    for line in _query(["rpm", "-q", "--qf", "%{NAME}\t%{VERSION}\n", *PACKAGES]).splitlines():
-        parts = line.split("\t")
-        if len(parts) == 2 and parts[0] in PACKAGES and parts[1]:
-            found[parts[0]] = parts[1]
-    return found
-
-
 def _runs_from_opt():
     here = Path(__file__).resolve()
     return len(here.parts) >= 3 and here.parts[1] == "opt" and here.parts[2] in PACKAGES
 
 
-def detect_installed():
-    """(Paketformat, {Paket: Version}): ("deb" | "rpm", …) oder (None, {}).
-
-    Leer, wenn das Programm nicht aus /opt/<Paket> läuft (z. B. aus dem Quellcode)
-    oder in Flatpak. dpkg hat Vorrang; rpm nur, wenn dpkg die Pakete nicht kennt.
-    """
-    if in_flatpak() or not _runs_from_opt():
-        return None, {}
-    found = dpkg_packages()
-    if found:
-        return "deb", found
-    found = rpm_packages()
-    if found:
-        return "rpm", found
-    return None, {}
-
-
 def installed_packages():
-    """Installierte Streamlin-Pakete, aus denen dieses Programm läuft: {Paket: Version}."""
-    return detect_installed()[1]
+    """Installierte Streamlin-Pakete, aus denen dieses Programm läuft: {Paket: Version}.
+
+    Leer, wenn das Programm nicht aus /opt/<Paket> läuft (z. B. aus dem Quellcode).
+    """
+    if not _runs_from_opt():
+        return {}
+    return dpkg_packages()
 
 
 # ------------------------------------------------------------------ Release abfragen
 class Update:
-    """Ein Release mit den passenden .deb- bzw. .rpm-Dateien."""
+    """Ein Release mit den passenden .deb-Dateien."""
 
-    def __init__(self, version, notes, page, files, kind="deb", date="", prerelease=False):
+    def __init__(self, version, notes, page, files, date="", prerelease=False):
         self.version = version  # z. B. "0.17.0"
         self.notes = notes
         self.page = page  # Release-Seite im Browser
         self.files = files  # [{"name", "url", "sha256", "size"}]
-        self.kind = kind  # "deb" oder "rpm"
         self.date = date  # Veröffentlichung, z. B. "2026-10-01"
         self.prerelease = prerelease
 
@@ -258,24 +227,21 @@ def english_notes(body):
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-def asset_names(pkg, version, kind="deb"):
+def asset_names(pkg, version):
     """Mögliche Dateinamen eines Pakets im Release (Vorabversion auch mit ~ statt -)."""
-    out = []
-    for v in dict.fromkeys((version, version.replace("-", "~"))):
-        out.append(f"{pkg}_{v}_all.deb" if kind == "deb" else f"{pkg}-{v}-1.noarch.rpm")
-    return out
+    return [f"{pkg}_{v}_all.deb" for v in dict.fromkeys((version, version.replace("-", "~")))]
 
 
-def release_files(release, packages, kind="deb"):
+def release_files(release, packages):
     """Dateien der Pakete eines Releases ([{name, url, sha256, size}]); None, wenn eines fehlt
     oder eine Datei nicht sicher ist (fremde Adresse, keine SHA-256-Summe)."""
     version = (release.get("tag_name") or "").lstrip("v")
     assets = {a.get("name"): a for a in release.get("assets") or []}
     files = []
     for pkg in sorted(packages):
-        a = next((assets[n] for n in asset_names(pkg, version, kind) if n in assets), None)
+        a = next((assets[n] for n in asset_names(pkg, version) if n in assets), None)
         if not a:
-            log.info("Release %s has no %s package %s", version, kind, pkg)
+            log.info("Release %s has no package %s", version, pkg)
             return None
         url = a.get("browser_download_url") or ""
         digest = a.get("digest") or ""
@@ -286,27 +252,27 @@ def release_files(release, packages, kind="deb"):
     return files
 
 
-def make_update(release, packages, kind="deb"):
+def make_update(release, packages):
     """Update für genau dieses Release (ohne Versionsvergleich) oder None."""
     if not release or release.get("draft") or not packages:
         return None
-    files = release_files(release, packages, kind)
+    files = release_files(release, packages)
     if files is None:
         return None
     version = (release.get("tag_name") or "").lstrip("v")
-    return Update(version, english_notes(release.get("body")), release.get("html_url") or "", files, kind=kind,
+    return Update(version, english_notes(release.get("body")), release.get("html_url") or "", files,
                   date=(release.get("published_at") or release.get("created_at") or "")[:10],
                   prerelease=bool(release.get("prerelease")))
 
 
-def release_update(release, packages, current=__version__, kind="deb", beta=False):
+def release_update(release, packages, current=__version__, beta=False):
     """Update aus der API-Antwort, wenn sie neuer ist und alle Pakete enthält; sonst None."""
     if not release or release.get("draft") or (release.get("prerelease") and not beta):
         return None
     version = (release.get("tag_name") or "").lstrip("v")
     if not packages or not is_newer(version, current):
         return None
-    return make_update(release, packages, kind)
+    return make_update(release, packages)
 
 
 def published(releases, beta=True):
@@ -316,18 +282,18 @@ def published(releases, beta=True):
     return sorted(out, key=lambda r: version_key(r["tag_name"]), reverse=True)
 
 
-def newest_update(releases, packages, current=__version__, kind="deb", beta=True):
+def newest_update(releases, packages, current=__version__, beta=True):
     """Beta-Kanal: das neueste Release der Liste (auch eine Vorabversion), wenn es neuer ist."""
     rel = published(releases, beta)
-    return release_update(rel[0], packages, current, kind, beta) if rel else None
+    return release_update(rel[0], packages, current, beta) if rel else None
 
 
-def earlier_versions(releases, packages, current=__version__, kind="deb", beta=False):
+def earlier_versions(releases, packages, current=__version__, beta=False):
     """Ältere Versionen zum Zurückstufen, neueste zuerst (nur Releases mit allen Paketen)."""
     out = []
     for r in published(releases, beta):
         if is_older(r["tag_name"], current):
-            up = make_update(r, packages, kind)
+            up = make_update(r, packages)
             if up:
                 out.append(up)
     return out
@@ -341,25 +307,23 @@ def fetch_releases(timeout=10):
     return data
 
 
-def check(packages=None, timeout=10, kind=None, beta=None):
+def check(packages=None, timeout=10, beta=None):
     """Neuere Version für die installierten Pakete oder None. Wirft OSError/ValueError bei Netzfehlern."""
-    if packages is None:
-        kind, packages = detect_installed()
+    packages = installed_packages() if packages is None else packages
     if not packages:
         return None
-    kind = kind or "deb"
     beta = channel() == "beta" if beta is None else beta
     if beta:
-        return newest_update(fetch_releases(timeout), packages, kind=kind)
-    return release_update(_get_json(API_URL, timeout), packages, kind=kind)
+        return newest_update(fetch_releases(timeout), packages)
+    return release_update(_get_json(API_URL, timeout), packages)
 
 
 def rollback_choices(timeout=10):
     """Ältere Versionen für die installierten Pakete (fragt GitHub)."""
-    kind, packages = detect_installed()
+    packages = installed_packages()
     if not packages:
         return []
-    return earlier_versions(fetch_releases(timeout), packages, kind=kind, beta=channel() == "beta")
+    return earlier_versions(fetch_releases(timeout), packages, beta=channel() == "beta")
 
 
 # ------------------------------------------------------------------ Herunterladen und installieren
@@ -371,9 +335,8 @@ def download(update, dest=None, progress=None, timeout=30):
     """Lädt alle Dateien, prüft SHA-256 und gibt die Pfade zurück. progress(done, total) optional."""
     dest = Path(dest or paths.STATE_DIR / "updates")
     dest.mkdir(parents=True, exist_ok=True)
-    for pattern in ("*.deb", "*.rpm"):
-        for old in dest.glob(pattern):
-            old.unlink(missing_ok=True)
+    for old in dest.glob("*.deb"):
+        old.unlink(missing_ok=True)
     total = sum(f["size"] for f in update.files) or 1
     done = 0
     out = []
@@ -400,30 +363,24 @@ def download(update, dest=None, progress=None, timeout=30):
     return out
 
 
-def install_command(files, kind="deb", downgrade=False):
-    """Befehl, der die Pakete mit Administratorrechten installiert, oder None (kein pkexec)."""
+def install_command(files):
+    """Befehl, der die Pakete mit Administratorrechten installiert, oder None (kein pkexec).
+
+    --allow-downgrades: dieselbe Zeile installiert auch eine ältere Version."""
     pkexec = shutil.which("pkexec")
     if not pkexec:
         return None
     names = [str(Path(f).resolve()) for f in files]
-    if kind == "rpm":
-        dnf = shutil.which("dnf")
-        if dnf:
-            if downgrade:
-                return [pkexec, dnf, "downgrade", "-y", "--allowerasing", *names]
-            return [pkexec, dnf, "install", "-y", *names]
-        rpm = shutil.which("rpm") or "/usr/bin/rpm"
-        return [pkexec, rpm, "-U", *(["--oldpackage"] if downgrade else []), *names]
     apt = shutil.which("apt-get") or "/usr/bin/apt-get"
     # ohne Terminal: bei geänderten Konfigurationsdateien nie nachfragen, die eigene Fassung behalten
     return [pkexec, apt, "install", "-y", "--allow-downgrades", "-o", "Dpkg::Options::=--force-confdef",
             "-o", "Dpkg::Options::=--force-confold", *names]
 
 
-def start_install(files, version, kind="deb", downgrade=False):
+def start_install(files, version):
     """Startet die Installation in einer eigenen Sitzung (überlebt das Beenden des Programms
     durch das Paket). Gibt den Prozess zurück; None, wenn kein pkexec da ist."""
-    cmd = install_command(files, kind, downgrade)
+    cmd = install_command(files)
     if not cmd:
         return None
     save_state(installing=version)

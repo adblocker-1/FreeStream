@@ -142,20 +142,17 @@ def _access(path):
 # ------------------------------------------------------------------ Sammler
 def streamlin_info(app=""):
     from . import updater
-    kind, pk = updater.detect_installed()
+    pk = updater.installed_packages()
     lines = [
         f"Streamlin version: {__version__}",
         f"Report created by: {app or 'command line'}",
         f"Running from: {Path(__file__).resolve().parent}",
         f"LinDeck available: {parts.has_lindeck()}, Linewave available: {parts.has_linewave()}",
-        f"Flatpak: {updater.in_flatpak()}",
-        f"Package format: {kind or '-'}  {pk or ''}".rstrip(),
+        f"Installed packages: {pk or '-'}",
         f"Update channel: {updater.channel()}, check at start: {updater.configured()}",
         "",
         "dpkg:",
         run(["dpkg-query", "-W", "-f=${Package} ${Version} ${Status}\n", *updater.PACKAGES]),
-        "rpm:",
-        run(["rpm", "-q", *updater.PACKAGES]),
     ]
     return "\n".join(lines)
 

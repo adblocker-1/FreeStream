@@ -58,25 +58,18 @@ class SettingsDialog(Dialog):
 
         # ---------------------------------------------------------- Updates
         card = self._card(_("Updates"))
-        self.auto_update = self.beta = None
-        if updater.in_flatpak():
-            # Flatpak: nie selbst aktualisieren
-            label(card, updateui.flatpak_text(), 10, wraplength=420, justify="left").pack(anchor="w")
-            label(card, _("Installed version: {version}").format(version=__version__), 9, color=COL["muted"]).pack(
-                anchor="w", pady=(12, 0))
-        else:
-            self.auto_update = self._switch_row(card, self._toggle_updates, updater.configured(),
-                                                _("Check for updates every time {app} starts").format(app=app))
-            self.beta = self._switch_row(card, self._toggle_beta, updater.channel() == "beta",
-                                         _("Include beta versions"), pady=(10, 0),
-                                         hint=_("Beta versions bring new features earlier but may contain more bugs."))
-            row = tk.Frame(card, bg=COL["panel"])
-            row.pack(fill="x", pady=(12, 0))
-            label(row, _("Installed version: {version}").format(version=__version__), 9, color=COL["muted"]).pack(
-                side="left")
-            Button(row, _("Check now"), icon="spark", command=self._check, height=30).pack(side="right")
-            Button(card, _("Install an earlier version…"), icon="undo", kind="ghost", height=28,
-                   command=self._rollback).pack(anchor="w", pady=(8, 0))
+        self.auto_update = self._switch_row(card, self._toggle_updates, updater.configured(),
+                                            _("Check for updates every time {app} starts").format(app=app))
+        self.beta = self._switch_row(card, self._toggle_beta, updater.channel() == "beta",
+                                     _("Include beta versions"), pady=(10, 0),
+                                     hint=_("Beta versions bring new features earlier but may contain more bugs."))
+        row = tk.Frame(card, bg=COL["panel"])
+        row.pack(fill="x", pady=(12, 0))
+        label(row, _("Installed version: {version}").format(version=__version__), 9, color=COL["muted"]).pack(
+            side="left")
+        Button(row, _("Check now"), icon="spark", command=self._check, height=30).pack(side="right")
+        Button(card, _("Install an earlier version…"), icon="undo", kind="ghost", height=28,
+               command=self._rollback).pack(anchor="w", pady=(8, 0))
 
         # ---------------------------------------------------------- Hilfe
         card = self._card(_("Help"))
