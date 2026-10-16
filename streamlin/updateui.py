@@ -9,9 +9,10 @@ import subprocess
 import threading
 import tkinter as tk
 import webbrowser
-from tkinter import messagebox, ttk
+from tkinter import ttk
 
 from . import __version__, desktop, updater
+from . import msgbox as messagebox
 from .dialogkit import ScrollArea, footer, header, slim_scrollbar
 from .i18n import _
 from .theme import COL, Button, Card, Dialog, InfoCard, Switch, font, label
