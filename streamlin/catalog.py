@@ -19,7 +19,7 @@ KEY, DIAL = "key", "dial"
 
 @dataclass
 class Field:
-    kind: str            # text, multiline, int, bool, choice, file, hotkey, page, profile
+    kind: str            # text, multiline, int, bool, choice, file, hotkey, page, profile, entity
     key: str             # Schlüssel in "Settings" (bei hotkey: Index in "Hotkeys")
     label: str
     options: list = None  # choice: [(Wert, Anzeige), ...]
@@ -185,6 +185,9 @@ _MIX_CHANNELS = [("system", _("System")), ("music", _("Music")), ("browser", _("
                  ("game", _("Game")), ("sfx", _("Effects")), ("mic", _("Microphone"))]
 _MIXES = [("both", _("Monitor and Stream Mix")), ("monitor", _("Monitor Mix only")), ("stream", _("Stream Mix only"))]
 _TOGGLE = [("toggle", _("toggle")), ("start", _("start")), ("stop", _("stop"))]
+# Feldart "entity": options = erlaubte Domains für die Auswahl (None = alle)
+HA_TOGGLE_DOMAINS = ["light", "switch", "fan", "cover", "input_boolean", "automation", "lock", "climate",
+                     "media_player", "siren", "humidifier", "input_number", "number", "button", "input_button"]
 
 CATALOG += [
     # ------------------------------------------------------------- OBS
@@ -229,6 +232,28 @@ CATALOG += [
                               ("textchannel", _("Open text channel")), ("leave", _("Leave voice channel"))]),
                        Field("text", "channel_id", _("Channel ID (channel only)"))],
                description=_("Needs your own Discord app (see README)")),
+    # ---------------------------------------------------- Home Assistant
+    ActionType("com.lindeck.homeassistant.toggle", _("Toggle Entity"), "Home Assistant",
+               {"entity_id": "", "show_value": True, "step": 5}, states=2, controllers=(KEY, DIAL),
+               fields=[Field("entity", "entity_id", _("Entity"), HA_TOGGLE_DOMAINS),
+                       Field("bool", "show_value", _("Show brightness / position")),
+                       Field("int", "step", _("Dial step size (%)"), min=1, max=50)],
+               description=_("Switches a light, switch, fan, cover … (dial: brightness / temperature)")),
+    ActionType("com.lindeck.homeassistant.service", _("Call Service"), "Home Assistant",
+               {"service": "", "entity_id": "", "data": ""},
+               fields=[Field("text", "service", _("Service"), hint=_("e.g. light.turn_on")),
+                       Field("entity", "entity_id", _("Entity (optional)")),
+                       Field("multiline", "data", _("Service data (JSON, optional)"))],
+               description=_("Calls any Home Assistant service")),
+    ActionType("com.lindeck.homeassistant.scene", _("Scene / Script"), "Home Assistant", {"entity_id": ""},
+               fields=[Field("entity", "entity_id", _("Scene or script"), ["scene", "script"])],
+               description=_("Activates a scene or runs a script")),
+    ActionType("com.lindeck.homeassistant.state", _("Show State"), "Home Assistant",
+               {"entity_id": "", "attribute": "", "decimals": -1}, controllers=(KEY, DIAL),
+               fields=[Field("entity", "entity_id", _("Entity")),
+                       Field("text", "attribute", _("Attribute (empty = state)")),
+                       Field("int", "decimals", _("Decimal places (−1 = automatic)"), min=-1, max=6)],
+               description=_("Shows a sensor value with its unit, updated live")),
     # ------------------------------------------------------------- Mixer
     ActionType("com.lindeck.mixer.channel", _("Mixer Channel"), "Linewave",
                {"channel": "music", "mix": "both", "action": "mute", "step": 5}, controllers=(KEY, DIAL),
