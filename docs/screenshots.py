@@ -140,21 +140,32 @@ def shot_lindeck(tmp):
         a = doc.place(page, ("dial", i), uuid)
         a.setdefault("Settings", {}).update(settings)
         doc.update_state(page, ("dial", i), 0, "Title", title)
+    doc.add_page()
+    doc.add_page()
     doc.save()
+    others = {}
+    for name, code, pages in (("Gaming", "20GBD9901", 2), ("Video editing", "20GBD9901", 1),
+                              ("Meetings", "20GAI9902", 1)):
+        d = E.ProfileDoc(E.create_profile(name, code, store))
+        for _i in range(pages - 1):
+            d.add_page()
+        d.save()
+        others[name] = d.id
 
     from streamlin.models import Geometry
     from streamlin.profiles import ProfileStore
     from test_app import FakeCtrl
     ctrl = FakeCtrl("DL41K1A04321", "20GBD9901", Geometry(4, 2, 4), doc.id)
+    ctrl.brightness = 70
 
     profiles = ProfileStore(store)
 
     class Daemon:  # angeschlossenes Stream Deck + (simuliert)
         controllers = {"a": ctrl}
         store = profiles
-        cfg = {}
+        cfg = {"devices": {"A00SA4212345": {"profile": others["Meetings"]}}}  # bekannt, nicht angeschlossen
     root = tk.Tk(className="lindeck")
-    root.geometry("1240x800")
+    root.geometry("1280x800")
     app = editor.EditorApp(root, store_root=store, daemon=Daemon())
     pump(root, 1.5)
     app.select(("key", 0, 0))
