@@ -36,7 +36,6 @@ log = logging.getLogger("streamlin.waveui")
 REFRESH_MS = 1500
 LEVEL_MS = 40  # 25 Hz
 TOUCH_HOLD = 2.5
-MIX_LABEL = {"monitor": "Monitor", "stream": "Stream"}
 MUTE_ICONS = {"monitor": ("headphones", "headphones_off"), "stream": ("stream", "stream_off")}
 NOT_IN_MIXER = _("– not in mixer –")
 CHANNEL_LOOK = theme.CHANNEL_LOOK
@@ -657,18 +656,7 @@ class WaveWindow:
         self.deck_btn = Button(head, _("Export to LinDeck"), "export", command=self.open_deck_export)
         self.setup_btn = Button(head, _("Set up mixer"), "wave", kind="primary",
                                 command=lambda: self._mixer_enable(True))
-        # Farblegende lang und kurz; die kurze, wenn die Kopfzeile zu schmal ist
-        self.legend_long, self.legend_short = tk.Frame(head, bg=COL["bg"]), tk.Frame(head, bg=COL["bg"])
-        for frame, texts in ((self.legend_long, (_("Monitor – what you hear"), _("Stream – what your audience hears"))),
-                             (self.legend_short, ("Monitor", "Stream"))):
-            for mix, text in zip(("monitor", "stream"), texts):
-                dot = tk.Canvas(frame, width=10, height=10, bg=COL["bg"], highlightthickness=0)
-                rounded_rect(dot, 0, 0, 10, 10, 3, fill=mix_color(mix), outline="")
-                dot.pack(side="left", padx=(14, 6))
-                label(frame, text, 9, color=COL["muted"]).pack(side="left")
-        self.legend = self.legend_long
         self.head, self.head_left = head, left
-        head.bind("<Configure>", lambda e: self._fit_legend(), add="+")
         tk.Frame(parent, bg=COL["border"], height=1).pack(fill="x")
 
     def _update_header(self):
@@ -703,29 +691,16 @@ class WaveWindow:
             return
         self._header_shown = shown
         self._pack_header()
-        self.root.after_idle(self._fit_legend)
 
     def _pack_header(self):
         widgets = {"add": (self.add_btn, {}), "deck": (self.deck_btn, {"padx": (0, 8)}),
-                   "scene": (self.scene_btn, {"padx": (0, 8)}), "legend": (self.legend, {"padx": (0, 18)}),
+                   "scene": (self.scene_btn, {"padx": (0, 8)}),
                    "setup": (self.setup_btn, {})}
-        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.legend_long, self.legend_short, self.setup_btn):
+        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.setup_btn):
             w.pack_forget()
         for key in self._header_shown:
             w, kw = widgets[key]
             w.pack(side="right", **kw)
-
-    def _fit_legend(self):
-        """Lange Legende nur, wenn sie neben Titel und Knöpfen ganz Platz hat."""
-        if "legend" not in (getattr(self, "_header_shown", None) or ()):
-            return
-        others = sum(w.winfo_reqwidth() + 8 for w in (self.add_btn, self.deck_btn, self.scene_btn)
-                     if w.winfo_manager())
-        room = self.head.winfo_width() - 44 - self.head_left.winfo_reqwidth() - others - 18
-        want = self.legend_long if self.legend_long.winfo_reqwidth() <= room else self.legend_short
-        if want is not self.legend:
-            self.legend = want
-            self._pack_header()
 
     def show_view(self, key):
         self.view = key
@@ -1199,7 +1174,7 @@ class WaveWindow:
         chans = [(c["id"], c.get("name") or c["id"]) for c in self.state.get("channels") or []]
 
         def done(profile, created):
-            self.status((_("Profile “{name}” created – choose it in LinDeck for your Stream Deck.") if created
+            self.status((_("Profile “{name}” created – choose it in LinDeck for your device.") if created
                          else _("Profile “{name}” updated.")).format(name=profile))
         return DeckExportDialog(self.root, chans, on_done=done)
 

@@ -596,7 +596,7 @@ def test_selftest_with_simulated_presses(xdg):
     res = t.run(timeout=10)
     deck.close()
     assert passed(res), res
-    assert "Stream Deck +" in report_text(res)
+    assert "LinDeck +" in report_text(res)
 
 
 # ==========================================================================

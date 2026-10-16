@@ -74,7 +74,7 @@ def make_icon(size=256):
 class Tray(desktop.Tray):
     """Symbol in der Taskleiste für LinDeck."""
 
-    def __init__(self, on_show, on_quit, icon=None, title="LinDeck (Stream Deck)", ident="lindeck",
+    def __init__(self, on_show, on_quit, icon=None, title="LinDeck", ident="lindeck",
                  open_label=None):
         super().__init__(on_show, on_quit, icon or make_icon(64), title, ident, open_label or _("Open LinDeck"))
 

@@ -106,7 +106,7 @@ def cmd_devices(args):
         print(_("USB access failed: {error}").format(error=e))
         return 1
     if not decks:
-        print(_("No Stream Deck found. Is it connected? Is the udev rule installed (install.sh)?"))
+        print(_("No device found. Is it connected? Is the udev rule installed (install.sh)?"))
     for d in decks:
         try:
             d.open()
@@ -758,7 +758,7 @@ def _installed(cmd):
 
 
 def main(argv=None, prog="lindeck"):
-    ap = argparse.ArgumentParser(prog=prog, description=_("Stream Deck software for Linux (Elgato compatible)"))
+    ap = argparse.ArgumentParser(prog=prog, description=_("LinDeck – software for Elgato decks on Linux"))
     ap.add_argument("--version", action="version", version=__version__)
     ap.add_argument("-v", "--verbose", action="store_true")
     sub = ap.add_subparsers(dest="cmd")
@@ -788,7 +788,7 @@ def main(argv=None, prog="lindeck"):
     s = sub.add_parser("profiles", help=_("show imported profiles"))
     s.set_defaults(fn=cmd_profiles)
 
-    s = sub.add_parser("devices", help=_("show connected Stream Decks"))
+    s = sub.add_parser("devices", help=_("show connected devices"))
     s.add_argument("--transport", default=None, help=argparse.SUPPRESS)
     s.set_defaults(fn=cmd_devices)
 
@@ -859,7 +859,7 @@ def main(argv=None, prog="lindeck"):
     s.add_argument("filter", nargs="*", help=_("entities: only entities whose ID or name contains this text"))
     s.set_defaults(fn=cmd_homeassistant)
 
-    s = sub.add_parser("selftest", help=_("test connected Stream Decks step by step"))
+    s = sub.add_parser("selftest", help=_("test connected devices step by step"))
     s.add_argument("--timeout", type=int, default=90, help=_("seconds per step"))
     s.add_argument("--stop-daemon", action="store_true", help=_("stop the running service for the test"))
     s.add_argument("--transport", default=None, help=argparse.SUPPRESS)

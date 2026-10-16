@@ -713,7 +713,7 @@ class ScenesDialog(Dialog):
         self.actions = actions
         self.icons = Icons(self)
         header(self.body, _("Mixer scenes"), _("A scene remembers the volume and mute state of every channel. "
-                                               "Apply it with one click, a keyboard shortcut or a Stream Deck key."),
+                                               "Apply it with one click, a keyboard shortcut or a LinDeck key."),
                icon="layers", wrap=520)
         self.area = ScrollArea(self.body)
         self.area.pack(fill="both", expand=True)
@@ -783,7 +783,7 @@ class DeckExportDialog(Dialog):
         self.cards = []
         self.device_box = None
         if plugged:  # angeschlossene Stream Decks: als Karten, das erste ist gewählt
-            field(b, _("STREAM DECK – DETECTED AUTOMATICALLY"))
+            field(b, _("DEVICE – DETECTED AUTOMATICALLY"))
             row = tk.Frame(b, bg=COL["bg"])
             row.pack(fill="x", pady=(0, 6 if len(plugged) > 1 else 14))
             self.sel = plugged[0]
@@ -798,7 +798,7 @@ class DeckExportDialog(Dialog):
                       color=COL["muted"]).pack(anchor="w", pady=(0, 14))
         else:  # nichts angeschlossen: Modell wählen
             field(b, _("DEVICE"))
-            label(b, _("No Stream Deck connected – choose the model:"), 9, color=COL["muted"]).pack(anchor="w",
+            label(b, _("No device connected – choose the model:"), 9, color=COL["muted"]).pack(anchor="w",
                                                                                                  pady=(0, 6))
             names = [self._device_label(d) for d in self.devices]
             self.device = tk.StringVar(self, value=names[0])

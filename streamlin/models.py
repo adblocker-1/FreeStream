@@ -84,11 +84,17 @@ def geometry_for_deck(deck) -> Geometry:
     return Geometry(cols, rows, deck.dial_count(), getattr(deck, "TOUCH_KEY_COUNT", 0))
 
 
-def model_name(code: str) -> str:
-    base = code.split("-")[0]
+def elgato_name(code: str) -> str:
+    """Modellname wie bei Elgato („Stream Deck XL“) – für Plugins, die ihn so erwarten."""
+    base = (code or "").split("-")[0]
     if base.endswith("LL"):
         base = base[:-2]
     return MODELS.get(base, (code or _("unknown"), None))[0]
+
+
+def model_name(code: str) -> str:
+    """Modellname in LinDeck und Linewave: „LinDeck XL“, „LinDeck +“, „LinDeck Mini MK.2“ …"""
+    return elgato_name(code).replace("Stream Deck", "LinDeck")
 
 
 def model_geometry(code: str):
@@ -130,5 +136,5 @@ def connected_models(usb_root=None):
             continue
         code = PID_TO_MODEL.get(pid)
         if code:
-            out.append({"model": code, "name": MODELS[code][0], "serial": read(d, "serial")})
+            out.append({"model": code, "name": model_name(code), "serial": read(d, "serial")})
     return out

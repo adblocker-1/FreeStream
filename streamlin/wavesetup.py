@@ -299,7 +299,7 @@ class SetupWizard(tk.Toplevel):
 
     def _step_2(self):
         self._title(_("What do you listen on?"),
-                    _("This is where your Monitor Mix goes – everything you want to hear yourself. Use the "
+                    _("This is where your Personal Mix goes – everything you want to hear yourself. Use the "
                       "test tone to check that it is the right device."))
         self._device_list(self.data.get("outputs") or [], self.out, "headphones")
         Button(self.body, _("Play test tone"), icon="play", command=self._tone).pack(anchor="w", pady=(10, 0))

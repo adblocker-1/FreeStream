@@ -220,7 +220,7 @@ def run(transport=None, timeout=60, out=print):
     from StreamDeck.DeviceManager import DeviceManager
     decks = DeviceManager(transport=transport).enumerate() if transport else DeviceManager().enumerate()
     if not decks:
-        out(_("No Stream Deck found."))
+        out(_("No device found."))
         return []
     files = []
     for deck in decks:
