@@ -45,9 +45,14 @@ Ubuntu 22.04+, Linux Mint 21+, Pop!_OS, Zorin …), X11 or Wayland. The package
 sets up device access, hotkeys, autostart and menu entries automatically. If
 LinDeck does not start right after installing, log out and back in once.
 
+**Updates:** at every start, LinDeck and Linewave look for a new release here.
+If there is one, they show what's new and install it after you confirm (you
+enter your password once); the programs then restart by themselves. See
+[Updates](#updates) to switch this off.
+
 **Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`) (your profiles stay in `~/.local/share/streamlin`).
 
-> **Status:** version 0.16, tested with simulated devices of every model.
+> **Status:** version 0.17, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## Supported devices
@@ -246,6 +251,24 @@ both programs. **Auto** follows your desktop setting (GNOME, KDE and others). Th
 program offers to restart right away. For a single start you can also use
 `STREAMLIN_APPEARANCE=light lindeck`.
 
+## Updates
+
+At every start the programs ask GitHub for the newest release. When a newer
+version is out, a window shows what's new:
+
+- **Install update** downloads the packages you have installed, checks them
+  against the checksums of the release and installs them (you are asked for
+  your password). LinDeck and Linewave restart by themselves.
+- **Later** asks again at the next start, **Skip this version** waits for the
+  version after it.
+
+To stop looking for updates, turn off the switch in that window, or untick
+**Check for updates at start** in the **…** menu of either program. **Check for
+updates now…** in the same menu looks right away. You can also set
+`"check_updates": false` in the settings, or start with
+`STREAMLIN_NO_UPDATE_CHECK=1`. When run from the source code, the programs never
+update themselves.
+
 ## Languages
 
 LinDeck and Linewave follow your system language. To change it, click the
@@ -281,6 +304,7 @@ Optional settings go into `~/.config/streamlin/config.json`, for example:
 {
   "language": "auto",
   "appearance": "auto",
+  "check_updates": true,
   "brightness": 70,
   "sleep_after_minutes": 0,
   "keyboard_layout": "auto",

@@ -156,6 +156,8 @@ def main(hidden=False, profile=None, transport=None, tray=True):
     loop = threading.Thread(target=daemon.loop, name="lindeck-dienst", daemon=True)
     loop.start()
     app = App(root, daemon, profile=profile, hidden=hidden, tray=tray)
+    from . import updateui
+    root.after(3000, lambda: updateui.start(root, "LinDeck", app.editor._restart))
     signal.signal(signal.SIGUSR1, lambda *a: app.request_show())
     signal.signal(signal.SIGTERM, lambda *a: app.request_quit())
     signal.signal(signal.SIGINT, lambda *a: app.request_quit())

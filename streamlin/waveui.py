@@ -557,6 +557,14 @@ class WaveWindow:
         else:
             menu.add_command(label=_("Set up mixer"), command=lambda: self._mixer_enable(True))
         menu.add_separator()
+        from . import updateui, updater
+        self.auto_update_var = tk.BooleanVar(self.root, value=updater.enabled())
+        menu.add_checkbutton(label=_("Check for updates at start"), variable=self.auto_update_var,
+                             selectcolor=COL["accent"],
+                             command=lambda: updater.set_enabled(self.auto_update_var.get()))
+        menu.add_command(label=_("Check for updates now…"),
+                         command=lambda: updateui.check_now(self.root, "Linewave", self._restart))
+        menu.add_separator()
         if parts.has_lindeck():
             menu.add_command(label=_("Open LinDeck"), command=self.open_lindeck)
         menu.add_command(label=_("Close window"), command=self.hide)

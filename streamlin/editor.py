@@ -635,10 +635,20 @@ class EditorApp:
         if parts.has_linewave():
             m.add_command(label=_("Open Linewave"), command=self.open_wave)
         m.add_separator()
+        self._update_menu(m)
+        m.add_separator()
         if self.daemon is not None:
             m.add_command(label=_("Close window"), command=self.hide)
         m.add_command(label=_("Quit"), command=self.quit_app)
         return m
+
+    def _update_menu(self, m):
+        from . import updateui, updater
+        self.auto_update_var = tk.BooleanVar(self.root, value=updater.enabled())
+        m.add_checkbutton(label=_("Check for updates at start"), variable=self.auto_update_var,
+                          command=lambda: updater.set_enabled(self.auto_update_var.get()))
+        m.add_command(label=_("Check for updates now…"),
+                      command=lambda: updateui.check_now(self.root, "LinDeck", self._restart))
 
     def _model_menu_at_card(self):
         if self.doc:
