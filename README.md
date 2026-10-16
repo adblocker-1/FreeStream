@@ -18,10 +18,11 @@ Streamlin contains **two programs**, just like Elgato's software:
 | ![LinDeck window with a Stream Deck +](docs/images/lindeck-window.png) | ![Linewave mixer](docs/images/linewave-mixer.png) |
 
 Both start invisibly when you log in. The menu entry opens the window; closing
-the window keeps the program running in the background.
+the window keeps the program running in the background. Language, light/dark
+mode, updates, backups and the support report are under **Settings** (gear) at
+the bottom of the sidebar.
 
-Available in **English, German, Spanish, French and Portuguese (Brazil)**, with a
-**light and a dark mode** (or automatic, following your desktop).
+Available in **English, German, Spanish, French and Portuguese (Brazil)**.
 
 ## Get started
 
@@ -32,121 +33,60 @@ Available in **English, German, Spanish, French and Portuguese (Brazil)**, with 
    - `linewave_<version>_all.deb` – only Linewave (mixer and Wave microphone)
 
    You can install LinDeck and Linewave separately and add the other one later;
-   together they work exactly like `streamlin`. Your profiles and settings stay.
-   Fedora, openSUSE and Flatpak: see [below](#fedora-opensuse-and-flatpak).
+   together they work exactly like `streamlin`.
 2. **Bring your profiles:** on Windows, copy the folder
    `%APPDATA%\Elgato\StreamDeck\ProfilesV3` to a USB stick and plug it in on
-   Linux. LinDeck imports everything by itself.
+   Linux. LinDeck imports everything by itself (also `.streamDeckProfile` files
+   and backups from your Downloads folder).
 3. **Audio (optional):** open **Linewave** from the menu. A short setup wizard
    asks for your microphone, headphones and channels. In OBS, pick
    “Monitor of Linewave Stream Mix” as the audio source.
 
-**Requirements:** a Debian-based distribution with Python ≥ 3.10 (Debian 12/13,
-Ubuntu 22.04+, Linux Mint 21+, Pop!_OS, Zorin …), X11 or Wayland. The package
-sets up device access, hotkeys, autostart and menu entries automatically. If
-LinDeck does not start right after installing, log out and back in once.
+**Requirements:** Python ≥ 3.10 and X11 or Wayland on a Debian-based
+distribution (Debian 12/13, Ubuntu 22.04+, Linux Mint 21+, Pop!_OS …), Fedora or
+openSUSE. The package sets up device access, hotkeys, autostart and menu
+entries. If LinDeck does not start right after installing, log out and back in
+once.
 
-**Updates:** at every start, LinDeck and Linewave look for a new release here.
-If there is one, they show what's new and install it after you confirm (you
-enter your password once); the programs then restart by themselves. See
-[Updates](#updates) to switch this off.
+**Updates:** at every start, LinDeck and Linewave look for a new release and
+install it after you confirm. You can switch this off in **Settings**.
 
-**Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`) (your profiles stay in `~/.local/share/streamlin`).
+**Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`); your
+profiles stay in `~/.local/share/streamlin`.
 
 ### Fedora, openSUSE and Flatpak
 
-Every release also has RPM packages (`streamlin-<version>-1.noarch.rpm`,
-`lindeck-…`, `linewave-…`, same variants as above). Install with
-`sudo dnf install ./streamlin-<version>-1.noarch.rpm` (Fedora) or
-`sudo zypper install --allow-unsigned-rpm ./streamlin-<version>-1.noarch.rpm`
-(openSUSE); they set up everything like the .deb packages and update themselves
-the same way.
+- **RPM:** `sudo dnf install ./streamlin-<version>-1.noarch.rpm` (Fedora) or
+  `sudo zypper install --allow-unsigned-rpm ./streamlin-<version>-1.noarch.rpm`
+  (openSUSE). `lindeck-…` and `linewave-…` exist as well.
+- **Flatpak:** set up Flatpak for your distribution
+  ([flatpak.org/setup](https://flatpak.org/setup/)), then
+  `flatpak install --user ./streamlin-<version>.flatpak`. A Flatpak cannot set
+  up device access, so run this once:
 
-`streamlin-<version>.flatpak` contains both programs:
+  ```sh
+  flatpak run --command=cat io.github.adblocker1.Streamlin /app/share/streamlin/70-streamlin.rules \
+    | sudo tee /etc/udev/rules.d/70-streamlin.rules
+  echo uinput | sudo tee /etc/modules-load.d/streamlin-uinput.conf
+  sudo modprobe uinput && sudo udevadm control --reload-rules && sudo udevadm trigger
+  ```
 
-```sh
-flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak install --user ./streamlin-<version>.flatpak
-```
-
-A Flatpak cannot set up device access, so run this **once**:
-
-```sh
-flatpak run --command=cat io.github.adblocker1.Streamlin /app/share/streamlin/70-streamlin.rules \
-  | sudo tee /etc/udev/rules.d/70-streamlin.rules
-echo uinput | sudo tee /etc/modules-load.d/streamlin-uinput.conf
-sudo modprobe uinput && sudo udevadm control --reload-rules && sudo udevadm trigger
-```
-
-Good to know: the Flatpak runs the audio tools (`pactl`, `pw-cli` …) and the
-programs your keys open on your system, so they must be installed there; its
-settings live in `~/.var/app/io.github.adblocker1.Streamlin/`; system LADSPA
-effect plugins are not available; and it does not update itself – install the
-new `.flatpak` file over it.
+  The Flatpak uses the audio tools of your system (`pactl`, `pw-cli` …) and does
+  not update itself.
 
 > **Status:** version 0.19, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
-## Supported devices
-
-| Device | Keys | Notes |
-|---|---|---|
-| Stream Deck Original / V2 / MK.2 / Module 15 | 15 | |
-| Stream Deck Mini / Mini MK.2 / Module 6 | 6 | |
-| Stream Deck XL / XL V2 / Module 32 | 32 | |
-| Stream Deck Neo | 8 | infobar, 2 touch keys |
-| Stream Deck + | 8 | 4 dials, touch strip |
-| Stream Deck + XL | 36 | 6 dials, touch strip |
-| Stream Deck Studio | 32 | 2 dials |
-| Stream Deck Pedal | 3 pedals | |
-
-Several devices at once and hot-plugging are supported.
-
-## Importing profiles
-
-Every 15 seconds LinDeck checks **Downloads**, **Desktop** and **USB sticks**
-and imports on its own:
-
-| Found | Result |
-|---|---|
-| `*.streamDeckProfile` | the profile is imported |
-| `*.streamDeckProfilesBackup` | all profiles from the backup are imported |
-| folder `ProfilesV2` / `ProfilesV3` (also zipped) | all profiles are imported |
-| `Stream_Deck_*.msi` (Elgato installer) | the default Elgato icons are taken over |
-
-Profiles from Stream Deck app 4.x to 7.x and from macOS work. A notification
-appears after each import.
-
 ## The LinDeck window
 
-![The LinDeck window: device in the middle, actions on the right, key settings at the bottom](docs/images/lindeck-window.png)
+The layout is the same as in the Elgato app: the device in the middle, all
+actions on the right, the settings of the selected key at the bottom. Drag an
+action onto a key (or double-click it), drag keys to move them, right-click for
+copy, paste and delete. Changes show up on the deck right away. Profiles stay in
+the Elgato format, so you can take them back to Windows with **Export…**.
 
-Choose your Stream Deck at the top. The layout is the same as in the Elgato app:
-the device in the middle, all actions on the right, the settings of the selected
-key at the bottom.
-
-| What | How |
-|---|---|
-| Assign an action | drag it from the list onto a key, or double-click it |
-| Move or swap keys | drag a key; drop it on a page number to move it to another page |
-| Copy, paste, delete | right-click, or `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, `Del` |
-| Title, font, color | in the **Appearance** section |
-| Custom icon | **Choose image…** (PNG, JPG, SVG, animated GIF) |
-| Record a hotkey | click into the hotkey field and press the keys |
-| Folders, multi actions | double-click a folder to open it; add steps under **Included actions** |
-| Pages | **+** / **−** add or remove pages, **◀ ▶** reorder them |
-| Undo | `Ctrl+Z` / `Ctrl+Y` |
-| Profiles | new, duplicate, rename, delete, import, export |
-
-Changes are saved immediately and show up on the deck within a second or two.
-Profiles stay in the Elgato format, so you can take them back to Windows with
-**Export…**.
-
-### Background images
-
-**Background** below the device spreads a picture across all keys of a page,
-with an option to darken it and to use it on every page. On the Stream Deck +
-the touch strip can get its own image.
+**Background** below the device spreads a picture across all keys of a page; on
+the Stream Deck + the touch strip can get its own image.
 
 | | |
 |---|---|
@@ -161,7 +101,7 @@ All built-in actions of the Elgato app work:
 | **Hotkey**, **Hotkey Switch** | virtual keyboard, works on X11 and Wayland |
 | **Text** | pasted via the clipboard (emojis too) |
 | **Multimedia** | media keys; on dials: system volume |
-| **Open**, **Open Application**, **Close** | files, folders, URLs, programs; Windows programs are mapped to their Linux versions (Chrome, Firefox, Discord, Spotify, Steam, OBS, VS Code …) |
+| **Open**, **Open Application**, **Close** | files, folders, URLs, programs; Windows programs are mapped to their Linux versions |
 | **Website** | default or chosen browser |
 | **Multi Action**, **Random Action**, **Delay** | as in the original |
 | **Folders**, **Pages**, **Switch Profile** | incl. swiping on the touch strip |
@@ -171,86 +111,33 @@ All built-in actions of the Elgato app work:
 | **Volume Controller** | input/output devices and app volume |
 | **Smart Profiles** | switch profiles by active window (X11, KDE, Hyprland, Sway) |
 
-### Live keys: clock, timers and system monitor
-
-These keys draw themselves and update every second (categories **Clock & timer**
-and **System monitor**; on keys and on Stream Deck + dials):
-
-| Action | Shows | Controls |
-|---|---|---|
-| **Clock** | time (24/12 h, optional seconds) and/or date, any time zone | – |
-| **Countdown** | remaining time; at zero it flashes, plays a sound and sends a notification | press: start/pause · long press: reset · dial: set the duration |
-| **Stopwatch** | elapsed time | press: start/stop · long press: reset |
-| **CPU Load**, **Memory**, **Temperature**, **Network**, **Battery**, **Disk Space** | current value, optionally with a small graph | – |
-
-The duration accepts `5:00`, `1:30:00`, `90s` or `1h30m`. Countdown and stopwatch
-keep running when you switch pages.
+LinDeck adds its own **live keys**: **Clock**, **Countdown** (flashes and plays a
+sound at zero), **Stopwatch** and a **system monitor** (CPU, memory,
+temperature, network, battery, disk space).
 
 ## Plugins
 
-**OBS, Spotify, Discord and Wave Link** are built in. Other Elgato plugins run in
-the built-in plugin host: click **Plugins** → **Install plugin…** and choose the
-`.streamDeckPlugin` file (or just drop it into Downloads).
+**OBS, Spotify, Discord, Home Assistant and Wave Link** are built in. Other
+Elgato plugins run in the built-in plugin host: click **Plugins** →
+**Install plugin…** and choose the `.streamDeckPlugin` file.
 
 ![Plugin management](docs/images/lindeck-plugins.png)
 
-- Plugins built with the official SDK (Node.js) work; install `nodejs` (version 20 recommended).
-- Windows-only and macOS-only plugins cannot run; LinDeck shows this in the plugin list.
-- **Settings page…** opens a plugin's settings like in the Elgato app.
+Plugins built with the official SDK need [Node.js](https://nodejs.org/en/download)
+(version 20 recommended). Windows-only and macOS-only plugins cannot run.
 
-### OBS
-
-In OBS, enable *Tools → WebSocket Server Settings → Enable WebSocket server* and
-put the password into `~/.config/streamlin/config.json`:
-`"obs": {"password": "…"}`. Then `lindeck obs` checks the connection. Scenes,
-recording, streaming, sources, audio, replay buffer and virtual camera are
-supported, with live status on the keys.
-
-### Spotify and other players
-
-Works with every MPRIS player (Spotify, VLC, Firefox …): play/pause, next,
-previous, shuffle, repeat, volume.
-
-### Discord
-
-Discord only allows this for registered apps, so set it up once:
-
-1. Create an app at https://discord.com/developers/applications.
-2. Under *OAuth2* add the redirect URL `http://localhost`.
-3. Put the IDs into `config.json`: `"discord": {"client_id": "…", "client_secret": "…"}`
-4. Run `lindeck discord` and confirm in Discord.
-
-Then mute, deafen, push to talk and voice channels work from the deck.
-
-### Home Assistant
-
-The **Home Assistant** actions control your smart home directly:
-
-| Action | What it does |
+| Integration | Setup |
 |---|---|
-| **Toggle Entity** | switches a light, switch, fan, cover, lock …; the key shows the state. On a Stream Deck + dial: brightness, temperature, fan speed, position or volume |
-| **Call Service** | any service, e.g. `light.turn_on`, with optional JSON data |
-| **Scene / Script** | activates a scene or runs a script |
-| **Show State** | a sensor value with unit, e.g. `21.5 °C`, updated live |
-
-To connect, select one of these actions, open the **Action** tab and click
-**Connect …**: enter the address (e.g. `http://homeassistant.local:8123`) and a
-long-lived access token (Home Assistant: your profile → Security). **Choose …**
-next to the entity field lists all entities. `lindeck homeassistant test` checks
-the connection. The token is stored only readable by you and never logged.
+| **OBS** | turn on the WebSocket server ([OBS guide](https://obsproject.com/kb/remote-control-guide)) and put its password into the settings file: `"obs": {"password": "…"}` |
+| **Spotify and other players** | nothing to do – every MPRIS player works |
+| **Discord** | create an app in the [Discord Developer Portal](https://discord.com/developers/applications) with the redirect URL `http://localhost`, put `"discord": {"client_id": "…", "client_secret": "…"}` into the settings file and run `lindeck discord` |
+| **Home Assistant** | select a Home Assistant action, click **Connect …** and enter your address and a [long-lived access token](https://www.home-assistant.io/docs/authentication/#your-account-profile) |
 
 ## Linewave
 
 Linewave replaces Elgato Wave Link. On first start, a wizard helps you choose
-your microphone (with a level meter), your headphones (with a test tone), the
-sound (Low Cut, Clipguard, gain, recommended effects) and your channels.
-**Setup** at the top opens it again at any time.
-
-| | |
-|---|---|
-| ![Setup: choose the microphone](docs/images/linewave-setup-microphone.png) | ![Setup: adjust the sound](docs/images/linewave-setup-sound.png) |
-
-### Mixer
+your microphone, your headphones, the sound and your channels; **Setup wizard**
+opens it again at any time.
 
 Programs play into channels (System, Music, Browser, Voice Chat, Game, SFX,
 Microphone). Every channel has **two sliders**:
@@ -261,167 +148,23 @@ Microphone). Every channel has **two sliders**:
 
 ![Programs go into channels, each channel has a Monitor and a Stream slider](docs/images/linewave-flow.png)
 
-Example: music loud in your headphones but quiet on stream → on “Music” turn
-**Monitor** up and **Stream** down. Under **Apps** you choose which channel a
-program plays into; Linewave remembers it. Well-known programs are sorted
-automatically.
+Under **Apps** you choose which channel a program plays into. **Add channel**
+creates your own channels, also for an input device such as a second microphone
+or a capture card.
 
-In the sound settings, `pavucontrol` and OBS the channels show up as
-“Linewave Music”, “Linewave Game” and so on.
-
-### Custom channels
-
-**Add channel** creates a channel with a name, icon and color, either for
-programs (e.g. “Podcast guest”) or for an **input device** such as a second
-microphone, line-in or capture card. **•••** below a channel renames or deletes it.
-
-<p align="center"><img src="docs/images/linewave-channel.png" width="420" alt="New channel dialog"></p>
-
-### Effects
-
-**FX** below a channel opens its effect chain, like the plugins in Wave Link.
-Effects can be switched on and off, reordered and adjusted live.
-
-| Effect | Package |
+| Feature | |
 |---|---|
-| High-pass (Low Cut), low-pass, bass, treble, EQ | built in |
-| Noise gate, compressor, limiter | `swh-plugins` |
-| Equalizer, de-esser, reverb | `tap-plugins` |
-| Any LADSPA or **LV2** plugin, e.g. x42, LSP, Calf | `x42-plugins`, `lsp-plugins-lv2`, `calf-plugins` … |
-
-For LV2 plugins on Ubuntu, also install `jalv` and `pipewire-jack` (recommended
-by the package).
-
-![Effects for the microphone](docs/images/linewave-effects.png)
-
-### Wave microphone
+| **Effects** | **FX** below a channel: high-pass, EQ, gate, compressor, reverb and any LADSPA/LV2 plugin (`swh-plugins`, `tap-plugins`, `x42-plugins` …) |
+| **Scenes** | save the whole mix under a name and switch with one click, a shortcut or the Stream Deck key **Mixer Scene** |
+| **Auto-ducking** | music gets quieter while you speak and comes back exactly afterwards |
+| **Noise suppression** | for any microphone; uses [RNNoise](https://github.com/werman/noise-suppression-for-voice) if installed, otherwise PipeWire's built-in filter |
+| **Keyboard shortcuts** | mute the microphone or apply a scene from any app, also on Wayland (GNOME, Cinnamon, MATE, XFCE, KDE) |
+| **Wave microphones** | Wave:3: gain, mute, Low Cut, Clipguard, LEDs and monitoring directly in the microphone; Wave:1, Neo, XLR: gain and mute |
 
 ![Wave:3 settings](docs/images/linewave-microphone.png)
 
-- **Wave:3:** gain, mute, Low Cut and Clipguard directly in the microphone,
-  LEDs off or flipped, headphone volume and monitoring mix.
-- **Wave:1, Wave Neo, Wave XLR:** gain and mute; Low Cut and Clipguard as
-  filters. Pick **“Linewave Microphone”** as your microphone in Discord or OBS.
-
 On the Stream Deck, the actions **Mixer Channel**, **Mixer Scene** and **Wave
-Microphone** control all of this, even when the Linewave window is closed (they
-need Linewave installed, i.e. the package `streamlin` or `linewave`).
-
-### Noise suppression
-
-**Noise suppression** in the **Microphone** view removes keyboard clatter, fans
-and background noise from any microphone, before the mic channel's effects.
-Linewave uses RNNoise if `librnnoise_ladspa.so`
-([noise-suppression-for-voice](https://github.com/werman/noise-suppression-for-voice))
-is installed (with a **Strength** slider), otherwise PipeWire's built-in WebRTC
-noise suppression. In Discord or OBS you can also pick
-**“Linewave Microphone (noise suppression)”** directly.
-
-### Scenes
-
-A scene remembers the volume and mute state of every channel in both mixes.
-**Scenes** in the Mixer header applies a scene, saves the current mix as a new
-one, or manages them (rename, delete, keyboard shortcut). The Stream Deck action
-**Mixer Scene** applies a scene and lights up while it is active.
-
-### Auto-ducking
-
-**Auto-ducking** in the **Microphone** view turns channels down while you speak,
-e.g. the music by 12 dB, and brings them back exactly afterwards. Choose the
-channels, how much to lower them and the sensitivity: speak and move the marker
-on the level meter so your voice reaches it but background noise does not. You
-can keep moving faders while ducking is active.
-
-### Keyboard shortcuts
-
-Linewave can add shortcuts for **Mute microphone** (Microphone view) and for
-each scene (**Scenes → Manage scenes …**) to your desktop's keyboard settings, so
-they work in every app, also on Wayland: GNOME, Cinnamon, MATE, XFCE and KDE
-Plasma (KDE after logging in again). On other desktops Linewave shows the
-command to add yourself, e.g. `linewave mic mute toggle`.
-
-## Settings window
-
-Click **Settings** (gear) at the bottom of the sidebar, in LinDeck or Linewave.
-Everything set there applies to both programs.
-
-<img src="docs/images/settings.png" width="420" alt="Settings window">
-
-### Light and dark mode
-
-**Light / Dark / Auto** under **Appearance** changes the look of
-both programs. **Auto** follows your desktop setting (GNOME, KDE and others). The
-program offers to restart right away. For a single start you can also use
-`STREAMLIN_APPEARANCE=light lindeck`.
-
-### Updates
-
-At every start the programs ask GitHub for the newest release. When a newer
-version is out, a window shows what's new:
-
-- **Install update** downloads the packages you have installed, checks them
-  against the checksums of the release and installs them (you are asked for
-  your password). LinDeck and Linewave restart by themselves.
-- **Later** asks again at the next start, **Skip this version** waits for the
-  version after it.
-
-To stop looking for updates, turn off **Check for updates every time … starts**
-in the settings window (or in the update window). **Check now** in the settings
-looks right away. **Include beta versions** also offers pre-releases, and
-**Install an earlier version…** goes back to an older release (checked and
-installed like an update). Updates work for the .deb and .rpm packages; the
-Flatpak is updated through your software center. You can also set
-`"check_updates": false` in the settings, or start with
-`STREAMLIN_NO_UPDATE_CHECK=1`. When run from the source code, the programs never
-update themselves.
-
-### Backup and restore
-
-**Backup → Create backup…** saves all profiles, images, plugins and settings of
-both programs into one `.streamlin-backup` file. **Restore…** shows what is
-inside, saves your current data first (the last three copies stay in
-`~/.local/state/streamlin/backups/`), then replaces it and restarts LinDeck and
-Linewave. Also on the command line: `lindeck backup [FILE]` and
-`lindeck restore FILE`.
-
-### Support report
-
-Something not working? **Help → Create support report…** (or
-`lindeck support-report`) writes one text file with versions, devices,
-permissions, audio state, settings and recent log lines, ready to attach to a
-[GitHub issue](https://github.com/adblocker-1/Streamlin/issues/new). Passwords
-and tokens are removed; have a quick look before uploading it anyway.
-
-### Languages
-
-LinDeck and Linewave follow your system language. To change it, pick one under
-**Language** in the settings window. For a single start you can also
-use `STREAMLIN_LANG=fr lindeck`.
-
-**Help translate:** the texts are standard gettext files in
-[`streamlin/locale/`](streamlin/locale/). Copy `streamlin.pot` to `<language>.po`
-(e.g. `it.po`), fill it in with Poedit or any text editor, check it with
-`python3 tools/i18n.py check <language>` and open a pull request.
-
-## Commands
-
-You don't need the terminal for normal use. Useful commands:
-
-| Command | Purpose |
-|---|---|
-| `lindeck` / `linewave` | open the window |
-| `lindeck quit` / `linewave --quit` | quit |
-| `lindeck import <file or folder>` | import profiles manually |
-| `lindeck devices` | list connected devices |
-| `lindeck report` | which plugins and programs your profiles need |
-| `lindeck plugin list` | installed plugins |
-| `lindeck selftest --stop-daemon` | test every key, dial and the touch strip of your device |
-| `linewave mixer` | mixer overview (`setup`, `remove`, `set music stream 40` …) |
-| `linewave mic` | microphone status (`gain 70`, `mute toggle`, `lowcut on`, `noise on` …) |
-| `linewave mixer scene` | scenes (`list`, `save NAME`, `apply NAME`, `delete NAME`) |
-| `lindeck backup` / `lindeck restore FILE` | back up or restore all data |
-| `lindeck support-report` | create a support report |
-| `lindeck homeassistant test` | check the Home Assistant connection |
+Microphone** control all of this, even when the Linewave window is closed.
 
 ## Settings file
 
@@ -429,10 +172,6 @@ Optional settings go into `~/.config/streamlin/config.json`, for example:
 
 ```json
 {
-  "language": "auto",
-  "appearance": "auto",
-  "check_updates": true,
-  "update_channel": "stable",
   "brightness": 70,
   "sleep_after_minutes": 0,
   "keyboard_layout": "auto",
@@ -449,16 +188,16 @@ Optional settings go into `~/.config/streamlin/config.json`, for example:
 
 | Problem | Solution |
 |---|---|
-| Device not detected | run `lindeck devices`; replug the device; log out and back in once after installing |
+| Device not detected | replug the device; log out and back in once after installing |
 | Display shows “Profile missing” | there is no profile for this model yet: import one or create it in the window |
 | Hotkeys don't work | log out and back in; check `ls -l /dev/uinput` |
 | Wrong characters from hotkeys | set `keyboard_layout` to your Windows layout |
 | A program doesn't start | `lindeck report` shows what's missing → add it to `app_map` |
-| Key shows a warning symbol | the plugin is missing or Windows-only (`lindeck plugin list`) |
-| No sound after setting up the mixer | choose your headphones at the top of the Linewave mixer; **Remove mixer** restores everything |
+| Key shows a warning symbol | the plugin is missing or Windows-only |
+| No sound after setting up the mixer | choose your headphones in the Linewave sidebar; **Remove mixer** restores everything |
 
-Log file: `~/.local/state/streamlin/lindeck.log`. Please attach it (and the
-report from `lindeck selftest`) when you open an issue.
+Still stuck? **Settings → Help → Create support report…** and attach the file to
+a [GitHub issue](https://github.com/adblocker-1/Streamlin/issues/new).
 
 ## Legal
 
