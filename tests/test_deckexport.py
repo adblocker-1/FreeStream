@@ -86,7 +86,7 @@ def test_export_creates_own_profile(store):
     doc = editdoc.ProfileDoc(root)
     assert doc.page(doc.page_ids[1]).get(("key", 3, 1))["Settings"] == {"first": 5, "last": 6}
     meta = json.loads((root / "lindeck-meta.json").read_text())
-    assert meta["linewave"] == {"channels": CHANS, "all": True, "mix": "stream"}
+    assert meta["linewave"] == {"channels": CHANS, "all": True, "mix": "stream", "mixes": ["monitor", "stream"]}
     # zweites Mal: dasselbe Profil wird ersetzt, kein zweites
     assert deckexport.export(PLUS, CHANS[:2]) == ("Linewave", 1, False)
     assert len(list(store.iterdir())) == 2 and len(_pages(root)) == 1

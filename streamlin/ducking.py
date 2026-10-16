@@ -25,7 +25,7 @@ import threading
 import time
 
 from . import levels, paths
-from .mixer import DUCK_FILE, DUCK_USER_FILE, MAX_VOLUME, MIXES, duck_volume
+from .mixer import DUCK_FILE, DUCK_USER_FILE, MAX_VOLUME, duck_volume
 
 log = logging.getLogger("streamlin.ducking")
 
@@ -215,7 +215,7 @@ class Ducker:
             return 0.0
         self.level = self._read_level(now)
         depth = self.env.step(levels.level_db(self.level), dt)
-        keys = {f"{c}_{m}" for c in st["channels"] or [] if c != "mic" for m in MIXES}
+        keys = {f"{c}_{m}" for c in st["channels"] or [] if c != "mic" for m in self._mix_ids(now)}
         with self._lock:
             self._take_user_requests()
             for key in [k for k in self.bases if k not in keys]:  # Kanal abgewählt: zurückstellen
@@ -235,6 +235,16 @@ class Ducker:
                     self._apply(key, duck_volume(self.bases[key], self.factor))
             self._write_file()
         return depth
+
+    def _mix_ids(self, now):
+        """Alle Mixe (Persönlicher, Stream und eigene) – aus der Konfiguration, höchstens alle 2 s gelesen."""
+        if now - getattr(self, "_mix_at", -1e9) > 2.0 or not getattr(self, "_mixes", None):
+            self._mix_at = now
+            try:
+                self._mixes = tuple(self.mixer.mix_ids())
+            except Exception:  # noqa: BLE001
+                self._mixes = ("monitor", "stream")
+        return self._mixes
 
     def _sync(self, keys):
         """Tatsächliche Lautstärken lesen: neue Kanäle übernehmen, fremde Änderungen erkennen."""

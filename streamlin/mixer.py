@@ -1,20 +1,26 @@
 """Wave-Link-Ersatz auf Basis von PipeWire (über pipewire-pulse/pactl).
 
 Wie Elgato Wave Link: Programme landen in virtuellen Kanälen (System, Musik,
-Browser, Voice Chat, Spiel, Effekte, Mikrofon). Jeder Kanal hat zwei
-unabhängige Lautstärken/Stummschaltungen:
+Browser, Voice Chat, Spiel, Effekte, Mikrofon). Jeder Kanal hat je Mix eine
+eigene Lautstärke/Stummschaltung. Mixe:
 
-  * Monitor-Mix – was du über Kopfhörer/Lautsprecher hörst
-  * Stream-Mix  – was OBS/Discord als Quelle „Linewave Stream-Mix“ bekommt
+  * Persönlicher Mix („monitor“) – was du über Kopfhörer/Lautsprecher hörst
+  * Stream-Mix („stream“)       – was OBS/Discord als Quelle „Linewave Stream-Mix“ bekommt
+  * eigene Mixe (z. B. „Chat-Mix“ für Discord) – auf Geräte und/oder als virtuelle Quelle
 
 Aufbau:
-    Programm ─► Kanal (Null-Sink „Linewave <Kanal>“) ┬─► Loopback ─► Kopfhörer      (Monitor-Mix)
-                                                      └─► Loopback ─► Stream-Mix-Sink (Stream-Mix)
+    Programm ─► Kanal (Null-Sink „Linewave <Kanal>“) ┬─► Loopback ─► Kopfhörer      (Persönlicher Mix)
+                                                      ├─► Loopback ─► Stream-Mix-Sink (Stream-Mix)
+                                                      └─► Loopback ─► Mix-Sink ─► Ausgänge (eigene Mixe)
     Mikrofon ─────────────────────────────────────────┬─► Loopback ─► Stream-Mix-Sink
                                                       └─► Loopback ─► Kopfhörer (standardmäßig stumm)
 
-Der Stream-Mix ist ein Null-Sink; seine Monitor-Quelle wird in OBS als
-Audio-Eingang gewählt („Monitor of Linewave Stream-Mix“).
+Ein Mix mit genau einem Gerät und ohne virtuelle Quelle geht direkt auf das
+Gerät (wie bisher der Monitor-Mix); sonst ist er ein Null-Sink, dessen
+Monitor-Quelle Programme aufnehmen (OBS: „Monitor of Linewave Stream-Mix“) und
+der über eigene Loopbacks auf seine Geräte geht. Die Kanal-Sinks werden mit
+monitor.channel-volumes angelegt: ihre Lautstärke ist der Hauptregler des
+Kanals und wirkt auf alle Mixe.
 
 Konfiguration (config.json):
   "mixer": {
@@ -23,6 +29,9 @@ Konfiguration (config.json):
         eigene Kanäle: {"id", "name", "icon", "color", "kind": "apps"|"input", "source": "<pactl-Quelle>"}
         „apps“  = Kanal für Programme (Null-Sink), „input“ = Eingangsgerät (z. B. 2. Mikrofon, Capture-Karte)
     "monitor_output": "",                                  (leer = aktuelles Standardgerät)
+    "mixes": [{"id": "chat", "name": "Chat-Mix", "icon": "chat", "color": "#22c55e",
+               "devices": ["alsa_output…"], "virtual": true, "exclude": ["music"]}, …]
+               (feste Mixe "monitor"/"stream" dürfen hier Name, Symbol, Geräte und Ausschlüsse ändern)
     "mic": "",                                             (leer = Standardmikrofon)
     "routes": {"spotify": "music", "firefox": "browser"},  (Programm -> Kanal)
     "scenes": [{"id": "gaming", "name": "Gaming",           (Mixer-Szenen: Lautstärke/stumm je Kanal und Mix)
@@ -54,8 +63,17 @@ DEFAULT_CHANNELS = [
     {"id": "sfx", "name": _("SFX")},
 ]
 MIC = {"id": "mic", "name": _("Microphone"), "kind": "input"}
-RESERVED_IDS = {"mic", "streammix", "micfilter", "stream", "monitor"}
-MIXES = ("monitor", "stream")
+RESERVED_IDS = {"mic", "streammix", "micfilter", "stream", "monitor", "mix", "park", "listen", "both", "selected",
+                "cycle"}
+MIXES = ("monitor", "stream")  # feste Mixe; dazu kommen eigene (Mixer.mix_ids())
+MIX_SINK_PREFIX = PREFIX + "mix_"
+PARK_SINK = PREFIX + "park"      # stiller Sink: hier wartet der Persönliche Mix, während ein anderer abgehört wird
+LISTEN_LOOP = PREFIX + "listen"
+BUILTIN_MIXES = {
+    "monitor": {"id": "monitor", "name": _("Personal Mix"), "icon": "headphones", "color": "#22c3ee",
+                "virtual": False},
+    "stream": {"id": "stream", "name": _("Stream Mix"), "icon": "stream", "color": "#c084fc", "virtual": True},
+}
 MAX_VOLUME = 100  # wie Wave Link: nie über 100 % (keine Übersteuerung)
 DEFAULT_ROUTES = {
     "spotify": "music", "rhythmbox": "music", "lollypop": "music", "elisa": "music", "amarok": "music",
@@ -78,7 +96,7 @@ def _run(args):
     return r.stdout.strip()
 
 
-def _props(**props):
+def _props(raw=None, **props):
     """Property-Liste als ein Modulargument, z. B. sink_properties=_props(...).
 
     Werte mit Leerzeichen („Linewave Musik“) müssen doppelt gequotet sein:
@@ -86,8 +104,8 @@ def _props(**props):
     PulseAudio und pipewire-pulse beim ersten Leerzeichen ab und jeder Kanal
     hieße nur „Linewave“.
     """
-    inner = " ".join(f"{k.replace('_', '.')}='{str(v).replace(chr(39), '').replace(chr(34), '')}'"
-                     for k, v in props.items())
+    items = [(k.replace("_", "."), v) for k, v in props.items()] + list((raw or {}).items())
+    inner = " ".join(f"{k}='{str(v).replace(chr(39), '').replace(chr(34), '')}'" for k, v in items)
     return f'"{inner}"'
 
 
@@ -304,6 +322,159 @@ class Mixer:
         r.update({k.lower(): v for k, v in (self.conf.get("routes") or {}).items()})
         return r
 
+    # ------------------------------------------------------------------ Mixe
+    def mixes(self):
+        """Alle Mixe in Reihenfolge: Persönlicher Mix, Stream-Mix, eigene.
+
+        Jeder Mix: {"id", "name", "icon", "color", "virtual", "devices": [...], "exclude": [...], "builtin"}.
+        devices leer beim Persönlichen Mix = aktuelles Ausgabegerät (monitor_output)."""
+        conf = {m.get("id"): m for m in (self.conf.get("mixes") or []) if isinstance(m, dict) and m.get("id")}
+        out = []
+        for mid, base in BUILTIN_MIXES.items():
+            m = dict(base, devices=[], exclude=[], builtin=True)
+            m.update({k: v for k, v in (conf.get(mid) or {}).items() if k in ("name", "icon", "color", "devices",
+                                                                              "exclude") and v not in (None, "")})
+            m["virtual"] = mid == "stream" or bool((conf.get(mid) or {}).get("virtual", base["virtual"]))
+            out.append(m)
+        for mid, m in conf.items():
+            if mid in BUILTIN_MIXES:
+                continue
+            out.append({"id": mid, "name": m.get("name") or mid, "icon": m.get("icon") or "wave",
+                        "color": m.get("color") or "#22c55e", "virtual": bool(m.get("virtual")),
+                        "devices": list(m.get("devices") or []), "exclude": list(m.get("exclude") or []),
+                        "builtin": False})
+        return out
+
+    def mix(self, mid):
+        mid = (mid or "").lower()
+        return next((m for m in self.mixes() if m["id"] == mid or m["name"].lower() == mid), None)
+
+    def mix_ids(self):
+        return [m["id"] for m in self.mixes()]
+
+    def in_mix(self, cid, mid):
+        m = self.mix(mid)
+        return bool(m) and cid not in m["exclude"]
+
+    def channel_mixes(self, cid):
+        """Mixe, in die ein Kanal geht."""
+        return [m["id"] for m in self.mixes() if cid not in m["exclude"]]
+
+    def _cfg_mix(self, mid, create=True):
+        mx = self.cfg.data.setdefault("mixer", {})
+        lst = mx.setdefault("mixes", [])
+        m = next((x for x in lst if x.get("id") == mid), None)
+        if m is None and create:
+            m = {"id": mid}
+            lst.append(m)
+        return m
+
+    def new_mix_id(self, name):
+        base = re.sub(r"[^a-z]", "", (name or "").lower().replace("ä", "ae").replace("ö", "oe")
+                      .replace("ü", "ue").replace("ß", "ss"))[:16] or "mix"
+        taken = set(self.mix_ids()) | RESERVED_IDS
+        mid, n = base, 2
+        while mid in taken:
+            mid, n = f"{base}{chr(96 + n)}", n + 1  # nur Buchstaben: „chatb“, „chatc“ …
+        return mid
+
+    @staticmethod
+    def _check_outputs(devices, virtual):
+        if not devices and not virtual:
+            raise RuntimeError(_("Choose at least one output"))
+
+    def add_mix(self, name, icon="wave", color="#22c55e", devices=(), virtual=True, exclude=()):
+        """Eigenen Mix anlegen; läuft der Mixer, wird er sofort eingerichtet."""
+        name = (name or "").strip()
+        if not name:
+            raise RuntimeError(_("Please enter a name"))
+        devices = [d for d in devices if d]
+        self._check_outputs(devices, virtual)
+        m = self._cfg_mix(self.new_mix_id(name))
+        m.update({"name": name, "icon": icon or "wave", "color": color or "#22c55e", "devices": devices,
+                  "virtual": bool(virtual), "exclude": list(exclude)})
+        self._save_cfg()
+        if self.is_active():
+            self.rebuild_mixes()
+        return self.mix(m["id"])
+
+    def update_mix(self, mid, **changes):
+        """Name, Symbol, Farbe, Geräte (devices) oder virtuelle Quelle eines Mixes ändern."""
+        cur = self.mix(mid)
+        if cur is None:
+            raise RuntimeError(_("Mix {id} not found").format(id=mid))
+        if "name" in changes and not (changes["name"] or "").strip():
+            raise RuntimeError(_("Please enter a name"))
+        devices = [d for d in changes.get("devices", cur["devices"]) if d]
+        virtual = True if cur["id"] == "stream" else bool(changes.get("virtual", cur["virtual"]))
+        if cur["id"] != "monitor":  # der Persönliche Mix nimmt ohne Gerät das Standardgerät
+            self._check_outputs(devices, virtual)
+        rebuild = devices != cur["devices"] or virtual != cur["virtual"]
+        m = self._cfg_mix(cur["id"])
+        for k in ("name", "icon", "color"):
+            if changes.get(k):
+                m[k] = changes[k].strip() if k == "name" else changes[k]
+        m["devices"], m["virtual"] = devices, virtual
+        self._save_cfg()
+        if cur["id"] == "monitor" and devices:  # erstes Gerät = Abhörgerät
+            st = self._state()
+            if st.get("monitor_output") != devices[0]:
+                st["monitor_output"] = devices[0]
+                self._save_state(st)
+                rebuild = True
+        if rebuild and self.is_active():
+            self.rebuild_mixes()
+        return self.mix(cur["id"])
+
+    def remove_mix(self, mid):
+        m = self.mix(mid)
+        if m is None:
+            raise RuntimeError(_("Mix {id} not found").format(id=mid))
+        if m["builtin"]:
+            raise RuntimeError(_("The Personal Mix and the Stream Mix cannot be deleted"))
+        mx = self.cfg.data.setdefault("mixer", {})
+        mx["mixes"] = [x for x in mx.get("mixes") or [] if x.get("id") != m["id"]]
+        self._save_cfg()
+        if self.is_active():
+            self.rebuild_mixes()
+
+    def set_member(self, cid, mid, on):
+        """Kanal in einen Mix aufnehmen (on=True) oder herausnehmen – sofort, ohne Neuaufbau."""
+        m, c = self.mix(mid), self.channel(cid)
+        if m is None or c is None:
+            raise RuntimeError(_("Channel {id}/{mix} not found").format(id=cid, mix=mid))
+        cm = self._cfg_mix(m["id"])
+        excl = [x for x in m["exclude"] if x != c["id"]]
+        if not on:
+            excl.append(c["id"])
+        cm["exclude"] = excl
+        self._save_cfg()
+        if not self.is_active():
+            return
+        st = self._state()
+        loops = st.setdefault("loops", {}).setdefault(c["id"], {})
+        if on and m["id"] not in loops:
+            src = (st.get("sources") or {}).get(c["id"])
+            target = self._mix_target(m, self._ctx(st))
+            if src and target:
+                mod = self._load_loop(c, m, src, target)
+                loops[m["id"]] = mod
+                st.setdefault("channels", {}).setdefault(c["id"], []).append(mod)
+                st["modules"] = (st.get("modules") or []) + [mod]
+                self._save_state(st)
+                if c["id"] == "mic" and m["id"] == "monitor":
+                    time.sleep(0.2)
+                    self.set_mute("mic", "monitor", True)  # eigene Stimme nicht ungewollt auf dem Kopfhörer
+        elif not on and m["id"] in loops:
+            mod = loops.pop(m["id"])
+            try:
+                self.run(["unload-module", str(mod)])
+            except RuntimeError:
+                pass
+            st["channels"][c["id"]] = [x for x in st["channels"].get(c["id"], []) if x != mod]
+            st["modules"] = [x for x in st.get("modules") or [] if x != mod]
+            self._save_state(st)
+
     # ----------------------------------------------------------------- Status
     def _state(self):
         try:
@@ -338,46 +509,57 @@ class Mixer:
         monitor_out = self.conf.get("monitor_output") or prev_default
         sources = {b.get("name") for b in system._pactl_blocks("sources")}
         mic = self.conf.get("mic") or ("linewave_micfilter" if "linewave_micfilter" in sources else self.default_source())
-        modules, per_channel = [], {}
         ctx = {"monitor": monitor_out, "mic": mic}
-        stream_desc = _("Linewave Stream Mix")
-        modules.append(self.run(["load-module", "module-null-sink", f"sink_name={STREAM_SINK}",
-                                 "sink_properties=" + _props(device_description=stream_desc,
-                                                             node_description=stream_desc)]))
+        st = {"modules": [], "channels": {}, "loops": {}, "sources": {}, "mixes": {}, "previous_default": prev_default,
+              "monitor_output": monitor_out, "mic": mic, "created": time.time(), "listen": "monitor"}
+        for m in self.mixes():
+            mods = self._load_mix(m, ctx)
+            st["mixes"][m["id"]] = mods
+            st["modules"] += mods
         for c in self.all_channels():
-            mods = self._load_channel(c, ctx)
-            per_channel[c["id"]] = mods
-            modules += mods
+            self._record_channel(st, c, self._load_channel(c, ctx))
         first = self.app_channels()[0] if self.app_channels() else None
         if first:
             try:
                 self.run(["set-default-sink", self.sink_name(first["id"])])
             except RuntimeError as e:  # z. B. ohne Session-Manager (WirePlumber)
                 log.warning(_("Default output not set to Linewave {name}: {error}").format(name=first["name"], error=e))
-        self._save_state({"modules": modules, "channels": per_channel, "previous_default": prev_default,
-                          "monitor_output": monitor_out, "mic": mic, "created": time.time()})
+        self._save_state(st)
         time.sleep(0.3)
         # eigenes Mikrofon standardmäßig nicht auf den Kopfhörer
         try:
             self.set_mute("mic", "monitor", True)
         except RuntimeError:
             pass
-        restored = old.get("levels") or {}
-        for key, (vol, mute) in restored.items():
+        self._restore_levels(old.get("levels") or {})
+        self._restore_masters(old.get("masters") or {})
+        self._moved.clear()
+        log.info(_("Audio mixer set up: {count} channels, monitor → {output}").format(
+            count=len(self.channels()), output=monitor_out))
+        return st["modules"]
+
+    def _restore_levels(self, levels):
+        for key, (vol, mute) in levels.items():
+            if "_" not in key:
+                continue
             cid, mix = key.rsplit("_", 1)
             try:
                 self.set_volume(cid, mix, vol)
                 self.set_mute(cid, mix, mute)
             except RuntimeError:
                 pass
-        self._moved.clear()
-        log.info(_("Audio mixer set up: {count} channels, monitor → {output}").format(
-            count=len(self.channels()), output=monitor_out))
-        return modules
+
+    def _restore_masters(self, masters):
+        for cid, (vol, mute) in masters.items():
+            try:
+                self.set_master(cid, vol)
+                self.set_master_mute(cid, mute)
+            except RuntimeError:
+                pass
 
     def _loop_props(self, cid, name, mix):
-        label = (_("Linewave {name} → Monitor Mix") if mix == "monitor" else
-                 _("Linewave {name} → Stream Mix")).format(name=name)
+        m = self.mix(mix)
+        label = _("Linewave {name} → {mix}").format(name=name, mix=m["name"] if m else mix)
         return _props(linewave_loop=self.loop_name(cid, mix), media_name=label, node_description=label)
 
     def _source_of(self, c, ctx):
@@ -396,22 +578,96 @@ class Mixer:
             src = self.noise.source_for(src)
         return self.fx.source_for(c, src)
 
+    # ------------------------------------------------------- Mix-Aufbau
+    def mix_devices(self, m, st=None):
+        """Geräte, auf die ein Mix geht (Persönlicher Mix ohne eigene Angabe: das Monitor-Ausgabegerät)."""
+        if m["devices"]:
+            return list(m["devices"])
+        if m["id"] == "monitor":
+            st = self._state() if st is None else st
+            dev = st.get("monitor_output") or self.conf.get("monitor_output")
+            if not dev:
+                try:
+                    dev = self.default_sink()
+                except RuntimeError:
+                    dev = ""
+            return [dev] if dev else []
+        return []
+
+    @staticmethod
+    def mix_sink(m):
+        """Null-Sink eines Mixes (auch wenn er gerade direkt auf ein Gerät geht)."""
+        return STREAM_SINK if m["id"] == "stream" else MIX_SINK_PREFIX + m["id"]
+
+    def _direct(self, m, devices):
+        return not m["virtual"] and len(devices) == 1
+
+    def _mix_target(self, m, ctx):
+        """Wohin die Kanäle eines Mixes spielen: direkt auf das Gerät oder in den Mix-Sink."""
+        devices = ctx.get("devices", {}).get(m["id"])
+        if devices is None:
+            devices = [ctx["monitor"]] if m["id"] == "monitor" and not m["devices"] else list(m["devices"])
+        if self._direct(m, devices):
+            return devices[0]
+        if not devices and not m["virtual"]:
+            return None
+        return self.mix_sink(m)
+
+    def _load_mix(self, m, ctx):
+        """Null-Sink eines Mixes und je Ausgabegerät ein Loopback (entfällt, wenn der Mix direkt aufs Gerät geht)."""
+        devices = [ctx["monitor"]] if m["id"] == "monitor" and not m["devices"] else list(m["devices"])
+        ctx.setdefault("devices", {})[m["id"]] = devices
+        if self._direct(m, devices) or (not devices and not m["virtual"]):
+            return []
+        sink = self.mix_sink(m)
+        desc = _("Linewave Stream Mix") if m["id"] == "stream" else "Linewave " + m["name"]
+        mods = [self.run(["load-module", "module-null-sink", f"sink_name={sink}",
+                          "sink_properties=" + _props(device_description=desc, node_description=desc)])]
+        for i, dev in enumerate(devices):
+            lid = f"{PREFIX}mixout-{m['id']}-{i}"
+            label = f"{desc} → {dev}"
+            mods.append(self.run(["load-module", "module-loopback", f"source={sink}.monitor", f"sink={dev}",
+                                  "latency_msec=20", "source_dont_move=true",
+                                  "sink_input_properties=" + _props(linewave_loop=lid, media_name=label,
+                                                                    node_description=label)]))
+        return mods
+
+    def _load_loop(self, c, m, src, target):
+        args = ["load-module", "module-loopback", f"source={src}", f"sink={target}", "latency_msec=20"]
+        if src.endswith(".monitor"):
+            args.append("source_dont_move=true")
+        return self.run(args + ["sink_input_properties=" + self._loop_props(c["id"], c["name"], m["id"])])
+
     def _load_channel(self, c, ctx):
-        """Null-Sink (bei Programm-Kanälen) und die beiden Loopbacks eines Kanals laden."""
-        mods = []
+        """Null-Sink (bei Programm-Kanälen) und je Mix ein Loopback.
+
+        Gibt {"sink": Modul oder None, "loops": {Mix: Modul}, "src": Quelle} zurück."""
+        out = {"sink": None, "loops": {}, "src": None}
         cid = c["id"]
         if c.get("kind", "apps") == "apps" and cid != "mic":
             desc = "Linewave " + c["name"]
-            mods.append(self.run(["load-module", "module-null-sink", f"sink_name={self.sink_name(cid)}",
-                                  "sink_properties=" + _props(device_description=desc, node_description=desc)]))
+            # monitor.channel-volumes: die Lautstärke des Kanals (Hauptregler) wirkt auch auf die Mixe
+            out["sink"] = self.run(["load-module", "module-null-sink", f"sink_name={self.sink_name(cid)}",
+                                    "sink_properties=" + _props({"monitor.channel-volumes": "true"},
+                                                                device_description=desc, node_description=desc)])
         src = self._source_of(c, ctx)
+        out["src"] = src
         if src:
-            for mix, target in (("monitor", ctx["monitor"]), ("stream", STREAM_SINK)):
-                args = ["load-module", "module-loopback", f"source={src}", f"sink={target}", "latency_msec=20"]
-                if src.endswith(".monitor"):
-                    args.append("source_dont_move=true")
-                mods.append(self.run(args + ["sink_input_properties=" + self._loop_props(cid, c["name"], mix)]))
-        return mods
+            for m in self.mixes():
+                if cid in m["exclude"]:
+                    continue
+                target = self._mix_target(m, ctx)
+                if target:
+                    out["loops"][m["id"]] = self._load_loop(c, m, src, target)
+        return out
+
+    @staticmethod
+    def _record_channel(st, c, res):
+        mods = ([res["sink"]] if res["sink"] else []) + list(res["loops"].values())
+        st.setdefault("channels", {})[c["id"]] = mods
+        st.setdefault("loops", {})[c["id"]] = dict(res["loops"])
+        st.setdefault("sources", {})[c["id"]] = res["src"]
+        st["modules"] = (st.get("modules") or []) + mods
 
     def _ctx(self, st=None):
         st = st or self._state()
@@ -422,9 +678,10 @@ class Mixer:
 
     def _add_live(self, c, levels=None):
         st = self._state()
-        mods = self._load_channel(c, self._ctx(st))
-        st.setdefault("channels", {})[c["id"]] = mods
-        st["modules"] = (st.get("modules") or []) + mods
+        if "loops" not in st:  # Zustand einer älteren Version: alles neu aufbauen
+            self.setup()
+            return
+        self._record_channel(st, c, self._load_channel(c, self._ctx(st)))
         self._save_state(st)
         time.sleep(0.2)
         for mix, (vol, mute) in (levels or {}).items():
@@ -441,15 +698,18 @@ class Mixer:
 
     def _unload_channel(self, cid):
         """Module eines Kanals entladen; gibt seine Lautstärken zurück."""
-        levels = {mix: v for key, v in self.levels().items() for mix in MIXES if key == f"{cid}_{mix}"}
+        mix_ids = self.mix_ids()
+        levels = {mix: v for key, v in self.levels().items() for mix in mix_ids if key == f"{cid}_{mix}"}
         st = self._state()
         mods = (st.get("channels") or {}).pop(cid, None)
+        (st.get("loops") or {}).pop(cid, None)
+        (st.get("sources") or {}).pop(cid, None)
         if mods is None:  # ältere Zustandsdatei ohne Zuordnung: Module über ihre Namen suchen
             mods = []
             for b in system._pactl_blocks("modules"):
                 arg = b.get("argument", "")
-                if (f"sink_name={self.sink_name(cid)} " in arg + " " or self.loop_name(cid, "monitor") in arg
-                        or self.loop_name(cid, "stream") in arg) and b.get("index"):
+                if (f"sink_name={self.sink_name(cid)} " in arg + " "
+                        or any(self.loop_name(cid, m) in arg for m in mix_ids)) and b.get("index"):
                     mods.append(b["index"])
         for mid in reversed(mods):
             try:
@@ -465,20 +725,76 @@ class Mixer:
         c = self.channel(cid)
         if c is None:
             raise RuntimeError(_("Channel {id} not found").format(id=cid))
+        masters = {k: v for k, v in self.masters().items() if k == cid}
         levels = self._unload_channel(cid)
         self.fx.stop(cid)
         self._add_live(c, levels)
+        self._restore_masters(masters)
+
+    def rebuild_mixes(self):
+        """Mixe neu aufbauen (neuer/gelöschter Mix, andere Geräte). Kanal-Sinks und Programme bleiben,
+        Lautstärken werden übernommen."""
+        st = self._state()
+        if "loops" not in st:  # Zustand einer älteren Version
+            self.setup()
+            return
+        levels = self.levels()
+        self._stop_listen(st)
+        gone = []
+        for cid, loops in (st.get("loops") or {}).items():
+            for mod in loops.values():
+                gone.append(mod)
+            st["channels"][cid] = [x for x in st["channels"].get(cid, []) if x not in loops.values()]
+            st["loops"][cid] = {}
+        for mods in (st.get("mixes") or {}).values():
+            gone += list(reversed(mods))
+        for mod in gone:
+            try:
+                self.run(["unload-module", str(mod)])
+            except RuntimeError:
+                pass
+        st["modules"] = [x for x in st.get("modules") or [] if x not in gone]
+        st["mixes"] = {}
+        ctx = self._ctx(st)
+        for m in self.mixes():
+            mods = self._load_mix(m, ctx)
+            st["mixes"][m["id"]] = mods
+            st["modules"] += mods
+        for c in self.all_channels():
+            src = (st.get("sources") or {}).get(c["id"])
+            if not src:
+                continue
+            for m in self.mixes():
+                target = self._mix_target(m, ctx)
+                if c["id"] in m["exclude"] or not target:
+                    continue
+                mod = self._load_loop(c, m, src, target)
+                st["loops"].setdefault(c["id"], {})[m["id"]] = mod
+                st["channels"].setdefault(c["id"], []).append(mod)
+                st["modules"].append(mod)
+        self._save_state(st)
+        time.sleep(0.2)
+        if "mic_monitor" not in levels:
+            try:
+                self.set_mute("mic", "monitor", True)
+            except RuntimeError:
+                pass
+        self._restore_levels(levels)
 
     def teardown(self, restore_default=True):
         st = self._state()
         if st.get("modules"):
             st["levels"] = self.levels()
+            try:
+                st["masters"] = self.masters()
+            except RuntimeError:
+                pass
         for mid in reversed(st.get("modules") or []):
             try:
                 self.run(["unload-module", str(mid)])
             except RuntimeError:
                 pass
-        # Reste früherer Läufe (z. B. nach Absturz)
+        # Reste früherer Läufe (z. B. nach Absturz) und Abhören/Parken
         for b in system._pactl_blocks("modules"):
             args = " ".join(b.get("props", {}).values()) + " " + b.get("argument", "")
             if any(p in args for p in (PREFIX,) + LEGACY_PREFIXES) and b.get("index"):
@@ -493,6 +809,9 @@ class Mixer:
                 pass
         st["modules"] = []
         st["channels"] = {}
+        for k in ("loops", "sources", "mixes", "listen_mods", "parked"):
+            st.pop(k, None)
+        st["listen"] = "monitor"
         self._save_state(st)
         self.fx.stop_all()
         self.noise.stop()
@@ -521,9 +840,18 @@ class Mixer:
         base = duck.base(f"{cid}_{mix}") if duck else None
         return (vol if base is None else base), bool(b.get("mute"))
 
+    def _mixes_of(self, cid, mix):
+        """Die Mixe hinter einer Angabe: "both"/"all" = alle Mixe, in denen der Kanal ist."""
+        if mix in ("both", "all"):
+            ids = self.channel_mixes(cid)
+            if not ids:
+                raise RuntimeError(_("Channel {id} is in no mix").format(id=cid))
+            return ids
+        return (mix,)
+
     def set_volume(self, cid, mix, pct):
         duck = self._duck()
-        for m in (MIXES if mix == "both" else (mix,)):
+        for m in self._mixes_of(cid, mix):
             b = self._loop_input(cid, m)
             if not b:
                 raise RuntimeError(_("Channel {id}/{mix} not found – is the mixer set up? (linewave mixer setup)").format(
@@ -537,14 +865,14 @@ class Mixer:
         self.run(["set-sink-input-volume", index, f"{pct}%"])
 
     def change_volume(self, cid, mix, delta):
-        for m in (MIXES if mix == "both" else (mix,)):
+        for m in self._mixes_of(cid, mix):
             vol, _m = self.get(cid, m)
             if vol is None:
                 raise RuntimeError(_("Channel {id}/{mix} not found").format(id=cid, mix=m))
             self.set_volume(cid, m, vol + delta)
 
     def set_mute(self, cid, mix, mute):
-        for m in (MIXES if mix == "both" else (mix,)):
+        for m in self._mixes_of(cid, mix):
             b = self._loop_input(cid, m)
             if not b:
                 raise RuntimeError(_("Channel {id}/{mix} not found").format(id=cid, mix=m))
@@ -553,11 +881,137 @@ class Mixer:
     def raw_levels(self, with_index=False):
         """Tatsächliche Lautstärken der Loopbacks: {"music_monitor": (Prozent, stumm[, Index])}."""
         out = {}
+        mixes = set(self.mix_ids())
         for b in system._pactl_blocks("sink-inputs"):
             name = _loop_id(b["props"])
-            if name.startswith(PREFIX) and name.rsplit("_", 1)[-1] in MIXES:
+            key = name[len(PREFIX):] if name.startswith(PREFIX) else ""
+            if "_" in key and key.rsplit("_", 1)[1] in mixes:
                 v = (b.get("volume", 0), bool(b.get("mute")))
-                out[name[len(PREFIX):]] = v + (b["index"],) if with_index else v
+                out[key] = v + (b["index"],) if with_index else v
+        return out
+
+    # ------------------------------------------------------- Hauptregler
+    def _master_target(self, cid, st=None):
+        """("sink"|"source", Name) – wo der Hauptregler eines Kanals sitzt.
+
+        Programm-Kanäle: ihr Null-Sink (wirkt dank monitor.channel-volumes auf alle Mixe);
+        Eingänge und Mikrofon: die Quelle, aus der der Kanal in die Mixe geht."""
+        c = self.channel(cid)
+        if c is None:
+            raise RuntimeError(_("Channel {id} not found").format(id=cid))
+        if c.get("kind", "apps") == "apps" and c["id"] != "mic":
+            return "sink", self.sink_name(c["id"])
+        st = self._state() if st is None else st
+        src = (st.get("sources") or {}).get(c["id"])
+        if not src:
+            raise RuntimeError(_("Channel {id} has no input").format(id=cid))
+        return "source", src
+
+    def masters(self):
+        """Hauptregler je Kanal: {Kanal: (Prozent, stumm)}."""
+        st = self._state()
+        sinks = {b.get("name"): b for b in system._pactl_blocks("sinks")}
+        sources = {b.get("name"): b for b in system._pactl_blocks("sources")}
+        out = {}
+        for c in self.all_channels():
+            try:
+                kind, name = self._master_target(c["id"], st)
+            except RuntimeError:
+                continue
+            b = (sinks if kind == "sink" else sources).get(name)
+            if b is not None:
+                out[c["id"]] = (int(b.get("volume", 100)), bool(b.get("mute")))
+        return out
+
+    def set_master(self, cid, pct):
+        kind, name = self._master_target(cid)
+        pct = max(0, min(MAX_VOLUME, int(pct)))
+        self.run([f"set-{kind}-volume", name, f"{pct}%"])
+        return pct
+
+    def set_master_mute(self, cid, mute):
+        kind, name = self._master_target(cid)
+        self.run([f"set-{kind}-mute", name, "toggle" if mute == "toggle" else ("1" if mute else "0")])
+
+    # ------------------------------------------------------------ Abhören
+    def listening(self):
+        """Mix, der gerade auf dem Abhörgerät (Gerät des Persönlichen Mixes) läuft."""
+        return self._state().get("listen") or "monitor"
+
+    def can_listen(self, mid):
+        """Abhören geht bei Mixen mit eigenem Sink (virtuell oder mehrere Geräte)."""
+        m = self.mix(mid)
+        if m is None:
+            return False
+        if m["id"] == "monitor":
+            return True
+        return not self._direct(m, self.mix_devices(m)) and bool(m["virtual"] or m["devices"])
+
+    def _stop_listen(self, st):
+        for mod in st.pop("listen_mods", None) or []:
+            try:
+                self.run(["unload-module", str(mod)])
+            except RuntimeError:
+                pass
+            st["modules"] = [x for x in st.get("modules") or [] if x != mod]
+        parked = st.pop("parked", None) or {}
+        if parked:
+            for b in system._pactl_blocks("sink-inputs"):
+                lid = _loop_id(b["props"])
+                if lid in parked:
+                    try:
+                        self.run(["move-sink-input", b["index"], parked[lid]])
+                    except RuntimeError:
+                        pass
+        st["listen"] = "monitor"
+
+    def listen(self, mid):
+        """Einen Mix auf dem Gerät des Persönlichen Mixes abhören ("monitor" = wieder normal).
+
+        Der Persönliche Mix wartet so lange auf einem stillen Sink."""
+        m = self.mix(mid)
+        if m is None:
+            raise RuntimeError(_("Mix {id} not found").format(id=mid))
+        st = self._state()
+        self._stop_listen(st)
+        if m["id"] != "monitor":
+            if not self.can_listen(m["id"]):
+                raise RuntimeError(_("“{name}” plays directly on a device – listen to it there").format(
+                    name=m["name"]))
+            device = st.get("monitor_output") or self.default_sink()
+            mods = [self.run(["load-module", "module-null-sink", f"sink_name={PARK_SINK}",
+                              "sink_properties=" + _props(device_description="Linewave (parked)",
+                                                          node_description="Linewave (parked)")])]
+            parked = {}
+            mon = self.mix("monitor")
+            direct = self._direct(mon, self.mix_devices(mon, st))
+            sinks = {b["index"]: b.get("name", "") for b in system._pactl_blocks("sinks")}
+            for b in system._pactl_blocks("sink-inputs"):
+                lid = _loop_id(b["props"])
+                ours = (direct and lid.endswith("_monitor")) or lid.startswith(f"{PREFIX}mixout-monitor-")
+                if ours and sinks.get(b.get("sink"), device) == device:
+                    parked[lid] = device
+                    self.run(["move-sink-input", b["index"], PARK_SINK])
+            label = _("Linewave listen: {mix}").format(mix=m["name"])
+            mods.append(self.run(["load-module", "module-loopback", f"source={self.mix_sink(m)}.monitor",
+                                  f"sink={device}", "latency_msec=20", "source_dont_move=true",
+                                  "sink_input_properties=" + _props(linewave_loop=LISTEN_LOOP, media_name=label,
+                                                                    node_description=label)]))
+            st["listen_mods"], st["parked"], st["listen"] = mods, parked, m["id"]
+            st["modules"] = (st.get("modules") or []) + mods
+        self._save_state(st)
+        return st["listen"]
+
+    def level_sources(self):
+        """Pegel je Mix: {"mix:<id>": Quelle} (Mix-Sink oder bei direkten Mixen das Gerät)."""
+        st = self._state()
+        out = {}
+        for m in self.mixes():
+            devices = self.mix_devices(m, st)
+            if self._direct(m, devices):
+                out["mix:" + m["id"]] = devices[0] + ".monitor"
+            elif devices or m["virtual"]:
+                out["mix:" + m["id"]] = self.mix_sink(m) + ".monitor"
         return out
 
     def levels(self):
@@ -700,9 +1154,17 @@ class Mixer:
                           None)
             if not target:
                 raise RuntimeError(_("Output device “{device}” not found").format(device=device))
+        mon = self.mix("monitor")
+        if mon["devices"]:  # Persönlicher Mix mit eigener Geräteliste: erstes Gerät tauschen
+            devices = [target] + [d for d in mon["devices"][1:] if d != target]
+            st["monitor_output"] = target
+            self._save_state(st)
+            self.update_mix("monitor", devices=devices)
+            return target
+        self._stop_listen(st)
         for b in system._pactl_blocks("sink-inputs"):
             name = _loop_id(b["props"])
-            if name.startswith(PREFIX) and name.endswith("_monitor"):
+            if name.startswith(PREFIX) and (name.endswith("_monitor") or name.startswith(f"{PREFIX}mixout-monitor-")):
                 self.run(["move-sink-input", b["index"], target])
         st["monitor_output"] = target
         self._save_state(st)
@@ -749,6 +1211,8 @@ class Mixer:
                 continue
             sink = sinks.get(b.get("sink", ""), "")
             cid = sink[len(PREFIX):] if sink.startswith(PREFIX) and sink != STREAM_SINK else None
+            if cid and (sink.startswith(MIX_SINK_PREFIX) or sink == PARK_SINK):
+                cid = None
             out.append({"index": b["index"], "channel": cid, "sink": sink,
                         "app": (p.get("application.name") or p.get("application.process.binary")
                                 or p.get("node.name") or _("Stream {index}").format(index=b["index"])),

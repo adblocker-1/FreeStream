@@ -452,7 +452,7 @@ class MixerAction(NativeAction):
     @property
     def mixer(self):
         from .mixer import Mixer
-        return Mixer(self.ctx.cfg)
+        return Mixer(getattr(getattr(self, "ctx", None), "cfg", None))
 
     @property
     def func(self):
@@ -474,9 +474,20 @@ class MixerAction(NativeAction):
     @property
     def mix(self):
         m = str(_first(self.settings, "mix", "mixType", default="both")).lower()
+        ids = self.mixer.mix_ids()
         if m == "selected":  # folgt der Mix-Wahl-Taste (Linewave-Profil)
-            return deck_mix()
+            m = deck_mix()
+            return m if m in ids else "both"
+        if m in ids:  # auch eigene Mixe („chat“ …)
+            return m
         return "monitor" if "monitor" in m or "local" in m else "stream" if "stream" in m else "both"
+
+    def mix_label(self):
+        """Kurzname des Mixes für die Tasten: „Alle“ oder der Name des Mixes."""
+        if self.mix == "both":
+            return pgettext("mix", "All")
+        m = self.mixer.mix(self.mix)
+        return m["name"] if m else self.mix
 
     @property
     def display(self):
@@ -494,9 +505,10 @@ class MixerAction(NativeAction):
             ch, (vol, mute) = self.mixer.channel(self.channel), self._level()
         icon, color = theme_look(ch or self.channel)
         self.title_override = ""
+        label = self.mix_label()
         if self.display == "tile":
-            return [(mixkeys.tile(size, icon, color, vol, mute, self.mix), 0)]
-        return [(mixkeys.fader(size, self.display[6:], icon, color, vol, mute, self.mix), 0)]
+            return [(mixkeys.tile(size, icon, color, vol, mute, self.mix, label=label), 0)]
+        return [(mixkeys.fader(size, self.display[6:], icon, color, vol, mute, self.mix, label=label), 0)]
 
     @property
     def key_action(self):
@@ -506,7 +518,7 @@ class MixerAction(NativeAction):
         now = time.time()
         if now - getattr(self, "_lv_at", 0) > 1.0:
             mx = self.mixer
-            mixes = ("monitor", "stream") if self.mix == "both" else (self.mix,)
+            mixes = mx.channel_mixes(self.channel) if self.mix == "both" else (self.mix,)
             vals = [mx.get(self.channel, m) for m in mixes]
             vols = [v for v, _mu in vals if v is not None]
             self._lv = (max(vols) if vols else None, all(mu for _v, mu in vals) if vols else False)
@@ -531,7 +543,7 @@ class MixerAction(NativeAction):
         vol, mute = self._level()
         if vol is None:
             return _("Mixer off")
-        mixname = {"monitor": "Monitor", "stream": "Stream", "both": ""}[self.mix]
+        mixname = "" if self.mix == "both" else self.mix_label()
         sign = {"up": "+ ", "down": "− "}.get(self.key_action, "") if not self._on_dial() else ""
         return sign + (pgettext("state", "muted") if mute else f"{vol}%") + (f" · {mixname}" if mixname else "")
 
@@ -571,7 +583,7 @@ class MixerAction(NativeAction):
 
 
 _DECK_MIX = {"mix": "both"}
-MIX_ORDER = ("both", "monitor", "stream")
+MIX_ORDER = ("both", "monitor", "stream")  # Grundreihenfolge; eigene Mixe kommen aus Linewave dazu
 
 
 def deck_mix():
@@ -585,20 +597,40 @@ def theme_look(ch):
 
 
 class MixSelectAction(NativeAction):
-    """Mix-Wahl im Linewave-Profil: Alle / Monitor / Stream; "cycle" schaltet der Reihe nach weiter."""
+    """Mix-Wahl im Linewave-Profil: Alle / jeder Mix; "cycle" schaltet der Reihe nach weiter."""
     inline = True
+
+    @property
+    def mixer(self):
+        from .mixer import Mixer
+        return Mixer(getattr(getattr(self, "ctx", None), "cfg", None))
+
+    def _mixes(self):
+        """[(id, Name, Symbol)] – „Alle“ zuerst, dann die Mixe aus Linewave."""
+        out = [("both", pgettext("mix", "All"), "wave")]
+        try:
+            out += [(m["id"], m["name"], m.get("icon") or "wave") for m in self.mixer.mixes()]
+        except Exception:  # noqa: BLE001
+            out += [(m, m.title(), {"monitor": "headphones", "stream": "stream"}[m]) for m in MIX_ORDER[1:]]
+        return out
 
     @property
     def target(self):
         m = str(self.settings.get("mix") or "both").lower()
-        return m if m in MIX_ORDER or m == "cycle" else "both"
+        return m if m == "cycle" or m in [x[0] for x in self._mixes()] else "both"
+
+    def _current(self):
+        ids = [x[0] for x in self._mixes()]
+        return deck_mix() if deck_mix() in ids else "both"
 
     def active(self):
-        return self.target == "cycle" or deck_mix() == self.target
+        return self.target == "cycle" or self._current() == self.target
+
+    def _info(self, mid):
+        return next((x for x in self._mixes() if x[0] == mid), (mid, mid, "wave"))
 
     def main_text(self):
-        from .mixkeys import mix_name
-        return mix_name(deck_mix() if self.target == "cycle" else self.target)
+        return self._info(self._current() if self.target == "cycle" else self.target)[1]
 
     def status_text(self):
         return deck_mix()
@@ -609,12 +641,15 @@ class MixSelectAction(NativeAction):
         from . import mixkeys
         self.title_override = ""
         if self.target == "cycle":
-            return [(mixkeys.mix_key(size, deck_mix(), True, sub="Mix"), 0)]
-        return [(mixkeys.mix_key(size, self.target, deck_mix() == self.target), 0)]
+            _mid, name, icon = self._info(self._current())
+            return [(mixkeys.mix_key(size, self._current(), True, sub="Mix", name=name, icon=icon), 0)]
+        _mid, name, icon = self._info(self.target)
+        return [(mixkeys.mix_key(size, self.target, self._current() == self.target, name=name, icon=icon), 0)]
 
     def key_down(self):
         if self.target == "cycle":
-            _DECK_MIX["mix"] = MIX_ORDER[(MIX_ORDER.index(deck_mix()) + 1) % len(MIX_ORDER)]
+            ids = [x[0] for x in self._mixes()]
+            _DECK_MIX["mix"] = ids[(ids.index(self._current()) + 1) % len(ids)]
         else:
             _DECK_MIX["mix"] = self.target
         ctrl = self.ctx.ctrl if self.ctx else None

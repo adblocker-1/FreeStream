@@ -11,7 +11,7 @@ Streamlin contains **two programs**, just like Elgato's software:
 | Program | Replaces | Purpose |
 |---|---|---|
 | **LinDeck** | Stream Deck app | keys, profiles, plugins |
-| **Linewave** | Wave Link | audio mixer (Monitor Mix / Stream Mix), effects, Wave microphone |
+| **Linewave** | Wave Link | audio mixer with your own mixes (Personal, Stream, Chat …), effects, Wave microphone |
 
 | LinDeck | Linewave |
 |---|---|
@@ -119,13 +119,22 @@ your microphone, your headphones, the sound and your channels; **Setup wizard**
 opens it again at any time.
 
 Programs play into channels (System, Music, Browser, Voice Chat, Game, SFX,
-Microphone). Every channel has **two sliders**:
+Microphone). The mixer is a table like **Mixes** in Wave Link: one row per
+channel with a **master slider**, one column per **mix** with its own slider
+and mute for every channel:
 
-- **Monitor Mix**: what you hear on your headphones
+- **Personal Mix**: what you hear on your headphones (also on several devices at once)
 - **Stream Mix**: what your audience hears. In OBS, choose the audio source
   **“Monitor of Linewave Stream Mix”**.
+- **Your own mixes**: **Create mix**, e.g. a **Chat Mix** for Discord (choose
+  “Monitor of Linewave Chat Mix” as microphone there). A mix goes to any devices
+  you tick and/or to a virtual source for other programs.
 
-![Programs go into channels, each channel has a Monitor and a Stream slider](docs/images/linewave-flow.png)
+Click an empty cell to put a channel into a mix, right-click a cell to take it out.
+The headphones button in a mix header lets you **listen** to that mix on your
+headphones for a moment.
+
+![Programs go into channels, each channel has a slider in every mix](docs/images/linewave-flow.png)
 
 Under **Apps** you choose which channel a program plays into. **Add channel**
 creates your own channels, also for an input device such as a second microphone
@@ -134,7 +143,7 @@ or a capture card.
 | Feature | |
 |---|---|
 | **Effects** | **FX** below a channel: high-pass, EQ, gate, compressor, reverb and any LADSPA/LV2 plugin (`swh-plugins`, `tap-plugins`, `x42-plugins` …) |
-| **Channels on LinDeck** | **Export to LinDeck** in the Mixer header creates a LinDeck profile “Linewave” for your model – laid out like the Wave Link profile – and keeps it up to date when you add or delete channels: mix keys (All / Monitor / Stream) and “Channels 1–7” on top, per channel a tile with its icon and volume (press = mute) and a fader over two keys (upper key = louder, lower key = quieter); dials on the Stream Deck + |
+| **Channels on LinDeck** | **Export to LinDeck** in the Mixer header creates a LinDeck profile “Linewave” for your model – laid out like the Wave Link profile – and keeps it up to date when you add or delete channels: mix keys (All and every mix) and “Channels 1–7” on top, per channel a tile with its icon and volume (press = mute) and a fader over two keys (upper key = louder, lower key = quieter); dials on the Stream Deck + |
 | **Scenes** | save the whole mix under a name and switch with one click, a shortcut or the Stream Deck key **Mixer Scene** |
 | **Auto-ducking** | music gets quieter while you speak and comes back exactly afterwards |
 | **Noise suppression** | for any microphone; uses [RNNoise](https://github.com/werman/noise-suppression-for-voice) if installed, otherwise PipeWire's built-in filter |
