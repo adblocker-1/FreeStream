@@ -231,6 +231,21 @@ def test_wave_window(env, pactl):
         win.v["leds_off"].set(True)
         win._on_hw_bool("leds_off")
         assert _pump(root, lambda: host.mic._hw.get()["leds_off"] is True)
+        # Menü „…“: Updates beim Start ein-/ausschalten
+        menus = []
+        orig_popup = tk.Menu.tk_popup
+        tk.Menu.tk_popup = lambda self, *a: menus.append(self)
+        try:
+            win._more_menu()
+        finally:
+            tk.Menu.tk_popup = orig_popup
+        m = menus[0]
+        labels = [m.entrycget(i, "label") for i in range(m.index("end") + 1) if m.type(i) != "separator"]
+        assert "Einstellungen" in labels
+        # Einstellungen: ein Fenster, beim zweiten Öffnen dasselbe
+        dlg = win.open_settings()
+        assert win.open_settings() is dlg
+        dlg.destroy()
         # Fenster schließen = ausblenden, Beenden beendet die Hauptschleife
         win._hidden_once = True
         win.hide()

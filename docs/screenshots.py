@@ -173,6 +173,10 @@ def shot_lindeck(tmp):
     grab(root, "lindeck-window.png")
     shot_background(tmp, root, app, doc)
     shot_plugins(tmp, root, Daemon)
+    dlg = app.open_settings()
+    pump(root, 1.0)
+    grab(dlg, "settings.png")
+    dlg.destroy()
     app.close()
     try:
         root.after_cancel(app._dev_job)

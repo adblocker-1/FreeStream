@@ -42,6 +42,8 @@ jobs:
           lindeck --version
           lindeck profiles
           linewave mixer --help
+          # Updates: das installierte Paket wird erkannt
+          (cd / && python3 -c "import sys; sys.path.insert(0, '/opt/streamlin'); from streamlin import updater; p = updater.installed_packages(); print(p); assert set(p) == {'streamlin'}")
           # einzeln: ersetzt das Paket streamlin, beide arbeiten zusammen
           sudo apt-get install -y ./dist/lindeck_*.deb ./dist/linewave_*.deb
           lindeck --version

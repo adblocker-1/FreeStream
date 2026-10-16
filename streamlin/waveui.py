@@ -382,6 +382,11 @@ class WaveWindow:
                    _("Mixer and microphone stay active. Open it again from the “Linewave” menu."),
                    app="Linewave", icon="audio-volume-high")
 
+    def open_settings(self):
+        """Design, Sprache und Updates."""
+        from .settingsui import open_settings
+        return open_settings(self.root, "Linewave", self._restart)
+
     def _restart(self):
         theme.restart_later("streamlin.linewave")
         self.quit_app()
@@ -492,11 +497,8 @@ class WaveWindow:
         self.stream_card.pack(fill="x")
 
         sb.bottom.configure(padx=8)
-        sw = theme.mode_switch(sb.bottom, "Linewave", self._restart)
-        sw.configure(width=1)  # Breite kommt von der Seitenleiste
-        sw.pack(fill="x")
         row = tk.Frame(sb.bottom, bg=COL["side"])
-        row.pack(fill="x", pady=(10, 0))
+        row.pack(fill="x")
         if parts.has_lindeck():  # Link zum Schwesterprogramm, falls installiert
             link = tk.Label(row, text=" LinDeck", image=self.icons.get("grid", 15, COL["muted"]), compound="left",
                             bg=COL["side"], fg=COL["fg"], font=theme.font(self.root, 10), cursor="hand2", padx=6,
@@ -505,8 +507,9 @@ class WaveWindow:
             link.bind("<Button-1>", lambda e: self.open_lindeck())
             link.bind("<Enter>", lambda e: link.configure(bg=COL["raised"]))
             link.bind("<Leave>", lambda e: link.configure(bg=COL["side"]))
-        theme.language_button(row, self.icons, "Linewave", self._restart, style="Side.TMenubutton").pack(
-            side="left", fill="x", expand=True, anchor="w")
+        self.settings_item = theme.NavItem(row, _("Settings"), "gear", command=self.open_settings)
+        self.settings_item.configure(width=1)  # Breite kommt von der Seitenleiste
+        self.settings_item.pack(side="left", fill="x", expand=True)
 
     def _output_menu(self):
         """Ausgabegerät des Monitor-Mixes wählen (Kopfhörer, Lautsprecher …)."""
@@ -556,6 +559,8 @@ class WaveWindow:
             menu.add_command(label=_("Remove mixer"), command=lambda: self._mixer_enable(False))
         else:
             menu.add_command(label=_("Set up mixer"), command=lambda: self._mixer_enable(True))
+        menu.add_separator()
+        menu.add_command(label=_("Settings"), command=self.open_settings)
         menu.add_separator()
         if parts.has_lindeck():
             menu.add_command(label=_("Open LinDeck"), command=self.open_lindeck)

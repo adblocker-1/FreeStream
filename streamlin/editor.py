@@ -564,13 +564,8 @@ class EditorApp:
         self.plugins_item.pack(fill="x")
         if parts.has_linewave():
             theme.NavItem(b, _("Open Linewave"), "wave", command=self.open_wave).pack(fill="x", pady=(2, 0))
-        theme.mode_switch(sb.bottom, "LinDeck", self._restart).pack(fill="x", pady=(12, 8))
-        row = tk.Frame(sb.bottom, bg=COL["side"], padx=9)
-        row.pack(fill="x")
-        theme.language_button(row, self.icons, "LinDeck", self._restart, style="Side.TMenubutton").pack(side="left")
-        gear = theme.Button(row, icon="gear", kind="ghost", height=30)
-        gear.command = lambda: self._popup(self._profile_menu(), gear)
-        gear.pack(side="right")
+        self.settings_item = theme.NavItem(b, _("Settings"), "gear", command=self.open_settings)
+        self.settings_item.pack(fill="x", pady=(2, 4))
         self._update_plugin_count()
 
     # ------------------------------------------------------------- Kopfzeile
@@ -634,11 +629,17 @@ class EditorApp:
         m.add_command(label=_("Plugins"), command=self.open_plugins)
         if parts.has_linewave():
             m.add_command(label=_("Open Linewave"), command=self.open_wave)
+        m.add_command(label=_("Settings"), command=self.open_settings)
         m.add_separator()
         if self.daemon is not None:
             m.add_command(label=_("Close window"), command=self.hide)
         m.add_command(label=_("Quit"), command=self.quit_app)
         return m
+
+    def open_settings(self):
+        """Design, Sprache und Updates."""
+        from .settingsui import open_settings
+        return open_settings(self.root, "LinDeck", self._restart)
 
     def _model_menu_at_card(self):
         if self.doc:

@@ -189,6 +189,8 @@ def main(hidden=False, tray=True, cfg=None):
         loop.start()
         from .waveui import WaveWindow
         win = WaveWindow(root, host, hidden=hidden, tray=tray)
+        from . import updateui
+        root.after(3000, lambda: updateui.start(root, "Linewave", win._restart))
         signal.signal(signal.SIGUSR1, lambda *a: win.request_show())
         signal.signal(signal.SIGTERM, lambda *a: win.request_quit())
         signal.signal(signal.SIGINT, lambda *a: win.request_quit())
