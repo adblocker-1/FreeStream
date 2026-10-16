@@ -976,7 +976,7 @@ class WaveWindow:
         def show(_e=None):
             if badge.winfo_exists() and not badge.winfo_ismapped():
                 badge.place(in_=card, relx=1.0, x=-3, y=3, anchor="center")  # halb auf der Ecke
-                badge.lift()
+                tk.Misc.lift(badge)  # Canvas.lift wäre tag_raise
 
         def check():
             if not card.winfo_exists():
@@ -1400,6 +1400,8 @@ class WaveWindow:
     # --------------------------------------------------- Tastenkürzel
     def _set_shortcut(self, ident, name, command, binding):
         """Globales Tastenkürzel eintragen (binding) oder entfernen (None) – im Arbeits-Thread."""
+        self._touch(f"shortcut:{ident}")  # ältere Zustände überschreiben das Feld solange nicht
+
         def work():
             if not binding:
                 shortcuts.unregister(ident)
@@ -2107,7 +2109,8 @@ class WaveWindow:
         if dlg is not None and dlg.winfo_exists():
             dlg.update_scenes(scenes, st.get("active_scene"), self._scene_keys(st))
         mic_key = ((st.get("shortcuts") or {}).get(MIC_SHORTCUT) or {}).get("binding", "")
-        if not self.mic_shortcut.capturing and mic_key != self.mic_shortcut.binding:
+        if not self.mic_shortcut.capturing and not self._held(f"shortcut:{MIC_SHORTCUT}") \
+                and mic_key != self.mic_shortcut.binding:
             self.mic_shortcut.set(mic_key)
         self._apply_duck(st)
 

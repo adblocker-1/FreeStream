@@ -214,9 +214,11 @@ def test_window_mix_table(env, pactl):
         badge = win.strips["system"]["chat"]["remove"]
         root.update()
         assert not badge.winfo_ismapped()
+        errors = []
+        root.report_callback_exception = lambda *exc: errors.append(exc[1])
         win.strips["system"]["chat"]["card"].event_generate("<Enter>")
         root.update()
-        assert badge.winfo_ismapped()
+        assert badge.winfo_ismapped() and errors == []
         empty[0].command()  # Musik in den Chat-Mix aufnehmen
         assert _pump(root, lambda: "chat" in win.strips.get("music", {}))
         win._on_level("music", "chat", "45")
