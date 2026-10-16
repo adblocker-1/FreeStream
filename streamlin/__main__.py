@@ -534,12 +534,64 @@ def _signal_daemon():
         return False
 
 
+def cmd_backup(args):
+    """Alle Benutzerdaten (Profile, Einstellungen, Plugins) in eine Datei sichern."""
+    from . import backup
+    dest = Path(args.file).expanduser() if args.file else Path.cwd() / backup.default_name()
+    if dest.is_dir():
+        dest = dest / backup.default_name()
+    try:
+        m = backup.create(dest, plugins=not args.no_plugins)
+    except backup.BackupError as e:
+        print(_("Error: {error}").format(error=e), file=sys.stderr)
+        return 1
+    for line in backup.describe(m):
+        print("  " + line)
+    print(_("Backup saved: {path}").format(path=m["path"]))
+    return 0
+
+
+def cmd_restore(args):
+    """Sicherung prüfen, Sicherheitskopie anlegen, Daten ersetzen, Programme neu starten."""
+    from . import backup
+    try:
+        m = backup.inspect(args.file)
+    except backup.BackupError as e:
+        print(_("Error: {error}").format(error=e), file=sys.stderr)
+        return 1
+    for line in backup.describe(m):
+        print("  " + line)
+    if not args.yes:
+        try:
+            ok = input(_("Replace your current profiles and settings with this backup? [y/N] ")).strip().lower()
+        except EOFError:
+            ok = ""
+        if not ok or ok[0] not in "yjos":  # yes, ja, oui, sí/sim
+            print(_("Cancelled. Nothing was changed."))
+            return 1
+    progs = backup.stop_programs()
+    try:
+        __, safety = backup.restore(args.file)
+    except backup.BackupError as e:
+        print(_("Error: {error}").format(error=e), file=sys.stderr)
+        backup.start_programs(progs)
+        return 1
+    backup.start_programs(progs)
+    if safety:
+        print(_("Your previous data was saved to {path}").format(path=safety))
+    print(_("Backup restored."))
+    return 0
+
+
 LINEWAVE_CMDS = ("mixer", "wave", "linewave", "wave-app")
+COMMON_CMDS = ("backup", "restore")
 
 
 def _installed(cmd):
     """Gehört der Befehl zu einem Programm, das nicht installiert ist: Hinweis ausgeben."""
-    if cmd in LINEWAVE_CMDS:
+    if cmd in COMMON_CMDS:
+        ok, program, package = parts.has_lindeck() or parts.has_linewave(), "Streamlin", "streamlin"
+    elif cmd in LINEWAVE_CMDS:
         ok, program, package = parts.has_linewave(), "Linewave", "linewave"
     else:
         ok, program, package = parts.has_lindeck(), "LinDeck", "lindeck"
@@ -650,6 +702,16 @@ def main(argv=None, prog="lindeck"):
     s = sub.add_parser("reload", help=_("reload the running service"))
     s.set_defaults(fn=cmd_reload)
 
+    s = sub.add_parser("backup", help=_("save all profiles, settings and plugins to one file"))
+    s.add_argument("file", nargs="?", help=_("target file or folder (default: streamlin-DATE.streamlin-backup)"))
+    s.add_argument("--no-plugins", action="store_true", help=_("do not include installed plugins"))
+    s.set_defaults(fn=cmd_backup)
+
+    s = sub.add_parser("restore", help=_("restore a backup (replaces profiles and settings)"))
+    s.add_argument("file", help=_("backup file (.streamlin-backup)"))
+    s.add_argument("--yes", action="store_true", help=_("do not ask for confirmation"))
+    s.set_defaults(fn=cmd_restore)
+
     args = ap.parse_args(argv)
     _setup_logging(args.verbose)
     if not getattr(args, "fn", None):
@@ -663,7 +725,7 @@ def wave_main(argv=None):
     """Einstieg für `linewave`: ohne Befehl Fenster öffnen; `linewave mixer …`, `linewave mic …`."""
     argv = list(sys.argv[1:] if argv is None else argv)
     cmd = next((a for a in argv if not a.startswith("-")), "")
-    if cmd in ("mixer", "mic", "wave"):
+    if cmd in ("mixer", "mic", "wave", "backup", "restore"):
         i = argv.index(cmd)
         argv[i] = "wave" if cmd == "mic" else cmd
         return main(argv, prog="linewave")
