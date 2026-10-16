@@ -247,7 +247,7 @@ def test_wave_window(env, pactl):
 def test_linewave_command_routes_audio_subcommands(env, monkeypatch):
     from streamlin import __main__ as M
     seen = []
-    monkeypatch.setattr(M, "main", lambda argv=None: seen.append(argv) or 0)
+    monkeypatch.setattr(M, "main", lambda argv=None, prog="lindeck": seen.append(argv) or 0)
     M.wave_main(["mic", "lowcut", "on"])
     M.wave_main(["mixer", "set", "music", "stream", "40"])
     M.wave_main(["--hidden"])

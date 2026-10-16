@@ -11,6 +11,7 @@ import copy
 import uuid as uuidlib
 from dataclasses import dataclass, field
 
+from . import parts
 from .i18n import _, pgettext
 
 KEY, DIAL = "key", "dial"
@@ -252,6 +253,8 @@ CATALOG += [
                description=_("Gain, mute, Low Cut, Clipguard, LEDs (dial: gain)")),
 ]
 
+if not parts.has_linewave():  # Mixer und Wave-Mikrofon gibt es nur mit Linewave
+    CATALOG = [a for a in CATALOG if a.category != "Linewave"]
 BY_UUID = {a.uuid: a for a in CATALOG}
 CATEGORIES = list(dict.fromkeys(a.category for a in CATALOG))
 

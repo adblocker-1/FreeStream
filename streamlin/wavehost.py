@@ -21,7 +21,7 @@ import signal
 import threading
 import time
 
-from . import app, wavemic
+from . import desktop, wavemic
 from .i18n import _
 from .mixer import Mixer
 
@@ -151,19 +151,19 @@ class WaveHost:
 
 def main(hidden=False, tray=True, cfg=None):
     """Startet Linewave oder holt das Fenster der laufenden Instanz nach vorne."""
-    from .autoimport import adopt_session_env
+    from .desktop import adopt_session_env
     adopt_session_env()
-    pid = app.running_instance(WAVE_APP_FILE)
+    pid = desktop.running_instance(WAVE_APP_FILE)
     if pid:
         if hidden:
             return 0
-        if app._app_info(WAVE_APP_FILE).get("gui"):
+        if desktop._app_info(WAVE_APP_FILE).get("gui"):
             os.kill(pid, signal.SIGUSR1)
             return 0
         log.info(_("Linewave is running without a window – restarting with a window"))
         os.kill(pid, signal.SIGTERM)
         for _i in range(50):
-            if not app._alive(pid):
+            if not desktop._alive(pid):
                 break
             time.sleep(0.1)
 
@@ -175,7 +175,7 @@ def main(hidden=False, tray=True, cfg=None):
         log.info(_("No graphical interface ({error}) – Linewave is running as a service").format(error=e))
 
     host = WaveHost(cfg)
-    app._write_app_info(root is not None, WAVE_APP_FILE)
+    desktop._write_app_info(root is not None, WAVE_APP_FILE)
     signal.signal(signal.SIGHUP, lambda *a: host.request_reload())
     try:
         host.start()
@@ -203,12 +203,12 @@ def main(hidden=False, tray=True, cfg=None):
                 pass
     finally:
         host.cleanup()
-        app._clear_app_info(WAVE_APP_FILE)
+        desktop._clear_app_info(WAVE_APP_FILE)
     return 0
 
 
 def quit_running():
-    pid = app.running_instance(WAVE_APP_FILE)
+    pid = desktop.running_instance(WAVE_APP_FILE)
     if not pid:
         return False
     os.kill(pid, signal.SIGTERM)

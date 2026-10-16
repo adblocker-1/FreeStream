@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import __version__, paths
+from . import __version__, parts, paths
 from .i18n import _, ngettext, pgettext
 
 
@@ -305,8 +305,8 @@ def cmd_plugin(args):
 
 def _signal_wave_app():
     """Linewave die geänderte Konfiguration neu laden lassen (falls es läuft)."""
-    from . import app, wavemic
-    pid = app.running_instance(wavemic.WAVE_APP_FILE)
+    from . import desktop, wavemic
+    pid = desktop.running_instance(wavemic.WAVE_APP_FILE)
     if pid:
         os.kill(pid, signal.SIGHUP)
     return bool(pid)
@@ -534,8 +534,23 @@ def _signal_daemon():
         return False
 
 
-def main(argv=None):
-    ap = argparse.ArgumentParser(prog="lindeck", description=_("Stream Deck software for Linux (Elgato compatible)"))
+LINEWAVE_CMDS = ("mixer", "wave", "linewave", "wave-app")
+
+
+def _installed(cmd):
+    """Gehört der Befehl zu einem Programm, das nicht installiert ist: Hinweis ausgeben."""
+    if cmd in LINEWAVE_CMDS:
+        ok, program, package = parts.has_linewave(), "Linewave", "linewave"
+    else:
+        ok, program, package = parts.has_lindeck(), "LinDeck", "lindeck"
+    if not ok:
+        print(_("{program} is not installed. Install the package “{package}” (or “streamlin” for both programs).")
+              .format(program=program, package=package), file=sys.stderr)
+    return ok
+
+
+def main(argv=None, prog="lindeck"):
+    ap = argparse.ArgumentParser(prog=prog, description=_("Stream Deck software for Linux (Elgato compatible)"))
     ap.add_argument("--version", action="version", version=__version__)
     ap.add_argument("-v", "--verbose", action="store_true")
     sub = ap.add_subparsers(dest="cmd")
@@ -639,6 +654,8 @@ def main(argv=None):
     _setup_logging(args.verbose)
     if not getattr(args, "fn", None):
         args = ap.parse_args((argv or sys.argv[1:]) + ["open"])
+    if not _installed(args.cmd or "open"):
+        return 2
     return args.fn(args) or 0
 
 
@@ -649,8 +666,8 @@ def wave_main(argv=None):
     if cmd in ("mixer", "mic", "wave"):
         i = argv.index(cmd)
         argv[i] = "wave" if cmd == "mic" else cmd
-        return main(argv)
-    return main(["linewave"] + argv)
+        return main(argv, prog="linewave")
+    return main(["linewave"] + argv, prog="linewave")
 
 
 if __name__ == "__main__":

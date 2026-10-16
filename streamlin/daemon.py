@@ -5,7 +5,7 @@ import signal
 import threading
 import time
 
-from . import autoimport, paths, system
+from . import autoimport, desktop, parts, paths, system
 from .config import Config, State
 from .engine import DeckController
 from .i18n import _, ngettext
@@ -18,7 +18,7 @@ log = logging.getLogger("streamlin.daemon")
 class Daemon:
     def __init__(self, transport=None):
         paths.ensure_dirs()
-        autoimport.adopt_session_env()
+        desktop.adopt_session_env()
         self.cfg = Config()
         self.state = State()
         self.store = ProfileStore()
@@ -133,7 +133,7 @@ class Daemon:
         """Dienst im Vordergrund (ohne Fenster) bis SIGTERM/SIGINT."""
         if self.already_running():
             log.info(_("LinDeck is already running"))
-            autoimport.notify("LinDeck", _("LinDeck is already running"))
+            desktop.notify("LinDeck", _("LinDeck is already running"))
             return
         signal.signal(signal.SIGHUP, lambda *a: threading.Thread(target=self.reload, daemon=True).start())
         signal.signal(signal.SIGTERM, lambda *a: self.shutdown())
@@ -196,9 +196,10 @@ class Daemon:
                 svc.stop()
             except Exception:  # noqa: BLE001
                 pass
-        from . import wavemic
-        if "obj" in wavemic._instance:
-            wavemic._instance["obj"].stop()  # Filterkette, falls „Linewave“ nicht lief
+        if parts.has_linewave():
+            from . import wavemic
+            if "obj" in wavemic._instance:
+                wavemic._instance["obj"].stop()  # Filterkette, falls „Linewave“ nicht lief
         self.vin.close()
         self.sound.stop()
         try:

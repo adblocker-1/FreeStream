@@ -25,9 +25,14 @@ Available in **English, German, Spanish, French and Portuguese (Brazil)**, with 
 
 ## Get started
 
-1. **Install:** download `streamlin_<version>_all.deb` from [Releases](../../releases)
-   and double-click it, or run `sudo apt install ./streamlin_*_all.deb`.
-   It replaces older `lindeck` packages; your profiles and settings stay.
+1. **Install:** download from [Releases](../../releases) and double-click it, or
+   run `sudo apt install ./<file>.deb`:
+   - `streamlin_<version>_all.deb` – both programs (recommended)
+   - `lindeck_<version>_all.deb` – only LinDeck (Stream Deck)
+   - `linewave_<version>_all.deb` – only Linewave (mixer and Wave microphone)
+
+   You can install LinDeck and Linewave separately and add the other one later;
+   together they work exactly like `streamlin`. Your profiles and settings stay.
 2. **Bring your profiles:** on Windows, copy the folder
    `%APPDATA%\Elgato\StreamDeck\ProfilesV3` to a USB stick and plug it in on
    Linux. LinDeck imports everything by itself.
@@ -40,9 +45,9 @@ Ubuntu 22.04+, Linux Mint 21+, Pop!_OS, Zorin …), X11 or Wayland. The package
 sets up device access, hotkeys, autostart and menu entries automatically. If
 LinDeck does not start right after installing, log out and back in once.
 
-**Uninstall:** `sudo apt remove streamlin` (your profiles stay in `~/.local/share/streamlin`).
+**Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`) (your profiles stay in `~/.local/share/streamlin`).
 
-> **Status:** version 0.15, tested with simulated devices of every model.
+> **Status:** version 0.16, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## Supported devices
@@ -231,7 +236,8 @@ by the package).
   filters. Pick **“Linewave Microphone”** as your microphone in Discord or OBS.
 
 On the Stream Deck, the actions **Mixer Channel** and **Wave Microphone**
-control all of this, even when the Linewave window is closed.
+control all of this, even when the Linewave window is closed (they need Linewave
+installed, i.e. the package `streamlin` or `linewave`).
 
 ## Light and dark mode
 

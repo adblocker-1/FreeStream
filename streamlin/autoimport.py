@@ -6,13 +6,14 @@ damit nichts doppelt importiert wird.
 """
 import getpass
 import logging
-import os
 import subprocess
 import zipfile
 from pathlib import Path
 
 from . import assets, paths, profiles
 from .i18n import _, ngettext
+
+from .desktop import notify
 
 log = logging.getLogger("streamlin.autoimport")
 
@@ -103,14 +104,6 @@ def _stamp(p: Path):
         return 0
 
 
-def notify(title, body):
-    try:
-        subprocess.Popen(["notify-send", "-a", "LinDeck", "-i", "input-keyboard", title, body],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except OSError:
-        pass
-
-
 def run_once(state) -> bool:
     """Gibt True zurück, wenn neue Profile importiert wurden."""
     done = state.data.setdefault("_auto_imported", {})
@@ -159,31 +152,3 @@ def run_once(state) -> bool:
     return imported_any
 
 
-def adopt_session_env():
-    """Übernimmt DISPLAY/WAYLAND_DISPLAY usw. aus der laufenden Desktop-Sitzung,
-    falls LinDeck ohne diese Variablen gestartet wurde (z.B. direkt nach der Installation)."""
-    wanted = ("DISPLAY", "WAYLAND_DISPLAY", "DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR",
-              "XDG_CURRENT_DESKTOP", "XAUTHORITY", "XDG_SESSION_TYPE", "HYPRLAND_INSTANCE_SIGNATURE", "SWAYSOCK")
-    if os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY"):
-        return
-    uid = os.getuid()
-    shells = ("gnome-shell", "plasmashell", "kwin_wayland", "kwin_x11", "xfce4-session", "cinnamon",
-              "mate-session", "budgie-wm", "sway", "Hyprland", "gnome-session-binary", "lxqt-session")
-    for proc in Path("/proc").iterdir():
-        if not proc.name.isdigit():
-            continue
-        try:
-            if proc.stat().st_uid != uid:
-                continue
-            comm = (proc / "comm").read_text().strip()
-            if comm not in shells:
-                continue
-            env = dict(kv.split("=", 1) for kv in (proc / "environ").read_bytes().decode(errors="ignore").split("\0")
-                       if "=" in kv)
-        except OSError:
-            continue
-        if env.get("WAYLAND_DISPLAY") or env.get("DISPLAY"):
-            for k in wanted:
-                if env.get(k) and not os.environ.get(k):
-                    os.environ[k] = env[k]
-            return

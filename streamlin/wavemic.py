@@ -293,8 +293,8 @@ class WaveMic:
 
     def _delegate(self):
         """Läuft „Linewave“, übernimmt es die Filterkette (Einstellungen liegen in wavemic.json)."""
-        from . import app
-        pid = app.running_instance(WAVE_APP_FILE)
+        from . import desktop
+        pid = desktop.running_instance(WAVE_APP_FILE)
         if not pid:
             return False
         try:
