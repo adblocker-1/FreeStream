@@ -365,6 +365,8 @@ def cmd_mixer(args):
             mx.remove_channel(args.args[0])
             _signal_wave_app()
             print(_("Channel deleted"))
+        elif args.action == "scene":
+            return _cmd_scene(mx, args.args)
         else:
             if not mx.is_active():
                 print(_("Mixer not set up – 'linewave mixer setup'"))
@@ -381,6 +383,53 @@ def cmd_mixer(args):
         print(_("Error: {error}").format(error=e))
         return 1
     return 0
+
+
+def _cmd_scene(mx, argv):
+    """linewave mixer scene list|save NAME|apply NAME|rename NAME NEW|delete NAME"""
+    sub = (argv[0] if argv else "list").lower()
+    rest = argv[1:]
+    if sub == "list":
+        scenes = mx.scenes()
+        if not scenes:
+            print(_("No scenes saved yet – 'linewave mixer scene save <name>'"))
+            return 0
+        try:
+            active = mx.active_scene()
+        except Exception:  # noqa: BLE001
+            active = None
+        for s in scenes:
+            mark = "*" if active and active["id"] == s["id"] else " "
+            print(f"{mark} {s['id']:<20} {s.get('name', '')}")
+        return 0
+    if sub not in ("save", "apply", "delete", "rename") or not rest or (sub == "rename" and len(rest) < 2):
+        print(_("Usage: linewave mixer scene list | save <name> | apply <name> | rename <name> <new name> | "
+                "delete <name>"))
+        return 1
+    if sub == "save":
+        s = mx.save_scene(" ".join(rest))
+        print(_("Scene “{name}” saved").format(name=s["name"]))
+    elif sub == "apply":
+        s = mx.apply_scene(" ".join(rest))
+        print(_("Scene “{name}” applied").format(name=s["name"]))
+    elif sub == "rename":
+        s = mx.rename_scene(rest[0], " ".join(rest[1:]))
+        print(_("Scene renamed to “{name}”").format(name=s["name"]))
+    else:
+        s = mx.delete_scene(" ".join(rest))
+        _remove_scene_shortcut(s["id"])
+        print(_("Scene “{name}” deleted").format(name=s["name"]))
+    _signal_wave_app()
+    return 0
+
+
+def _remove_scene_shortcut(scene_id):
+    """Tastenkürzel einer gelöschten Szene entfernen (nur eigene Einträge)."""
+    try:
+        from . import shortcuts
+        shortcuts.unregister("linewave-scene-" + scene_id)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _on_off(on):
@@ -426,7 +475,11 @@ def cmd_wave(args):
         elif args.action == "gain":
             mic.set_gain(int(args.args[0]))
         elif args.action == "mute":
-            mic.toggle_mute()
+            arg = (args.args[0] if args.args else "toggle").lower()
+            mode = "toggle" if arg == "toggle" else on
+            muted = mic.set_mute(mode)
+            if muted is not None:
+                print(_("Microphone muted") if muted else _("Microphone unmuted"))
         else:
             st = mic.status()
             if not st.get("source") and not st.get("hardware"):
@@ -615,10 +668,12 @@ def main(argv=None, prog="lindeck"):
     s = sub.add_parser("mixer", help=_("audio mixer (Wave Link replacement): status, setup, remove, set, mute, "
                                        "assign, output"))
     s.add_argument("action", nargs="?", default="status",
-                   choices=["status", "setup", "remove", "set", "mute", "assign", "output", "add", "delete"])
+                   choices=["status", "setup", "remove", "set", "mute", "assign", "output", "add", "delete",
+                            "scene"])
     s.add_argument("args", nargs="*", help=_("set <channel> <monitor|stream|both> <percent> · mute <channel> <mix> · "
                                              "assign <program> <channel> · output [device] · add <name> [input device] · "
                                              "delete <channel>"))
+    s.epilog = _("Scenes: scene list | save <name> | apply <name> | rename <name> <new name> | delete <name>")
     s.set_defaults(fn=cmd_mixer)
 
     s = sub.add_parser("wave", help=_("Elgato Wave microphone: status, gain, mute, lowcut, clipguard, leds, flip, "

@@ -543,6 +543,64 @@ class MixerAction(NativeAction):
         return fb
 
 
+class MixerSceneAction(NativeAction):
+    """Mixer-Szene aus Linewave anwenden; leuchtet, solange der Mixer dieser Szene entspricht."""
+
+    @property
+    def mixer(self):
+        from .mixer import Mixer
+        return Mixer(self.ctx.cfg)
+
+    @property
+    def ref(self):
+        return str(_first(self.settings, "scene", default=(self.states[0].get("Title") if self.states else "") or ""))
+
+    def _info(self):
+        """(Szene oder None, aktiv: True/False/None) – höchstens einmal pro Sekunde abgefragt."""
+        now = time.time()
+        if now - getattr(self, "_sc_at", 0) > 1.0:
+            mx = self.mixer
+            sc = mx.scene(self.ref)
+            act = None
+            if sc is not None:
+                try:
+                    lv = mx.levels()
+                    act = None if not lv else bool((mx.active_scene(lv) or {}).get("id") == sc["id"])
+                except Exception:  # noqa: BLE001
+                    act = None
+            self._sc = (sc, act)
+            self._sc_at = now
+        return self._sc
+
+    def active(self):
+        return self._info()[1]
+
+    def main_text(self):
+        sc = self._info()[0]
+        return sc.get("name") if sc else pgettext("key label", "Scene")
+
+    def preview_text(self):
+        return pgettext("key label", "Scene")
+
+    def status_text(self):
+        sc, act = self._info()
+        if sc is None:
+            return _("not found")
+        if act is None:
+            return _("Mixer off")
+        return pgettext("state", "active") if act else ""
+
+    def key_down(self):
+        self._sc_at = 0
+        self.run(self.mixer.apply_scene, self.ref)
+        self._sc_at = 0
+
+    def feedback(self):
+        fb = super().feedback()
+        fb["title"] = self.title() or self.main_text()
+        return fb
+
+
 # ==========================================================================
 # Wave-Mikrofon
 # ==========================================================================
@@ -677,6 +735,8 @@ def lookup(uuid: str):
     if u.startswith("com.lindeck.wavemic.") or ("wavelink" in plugin and ("mic" in last or "lowcut" in last
                                                                          or "clip" in last or "gain" in last)):
         return WaveMicAction
+    if u == "com.lindeck.mixer.scene":
+        return MixerSceneAction
     if u.startswith("com.lindeck.mixer.") or "wavelink" in plugin or "wave-link" in plugin:
         return MixerAction
     return None

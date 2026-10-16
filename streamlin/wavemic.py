@@ -230,6 +230,21 @@ class WaveMic:
         system.device_mute("source", self.source(), "toggle")
         self.version += 1
 
+    def set_mute(self, mode="toggle"):
+        """Mikrofon stumm (True), an (False) oder umschalten ("toggle"). Gibt den neuen Zustand zurück.
+
+        Ohne Wave-Mikrofon wird das Standardmikrofon des Systems geschaltet (für Tastenkürzel).
+        """
+        if self.hw():
+            return bool(self._hw_do(lambda h: h.toggle("mute") if mode == "toggle" else h.set("mute", bool(mode))))
+        src = find_source() or "@DEFAULT_SOURCE@"
+        system.device_mute("source", src, "toggle" if mode == "toggle" else ("1" if mode else "0"))
+        self.version += 1
+        try:
+            return bool(system.device_volume("source", src)[1])
+        except Exception:  # noqa: BLE001
+            return None
+
     # ------------------------------------------------ Low Cut / Clipguard
     def set(self, **kw):
         self.settings.update(kw)

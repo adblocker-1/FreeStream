@@ -8,12 +8,13 @@ Jedes Paket enthält den gemeinsamen Teil (COMMON) und ist für sich lauffähig.
 Sind lindeck und linewave beide installiert, arbeiten sie zusammen wie streamlin.
 """
 COMMON = ["__init__.py", "__main__.py", "paths.py", "config.py", "i18n.py", "theme.py", "dialogkit.py",
-          "system.py", "desktop.py", "parts.py", "updater.py", "updateui.py", "settingsui.py", "locale"]
+          "system.py", "desktop.py", "parts.py", "updater.py", "updateui.py", "settingsui.py", "shortcuts.py",
+          "locale"]
 LINDECK = ["app.py", "daemon.py", "engine.py", "actions.py", "catalog.py", "editor.py", "editdoc.py",
            "profiles.py", "render.py", "keyboard.py", "models.py", "plugins.py", "pluginui.py", "ws.py", "obs.py",
            "discord.py", "native.py", "autoimport.py", "assets.py", "bgui.py", "selftest.py"]
 LINEWAVE = ["linewave.py", "wavehost.py", "waveui.py", "wavedialogs.py", "wavesetup.py", "mixer.py", "effects.py",
-            "levels.py", "wavemic.py", "wave3hw.py"]
+            "levels.py", "wavemic.py", "wave3hw.py", "ducking.py"]
 
 PACKAGES = {
     "streamlin": COMMON + LINDECK + LINEWAVE,

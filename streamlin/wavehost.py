@@ -14,6 +14,9 @@ Tasten auf dem Stream Deck (Mixer, Wave-Mikrofon) funktionieren auch ohne
 Linewave – sie stellen PipeWire bzw. das Mikrofon direkt. Ändert die
 Stream-Deck-App Low Cut/Clipguard, lädt Linewave die Einstellungen neu
 (Signal SIGHUP).
+
+Außerdem läuft hier das Auto-Ducking (ducking.py) als eigener Thread: Kanäle
+werden leiser, solange das Mikrofon spricht.
 """
 import logging
 import os
@@ -21,7 +24,7 @@ import signal
 import threading
 import time
 
-from . import desktop, wavemic
+from . import desktop, ducking, wavemic
 from .i18n import _
 from .mixer import Mixer
 
@@ -60,6 +63,7 @@ class WaveHost:
         self.mic.cfg = cfg
         self.mixer = Mixer(cfg)
         self.mic_service = wavemic.WaveMicService(self)
+        self.ducker = ducking.Ducker(self.mixer, cfg)
         self.running = True
         self.error = ""
         self._reload = threading.Event()
@@ -80,6 +84,7 @@ class WaveHost:
             self.mic_service.start()
         except Exception as e:  # noqa: BLE001
             log.warning(_("Wave microphone: {error}").format(error=e))
+        self.ducker.start()
 
     def request_reload(self):
         self._reload.set()
@@ -133,6 +138,7 @@ class WaveHost:
         self.running = False
 
     def cleanup(self):
+        self.ducker.stop()
         try:
             self.mic_service.stop()
         except Exception:  # noqa: BLE001
@@ -145,6 +151,7 @@ class WaveHost:
         if on:
             self.mixer.setup()
         else:
+            self.ducker.restore()
             self.mixer.teardown()
         self.error = ""
 

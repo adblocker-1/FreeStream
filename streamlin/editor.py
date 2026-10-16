@@ -1908,7 +1908,9 @@ class ActionForm:
             var = tk.BooleanVar(value=bool(s.get(k)) if k in s else True if k == "bring_to_front" else False)
             ttk.Checkbutton(cell, variable=var, command=lambda: self._set(k, var.get())).pack(side="left")
         elif fld.kind == "choice":
-            vals = fld.options
+            vals = list(fld.options() if callable(fld.options) else fld.options)
+            if s.get(k) not in (None, "") and all(str(v) != str(s.get(k)) for v, _n in vals):
+                vals = [(s.get(k), str(s.get(k)))] + [(v, n) for v, n in vals if v != ""]  # z. B. gelöschte Szene
             box = ttk.Combobox(cell, state="readonly", width=28, values=[n for _v, n in vals])
             cur = s.get(k)
             idx = next((i for i, (v, _n) in enumerate(vals) if str(v) == str(cur)), 0)
