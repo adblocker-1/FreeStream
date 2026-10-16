@@ -6,7 +6,3 @@ build/
 *.egg-info/
 *.deb
 *.msi
-*.rpm
-*.flatpak
-.flatpak-build/
-.flatpak-builder/

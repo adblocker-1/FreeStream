@@ -1,5 +1,5 @@
 # shellcheck shell=bash disable=SC2034
-# Gemeinsame Bausteine für build-deb.sh und build-rpm.sh (wird per „source“ geladen).
+# Bausteine für build-deb.sh: Dateien, Starter, udev-Regeln, Desktop-Dateien, Installationsskripte (per „source“ geladen).
 # Erwartet: ROOT (Projektordner). Die Funktionen schreiben in den Paketbaum "$PKG"
 # und nutzen NAME (Paketname) sowie UDEV_DIR (Ordner der udev-Regeln im Paketbaum).
 VERSION=$(python3 -c "import sys;sys.path.insert(0,'$ROOT');import streamlin;print(streamlin.__version__)")

@@ -4,7 +4,7 @@
 #   lindeck_<version>_all.deb    – nur LinDeck (Stream Deck)
 #   linewave_<version>_all.deb   – nur Linewave (Mixer, Wave-Mikrofon)
 # Welche Dateien in welches Paket gehören, steht in packaging/parts.py;
-# Dateiinhalte und Installationsskripte teilt es sich mit build-rpm.sh (packaging/common.sh).
+# Dateiinhalte und Installationsskripte stehen in packaging/common.sh.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=packaging/common.sh

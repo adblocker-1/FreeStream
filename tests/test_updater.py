@@ -18,21 +18,20 @@ def home(tmp_path, monkeypatch):
         monkeypatch.setattr(paths, name, tmp_path / sub)
     monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "cfg" / "config.json")
     monkeypatch.delenv("STREAMLIN_NO_UPDATE_CHECK", raising=False)
-    monkeypatch.delenv("FLATPAK_ID", raising=False)
     return tmp_path
 
 
-def _asset(p, version, kind):
-    return f"{p}_{version}_all.deb" if kind == "deb" else f"{p}-{version}-1.noarch.rpm"
+def _asset(p, version):
+    return f"{p}_{version}_all.deb"
 
 
-def release(version="9.1.0", pkgs=("streamlin", "lindeck", "linewave"), data=b"deb", kinds=("deb",), **extra):
+def release(version="9.1.0", pkgs=("streamlin", "lindeck", "linewave"), data=b"deb", **extra):
     digest = "sha256:" + hashlib.sha256(data).hexdigest()
     rel = {"tag_name": f"v{version}", "html_url": "https://github.com/x/releases/tag/v" + version,
            "body": "## New\n\n**English**\n\n- Better things\n\n---\n\n**Deutsch**\n\n- Bessere Dinge\n",
-           "assets": [{"name": _asset(p, version, k), "size": len(data), "digest": digest,
-                       "browser_download_url": f"{PREFIX}v{version}/{_asset(p, version, k)}"}
-                      for p in pkgs for k in kinds]}
+           "assets": [{"name": _asset(p, version), "size": len(data), "digest": digest,
+                       "browser_download_url": f"{PREFIX}v{version}/{_asset(p, version)}"}
+                      for p in pkgs]}
     rel.update(extra)
     return rel
 
@@ -148,7 +147,7 @@ def test_only_one_program_asks():
     b.release()
 
 
-# ------------------------------------------------------------------ Beta, Zurückstufen, rpm, Flatpak
+# ------------------------------------------------------------------ Beta, Zurückstufen
 def test_prerelease_versions_sort_before_final():
     order = ["0.18.0", "0.19.0-beta.1", "0.19.0-beta.2", "0.19.0-rc.1", "0.19.0", "0.19.1"]
     assert sorted(reversed(order), key=updater.version_key) == order
@@ -199,9 +198,9 @@ def test_check_uses_channel(home, monkeypatch):
         return listing if url == updater.RELEASES_URL else release("9.1.0")
 
     monkeypatch.setattr(updater, "_get_json", fake)
-    assert updater.check({"streamlin": "0"}, kind="deb").version == "9.1.0"
+    assert updater.check({"streamlin": "0"}).version == "9.1.0"
     updater.set_channel("beta")
-    assert updater.check({"streamlin": "0"}, kind="deb").version == "9.2.0-beta.1"
+    assert updater.check({"streamlin": "0"}).version == "9.2.0-beta.1"
     assert urls == [updater.API_URL, updater.RELEASES_URL]
 
 
@@ -215,16 +214,12 @@ def test_rollback_lists_older_versions_newest_first():
     assert [u.version for u in with_beta] == ["0.19.0-beta.1", "0.18.0", "0.17.0", "0.16.0"]
 
 
-def test_rpm_assets_are_picked():
-    rel = release("9.1.0", kinds=("deb", "rpm"))
-    up = updater.release_update(rel, {"linewave": "0.18.0"}, current="0.18.0", kind="rpm")
-    assert [f["name"] for f in up.files] == ["linewave-9.1.0-1.noarch.rpm"] and up.kind == "rpm"
-    assert updater.release_update(release("9.1.0"), {"linewave": "0"}, current="0.18.0", kind="rpm") is None
-    beta = release("9.2.0-beta.1", kinds=("rpm",), prerelease=True)
-    for a in beta["assets"]:  # rpm kennt kein „-“ in der Version: 9.2.0~beta.1
-        a["name"] = a["name"].replace("9.2.0-beta.1-1", "9.2.0~beta.1-1")
-    up = updater.release_update(beta, {"linewave": "0"}, current="0.18.0", kind="rpm", beta=True)
-    assert up.files[0]["name"] == "linewave-9.2.0~beta.1-1.noarch.rpm"
+def test_prerelease_assets_with_tilde():
+    beta = release("9.2.0-beta.1", prerelease=True)
+    for a in beta["assets"]:  # dpkg-Version auch mit „~“: 9.2.0~beta.1
+        a["name"] = a["name"].replace("9.2.0-beta.1_", "9.2.0~beta.1_")
+    up = updater.release_update(beta, {"linewave": "0"}, current="0.18.0", beta=True)
+    assert up.files[0]["name"] == "linewave_9.2.0~beta.1_all.deb"
 
 
 def _fake_tools(monkeypatch, tools, outputs):
@@ -240,61 +235,38 @@ def _fake_tools(monkeypatch, tools, outputs):
     return calls
 
 
-def test_rpm_detection(monkeypatch):
-    calls = _fake_tools(monkeypatch, {"rpm"}, {"rpm": "lindeck\t0.18.0\npackage linewave is not installed\n"
-                                                      "package streamlin is not installed\n"})
-    assert updater.detect_installed() == ("rpm", {"lindeck": "0.18.0"})
-    assert calls[0][:3] == ["rpm", "-q", "--qf"]
-    # dpkg kennt die Pakete: dpkg hat Vorrang
-    _fake_tools(monkeypatch, {"rpm", "dpkg-query"}, {"dpkg-query": "streamlin\tinstall ok installed\t0.18.0\n",
-                                                     "rpm": "streamlin\t0.1\n"})
-    assert updater.detect_installed() == ("deb", {"streamlin": "0.18.0"})
-    # dpkg vorhanden, kennt sie aber nicht (Fedora mit dpkg): rpm
-    _fake_tools(monkeypatch, {"rpm", "dpkg-query"}, {"dpkg-query": "", "rpm": "streamlin\t0.18.0\n"})
-    assert updater.detect_installed() == ("rpm", {"streamlin": "0.18.0"})
+def test_dpkg_detection(monkeypatch):
+    calls = _fake_tools(monkeypatch, {"dpkg-query"}, {"dpkg-query": "streamlin\tinstall ok installed\t0.18.0\n"
+                                                                    "lindeck\tdeinstall ok config-files\t0.17.0\n"})
+    assert updater.installed_packages() == {"streamlin": "0.18.0"}
+    assert calls[0][:2] == ["dpkg-query", "-W"]
     _fake_tools(monkeypatch, set(), {})
-    assert updater.detect_installed() == (None, {})
-
-
-def test_rpm_install_command(monkeypatch, tmp_path):
-    f = tmp_path / "streamlin-9.1.0-1.noarch.rpm"
-    monkeypatch.setattr(updater.shutil, "which", lambda n: f"/usr/bin/{n}")
-    assert updater.install_command([f], "rpm") == ["/usr/bin/pkexec", "/usr/bin/dnf", "install", "-y", str(f)]
-    assert updater.install_command([f], "rpm", downgrade=True) == \
-        ["/usr/bin/pkexec", "/usr/bin/dnf", "downgrade", "-y", "--allowerasing", str(f)]
-    monkeypatch.setattr(updater.shutil, "which", lambda n: None if n == "dnf" else f"/usr/bin/{n}")
-    assert updater.install_command([f], "rpm") == ["/usr/bin/pkexec", "/usr/bin/rpm", "-U", str(f)]
-    assert updater.install_command([f], "rpm", downgrade=True) == \
-        ["/usr/bin/pkexec", "/usr/bin/rpm", "-U", "--oldpackage", str(f)]
-    deb = updater.install_command([tmp_path / "a.deb"], "deb", downgrade=True)
-    assert "--allow-downgrades" in deb
-
-
-def test_start_install_passes_kind(monkeypatch, tmp_path):
-    seen = []
-    monkeypatch.setattr(updater, "install_command", lambda files, kind, downgrade: seen.append((kind, downgrade)))
-    assert updater.start_install([tmp_path / "x.rpm"], "0.17.0", kind="rpm", downgrade=True) is None
-    assert seen == [("rpm", True)]
-
-
-def test_flatpak_never_updates(monkeypatch):
+    assert updater.installed_packages() == {}
+    # nicht aus /opt/<Paket>: dpkg wird gar nicht gefragt
     calls = _fake_tools(monkeypatch, {"dpkg-query"}, {"dpkg-query": "streamlin\tinstall ok installed\t0.18.0\n"})
-    assert updater.detect_installed()[0] == "deb"
-    monkeypatch.setenv("FLATPAK_ID", "io.github.Streamlin")
-    assert updater.in_flatpak()
-    calls.clear()
-    assert updater.detect_installed() == (None, {}) and not calls
-    assert updater.check() is None
-    monkeypatch.delenv("FLATPAK_ID")
-    monkeypatch.setattr(updater.os.path, "exists", lambda p: p == "/.flatpak-info")
-    assert updater.in_flatpak()
+    monkeypatch.setattr(updater, "_runs_from_opt", lambda: False)
+    assert updater.installed_packages() == {} and not calls
 
 
-def test_download_removes_old_rpms(home, monkeypatch):
+def test_install_command_allows_downgrades(monkeypatch, tmp_path):
+    monkeypatch.setattr(updater.shutil, "which", lambda n: f"/usr/bin/{n}")
+    cmd = updater.install_command([tmp_path / "a.deb"])
+    assert "--allow-downgrades" in cmd
+    assert cmd[cmd.index("Dpkg::Options::=--force-confdef") - 1] == "-o"
+    assert "Dpkg::Options::=--force-confold" in cmd
+
+
+def test_start_install_without_pkexec(monkeypatch, tmp_path, home):
+    seen = []
+    monkeypatch.setattr(updater, "install_command", lambda files: seen.append(files))
+    assert updater.start_install([tmp_path / "x.deb"], "0.17.0") is None
+    assert seen == [[tmp_path / "x.deb"]] and "installing" not in updater.load_state()
+
+
+def test_download_removes_old_debs(home, monkeypatch):
     (home / "dl").mkdir()
-    (home / "dl" / "old-1.noarch.rpm").write_bytes(b"x")
-    up = updater.release_update(release(data=b"good", kinds=("rpm",)), {"streamlin": "0"}, current="0.16.0",
-                                kind="rpm")
+    (home / "dl" / "old_1_all.deb").write_bytes(b"x")
+    up = updater.release_update(release(data=b"good"), {"streamlin": "0"}, current="0.16.0")
     _serve(monkeypatch, b"good")
     files = updater.download(up, home / "dl")
     assert [f.name for f in (home / "dl").iterdir()] == [files[0].name]
@@ -410,15 +382,13 @@ def test_settings_support_report(root, monkeypatch, home):
     dlg.destroy()
 
 
-def test_settings_flatpak(root, monkeypatch, home):
+def test_source_checkout_cannot_roll_back(root, monkeypatch, home):
     from streamlin import settingsui, updateui
-    monkeypatch.setenv("FLATPAK_ID", "io.github.Streamlin")
     shown = []
     monkeypatch.setattr(updateui.messagebox, "showinfo", lambda title, text, parent=None: shown.append(text))
     dlg = settingsui.open_settings(root, "LinDeck", lambda: None)
-    assert dlg.auto_update is None and dlg.beta is None  # keine Update-Schalter in Flatpak
     assert updateui.choose_earlier(dlg, "LinDeck", lambda: None) is None
-    assert "Flatpak" in shown[0]
+    assert ".deb" in shown[0] and "LinDeck" in shown[0]
     dlg.destroy()
 
 
@@ -427,8 +397,8 @@ def test_rollback_dialog(root, monkeypatch, home):
     ups = updater.earlier_versions(_releases(), {"streamlin": "0"}, current="0.19.0")
     installs, restarted = [], []
 
-    def start_install(files, version, kind="deb", downgrade=False):
-        installs.append((version, kind, downgrade))
+    def start_install(files, version):
+        installs.append(version)
         return subprocess.Popen(["true"], stdout=subprocess.PIPE, text=True)
 
     monkeypatch.setattr(updater, "download", lambda u, progress=None: [home / "x.deb"])
@@ -443,7 +413,7 @@ def test_rollback_dialog(root, monkeypatch, home):
     assert not up.skip_btn.winfo_manager() and not up.auto.master.winfo_manager()
     up._install()
     assert _pump(root, lambda: restarted)
-    assert installs == [("0.17.0", "deb", True)]
+    assert installs == ["0.17.0"]
 
 
 def test_rollback_dialog_error_and_empty(root, home):

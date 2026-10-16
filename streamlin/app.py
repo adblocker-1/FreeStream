@@ -26,8 +26,21 @@ log = logging.getLogger("streamlin.app")
 APP_FILE = "app.json"
 
 
-from .desktop import _alive, _app_info, _clear_app_info, _write_app_info  # noqa: F401 (auch für Tests)
 from . import desktop
+from .desktop import _alive  # noqa: F401 (auch für Tests)
+
+
+# Statusdatei von LinDeck (app.json); desktop.py braucht den Dateinamen
+def _app_info(name=APP_FILE):
+    return desktop._app_info(name)
+
+
+def _write_app_info(gui, name=APP_FILE):
+    desktop._write_app_info(gui, name)
+
+
+def _clear_app_info(name=APP_FILE):
+    desktop._clear_app_info(name)
 
 
 def running_instance(name=APP_FILE):
@@ -118,7 +131,7 @@ class App:
 
 def main(hidden=False, profile=None, transport=None, tray=True):
     """Startet LinDeck oder holt das Fenster einer laufenden Instanz nach vorne."""
-    from .autoimport import adopt_session_env
+    from .desktop import adopt_session_env
     from .daemon import Daemon
     adopt_session_env()
     pid = running_instance()

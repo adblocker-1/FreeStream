@@ -67,17 +67,10 @@ def start(root, app, restart):
     _in_background(root, updater.check, done)
 
 
-def flatpak_text():
-    return _("This copy runs as a Flatpak. Updates come through your software center or “flatpak update”.")
-
-
 def _no_packages(parent, app):
     """Hinweis, wenn sich diese Kopie nicht selbst aktualisieren kann. True: Hinweis gezeigt."""
-    if updater.in_flatpak():
-        messagebox.showinfo(_("Updates"), flatpak_text(), parent=parent)
-        return True
     if not updater.installed_packages():
-        messagebox.showinfo(_("Updates"), _("Automatic updates work for the installed .deb and .rpm packages only. "
+        messagebox.showinfo(_("Updates"), _("Automatic updates work for the installed .deb packages only. "
                                             "This copy of {app} was started from the source code.").format(app=app),
                             parent=parent)
         return True
@@ -340,9 +333,7 @@ class UpdateDialog(Dialog):
         self._show_status(_("Installing… Enter your password when asked. {app} restarts by itself afterwards.")
                           .format(app=self.app))
         try:
-            up = self.update_info
-            self.proc = updater.start_install(files, up.version, kind=getattr(up, "kind", "deb"),
-                                              downgrade=self.rollback or up.downgrade)
+            self.proc = updater.start_install(files, self.update_info.version)
         except OSError as e:
             return self._failed(_("Could not start the installation: {error}").format(error=e))
         if self.proc is None:

@@ -37,7 +37,7 @@ msgstr " (muet)"
 msgid "Reloaded"
 msgstr "Rechargé"
 
-#: streamlin/__main__.py:718 streamlin/settingsui.py:274
+#: streamlin/__main__.py:718 streamlin/settingsui.py:267
 msgid "Backup restored."
 msgstr "Sauvegarde restaurée."
 
@@ -328,7 +328,7 @@ msgstr "{shown} sur {total} entités"
 msgid "The LinDeck service is running and is using the device. With --stop-daemon it is stopped for the test and restarted afterwards."
 msgstr "Le service LinDeck est en cours d'exécution et utilise l'appareil. Avec --stop-daemon, il est arrêté pendant le test puis redémarré."
 
-#: streamlin/__main__.py:686 streamlin/settingsui.py:227
+#: streamlin/__main__.py:686 streamlin/settingsui.py:220
 #, python-brace-format
 msgid "Backup saved: {path}"
 msgstr "Sauvegarde enregistrée : {path}"
@@ -337,7 +337,7 @@ msgstr "Sauvegarde enregistrée : {path}"
 msgid "Cancelled. Nothing was changed."
 msgstr "Annulé. Rien n’a été modifié."
 
-#: streamlin/__main__.py:730 streamlin/settingsui.py:312
+#: streamlin/__main__.py:730 streamlin/settingsui.py:305
 #, python-brace-format
 msgid "Support report saved: {path}"
 msgstr "Rapport d’assistance enregistré : {path}"
@@ -415,7 +415,7 @@ msgstr "Pas de connexion à OBS : {error}"
 msgid "Connected. Microphone {mic}, sound {sound}"
 msgstr "Connecté. Micro {mic}, son {sound}"
 
-#: streamlin/__main__.py:717 streamlin/settingsui.py:276
+#: streamlin/__main__.py:717 streamlin/settingsui.py:269
 #, python-brace-format
 msgid "Your previous data was saved to {path}"
 msgstr "Tes données précédentes ont été enregistrées dans {path}"
@@ -469,7 +469,7 @@ msgstr "muet"
 msgid "Connected to “{name}” (Home Assistant {version})."
 msgstr "Connecté à « {name} » (Home Assistant {version})."
 
-#: streamlin/__main__.py:728 streamlin/settingsui.py:309
+#: streamlin/__main__.py:728 streamlin/settingsui.py:302
 #, python-brace-format
 msgid "Could not create the support report: {error}"
 msgstr "Impossible de créer le rapport d’assistance : {error}"
@@ -726,15 +726,15 @@ msgstr "sur {n}"
 msgid "Multi Action step {action} failed: {error}"
 msgstr "Échec de l'étape {action} du Multi Action : {error}"
 
-#: streamlin/app.py:133
+#: streamlin/app.py:146
 msgid "LinDeck is running without a window – restarting with a window"
 msgstr "LinDeck s'exécute sans fenêtre – redémarrage avec fenêtre"
 
-#: streamlin/app.py:66 streamlin/waveui.py:610
+#: streamlin/app.py:79 streamlin/waveui.py:610
 msgid "Open LinDeck"
 msgstr "Ouvrir LinDeck"
 
-#: streamlin/app.py:145
+#: streamlin/app.py:158
 #, python-brace-format
 msgid "No graphical interface ({error}) – LinDeck is running as a service"
 msgstr "Pas d'interface graphique ({error}) – LinDeck s'exécute en tant que service"
@@ -829,7 +829,7 @@ msgstr "Version de Streamlin : {version}"
 msgid "Settings: {state}"
 msgstr "Paramètres : {state}"
 
-#: streamlin/backup.py:292 streamlin/settingsui.py:227
+#: streamlin/backup.py:292 streamlin/settingsui.py:220
 #, python-brace-format
 msgid "Size: {size}"
 msgstr "Taille : {size}"
@@ -3792,7 +3792,7 @@ msgstr "Node.js {version} – les plugins peuvent fonctionner"
 msgid "Installed"
 msgstr "Installé"
 
-#: streamlin/pluginui.py:120 streamlin/settingsui.py:99 streamlin/wavedialogs.py:363 streamlin/wavedialogs.py:520
+#: streamlin/pluginui.py:120 streamlin/settingsui.py:92 streamlin/wavedialogs.py:363 streamlin/wavedialogs.py:520
 msgid "Close"
 msgstr "Fermer"
 
@@ -3821,7 +3821,7 @@ msgstr "Plugin Stream Deck"
 msgid "Remove “{name}”? Keys with its actions stay in the profile but no longer do anything."
 msgstr "Supprimer « {name} » ? Les touches avec ses actions restent dans le profil mais ne font plus rien."
 
-#: streamlin/pluginui.py:162 streamlin/updateui.py:187
+#: streamlin/pluginui.py:162 streamlin/updateui.py:180
 #, python-brace-format
 msgid "Version {version}"
 msgstr "Version {version}"
@@ -3967,47 +3967,51 @@ msgstr "Ces paramètres s’appliquent à LinDeck et Linewave."
 msgid "Language"
 msgstr "Langue"
 
-#: streamlin/settingsui.py:60 streamlin/updateui.py:77 streamlin/updateui.py:80 streamlin/updateui.py:95
+#: streamlin/settingsui.py:60 streamlin/updateui.py:73 streamlin/updateui.py:88 streamlin/updateui.py:91
 msgid "Updates"
 msgstr "Mises à jour"
 
-#: streamlin/settingsui.py:82
+#: streamlin/settingsui.py:64
+msgid "Include beta versions"
+msgstr "Inclure les versions bêta"
+
+#: streamlin/settingsui.py:75
 msgid "Help"
 msgstr "Aide"
 
-#: streamlin/settingsui.py:88
+#: streamlin/settingsui.py:81
 msgid "Create support report…"
 msgstr "Créer un rapport d’assistance…"
 
-#: streamlin/settingsui.py:147
+#: streamlin/settingsui.py:140
 msgid "Backup"
 msgstr "Sauvegarde"
 
-#: streamlin/settingsui.py:159
+#: streamlin/settingsui.py:152
 msgid "Create backup…"
 msgstr "Créer une sauvegarde…"
 
-#: streamlin/settingsui.py:161
+#: streamlin/settingsui.py:154
 msgid "Restore…"
 msgstr "Restaurer…"
 
-#: streamlin/settingsui.py:230
+#: streamlin/settingsui.py:223
 msgid "Creating backup…"
 msgstr "Création de la sauvegarde…"
 
-#: streamlin/settingsui.py:247
+#: streamlin/settingsui.py:240
 msgid "Your current profiles and settings will be replaced. A safety copy of them is saved first. LinDeck and Linewave restart afterwards. Continue?"
 msgstr "Tes profils et paramètres actuels seront remplacés. Une copie de sécurité en est d’abord enregistrée. LinDeck et Linewave redémarrent ensuite. Continuer ?"
 
-#: streamlin/settingsui.py:280
+#: streamlin/settingsui.py:273
 msgid "Restoring backup…"
 msgstr "Restauration de la sauvegarde…"
 
-#: streamlin/settingsui.py:296
+#: streamlin/settingsui.py:289
 msgid "Creating the support report…"
 msgstr "Création du rapport d’assistance…"
 
-#: streamlin/settingsui.py:314
+#: streamlin/settingsui.py:307
 msgid "Support report"
 msgstr "Rapport d’assistance"
 
@@ -4015,15 +4019,15 @@ msgstr "Rapport d’assistance"
 msgid "System language"
 msgstr "Langue du système"
 
-#: streamlin/settingsui.py:71
-msgid "Include beta versions"
-msgstr "Inclure les versions bêta"
+#: streamlin/settingsui.py:65
+msgid "Beta versions bring new features earlier but may contain more bugs."
+msgstr "Les versions bêta apportent les nouveautés plus tôt, mais peuvent contenir plus de bugs."
 
-#: streamlin/settingsui.py:216
+#: streamlin/settingsui.py:209
 msgid "Create backup"
 msgstr "Créer une sauvegarde"
 
-#: streamlin/settingsui.py:236 streamlin/settingsui.py:250 streamlin/settingsui.py:275 streamlin/settingsui.py:245
+#: streamlin/settingsui.py:229 streamlin/settingsui.py:243 streamlin/settingsui.py:268 streamlin/settingsui.py:238
 msgid "Restore backup"
 msgstr "Restaurer une sauvegarde"
 
@@ -4031,31 +4035,40 @@ msgstr "Restaurer une sauvegarde"
 msgid "Auto follows the light or dark setting of your desktop."
 msgstr "Auto suit le réglage clair ou sombre de votre bureau."
 
-#: streamlin/settingsui.py:72
-msgid "Beta versions bring new features earlier but may contain more bugs."
-msgstr "Les versions bêta apportent les nouveautés plus tôt, mais peuvent contenir plus de bugs."
+#: streamlin/settingsui.py:62 streamlin/updateui.py:241
+#, python-brace-format
+msgid "Check for updates every time {app} starts"
+msgstr "Rechercher les mises à jour à chaque démarrage de {app}"
 
-#: streamlin/settingsui.py:83
+#: streamlin/settingsui.py:70
+msgid "Check now"
+msgstr "Rechercher maintenant"
+
+#: streamlin/settingsui.py:71
+msgid "Install an earlier version…"
+msgstr "Installer une version antérieure…"
+
+#: streamlin/settingsui.py:76
 msgid "Something not working? Create a support report and attach it to a GitHub issue. Passwords and tokens are removed from it."
 msgstr "Quelque chose ne fonctionne pas ? Crée un rapport d’assistance et joins-le à un ticket GitHub. Les mots de passe et les jetons en sont retirés."
 
-#: streamlin/settingsui.py:91
+#: streamlin/settingsui.py:84
 msgid "Report a problem on GitHub"
 msgstr "Signaler un problème sur GitHub"
 
-#: streamlin/settingsui.py:148
+#: streamlin/settingsui.py:141
 msgid "Save all profiles, images, plugins and settings of LinDeck and Linewave to one file, or restore them from such a file."
 msgstr "Enregistre tous les profils, images, plugins et paramètres de LinDeck et Linewave dans un seul fichier, ou restaure-les à partir d’un tel fichier."
 
-#: streamlin/settingsui.py:156
+#: streamlin/settingsui.py:149
 msgid "Include installed plugins"
 msgstr "Inclure les plugins installés"
 
-#: streamlin/settingsui.py:290
+#: streamlin/settingsui.py:283
 msgid "Save support report"
 msgstr "Enregistrer le rapport d’assistance"
 
-#: streamlin/settingsui.py:314
+#: streamlin/settingsui.py:307
 #, python-brace-format
 msgid ""
 "The support report was saved to {path}.\n"
@@ -4066,33 +4079,20 @@ msgstr ""
 "\n"
 "Joins ce fichier à un ticket GitHub. Ouvrir le dossier maintenant ?"
 
-#: streamlin/settingsui.py:69 streamlin/updateui.py:248
-#, python-brace-format
-msgid "Check for updates every time {app} starts"
-msgstr "Rechercher les mises à jour à chaque démarrage de {app}"
-
-#: streamlin/settingsui.py:77
-msgid "Check now"
-msgstr "Rechercher maintenant"
-
-#: streamlin/settingsui.py:78
-msgid "Install an earlier version…"
-msgstr "Installer une version antérieure…"
-
-#: streamlin/settingsui.py:217 streamlin/settingsui.py:237
+#: streamlin/settingsui.py:210 streamlin/settingsui.py:230
 msgid "Streamlin backup"
 msgstr "Sauvegarde Streamlin"
 
-#: streamlin/settingsui.py:292
-msgid "Text file"
-msgstr "Fichier texte"
-
-#: streamlin/settingsui.py:65 streamlin/settingsui.py:75
+#: streamlin/settingsui.py:68
 #, python-brace-format
 msgid "Installed version: {version}"
 msgstr "Version installée : {version}"
 
-#: streamlin/settingsui.py:275
+#: streamlin/settingsui.py:285
+msgid "Text file"
+msgstr "Fichier texte"
+
+#: streamlin/settingsui.py:268
 #, python-brace-format
 msgid "Backup restored. {app} restarts now."
 msgstr "Sauvegarde restaurée. {app} redémarre maintenant."
@@ -4115,30 +4115,30 @@ msgstr "La combinaison de touches {keys} est déjà utilisée par « {command} �
 msgid "KDE Plasma applies the shortcut after you log in again."
 msgstr "KDE Plasma applique le raccourci après ta prochaine connexion."
 
-#: streamlin/system.py:260
+#: streamlin/system.py:220
 #, python-brace-format
 msgid "Target not found: {path}"
 msgstr "Cible introuvable : {path}"
 
-#: streamlin/system.py:455
+#: streamlin/system.py:415
 msgid "No audio player found (install mpv, ffplay or pipewire-bin)"
 msgstr "Aucun lecteur audio trouvé (installez mpv, ffplay ou pipewire-bin)"
 
-#: streamlin/system.py:351
+#: streamlin/system.py:311
 msgid "No clipboard available (install wl-clipboard or xclip)"
 msgstr "Aucun presse-papiers disponible (installez wl-clipboard ou xclip)"
 
-#: streamlin/system.py:106
+#: streamlin/system.py:70
 #, python-brace-format
 msgid "Failed to start {cmd}: {error}"
 msgstr "Échec du lancement de {cmd} : {error}"
 
-#: streamlin/system.py:247
+#: streamlin/system.py:207
 #, python-brace-format
 msgid "Windows path without mapping: {path} (add it to path_map/app_map in config.json)"
 msgstr "Chemin Windows sans correspondance : {path} (ajoutez-le à path_map/app_map dans config.json)"
 
-#: streamlin/system.py:460
+#: streamlin/system.py:420
 #, python-brace-format
 msgid "Audio playback failed: {error}"
 msgstr "Échec de la lecture audio : {error}"
@@ -4165,51 +4165,47 @@ msgstr "Auto"
 msgid "{app} switches to the new look after a restart. Restart now?"
 msgstr "{app} adoptera la nouvelle apparence après un redémarrage. Redémarrer maintenant ?"
 
-#: streamlin/updateui.py:71
-msgid "This copy runs as a Flatpak. Updates come through your software center or “flatpak update”."
-msgstr "Cette copie fonctionne en Flatpak. Les mises à jour passent par ta logithèque ou « flatpak update »."
-
 #: streamlin/updateui.py:48
 msgid "Streamlin was updated"
 msgstr "Streamlin a été mis à jour"
 
-#: streamlin/updateui.py:143 streamlin/updateui.py:147 streamlin/updateui.py:210
+#: streamlin/updateui.py:136 streamlin/updateui.py:140 streamlin/updateui.py:203
 msgid "Install an earlier version"
 msgstr "Installer une version antérieure"
 
-#: streamlin/updateui.py:148
+#: streamlin/updateui.py:141
 msgid "Go back to an older release if the current version causes problems."
 msgstr "Reviens à une version plus ancienne si la version actuelle pose problème."
 
-#: streamlin/updateui.py:156
+#: streamlin/updateui.py:149
 msgid "Loading the list of versions…"
 msgstr "Chargement de la liste des versions…"
 
-#: streamlin/updateui.py:163
+#: streamlin/updateui.py:156
 msgid "Continue"
 msgstr "Continuer"
 
-#: streamlin/updateui.py:210
+#: streamlin/updateui.py:203
 msgid "Update available"
 msgstr "Mise à jour disponible"
 
-#: streamlin/updateui.py:258
+#: streamlin/updateui.py:251
 msgid "Install update"
 msgstr "Installer la mise à jour"
 
-#: streamlin/updateui.py:263
+#: streamlin/updateui.py:256
 msgid "Skip this version"
 msgstr "Ignorer cette version"
 
-#: streamlin/updateui.py:182
+#: streamlin/updateui.py:175
 msgid "Choose the version to install:"
 msgstr "Choisis la version à installer :"
 
-#: streamlin/updateui.py:261
+#: streamlin/updateui.py:254
 msgid "Later"
 msgstr "Plus tard"
 
-#: streamlin/updateui.py:376
+#: streamlin/updateui.py:367
 msgid "The installation was cancelled. Nothing was changed."
 msgstr "L’installation a été annulée. Rien n’a été modifié."
 
@@ -4218,107 +4214,107 @@ msgstr "L’installation a été annulée. Rien n’a été modifié."
 msgid "Version {version} is installed."
 msgstr "La version {version} est installée."
 
-#: streamlin/updateui.py:80
+#: streamlin/updateui.py:73
 #, python-brace-format
-msgid "Automatic updates work for the installed .deb and .rpm packages only. This copy of {app} was started from the source code."
-msgstr "Les mises à jour automatiques ne fonctionnent qu’avec les paquets .deb et .rpm installés. Cette copie de {app} a été lancée depuis le code source."
+msgid "Automatic updates work for the installed .deb packages only. This copy of {app} was started from the source code."
+msgstr "Les mises à jour automatiques ne fonctionnent qu’avec les paquets .deb installés. Cette copie de {app} a été lancée depuis le code source."
 
-#: streamlin/updateui.py:151
+#: streamlin/updateui.py:144
 msgid "Before you go back"
 msgstr "Avant de revenir en arrière"
 
-#: streamlin/updateui.py:152
+#: streamlin/updateui.py:145
 msgid "Older versions may not read settings or profiles that a newer version saved. Automatic update checks will offer the newest version again – choose “Skip this version” to stay on the older one."
 msgstr "Les versions antérieures risquent de ne pas lire les réglages ou profils enregistrés par une version plus récente. La recherche automatique de mises à jour proposera de nouveau la dernière version – choisis « Ignorer cette version » pour rester sur l’ancienne."
 
-#: streamlin/updateui.py:180
+#: streamlin/updateui.py:173
 msgid "No earlier versions are available."
 msgstr "Aucune version antérieure n’est disponible."
 
-#: streamlin/updateui.py:186
+#: streamlin/updateui.py:179
 msgid "Beta"
 msgstr "Bêta"
 
-#: streamlin/updateui.py:257
+#: streamlin/updateui.py:250
 #, python-brace-format
 msgid "Install version {version}"
 msgstr "Installer la version {version}"
 
-#: streamlin/updateui.py:317
+#: streamlin/updateui.py:310
 #, python-brace-format
 msgid "Downloading Streamlin {version}…"
 msgstr "Téléchargement de Streamlin {version}…"
 
-#: streamlin/updateui.py:340
+#: streamlin/updateui.py:333
 #, python-brace-format
 msgid "Installing… Enter your password when asked. {app} restarts by itself afterwards."
 msgstr "Installation… Saisissez votre mot de passe lorsqu’il est demandé. {app} redémarrera ensuite tout seul."
 
-#: streamlin/updateui.py:379
+#: streamlin/updateui.py:370
 #, python-brace-format
 msgid "The installation failed: {error}"
 msgstr "L’installation a échoué : {error}"
 
-#: streamlin/updateui.py:95
+#: streamlin/updateui.py:88
 #, python-brace-format
 msgid "Could not check for updates: {error}"
 msgstr "Impossible de rechercher les mises à jour : {error}"
 
-#: streamlin/updateui.py:184
+#: streamlin/updateui.py:177
 #, python-brace-format
 msgid "Published {date}"
 msgstr "Publiée le {date}"
 
-#: streamlin/updateui.py:220
+#: streamlin/updateui.py:213
 #, python-brace-format
 msgid "Streamlin {version} will replace version {current}. Your settings and profiles stay, but an older version may not understand everything a newer one saved."
 msgstr "Streamlin {version} remplacera la version {current}. Tes réglages et profils sont conservés, mais une version plus ancienne peut ne pas comprendre tout ce qu’une version plus récente a enregistré."
 
-#: streamlin/updateui.py:224
+#: streamlin/updateui.py:217
 #, python-brace-format
 msgid "Streamlin {version} is ready to install. You are using version {current}."
 msgstr "Streamlin {version} est prêt à être installé. Vous utilisez la version {current}."
 
-#: streamlin/updateui.py:239
+#: streamlin/updateui.py:232
 msgid "Show release on GitHub"
 msgstr "Voir la version sur GitHub"
 
-#: streamlin/updateui.py:334
+#: streamlin/updateui.py:327
 #, python-brace-format
 msgid "The download is damaged ({file}). Nothing was installed."
 msgstr "Le téléchargement est endommagé ({file}). Rien n’a été installé."
 
-#: streamlin/updateui.py:336
+#: streamlin/updateui.py:329
 #, python-brace-format
 msgid "Download failed: {error}"
 msgstr "Échec du téléchargement : {error}"
 
-#: streamlin/updateui.py:355
+#: streamlin/updateui.py:346
 #, python-brace-format
 msgid "Automatic installation is not possible here (pkexec is missing). The packages are in {folder} – install them with a double-click."
 msgstr "L’installation automatique n’est pas possible ici (pkexec manque). Les paquets se trouvent dans {folder} – installez-les par un double-clic."
 
-#: streamlin/updateui.py:368
+#: streamlin/updateui.py:359
 #, python-brace-format
 msgid "Version {version} installed. {app} restarts now."
 msgstr "Version {version} installée. {app} redémarre maintenant."
 
-#: streamlin/updateui.py:370
+#: streamlin/updateui.py:361
 #, python-brace-format
 msgid "Update installed. {app} restarts now."
 msgstr "Mise à jour installée. {app} redémarre maintenant."
 
-#: streamlin/updateui.py:98
+#: streamlin/updateui.py:91
 #, python-brace-format
 msgid "You are using the latest version ({version})."
 msgstr "Vous utilisez la dernière version ({version})."
 
-#: streamlin/updateui.py:175
+#: streamlin/updateui.py:168
 #, python-brace-format
 msgid "Could not load the list of versions: {error}"
 msgstr "Impossible de charger la liste des versions : {error}"
 
-#: streamlin/updateui.py:347
+#: streamlin/updateui.py:338
 #, python-brace-format
 msgid "Could not start the installation: {error}"
 msgstr "Impossible de lancer l’installation : {error}"

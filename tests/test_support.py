@@ -73,7 +73,7 @@ def test_report_file_without_any_tools(home, monkeypatch):
     paths.LOG_FILE.write_text("\n".join(f"line {i}" for i in range(1000)) + "\nlogin token=sekrit\n")
     (paths.STATE_DIR / "mixer.json").write_text('{"modules": [1, 2]}')
     (paths.STATE_DIR / "discord-token.json").write_text('{"access_token": "never-in-report"}')
-    monkeypatch.setenv("PATH", str(home / "empty"))  # kein pactl, lsusb, dpkg, rpm …
+    monkeypatch.setenv("PATH", str(home / "empty"))  # kein pactl, lsusb, dpkg …
     path = support.write_report(app="LinDeck")
     assert path.parent == home / "home" and path.name.startswith("streamlin-support-")
     text = path.read_text()
@@ -81,6 +81,7 @@ def test_report_file_without_any_tools(home, monkeypatch):
                   "## config.json", "## Log"):
         assert title in text
     assert "(pactl not available)" in text and "(lsusb not available)" in text
+    assert "Installed packages: -" in text and "(dpkg-query not available)" in text
     for s in SECRETS + ("sekrit", "never-in-report"):
         assert s not in text
     assert "line 999" in text and "line 700" not in text  # nur die letzten 300 Zeilen
