@@ -1145,6 +1145,16 @@ class NavItem(tk.Canvas):
             self.create_text(w - 10, h / 2, text=str(self.count), anchor="e", fill=COL["faint"], font=self.fs)
 
 
+def elide(widget, text, fnt, width):
+    """Text auf width Pixel kürzen („…“ am Ende)."""
+    f = tkfont.Font(widget, font=fnt)
+    if not text or f.measure(text) <= width:
+        return text
+    while text and f.measure(text + "…") > width:
+        text = text[:-1]
+    return text.rstrip() + "…"
+
+
 class InfoCard(tk.Canvas):
     """Karte mit Bild links, Titel und Untertitel (Geräte, Mikrofon, Ausgänge)."""
 
@@ -1183,13 +1193,15 @@ class InfoCard(tk.Canvas):
             self.create_image(x, h / 2, image=self.image, anchor="w")
             x += self.image.width() + 10
         tcol = COL["muted"] if self.dim else COL["fg"]
-        self.create_text(x, h / 2 - 8, text=self.title, anchor="w", fill=tcol, font=self.f)
+        room = w - x - 10
+        self.create_text(x, h / 2 - 8, text=elide(self, self.title, self.f, room), anchor="w", fill=tcol,
+                         font=self.f)
         sx = x
         if self.dot:
             self.create_oval(x, h / 2 + 5, x + 7, h / 2 + 12, fill=self.dot, outline="")
             sx += 12
-        self.create_text(sx, h / 2 + 9, text=self.subtitle, anchor="w", fill=COL["muted"] if not self.dim
-                         else COL["faint"], font=self.fs)
+        self.create_text(sx, h / 2 + 9, text=elide(self, self.subtitle, self.fs, room - (sx - x)), anchor="w",
+                         fill=COL["muted"] if not self.dim else COL["faint"], font=self.fs)
 
 
 class SoftSegmented(tk.Canvas):
@@ -1218,9 +1230,12 @@ class SoftSegmented(tk.Canvas):
         self.delete("all")
         fnt = tkfont.Font(self, font=self.f)
         nat = [fnt.measure(t) + (22 if ic else 0) + 22 for _k, t, ic in self.items]
+        show_icons = True
         if self.fill:
-            total = max(self.winfo_width(), sum(nat) + 8)
+            total = max(self.winfo_width(), 60)
             widths = [(total - 8) / len(self.items)] * len(self.items)
+            # zu schmal für Symbol + Text: nur Text zeigen
+            show_icons = all(w >= n for w, n in zip(widths, nat))
         else:
             widths = nat
             total = sum(widths) + 8
@@ -1235,6 +1250,7 @@ class SoftSegmented(tk.Canvas):
                 rounded_rect(self, x, 3, x + w, h - 4, 7, fill=COL["panel"] if MODE == "light" else COL["raised"],
                              outline="")
             fg = COL["fg"] if on else COL["muted"]
+            ic = ic if show_icons else None
             tw = fnt.measure(t) + (20 if ic else 0)
             cx = x + (w - tw) / 2
             if ic:
