@@ -402,7 +402,7 @@ class Mixer:
                   "virtual": bool(virtual), "exclude": list(exclude)})
         self._save_cfg()
         if self.is_active():
-            self.rebuild_mixes()
+            self._add_mix_live(self.mix(m["id"]))
         return self.mix(m["id"])
 
     def update_mix(self, mid, **changes):
@@ -443,7 +443,7 @@ class Mixer:
         mx["mixes"] = [x for x in mx.get("mixes") or [] if x.get("id") != m["id"]]
         self._save_cfg()
         if self.is_active():
-            self.rebuild_mixes()
+            self._remove_mix_live(m["id"])
 
     def set_member(self, cid, mid, on):
         """Kanal in einen Mix aufnehmen (on=True) oder herausnehmen – sofort, ohne Neuaufbau."""
@@ -737,6 +737,50 @@ class Mixer:
         self.fx.stop(cid)
         self._add_live(c, levels)
         self._restore_masters(masters)
+
+    def _add_mix_live(self, m):
+        """Nur den neuen Mix einrichten; alle anderen Verbindungen laufen ungestört weiter."""
+        st = self._state()
+        if "loops" not in st:
+            self.rebuild_mixes()
+            return
+        ctx = self._ctx(st)
+        mods = self._load_mix(m, ctx)
+        st.setdefault("mixes", {})[m["id"]] = mods
+        st["modules"] = (st.get("modules") or []) + mods
+        target = self._mix_target(m, ctx)
+        for c in self.all_channels():
+            src = (st.get("sources") or {}).get(c["id"])
+            if not src or not target or c["id"] in m["exclude"]:
+                continue
+            mod = self._load_loop(c, m, src, target)
+            st["loops"].setdefault(c["id"], {})[m["id"]] = mod
+            st.setdefault("channels", {}).setdefault(c["id"], []).append(mod)
+            st["modules"].append(mod)
+        self._save_state(st)
+
+    def _remove_mix_live(self, mid):
+        """Nur die Verbindungen des gelöschten Mixes entfernen."""
+        st = self._state()
+        if "loops" not in st:
+            self.rebuild_mixes()
+            return
+        if st.get("listen") == mid:
+            self._stop_listen(st)
+        gone = []
+        for cid, loops in (st.get("loops") or {}).items():
+            mod = loops.pop(mid, None)
+            if mod is not None:
+                gone.append(mod)
+                st["channels"][cid] = [x for x in st["channels"].get(cid, []) if x != mod]
+        gone += list(reversed((st.get("mixes") or {}).pop(mid, None) or []))
+        for mod in gone:
+            try:
+                self.run(["unload-module", str(mod)])
+            except RuntimeError:
+                pass
+        st["modules"] = [x for x in st.get("modules") or [] if x not in gone]
+        self._save_state(st)
 
     def rebuild_mixes(self):
         """Mixe neu aufbauen (neuer/gelöschter Mix, andere Geräte). Kanal-Sinks und Programme bleiben,

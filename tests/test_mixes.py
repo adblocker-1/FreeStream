@@ -189,7 +189,7 @@ def test_deck_mix_keys_follow_linewave_mixes(env, pactl, tmp_path, monkeypatch):
 
 
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
-def test_window_mix_table(env, pactl):
+def test_window_mix_table(env, pactl, monkeypatch):
     import tkinter as tk
     from streamlin.wavehost import WaveHost
     from streamlin.waveui import EmptyCell, WaveWindow
@@ -229,9 +229,15 @@ def test_window_mix_table(env, pactl):
         assert _pump(root, lambda: host.mixer.listening() == "chat" and win.mix_heads["chat"]["ear"].get())
         win._on_listen("chat")  # nochmal: zurück zum Persönlichen Mix
         assert _pump(root, lambda: host.mixer.listening() == "monitor")
+        before = win.strips["system"]["master"]["fader"]
+        loops_before = dict(host.mixer._state()["loops"]["system"])
         win._save_mix(None, {"name": "Aufnahme", "icon": "record", "color": "#ff4d5a", "devices": [],
                              "virtual": True})
         assert _pump(root, lambda: "aufnahme" in win.mix_heads)
+        # nur die neue Spalte kommt dazu: Tabelle und laufende Verbindungen bleiben unangetastet
+        assert win.strips["system"]["master"]["fader"] is before
+        assert host.mixer._state()["loops"]["system"] == loops_before
+        assert win.cells[("system", "aufnahme")][2] == 4
         # neuer Mix startet leer: man ordnet die Kanäle selbst zu
         assert not any("aufnahme" in st for st in win.strips.values())
         # Zuordnung ändern tauscht nur die eine Zelle, die Tabelle bleibt stehen
@@ -245,6 +251,19 @@ def test_window_mix_table(env, pactl):
         assert "chat" in win.strips["system"]
         assert _pump(root, lambda: "system" not in host.mixer.mix("chat")["exclude"])
         assert win.strips["system"]["master"]["fader"] is keep
+        # Mix löschen: nur seine Spalte verschwindet
+        from streamlin import msgbox
+        monkeypatch.setattr(msgbox, "askyesno", lambda *a, **k: True)
+        win._delete_mix(host.mixer.mix("chat"))
+        assert _pump(root, lambda: "chat" not in win.mix_heads)
+        assert win.strips["system"]["master"]["fader"] is keep
+        assert win.cells[("system", "aufnahme")][2] == 3 and ("system", "chat") not in win.cells
+        assert "chat" not in host.mixer._state()["loops"]["system"]
+        # neuer Kanal: eine Zeile kommt dazu, in keinem Mix
+        win._save_channel(None, {"name": "Gast", "kind": "apps", "source": "", "icon": "chat", "color": ""})
+        assert _pump(root, lambda: "gast" in win.strips)
+        assert win.strips["system"]["master"]["fader"] is keep
+        assert all(isinstance(win.cells[("gast", m)][0], EmptyCell) for m in win.mix_heads)
         win._edit_mix(win.state["mixes"][-1])
         root.update()
         dlg = [w for w in root.winfo_children() if isinstance(w, tk.Toplevel)][-1]
