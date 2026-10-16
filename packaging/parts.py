@@ -11,7 +11,8 @@ COMMON = ["__init__.py", "__main__.py", "paths.py", "config.py", "i18n.py", "the
           "system.py", "desktop.py", "parts.py", "updater.py", "updateui.py", "settingsui.py", "locale"]
 LINDECK = ["app.py", "daemon.py", "engine.py", "actions.py", "catalog.py", "editor.py", "editdoc.py",
            "profiles.py", "render.py", "keyboard.py", "models.py", "plugins.py", "pluginui.py", "ws.py", "obs.py",
-           "discord.py", "native.py", "autoimport.py", "assets.py", "bgui.py", "selftest.py"]
+           "discord.py", "native.py", "hass.py", "hasskeys.py", "hassui.py", "autoimport.py", "assets.py", "bgui.py",
+           "selftest.py"]
 LINEWAVE = ["linewave.py", "wavehost.py", "waveui.py", "wavedialogs.py", "wavesetup.py", "mixer.py", "effects.py",
             "levels.py", "wavemic.py", "wave3hw.py"]
 

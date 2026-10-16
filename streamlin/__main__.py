@@ -498,6 +498,38 @@ def cmd_discord(args):
     return 0
 
 
+def cmd_homeassistant(args):
+    from . import hass
+    from .config import Config
+    c = hass.settings(Config())
+    if not c.get("url") or not c.get("token"):
+        print(_("Home Assistant is not set up yet. In the LinDeck window: choose a Home Assistant action → "
+                "“Connect …” (or config.json → homeassistant.url / homeassistant.token)."))
+        return 1
+    try:
+        info = hass.check_connection(c["url"], c["token"], c.get("verify_ssl", True) is not False)
+        if args.action == "test":
+            print(_("Connected to “{name}” (Home Assistant {version}).").format(
+                name=info.get("location_name") or "Home", version=info.get("version") or "?"))
+            return 0
+        cl = hass.HAClient(c["url"], c["token"], c.get("verify_ssl", True) is not False, timeout=10)
+        try:
+            states = cl.states()
+        finally:
+            cl.close()
+    except hass.HAError as e:
+        print(_("Error: {error}").format(error=e))
+        return 1
+    q = " ".join(args.filter).lower()
+    rows = sorted((s.get("entity_id", ""), hass.friendly_name(s, s.get("entity_id", "")), hass.format_state(s))
+                  for s in states if isinstance(s, dict))
+    rows = [r for r in rows if not q or q in r[0].lower() or q in r[1].lower()]
+    for eid, name, state in rows:
+        print(f"{eid:<40} {state:<14} {name}")
+    print(_("{shown} of {total} entities").format(shown=len(rows), total=len(states)))
+    return 0
+
+
 def cmd_selftest(args):
     from . import selftest
     from .daemon import Daemon
@@ -640,6 +672,11 @@ def main(argv=None, prog="lindeck"):
 
     s = sub.add_parser("discord", help=_("connect to Discord (one-time authorization)"))
     s.set_defaults(fn=cmd_discord)
+
+    s = sub.add_parser("homeassistant", aliases=["ha"], help=_("Home Assistant: test the connection, list entities"))
+    s.add_argument("action", nargs="?", default="test", choices=["test", "entities"])
+    s.add_argument("filter", nargs="*", help=_("entities: only entities whose ID or name contains this text"))
+    s.set_defaults(fn=cmd_homeassistant)
 
     s = sub.add_parser("selftest", help=_("test connected Stream Decks step by step"))
     s.add_argument("--timeout", type=int, default=90, help=_("seconds per step"))

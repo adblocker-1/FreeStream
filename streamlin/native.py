@@ -4,6 +4,7 @@
   * Spotify/Medien  – über MPRIS (playerctl); funktioniert mit jedem Player
   * Discord         – über die lokale RPC-Schnittstelle (discord.py)
   * Wave Link       – über den PipeWire-Mixer (mixer.py) und wavemic.py
+  * Home Assistant  – über die REST-API (hass.py, Aktionen in hasskeys.py)
 
 Eigene Aktionen haben UUIDs unter "com.lindeck.". Aktionen der Elgato-/
 Drittanbieter-Plugins aus importierten Profilen werden anhand ihrer UUID
@@ -672,6 +673,9 @@ def lookup(uuid: str):
         return MediaAction
     if u.startswith("com.lindeck.discord.") or "discord" in plugin:
         return DiscordAction
+    if u.startswith("com.lindeck.homeassistant."):
+        from . import hasskeys
+        return hasskeys.lookup(u)
     if not parts.has_linewave():  # Mixer und Wave-Mikrofon kommen von Linewave
         return None
     if u.startswith("com.lindeck.wavemic.") or ("wavelink" in plugin and ("mic" in last or "lowcut" in last
