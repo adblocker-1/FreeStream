@@ -443,13 +443,16 @@ def test_setup_wizard_applies_choices(env, pactl, monkeypatch):
     hp = effects.lookup("builtin:highpass")
     wavesetup.apply_choices(host, {"mic": "alsa_input.usb-capture", "output": "alsa_output.speakers",
                                    "wave3": False, "lowcut": True, "clipguard": False, "gain": None,
-                                   "channels": ["music", "voice"], "mic_fx": [effects.new_effect(hp)]})
+                                   "channels": ["music", "voice"], "mic_fx": [effects.new_effect(hp)],
+                                   "noise": False})
     cfg = json.loads((env / "config" / "config.json").read_text())
     mx = cfg["mixer"]
     assert cfg["linewave"]["setup_done"] is True and mx["enabled"] is True
     assert mx["mic"] == "alsa_input.usb-capture" and mx["monitor_output"] == "alsa_output.speakers"
     assert [c["id"] for c in mx["channels"]] == ["music", "voice"]
     assert mx["effects"]["mic"][0]["plugin"] == "builtin:highpass"
+    assert mx["noise"]["enabled"] is False  # Rauschunterdrückung: eigene Stufe, nicht in den Effekten
+    assert "noise" in data and isinstance(data["noise"], list)
     assert host.mixer.is_active()
     loops = _loops(pactl, "music")
     assert {b["sink"] for b in loops.values()} >= {pactl._sink("alsa_output.speakers")}
