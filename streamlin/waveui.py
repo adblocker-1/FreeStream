@@ -491,7 +491,8 @@ class WaveWindow:
     def open_settings(self):
         """Design, Sprache und Updates."""
         from .settingsui import open_settings
-        return open_settings(self.root, "Linewave", self._restart)
+        return open_settings(self.root, "Linewave", self._restart,
+                             mixer=(self.state.get("mixer_active"), self._mixer_enable))
 
     def _restart(self):
         theme.restart_later("streamlin.linewave")
@@ -499,19 +500,6 @@ class WaveWindow:
 
     def quit_app(self):
         self.request_quit()
-
-    def open_lindeck(self):
-        """Das Schwesterprogramm LinDeck (Stream Deck) öffnen."""
-        import shutil
-        import subprocess
-        import sys
-        exe = shutil.which("lindeck")
-        cmd = [exe] if exe else [sys.executable, "-m", "streamlin"]
-        try:
-            subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                             start_new_session=True)
-        except OSError as e:
-            self.status(_("Error: {error}").format(error=e))
 
     def _poll(self):
         if self._want_quit.is_set():
@@ -580,7 +568,8 @@ class WaveWindow:
         sb.brand("Linewave", "wave")
         self.mic_head = tk.StringVar(self.root, value=_("Looking for microphone …"))
         self.mic_card = InfoCard(sb.top, _("Microphone"), _("Looking for microphone …"),
-                                 image=icon_tile(self.root, "mic", 34, COL["device"]), height=58,
+                                 image=icon_tile(self.root, "mic", 34, COL["device"], radius=0.24, fg="#c9cfda"),
+                                 height=58,
                                  command=lambda: self.show_view("mic"))
         self.mic_card.pack(fill="x", pady=(0, 6))
         sb.section(_("Mix"))
@@ -592,7 +581,7 @@ class WaveWindow:
             item._draw()
             item.pack(fill="x", pady=1)
             self.nav[key] = item
-        NavItem(sb.top, _("Setup wizard"), "gear", command=self.open_setup).pack(fill="x", pady=1)
+        NavItem(sb.top, _("Setup wizard"), "check", command=self.open_setup).pack(fill="x", pady=1)
         sb.section(_("Mixes"))
         self.mix_list = tk.Frame(sb.top, bg=COL["side"])
         self.mix_list.pack(fill="x")
@@ -600,20 +589,10 @@ class WaveWindow:
                                "color": COL["monitor"]},
                               {"id": "stream", "name": _("Stream Mix"), "icon": "stream", "color": COL["stream"]}])
 
-        sb.bottom.configure(padx=8)
-        row = tk.Frame(sb.bottom, bg=COL["side"])
-        row.pack(fill="x")
-        if parts.has_lindeck():  # Link zum Schwesterprogramm, falls installiert
-            link = tk.Label(row, text=" LinDeck", image=self.icons.get("grid", 15, COL["muted"]), compound="left",
-                            bg=COL["side"], fg=COL["fg"], font=theme.font(self.root, 10), cursor="hand2", padx=6,
-                            pady=4)
-            link.pack(side="right")
-            link.bind("<Button-1>", lambda e: self.open_lindeck())
-            link.bind("<Enter>", lambda e: link.configure(bg=COL["raised"]))
-            link.bind("<Leave>", lambda e: link.configure(bg=COL["side"]))
-        self.settings_item = theme.NavItem(row, _("Settings"), "gear", command=self.open_settings)
-        self.settings_item.configure(width=1)  # Breite kommt von der Seitenleiste
-        self.settings_item.pack(side="left", fill="x", expand=True)
+        b = tk.Frame(sb.bottom, bg=COL["side"], padx=9)  # wie in LinDeck
+        b.pack(fill="x")
+        self.settings_item = theme.NavItem(b, _("Settings"), "gear", command=self.open_settings)
+        self.settings_item.pack(fill="x", pady=(2, 4))
 
     def _fill_mix_cards(self, mixes):
         """Seitenleiste: je Mix eine Karte (Klick = bearbeiten)."""
@@ -673,9 +652,6 @@ class WaveWindow:
         self.sub_var = tk.StringVar(self.root, value="")
         label(left, textvariable=self.title_var, size=16, weight="bold").pack(anchor="w")
         label(left, textvariable=self.sub_var, size=9, color=COL["muted"]).pack(anchor="w")
-        more = Button(head, icon="more", kind="ghost", command=self._more_menu)
-        more.pack(side="right", padx=(8, 0))
-        self.more_btn = more
         self.add_btn = Button(head, _("Add channel"), "plus", kind="primary", command=self._new_channel)
         self.scene_btn = Button(head, _("Scenes"), "layers", command=self._scene_menu)
         self.deck_btn = Button(head, _("Export to LinDeck"), "export", command=self.open_deck_export)
@@ -694,23 +670,6 @@ class WaveWindow:
         self.head, self.head_left = head, left
         head.bind("<Configure>", lambda e: self._fit_legend(), add="+")
         tk.Frame(parent, bg=COL["border"], height=1).pack(fill="x")
-
-    def _more_menu(self):
-        menu = PopupMenu(self.root)
-        menu.add(_("Setup wizard"), self.open_setup, icon="auto")
-        if self.state.get("mixer_active"):
-            menu.add(_("Remove mixer"), lambda: self._mixer_enable(False), icon="close")
-        else:
-            menu.add(_("Set up mixer"), lambda: self._mixer_enable(True), icon="wave")
-        menu.separator()
-        menu.add(_("Settings"), self.open_settings, icon="gear")
-        menu.separator()
-        if parts.has_lindeck():
-            menu.add(_("Open LinDeck"), self.open_lindeck, icon="grid")
-        menu.add(_("Close window"), self.hide, icon="close")
-        menu.add(_("Quit"), self.quit_app, icon="arrow")
-        menu.below(self.more_btn, right=True)
-        return menu
 
     def _update_header(self):
         st = self.state
@@ -760,7 +719,7 @@ class WaveWindow:
         """Lange Legende nur, wenn sie neben Titel und Knöpfen ganz Platz hat."""
         if "legend" not in (getattr(self, "_header_shown", None) or ()):
             return
-        others = sum(w.winfo_reqwidth() + 8 for w in (self.add_btn, self.deck_btn, self.scene_btn, self.more_btn)
+        others = sum(w.winfo_reqwidth() + 8 for w in (self.add_btn, self.deck_btn, self.scene_btn)
                      if w.winfo_manager())
         room = self.head.winfo_width() - 44 - self.head_left.winfo_reqwidth() - others - 18
         want = self.legend_long if self.legend_long.winfo_reqwidth() <= room else self.legend_short

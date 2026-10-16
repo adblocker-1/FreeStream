@@ -64,9 +64,7 @@ def test_popup_menu():
 
 def test_lindeck_more_menu_and_profile_context(app, store, usb, monkeypatch):
     from streamlin import editdoc, editor
-    m = app._more_menu()
-    assert m.labels()[:3] == ["Neues Profil", "Importieren…", "Exportieren…"] and "Modell" not in m.labels()
-    m.close()
+    assert not hasattr(app, "more_btn") and not hasattr(app, "_more_menu")  # kein „…“-Menü mehr
     other = editdoc.create_profile("Gaming", "20GAT9901", store)
     app.refresh_profiles()
     pid = other.name[:-len(".sdProfile")]
@@ -147,10 +145,35 @@ def test_linewave_mix_menu_and_create_in_sidebar(env, pactl, monkeypatch):
         win._mix_menu("chat", 10, 10).invoke("Mix löschen")
         assert _pump(root, lambda: "chat" not in win.mix_cards)
         assert host.mixer.mix_ids() == ["monitor", "stream"]
+        assert not hasattr(win, "open_lindeck") and not hasattr(win, "more_btn")
         for fn in (win._scene_menu, win._output_menu):
             m = fn()
             assert m.labels()
             m.close()
     finally:
         win.quitting = True
+        root.destroy()
+
+
+def test_settings_offer_mixer_removal_in_linewave(env):
+    import tkinter as tk
+    from streamlin.settingsui import SettingsDialog
+    from streamlin.theme import Button
+    root = tk.Tk()
+    try:
+        calls = []
+        dlg = SettingsDialog(root, "Linewave", lambda: None, mixer=(True, calls.append))
+
+        def buttons(w):
+            for c in w.winfo_children():
+                if isinstance(c, Button):
+                    yield c
+                yield from buttons(c)
+        btn = next(b for b in buttons(dlg) if b.text == "Mixer entfernen")
+        btn.command()
+        assert calls == [False]
+        lindeck = SettingsDialog(root, "LinDeck", lambda: None)
+        assert not any(b.text in ("Mixer entfernen", "Mixer einrichten") for b in buttons(lindeck))
+        lindeck.destroy()
+    finally:
         root.destroy()

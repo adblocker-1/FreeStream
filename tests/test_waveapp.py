@@ -241,10 +241,7 @@ def test_wave_window(env, pactl):
         win._on_hw_bool("leds_off")
         assert _pump(root, lambda: host.mic._hw.get()["leds_off"] is True)
         # Menü „…“: Updates beim Start ein-/ausschalten
-        m = win._more_menu()  # Menü im Linewave-Design
-        labels = m.labels()
-        m.close()
-        assert "Einstellungen" in labels
+        assert not hasattr(win, "more_btn")  # kein „…“-Menü mehr: alles steht in der Seitenleiste
         # Einstellungen: ein Fenster, beim zweiten Öffnen dasselbe
         dlg = win.open_settings()
         assert win.open_settings() is dlg
