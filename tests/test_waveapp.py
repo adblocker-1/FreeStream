@@ -199,9 +199,25 @@ def test_wave_window(env, pactl):
     host.start()
     root = tk.Tk()
     try:
-        win = WaveWindow(root, host, tray=False)
+        import types
+        meters = {}
+
+        def fake_level(device):
+            meters[device] = types.SimpleNamespace(level=0.9, stop=lambda: meters.pop(device, None))
+            return meters[device]
+        win = WaveWindow(root, host, tray=False, level_factory=fake_level)
         assert _pump(root, lambda: bool(win.strips))
         assert set(win.strips) == {"system", "music", "browser", "voice", "game", "sfx", "mic"}
+        # Pegel: laufen nur sichtbar, Anzeige nach dem Regler
+        assert _pump(root, lambda: win.strips["music"]["monitor"]["meter"].level > 0.5)
+        assert "linewave_music.monitor" in meters and "linewave_streammix.monitor" in meters
+        assert win.mix_meters["stream"]["meter"].level == pytest.approx(0.9)
+        assert win.strips["mic"]["monitor"]["meter"].level == 0  # stumm
+        # Effekte- und Programme-Ansicht
+        win.show_view("effects")
+        win.show_view("apps")
+        root.update()
+        win.show_view("mixer")
         assert win.strips["mic"]["monitor"]["mute"].get() is True
         assert win.mic_name.get().startswith("Elgato Wave:3") and win.hw_frame.winfo_manager() == "pack"
         assert win.gain_val.get().startswith("100 %")
@@ -219,6 +235,7 @@ def test_wave_window(env, pactl):
         win._hidden_once = True
         win.hide()
         assert root.state() == "withdrawn"
+        assert not meters and not win.levels.running  # versteckt: alle Messungen beendet
         win.request_quit()
         root.after(2000, root.quit)
         root.mainloop()
@@ -445,6 +462,88 @@ def test_test_tone_and_level_meter(env, monkeypatch):
     m = wavesetup.LevelMeter("alsa_input.x")
     assert not m.available
     m.stop()
+
+
+def test_level_parsing_and_scheduling(monkeypatch):
+    """Pegel aus s16le-Blöcken, Start/Stopp der Quellen und sanfter Abfall der Anzeige."""
+    import array
+    import types
+    from streamlin import levels
+    # Stille, volle Aussteuerung und −20 dB
+    assert levels.peak_level(b"") == 0.0
+    assert levels.peak_level(array.array("h", [0] * 64).tobytes()) == 0.0
+    assert levels.peak_level(array.array("h", [0, -32768, 5]).tobytes()) == pytest.approx(1.0)
+    lvl = levels.peak_level(array.array("h", [3277, -100]).tobytes())
+    assert lvl == pytest.approx(40 / 60, abs=0.01)
+    assert levels.level_db(lvl) == pytest.approx(-20, abs=0.5) and levels.level_db(0) is None
+    assert levels.peak_level(b"\x00\x40\x00") > 0  # ungerade Länge wird abgeschnitten
+
+    started, stopped = [], []
+
+    def factory(device):
+        src = types.SimpleNamespace(level=0.0, device=device)
+        src.stop = lambda: stopped.append(device)
+        started.append(device)
+        return src
+    now = [0.0]
+    mon = levels.LevelMonitor(factory=factory, clock=lambda: now[0], fall_per_s=1.0)
+    assert mon.available and not mon.running
+    mon.watch({"music": "linewave_music.monitor", "mix:stream": "linewave_streammix.monitor", "x": ""})
+    assert sorted(started) == ["linewave_music.monitor", "linewave_streammix.monitor"] and mon.running
+    mon.watch({"music": "linewave_music.monitor", "mix:stream": "linewave_streammix.monitor"})
+    assert len(started) == 2  # unverändert: nichts neu gestartet
+    mon.sources["music"][1].level = 0.8
+    assert mon.read()["music"] == pytest.approx(0.8)
+    mon.sources["music"][1].level = 0.0
+    now[0] = 0.25
+    assert mon.read()["music"] == pytest.approx(0.55)  # fällt langsam
+    now[0] = 2.0
+    assert mon.read()["music"] == 0.0
+    # anderes Gerät für einen Kanal: alte Quelle stoppen, neue starten; weggefallene stoppen
+    mon.watch({"music": "alsa_input.other"})
+    assert "linewave_music.monitor" in stopped and "linewave_streammix.monitor" in stopped
+    assert started[-1] == "alsa_input.other"
+    mon.stop()
+    assert "alsa_input.other" in stopped and not mon.running and mon.read() == {}
+
+    # ohne parec: nichts starten, Pegel bleiben 0
+    monkeypatch.setattr(levels.shutil, "which", lambda n: None)
+    mon = levels.LevelMonitor()
+    assert not mon.available
+    mon.watch({"music": "linewave_music.monitor"})
+    assert not mon.running and mon.read() == {}
+    assert levels.ParecSource("linewave_music.monitor").proc is None
+
+
+def test_level_sources_and_parec(env, pactl):
+    """Gemessen werden die Monitore der Kanal-Sinks, das Mikrofon und beide Mixe; parec mit niedriger Rate."""
+    import io
+    from streamlin import levels
+    from streamlin.mixer import Mixer
+    mx = Mixer(_config(env, {"mixer": {"enabled": True, "mic": "alsa_input.wave"}}))
+    chans = [{"id": "mic", "name": "Mic", "kind": "input"}, {"id": "music", "name": "Music"},
+             {"id": "cap", "name": "Cap", "kind": "input", "source": "alsa_input.usb-capture"}]
+    src = levels.channel_sources(mx, chans, "alsa_output.headphones")
+    assert src == {"mic": "alsa_input.wave", "music": "linewave_music.monitor", "cap": "alsa_input.usb-capture",
+                   "mix:monitor": "alsa_output.headphones.monitor", "mix:stream": "linewave_streammix.monitor"}
+    calls = []
+
+    class Proc:
+        def __init__(self, args, **kw):
+            calls.append(args)
+            self.stdout = io.BytesIO(b"\xff\x7f" * 10)
+            self.done = False
+
+        def poll(self):
+            return 0 if self.done else None
+
+        def terminate(self):
+            self.done = True
+    p = levels.ParecSource("linewave_music.monitor", exe="parec", popen=Proc)
+    assert calls and "--device=linewave_music.monitor" in calls[0] and "--channels=1" in calls[0]
+    assert "--rate=16000" in calls[0] and "--format=s16le" in calls[0]
+    p.stop()
+    assert p.proc is None and p.level == 0.0
 
 
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")

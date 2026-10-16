@@ -314,8 +314,15 @@ def shot_linewave(tmp):
                           ("voice", "stream", 0), ("browser", "monitor", 55), ("capture", "monitor", 40)):
         host.mixer.set_volume(cid, mix, vol)
     host.mixer.set_mute("voice", "stream", True)
+    import types
+    demo = {"music": .78, "browser": .55, "voice": .72, "game": .8, "system": .5, "podcast": .62, "capture": .66,
+            "mic": .82, "streammix": .74, "headphones": .8}
+
+    def fake_level(device):  # feste Pegel statt parec, damit das Bild immer gleich aussieht
+        key = next((k for k in demo if k in device), "")
+        return types.SimpleNamespace(level=demo.get(key, .5) if "Wave" in device or key else .6, stop=lambda: None)
     root = tk.Tk(className="linewave")
-    win = WaveWindow(root, host, tray=False)
+    win = WaveWindow(root, host, tray=False, level_factory=fake_level)
     pump(root, 3)
     grab(root, "linewave-mixer.png")
     win.show_view("mic")
