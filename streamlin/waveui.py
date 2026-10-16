@@ -265,35 +265,82 @@ class AddRowCard(AddCard):
         self.create_text(x + 24, h / 2, text=self.text, anchor="w", font=f, fill=COL["accent_hi"])
 
 
+def _plus_circle(master, size, color):
+    """⊕ als Bild (glatt gezeichnet)."""
+    k = 4
+    S = size * k
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    w = int(1.5 * k)
+    d.ellipse((w / 2, w / 2, S - w / 2, S - w / 2), outline=color, width=w)
+    a = S * 0.24
+    d.line((S / 2 - a, S / 2, S / 2 + a, S / 2), fill=color, width=w)
+    d.line((S / 2, S / 2 - a, S / 2, S / 2 + a), fill=color, width=w)
+    return ImageTk.PhotoImage(im.resize((size, size), Image.LANCZOS), master=master)
+
+
+class Tooltip:
+    """Kleiner Hinweis über einem Widget (eigenes Fenster ohne Rahmen)."""
+
+    def __init__(self, widget, text):
+        self.widget, self.text, self.win = widget, text, None
+
+    def show(self):
+        if self.win is not None:
+            return
+        w = self.widget
+        win = tk.Toplevel(w)
+        win.overrideredirect(True)
+        win.configure(bg=COL["border"])
+        tk.Label(win, text=self.text, bg=COL["raised"], fg=COL["fg"], font=theme.font(w, 9),
+                 padx=10, pady=5).pack(padx=1, pady=1)
+        win.update_idletasks()
+        x = w.winfo_rootx() + (w.winfo_width() - win.winfo_reqwidth()) // 2
+        y = w.winfo_rooty() + w.winfo_height() // 2 - win.winfo_reqheight() - 14
+        win.geometry(f"+{x}+{y}")
+        self.win = win
+
+    def hide(self):
+        if self.win is not None:
+            try:
+                self.win.destroy()
+            except tk.TclError:
+                pass
+            self.win = None
+
+
 class EmptyCell(tk.Canvas):
-    """Zelle der Mixer-Tabelle, wenn der Kanal nicht im Mix ist: beim Überfahren „+ hinzufügen“."""
+    """Zelle der Mixer-Tabelle, wenn der Kanal nicht im Mix ist: beim Überfahren heller mit ⊕ und Hinweis."""
 
     def __init__(self, master, width, height, command=None):
         super().__init__(master, width=width, height=height, bg=COL["bg"], highlightthickness=0, bd=0,
                          cursor="hand2")
         self.w, self.h, self.command, self.hover = width, height, command, False
-        self.icons = theme.Icons(self)
-        self.f = theme.font(self, 10)
+        self.plus = _plus_circle(self, 18, COL["fg"])
+        self.tip = Tooltip(self, _("Add channel to mix"))
         self.bind("<Enter>", lambda e: self._set_hover(True))
         self.bind("<Leave>", lambda e: self._set_hover(False))
-        self.bind("<Button-1>", lambda e: self.command and self.command())
+        self.bind("<Button-1>", lambda e: self._click())
+        self.bind("<Destroy>", lambda e: self.tip.hide(), add="+")
         self._draw()
+
+    def _click(self):
+        self.tip.hide()
+        if self.command:
+            self.command()
 
     def _set_hover(self, v):
         self.hover = v
         self._draw()
+        self.tip.show() if v else self.tip.hide()
 
     def _draw(self):
         self.delete("all")
         w, h = self.w, self.h
-        rounded_rect(self, 0, 0, w - 1, h - 1, 12, fill=COL["bg"],
-                     outline=COL["accent"] if self.hover else COL["border"])
+        rounded_rect(self, 0, 0, w - 1, h - 1, 12, fill=COL["panel2"] if self.hover else COL["bg"],
+                     outline=COL["border"])
         if self.hover:
-            text = _("add")
-            tw = self.f.measure(text)
-            x = (w - tw - 22) / 2
-            self.create_image(x + 8, h / 2, image=self.icons.get("plus", 15, COL["accent_hi"]))
-            self.create_text(x + 22, h / 2, text=text, anchor="w", fill=COL["accent_hi"], font=self.f)
+            self.create_image(w / 2, h / 2, image=self.plus)
 
 
 class RemoveBadge(tk.Canvas):
@@ -894,8 +941,8 @@ class WaveWindow:
             self.strips[cid][mid] = part
             widget = part["card"]
             badge = RemoveBadge(tb, command=lambda: self._toggle_member(cid, mid, False))
-            badge.place(in_=widget, relx=1.0, x=-3, y=3, anchor="center")  # halb auf der Ecke
             part["remove"] = badge
+            self._hover_badge(widget, badge)
         else:
             self.strips[cid].pop(mid, None)
             widget = EmptyCell(tb, MIX_W, ROW_H, command=lambda: self._toggle_member(cid, mid, True))
@@ -923,6 +970,31 @@ class WaveWindow:
         for w in (card, body, lb):
             w.bind("<Button-3>", lambda e: self._cell_menu(e, cid, mid))
         return {"fader": fader, "val": val, "mute": mute, "meter": meter, "label": lb, "card": card}
+
+    def _hover_badge(self, card, badge):
+        """X zum Entfernen nur zeigen, solange die Maus über der Zelle (oder dem X) ist."""
+        def show(_e=None):
+            if badge.winfo_exists() and not badge.winfo_ismapped():
+                badge.place(in_=card, relx=1.0, x=-3, y=3, anchor="center")  # halb auf der Ecke
+                badge.lift()
+
+        def check():
+            if not card.winfo_exists():
+                return
+            px, py = card.winfo_pointerxy()
+            x, y = card.winfo_rootx(), card.winfo_rooty()
+            r = RemoveBadge.SIZE
+            if not (x - 2 <= px <= x + card.winfo_width() + r and y - r <= py <= y + card.winfo_height() + 2):
+                badge.place_forget()
+
+        def leave(_e=None):
+            card.after(60, check)  # kurz warten: Wechsel zwischen Zelle, Regler und X
+        stack = [card, badge]
+        while stack:
+            w = stack.pop()
+            w.bind("<Enter>", show, add="+")
+            w.bind("<Leave>", leave, add="+")
+            stack.extend(w.winfo_children())
 
     def _cell_menu(self, e, cid, mid):
         mname = next((m["name"] for m in self.state.get("mixes") or [] if m["id"] == mid), mid)
@@ -1185,7 +1257,9 @@ class WaveWindow:
 
         def work():
             if ch is None:
-                return self.mixer.add_channel(v["name"], v["kind"], v["source"], v["icon"], v["color"])
+                # neuer Kanal startet in keinem Mix: Zuordnung wählt man selbst in der Tabelle
+                return self.mixer.add_channel(v["name"], v["kind"], v["source"], v["icon"], v["color"],
+                                              in_mixes=False)
             changes = {"icon": v["icon"], "color": v["color"]}
             if ch["id"] != "mic":
                 changes["name"] = v["name"]

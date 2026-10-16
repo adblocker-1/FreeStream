@@ -253,8 +253,11 @@ class Mixer:
             out.append((name, b.get("description") or name))
         return out
 
-    def add_channel(self, name, kind="apps", source="", icon="", color=""):
-        """Eigenen Kanal anlegen; läuft der Mixer, wird er sofort eingerichtet."""
+    def add_channel(self, name, kind="apps", source="", icon="", color="", in_mixes=True):
+        """Eigenen Kanal anlegen; läuft der Mixer, wird er sofort eingerichtet.
+
+        in_mixes=False: der Kanal ist zunächst in keinem Mix (Zuordnung wählt man selbst).
+        """
         name = (name or "").strip()
         if not name:
             raise RuntimeError(_("Please enter a name"))
@@ -270,6 +273,10 @@ class Mixer:
         if color:
             c["color"] = color
         self._cfg_channels().append(c)
+        if not in_mixes:
+            for m in self.mixes():
+                cm = self._cfg_mix(m["id"])
+                cm["exclude"] = [x for x in m["exclude"] if x != c["id"]] + [c["id"]]
         self._save_cfg()
         if self.is_active():
             self._add_live(c)
