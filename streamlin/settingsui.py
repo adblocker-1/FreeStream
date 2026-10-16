@@ -1,13 +1,15 @@
 """Einstellungen von LinDeck und Linewave (Zahnrad in der Seitenleiste).
 
-Design (Hell/Dunkel/Auto), Sprache und Updates an einer Stelle. Beide Programme
-teilen sich die Einstellungen (config.json).
+Design (Hell/Dunkel/Auto), Sprache, Updates und Sicherung an einer Stelle. Beide
+Programme teilen sich die Einstellungen (config.json).
 """
+import threading
 import tkinter as tk
-from tkinter import ttk
+from pathlib import Path
+from tkinter import filedialog, messagebox, ttk
 
 from . import __version__, i18n, updater
-from .dialogkit import field, footer, header
+from .dialogkit import ScrollArea, field, footer, header
 from .i18n import _
 from .theme import COL, Button, Card, Dialog, Switch, choose_language, label, mode_switch
 
@@ -29,6 +31,10 @@ class SettingsDialog(Dialog):
     def __init__(self, master, app, restart):
         super().__init__(master, _("Settings"), width=500)
         self.app, self.restart = app, restart
+        self._outer = self.body
+        self._scroll = ScrollArea(self._outer)
+        self._scroll.pack(fill="both", expand=True)
+        self.body = self._scroll.inner
         b = self.body
         header(b, _("Settings"), _("These settings apply to LinDeck and Linewave."), icon="gear")
 
@@ -63,9 +69,12 @@ class SettingsDialog(Dialog):
             side="left")
         Button(row, _("Check now"), icon="spark", command=self._check, height=30).pack(side="right")
 
+        self._build_backup()
+
+        self.body = self._outer
         footer(self)
         Button(self.buttons, _("Close"), kind="primary", command=self.destroy).pack(side="right")
-        self.update_idletasks()
+        self._fit()
         self.focus_set()
 
     def _card(self, title):
@@ -84,3 +93,149 @@ class SettingsDialog(Dialog):
     def _check(self):
         from . import updateui
         updateui.check_now(self, self.app, self.restart)
+
+    def _fit(self):
+        """Höhe an den Inhalt anpassen, höchstens so hoch wie der Bildschirm (sonst Bildlauf)."""
+        self.update_idletasks()
+        inner = self._scroll.inner
+        room = self.winfo_screenheight() - 90 - self.buttons.winfo_reqheight() - 2 * 18
+        self._scroll.cv.configure(height=max(200, min(inner.winfo_reqheight(), room)),
+                                  width=inner.winfo_reqwidth())
+        self.update_idletasks()
+
+    # ---------------------------------------------------------- Sicherung
+    def _build_backup(self):
+        card = self._card(_("Backup"))
+        label(card, _("Save all profiles, images, plugins and settings of LinDeck and Linewave to one file, "
+                      "or restore them from such a file."), 9, color=COL["muted"], wraplength=420,
+              justify="left").pack(anchor="w")
+        row = tk.Frame(card, bg=COL["panel"])
+        row.pack(fill="x", pady=(12, 0))
+        self.backup_plugins = Switch(row)
+        self.backup_plugins.set(True)
+        self.backup_plugins.pack(side="left")
+        label(row, _("Include installed plugins"), 10).pack(side="left", padx=10)
+        row = tk.Frame(card, bg=COL["panel"])
+        row.pack(fill="x", pady=(12, 0))
+        self.backup_btn = Button(row, _("Create backup…"), icon="export", command=self._backup, height=30)
+        self.backup_btn.pack(side="left")
+        self.restore_btn = Button(row, _("Restore…"), icon="import", command=self._restore, height=30)
+        self.restore_btn.pack(side="left", padx=(8, 0))
+        self.backup_status = label(card, "", 9, color=COL["muted"], wraplength=420, justify="left")
+        self.backup_status.pack(anchor="w", pady=(10, 0))
+        self._busy = False
+
+    def _status(self, text, color=None):
+        try:
+            self.backup_status.configure(text=text, fg=color or COL["muted"])
+            self._fit()
+        except tk.TclError:
+            pass
+
+    def _run(self, work, done, text):
+        """work(progress) im Hintergrund; done(ergebnis, fehler) danach im Tk-Thread."""
+        from . import backup
+        self._busy = True
+        for b in (self.backup_btn, self.restore_btn):
+            b.configure_text(enabled=False)
+        state = {"p": None, "res": None, "err": None, "end": False}
+
+        def progress(n, total):
+            state["p"] = int(100 * n / total) if total else 100
+
+        def worker():
+            try:
+                state["res"] = work(progress)
+            except backup.BackupError as e:
+                state["err"] = str(e)
+            except Exception as e:  # noqa: BLE001
+                state["err"] = _("Error: {error}").format(error=e)
+            state["end"] = True
+
+        def poll():
+            if not self.winfo_exists():
+                return
+            if not state["end"]:
+                pct = f" {state['p']} %" if state["p"] is not None else ""
+                self._status(text + pct)
+                self.after(150, poll)
+                return
+            self._busy = False
+            for b in (self.backup_btn, self.restore_btn):
+                b.configure_text(enabled=True)
+            done(state["res"], state["err"])
+
+        self._status(text)
+        threading.Thread(target=worker, name="backup", daemon=True).start()
+        self.after(150, poll)
+
+    def _backup(self):
+        from . import backup
+        if self._busy:
+            return
+        path = filedialog.asksaveasfilename(
+            parent=self, title=_("Create backup"), initialdir=str(Path.home()), initialfile=backup.default_name(),
+            defaultextension=backup.EXT, filetypes=[(_("Streamlin backup"), "*" + backup.EXT)])
+        if not path:
+            return
+        plugins = self.backup_plugins.get()
+
+        def done(m, err):
+            if err:
+                self._status(err, COL["danger"])
+            else:
+                f = Path(m["path"])  # nur der Dateiname: lange Pfade lassen sich nicht umbrechen
+                self._status(_("Backup saved: {path}").format(path=f.name) + "\n" + _("Size: {size}").format(
+                    size=backup.human_size(f.stat().st_size)), COL["ok"])
+        self._run(lambda progress: backup.create(path, plugins=plugins, progress=progress), done,
+                  _("Creating backup…"))
+
+    def _restore(self):
+        from . import backup
+        if self._busy:
+            return
+        path = filedialog.askopenfilename(parent=self, title=_("Restore backup"), initialdir=str(Path.home()),
+                                          filetypes=[(_("Streamlin backup"), "*" + backup.EXT),
+                                                     (_("All files"), "*")])
+        if not path:
+            return
+        try:
+            m = backup.inspect(path)
+        except backup.BackupError as e:
+            self._status(str(e), COL["danger"])
+            messagebox.showerror(_("Restore backup"), str(e), parent=self)
+            return
+        msg = "\n".join(backup.describe(m)) + "\n\n" + _(
+            "Your current profiles and settings will be replaced. A safety copy of them is saved first. "
+            "LinDeck and Linewave restart afterwards. Continue?")
+        if not messagebox.askyesno(_("Restore backup"), msg, parent=self):
+            return
+        # Offenes Profil im Editor jetzt speichern und schließen, damit es die Sicherung nicht überschreibt
+        editor = getattr(self.restart, "__self__", None)
+        doc = getattr(editor, "doc", None)
+        reopen = getattr(doc, "id", None)
+        if doc is not None and callable(getattr(editor, "close_doc", None)):
+            editor.close_doc()
+
+        def work(progress):
+            progs = backup.stop_programs()
+            try:
+                return backup.restore(path, progress=progress), progs
+            finally:
+                backup.start_programs(progs)
+
+        def done(res, err):
+            if err:
+                if reopen:
+                    editor.open_profile(reopen)  # nichts ersetzt: Profil wieder öffnen
+                self._status(err, COL["danger"])
+                messagebox.showerror(_("Restore backup"), err, parent=self)
+                return
+            (__, safety), __p = res
+            self._status(_("Backup restored."), COL["ok"])
+            messagebox.showinfo(_("Restore backup"), _("Backup restored. {app} restarts now.").format(app=self.app) +
+                                "\n\n" + _("Your previous data was saved to {path}").format(path=safety),
+                                parent=self)
+            self.destroy()
+            self.restart()
+        self._run(work, done, _("Restoring backup…"))
