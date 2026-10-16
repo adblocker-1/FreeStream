@@ -17,7 +17,19 @@ def store(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "PROFILES_DIR", root)
     monkeypatch.setattr(paths, "STATE_FILE", tmp_path / "state.json")
     monkeypatch.setattr(paths, "PID_FILE", tmp_path / "streamlin.pid")  # kein echtes LinDeck anstoßen
+    from streamlin import models
+    monkeypatch.setattr(models, "USB_ROOT", str(tmp_path / "usb"))  # keine echten Geräte
     return root
+
+
+def _plug(tmp_path, *pids):
+    """Simulierte USB-Geräte im sysfs (Vendor Elgato)."""
+    for i, pid in enumerate(pids):
+        d = tmp_path / "usb" / f"1-{i + 1}"
+        d.mkdir(parents=True)
+        (d / "idVendor").write_text("0fd9\n")
+        (d / "idProduct").write_text(f"{pid:04x}\n")
+        (d / "serial").write_text(f"SER{i}\n")
 
 
 def _profile(store, name):
@@ -142,7 +154,7 @@ def test_devices_in_use_first(store):
     gaming = editdoc.create_profile("Gaming", MK2, store)
     (store.parent / "state.json").write_text(json.dumps({"SERIAL": {"profile": gaming.name[:-10]}}))
     devs = deckexport.devices()
-    assert devs[0] == {"model": MK2, "name": "Stream Deck MK.2", "in_use": True, "profile": ""}
+    assert devs[0] == {"model": MK2, "name": "Stream Deck MK.2", "connected": False, "in_use": True, "profile": ""}
     assert {d["model"] for d in devs} >= {PLUS, MINI}
     deckexport.export(MK2, CHANS[:1])
     assert deckexport.devices()[0]["profile"] == "Linewave"
@@ -306,3 +318,37 @@ def test_key_looks_and_mix_select():
         assert native.deck_mix() == "both"
     finally:
         native._DECK_MIX["mix"] = "both"
+
+
+def test_connected_decks_come_first_and_new_ones_get_a_profile(store, tmp_path):
+    from streamlin import models
+    assert models.connected_models() == []
+    _plug(tmp_path, 0x008F, 0x0084)  # Stream Deck XL V2 und Stream Deck +
+    (tmp_path / "usb" / "2-1").mkdir()
+    (tmp_path / "usb" / "2-1" / "idVendor").write_text("046d\n")  # andere Firma
+    assert [d["model"] for d in models.connected_models()] == ["20GAT9902", "20GBD9901"]
+    devs = deckexport.devices()
+    assert [d["model"] for d in devs[:2]] == ["20GAT9902", "20GBD9901"] and devs[0]["connected"]
+    assert not devs[2]["connected"]
+    # noch nie exportiert: nichts automatisch anlegen
+    assert deckexport.adopt_new_devices() == []
+    name, _p, _n = deckexport.export("20GAT9902", ["system", "music"], mix="selected")
+    # das zweite angeschlossene Gerät bekommt automatisch ein Profil mit denselben Kanälen
+    assert deckexport.adopt_new_devices() == ["Linewave (Stream Deck +)"]
+    plus = _profile(store, "Linewave (Stream Deck +)")
+    meta = json.loads((plus / deckexport.META).read_text())["linewave"]
+    assert meta["channels"] == ["system", "music"] and meta["mix"] == "selected"
+    assert deckexport.adopt_new_devices() == []  # nur einmal
+
+
+def test_export_dialog_uses_connected_deck(root, store, tmp_path):
+    from streamlin.wavedialogs import DeckExportDialog
+    _plug(tmp_path, 0x006C, 0x0084)
+    chans = [("system", "System"), ("music", "Musik")]
+    dlg = DeckExportDialog(root, chans)
+    assert dlg.device_box is None and len(dlg.cards) == 2
+    assert dlg._selected_device()["model"] == "20GAT9901"
+    dlg.cards[1][1].toggle()  # zweites Gerät anklicken
+    assert dlg._selected_device()["model"] == "20GBD9901"
+    assert [c.checked for _d, c in dlg.cards] == [False, True]
+    dlg.destroy()

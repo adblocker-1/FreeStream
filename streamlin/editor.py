@@ -22,7 +22,7 @@ from . import catalog as C
 from . import editdoc as E
 from . import livekeys, parts, paths, render, theme
 from .i18n import _, ngettext
-from .models import MODELS, model_geometry, model_name
+from .models import MODELS, connected_models, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
 
 log = logging.getLogger("streamlin.editor")
@@ -344,20 +344,6 @@ class EditorApp:
     def _ctrl(self):
         return next((c for c in self._controllers() if c.serial == self.device), None)
 
-    def _known_devices(self, connected):
-        """Bekannte, aber nicht angeschlossene Geräte aus der Konfiguration: [(Seriennummer, Modellname)]."""
-        try:
-            devs = (getattr(self.daemon, "cfg", None) or {}).get("devices") or {}
-        except AttributeError:
-            return []
-        out = []
-        for serial, d in sorted(devs.items()):
-            if serial in connected or not isinstance(d, dict):
-                continue
-            prof = self.store.get(d.get("profile") or "")
-            out.append((serial, prof.model_name if prof else serial))
-        return out
-
     def refresh_devices(self, initial=False):
         """Liste der angeschlossenen Stream Decks aktualisieren (alle 2 s)."""
         if self.daemon is None:
@@ -366,6 +352,7 @@ class EditorApp:
         ids = [c.serial for c in ctrls]
         if ids != self._device_ids:
             self._device_ids = ids
+            self.root.after_idle(self.refresh_profiles)  # Profile anderer Modelle aus-/eingrauen
             if self.device not in ids:
                 self.device = ids[0] if ids else None
                 if self.device and not initial:
@@ -382,11 +369,11 @@ class EditorApp:
     def build_devices(self):
         """Gerätekarten in der Seitenleiste (nur neu aufbauen, wenn sich etwas geändert hat)."""
         if self.daemon is not None:
+            # nur angeschlossene Geräte – das Modell erkennt LinDeck selbst
             ctrls = sorted(self._controllers(), key=lambda c: (model_name(c.model), c.serial))
-            known = self._known_devices({c.serial for c in ctrls})
-            key = ("app", tuple(c.serial for c in ctrls), tuple(known), self.device)
+            key = ("app", tuple(c.serial for c in ctrls), self.device)
         else:
-            ctrls, known = [], []
+            ctrls = []
             key = ("edit", self.doc.model if self.doc else None)
         if key == self._device_key:
             return
@@ -400,7 +387,7 @@ class EditorApp:
         if self.daemon is None:
             if self.doc:
                 card = theme.InfoCard(self.devbox, model_name(self.doc.model) if self.doc.model else _("unknown"),
-                                      _("Layout of this profile"), image=on_img, command=self._model_menu_at_card)
+                                      _("Layout of this profile"), image=on_img)
                 card.pack(fill="x", pady=(0, 8))
                 self.device_cards[""] = card
             return
@@ -410,11 +397,7 @@ class EditorApp:
             card.selected = c.serial == self.device
             card.pack(fill="x", pady=(0, 8))
             self.device_cards[c.serial] = card
-        for serial, name in known:
-            card = theme.InfoCard(self.devbox, name, _("Not connected"), image=off_img, dim=True)
-            card.pack(fill="x", pady=(0, 8))
-            self.device_cards[serial] = card
-        if not ctrls and not known:
+        if not ctrls:
             theme.InfoCard(self.devbox, _("No Stream Deck connected"), "", image=off_img, dim=True).pack(
                 fill="x", pady=(0, 8))
 
@@ -556,7 +539,6 @@ class EditorApp:
     def _build(self):
         r = self.root
         self.status_var = tk.StringVar(value="")
-        self.model_var = tk.StringVar()
         self._model_codes = list(MODELS)
         self.btn = {}
         self._build_sidebar(r)
@@ -608,7 +590,8 @@ class EditorApp:
         self.sub_lbl = theme.label(txt, "", 9, color=COL["muted"], anchor="w")
         self.sub_lbl.pack(anchor="w")
         more = theme.Button(head, icon="more")
-        more.command = lambda: self._popup(self._more_menu(), more)
+        more.command = self._more_menu
+        self.more_btn = more
         more.pack(side="right", padx=(8, 0))
         self.btn["exp"] = theme.Button(head, _("Export"), command=self.export_profile)
         self.btn["exp"].pack(side="right", padx=(8, 0))
@@ -622,57 +605,48 @@ class EditorApp:
             if isinstance(b, theme.Button):
                 b.pack_configure(pady=16)
 
-    def _popup(self, menu, widget):
-        try:
-            menu.tk_popup(widget.winfo_rootx(), widget.winfo_rooty() + widget.winfo_height() + 2)
-        finally:
-            menu.grab_release()
-
-    def _profile_menu(self, m=None):
-        m = m or tk.Menu(self.root, tearoff=0)
-        on = "normal" if self.doc else "disabled"
-        m.add_command(label=_("New…"), command=self.new_profile)
-        m.add_command(label=_("Duplicate"), command=self.duplicate_profile, state=on)
-        m.add_command(label=_("Rename…"), command=self.rename_profile, state=on)
-        m.add_command(label=_("Delete"), command=self.delete_profile, state=on)
-        m.add_separator()
-        m.add_command(label=_("Import…"), command=self.import_profiles)
-        m.add_command(label=_("Export…"), command=self.export_profile, state=on)
-        return m
-
-    def _models_menu(self, master):
-        sub = tk.Menu(master, tearoff=0)
-        self.model_var.set(self.doc.model if self.doc else "")
-        for code in self._model_codes:
-            sub.add_radiobutton(label=MODELS[code][0], value=code, variable=self.model_var,
-                                command=lambda c=code: self._set_model(c))
-        return sub
-
     def _more_menu(self):
-        m = self._profile_menu()
-        on = "normal" if self.doc else "disabled"
-        m.add_separator()
-        m.add_cascade(label=_("Model"), menu=self._models_menu(m), state=on)
-        m.add_command(label=_("Background"), command=self.open_background, state=on)
-        m.add_command(label=_("Plugins"), command=self.open_plugins)
+        """„…“ oben rechts: Menü im LinDeck-Design."""
+        on = self.doc is not None
+        m = theme.PopupMenu(self.root)
+        m.add(_("New profile"), self.new_profile, icon="plus")
+        m.add(_("Import…"), self.import_profiles, icon="import")
+        m.add(_("Export…"), self.export_profile if on else None, icon="export")
+        m.separator()
+        m.add(_("Background"), self.open_background if on else None, icon="image")
+        m.add(_("Plugins"), self.open_plugins, icon="puzzle")
         if parts.has_linewave():
-            m.add_command(label=_("Open Linewave"), command=self.open_wave)
-        m.add_command(label=_("Settings"), command=self.open_settings)
-        m.add_separator()
+            m.add(_("Open Linewave"), self.open_wave, icon="wave")
+        m.add(_("Settings"), self.open_settings, icon="gear")
+        m.separator()
         if self.daemon is not None:
-            m.add_command(label=_("Close window"), command=self.hide)
-        m.add_command(label=_("Quit"), command=self.quit_app)
+            m.add(_("Close window"), self.hide, icon="close")
+        m.add(_("Quit"), self.quit_app, icon="arrow")
+        m.below(self.more_btn, right=True)
         return m
+
+    def _profile_context(self, pid, x, y):
+        """Rechtsklick auf ein Profil in der Seitenleiste."""
+        m = theme.PopupMenu(self.root, width=220)
+        m.add(_("Open"), lambda: self._on_profile_selected(pid), icon="folder")
+        m.add(_("Rename…"), lambda: self._with_profile(pid, self.rename_profile), icon="edit")
+        m.add(_("Duplicate"), lambda: self._with_profile(pid, self.duplicate_profile), icon="layers")
+        m.add(_("Export…"), lambda: self._with_profile(pid, self.export_profile), icon="export")
+        m.separator()
+        m.add(_("Delete profile"), lambda: self._with_profile(pid, self.delete_profile), icon="trash", danger=True)
+        return m.popup(x, y)
+
+    def _with_profile(self, pid, fn):
+        """Aktion für ein Profil aus der Liste: vorher öffnen, falls ein anderes offen ist."""
+        if not self.doc or self.doc.id != pid:
+            self.open_profile(pid)
+        if self.doc and self.doc.id == pid:
+            fn()
 
     def open_settings(self):
         """Design, Sprache und Updates."""
         from .settingsui import open_settings
         return open_settings(self.root, "LinDeck", self._restart)
-
-    def _model_menu_at_card(self):
-        if self.doc:
-            card = self.device_cards.get("")
-            self._popup(self._models_menu(self.root), card or self.root)
 
     def _update_header(self):
         st = self.status_var.get()
@@ -781,12 +755,17 @@ class EditorApp:
         f = self.profile_list.inner
         self.profile_items = {}
         cur = self.doc.id if self.doc else None
+        shapes = self._connected_shapes()
         for p in profs:
             n = len(p.page_ids)
             on = p.id == cur
+            other = bool(shapes) and _shape(p.model) not in shapes  # Profil für ein nicht angeschlossenes Gerät
             count = ngettext("{n} page", "{n} pages", n).format(n=n) if on else n
-            it = theme.NavItem(f, p.name, profile_glyph(p.name), count, active=on,
+            if other and not on:  # kurzer Modellname statt Seitenzahl („Mini MK.2“)
+                count = (model_name(p.model) if p.model else "").replace("Stream Deck ", "")
+            it = theme.NavItem(f, p.name, profile_glyph(p.name), count, active=on, dim=other,
                                command=lambda i=p.id: self._on_profile_selected(i))
+            it.bind("<Button-3>", lambda e, i=p.id: self._profile_context(i, e.x_root, e.y_root))
             it.pack(fill="x", pady=(0, 2))
             self.profile_items[p.id] = it
         theme.NavItem(f, _("New profile"), "plus", accent=True, command=self.new_profile).pack(fill="x")
@@ -827,7 +806,6 @@ class EditorApp:
         self._img_cache.clear()
         self.refresh_profiles()
         self.root.title(f"LinDeck – {self.doc.name}")
-        self.model_var.set(self.doc.model or "")
         if self.daemon is None:
             self.build_devices()
         self.fill_catalog()
@@ -851,11 +829,34 @@ class EditorApp:
         self._update_header()
         self.fill_catalog()
 
+    def _connected_shapes(self):
+        """Tastenraster der angeschlossenen Stream Decks (leer = keins angeschlossen/bekannt)."""
+        models = [c.model for c in self._controllers() if getattr(c, "model", None)]
+        if not models and self.daemon is None:
+            models = [d["model"] for d in connected_models()]
+        return {_shape(m) for m in models}
+
+    def auto_model(self):
+        """Modell für ein neues Profil: das gewählte/angeschlossene Gerät, sonst das zuletzt benutzte.
+
+        Gibt (Modellcode, angeschlossen) zurück."""
+        ctrl = self._ctrl() or next(iter(self._controllers()), None)
+        if ctrl is not None and getattr(ctrl, "model", None):
+            return ctrl.model, True
+        plugged = connected_models()
+        if plugged:
+            return plugged[0]["model"], True
+        if self.doc and self.doc.model:
+            return self.doc.model, False
+        models = [p.model for p in self.store.profiles.values() if p.model]
+        return (max(set(models), key=models.count) if models else "20GBA9901"), False
+
     def new_profile(self):
-        dlg = NewProfileDialog(self.root)
+        code, plugged = self.auto_model()
+        dlg = NewProfileDialog(self.root, code, plugged)
         if not dlg.result:
             return
-        name, code = dlg.result
+        name = dlg.result
         root = E.create_profile(name, code, self.store_root)
         self.refresh_profiles()
         self.open_profile(root.name[: -len(".sdProfile")])
@@ -932,24 +933,6 @@ class EditorApp:
         if f:
             out = self.doc.export(f)
             self.status(_("Exported: {path}").format(path=out))
-
-    def _set_model(self, code):
-        """Gerätemodell des Profils ändern (Tastenraster, Dials)."""
-        if not self.doc or code == self.doc.model:
-            return
-        old, new = self.doc.geometry, model_geometry(code)
-        if new and (new.cols < old.cols or new.rows < old.rows or new.dials < old.dials):
-            if not messagebox.askyesno(_("Change device"), _("The new device has fewer keys or dials. "
-                                       "Actions outside of it stay saved but are not shown.\n\n"
-                                       "Continue?"), parent=self.root):
-                self.model_var.set(self.doc.model or "")
-                return
-        self.doc.set_model(code)
-        self.selected = None
-        if self.daemon is None:
-            self.build_devices()
-        self.fill_catalog()
-        self.refresh_all()
 
     # ============================================================ Speichern
     def _on_doc_change(self):
@@ -1093,19 +1076,13 @@ class EditorApp:
             self.goto_page(pid)
         ids = self.doc.page_ids
         idx = ids.index(pid) if pid in ids else 0
-        m = tk.Menu(self.root, tearoff=0)
-        m.add_command(label=_("Move left"), command=lambda: self.move_page(-1),
-                      state="normal" if idx > 0 else "disabled")
-        m.add_command(label=_("Move right"), command=lambda: self.move_page(1),
-                      state="normal" if idx < len(ids) - 1 else "disabled")
-        m.add_separator()
-        m.add_command(label=_("Add page"), command=self.add_page)
-        m.add_command(label=_("Delete page"), command=self.remove_page,
-                      state="normal" if len(ids) > 1 else "disabled")
-        try:
-            m.tk_popup(e.x_root, e.y_root)
-        finally:
-            m.grab_release()
+        m = theme.PopupMenu(self.root, width=210)
+        m.add(_("Move left"), (lambda: self.move_page(-1)) if idx > 0 else None, icon="chevron")
+        m.add(_("Move right"), (lambda: self.move_page(1)) if idx < len(ids) - 1 else None, icon="arrow")
+        m.separator()
+        m.add(_("Add page"), self.add_page, icon="plus")
+        m.add(_("Delete page"), self.remove_page if len(ids) > 1 else None, icon="trash", danger=True)
+        return m.popup(e.x_root, e.y_root)
 
     def goto_page(self, pid):
         self.nav = [pid]
@@ -1381,30 +1358,23 @@ class EditorApp:
             return
         self.select(slot)
         data = self.doc.get(self.page_uuid, slot)
-        m = tk.Menu(self.root, tearoff=0)
+        m = theme.PopupMenu(self.root, width=250)
         if data and data.get("UUID") == C.FOLDER_UUID:
-            m.add_command(label=_("Open folder"), command=lambda: self.open_folder(
-                (data.get("Settings") or {}).get("ProfileUUID")))
-            m.add_separator()
-        m.add_command(label=_("Cut"), accelerator=_("Ctrl+X"), command=self.cut_selected,
-                      state="normal" if data else "disabled")
-        m.add_command(label=_("Copy"), accelerator=_("Ctrl+C"), command=self.copy_selected,
-                      state="normal" if data else "disabled")
-        m.add_command(label=_("Paste"), accelerator=_("Ctrl+V"), command=self.paste_selected,
-                      state="normal" if self.clipboard else "disabled")
-        m.add_separator()
+            m.add(_("Open folder"), lambda: self.open_folder((data.get("Settings") or {}).get("ProfileUUID")),
+                  icon="folder")
+            m.separator()
+        m.add(_("Cut"), self.cut_selected if data else None, icon="close", hint=_("Ctrl+X"))
+        m.add(_("Copy"), self.copy_selected if data else None, icon="layers", hint=_("Ctrl+C"))
+        m.add(_("Paste"), self.paste_selected if self.clipboard else None, icon="import", hint=_("Ctrl+V"))
+        m.separator()
         if len(self.doc.page_ids) > 1 and data:
-            sub = tk.Menu(m, tearoff=0)
             for i, pid in enumerate(self.doc.page_ids):
                 if pid != self.nav[0] or len(self.nav) > 1:
-                    sub.add_command(label=_("Page {n}").format(n=i + 1), command=lambda p=pid: self._move_to_page(slot, p))
-            m.add_cascade(label=_("Move to"), menu=sub)
-        m.add_command(label=_("Delete"), accelerator=_("Del"), command=self.delete_selected,
-                      state="normal" if data else "disabled")
-        try:
-            m.tk_popup(e.x_root, e.y_root)
-        finally:
-            m.grab_release()
+                    m.add(_("Move to page {n}").format(n=i + 1), lambda p=pid: self._move_to_page(slot, p),
+                          icon="arrow")
+            m.separator()
+        m.add(_("Delete"), self.delete_selected if data else None, icon="trash", danger=True, hint=_("Del"))
+        return m.popup(e.x_root, e.y_root)
 
     # ------------------------------------------------------ Zwischenablage
     def copy_selected(self):
@@ -2219,39 +2189,50 @@ class JsonDialog(_Dialog):
             self.on_close()
 
 
-class NewProfileDialog(_Dialog):
-    def __init__(self, app_root):
-        tk.Toplevel.__init__(self, app_root)
-        self.title(_("New profile"))
-        self.configure(bg=COL["panel"])
-        self.transient(app_root)
+class NewProfileDialog(theme.Dialog):
+    """Neues Profil: nur der Name – das Gerät erkennt LinDeck selbst (angeschlossen oder zuletzt benutzt)."""
+
+    def __init__(self, app_root, model, plugged=True, wait=True):
+        from .dialogkit import entry, field, footer, header
+        super().__init__(app_root, _("New profile"), width=520)
         self.result = None
-        f = ttk.Frame(self, style="Panel.TFrame", padding=16)
-        f.pack(fill="both", expand=True)
-        ttk.Label(f, text=_("Name"), style="Panel.TLabel").grid(row=0, column=0, sticky="w", pady=4)
-        self.name = tk.StringVar(value=_("New profile"))
-        e = ttk.Entry(f, textvariable=self.name, width=34)
-        e.grid(row=0, column=1, sticky="ew", pady=4)
-        ttk.Label(f, text=_("Device"), style="Panel.TLabel").grid(row=1, column=0, sticky="w", pady=4, padx=(0, 10))
-        self.codes = list(MODELS)
-        self.box = ttk.Combobox(f, state="readonly", width=32, values=[MODELS[c][0] for c in self.codes])
-        self.box.current(self.codes.index("20GBA9901"))
-        self.box.grid(row=1, column=1, sticky="ew", pady=4)
-        row = ttk.Frame(f, style="Panel.TFrame")
-        row.grid(row=2, column=0, columnspan=2, sticky="e", pady=(12, 0))
-        ttk.Button(row, text=_("Cancel"), command=self.destroy).pack(side="right")
-        ttk.Button(row, text=_("Create"), style="Accent.TButton", command=self.ok).pack(side="right", padx=6)
+        b = self.body
+        header(b, _("New profile"), _("For the connected Stream Deck") if plugged else
+               _("No Stream Deck connected – the profile is for the model used last"), icon="plus")
+        self.name = tk.StringVar(self, value=_("New profile"))
+        field(b, _("Name"))
+        self.entry = entry(b, self.name)
+        self.entry.box.pack(fill="x", pady=(0, 14))
+        field(b, _("DEVICE – DETECTED AUTOMATICALLY") if plugged else _("DEVICE"))
+        geo = model_geometry(model)
+        sub = ((_("connected") + " · ") if plugged else "") + (
+            _("{cols} × {rows} keys").format(cols=geo.cols, rows=geo.rows) if geo else "")
+        if geo and geo.dials:
+            sub += " · " + ngettext("{n} dial", "{n} dials", geo.dials).format(n=geo.dials)
+        theme.InfoCard(b, model_name(model), sub,
+                       image=theme.icon_tile(self, "deck", 34, COL["device"], radius=0.24, fg="#c9cfda"),
+                       dot=COL["ok"] if plugged else None).pack(fill="x")
+        footer(self)
+        theme.Button(self.buttons, _("Create"), icon="plus", kind="primary", command=self.ok).pack(side="right")
+        theme.Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right", padx=8)
         self.bind("<Return>", lambda ev: self.ok())
-        self.bind("<Escape>", lambda ev: self.destroy())
-        e.focus_set()
-        e.select_range(0, "end")
-        self.wait_visibility()
-        self.grab_set()
-        self.wait_window()
+        self.entry.focus_set()
+        self.entry.select_range(0, "end")
+        self.show()
+        if wait:
+            self.wait_visibility()
+            self.grab_set()
+            self.wait_window()
 
     def ok(self):
-        self.result = (self.name.get().strip() or _("New profile"), self.codes[self.box.current()])
+        self.result = self.name.get().strip() or _("New profile")
         self.destroy()
+
+
+def _shape(model):
+    """Tastenraster eines Modells – gleiche Raster gelten als dasselbe Gerät (z. B. XL und XL V2)."""
+    g = model_geometry(model) if model else None
+    return (g.cols, g.rows, g.dials) if g else None
 
 
 # --------------------------------------------------------------------------

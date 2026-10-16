@@ -29,8 +29,8 @@ from . import ducking, levels, parts, shortcuts, theme, wavemic
 from .dialogkit import ScrollArea
 from .i18n import _, ngettext
 from .parts import has_lindeck
-from .theme import (COL, Button, Card, Chip, Fader, HScroll, InfoCard, LevelMeter, NavItem, RoundToggle, Segmented,
-                    Sidebar, SoftSegmented, Switch, icon_tile, label, rounded_rect)
+from .theme import (COL, Button, Card, Chip, Fader, HScroll, InfoCard, LevelMeter, NavItem, PopupMenu, RoundToggle,
+                    Segmented, Sidebar, SoftSegmented, Switch, icon_tile, label, rounded_rect)
 
 log = logging.getLogger("streamlin.waveui")
 REFRESH_MS = 1500
@@ -625,24 +625,43 @@ class WaveWindow:
                             image=icon_tile(self.root, m.get("icon") or "wave", 34, m.get("color") or COL["accent"]),
                             command=lambda mm=m: self._edit_mix(mm) if self.state.get("mixer_active") else None)
             card.pack(fill="x", pady=(0, 8))
+            card.bind("<Button-3>", lambda e, mid=m["id"]: self._mix_menu(mid, e.x_root, e.y_root))
             self.mix_cards[m["id"]] = card
+        self.addmix_item = NavItem(self.mix_list, _("Create mix"), "plus", accent=True, command=self._new_mix)
+        self.addmix_item.pack(fill="x")
         self.monitor_card = self.mix_cards.get("monitor")
+
+    def _mix_menu(self, mid, x, y):
+        """Rechtsklick auf einen Mix (Seitenleiste oder Spaltenkopf): bearbeiten, abhören, löschen."""
+        if not self.state.get("mixer_active"):
+            return None
+        m = next((x for x in self.state.get("mixes") or [] if x["id"] == mid), None)
+        if m is None:
+            return None
+        listening = (getattr(self, "_listen_now", None) or self.state.get("listen") or "monitor") == mid
+        menu = PopupMenu(self.root)
+        menu.add(_("Edit …"), lambda: self._edit_mix(m), icon="edit")
+        if m.get("can_listen") and mid != "monitor":
+            menu.add(_("Stop listening") if listening else _("Listen"), lambda: self._on_listen(mid),
+                     icon="headphones")
+        menu.separator()
+        menu.add(_("Delete mix"), (lambda: self._delete_mix(m)) if not m.get("builtin") else None, icon="trash",
+                 danger=True)
+        return menu.popup(x, y)
 
     def _output_menu(self):
         """Gerät zum Abhören wählen (= Gerät des Persönlichen Mixes: Kopfhörer, Lautsprecher …)."""
         outs = self.state.get("outputs") or []
-        menu = tk.Menu(self.root, tearoff=False, bg=COL["panel2"], fg=COL["fg"], activebackground=COL["accent"],
-                       activeforeground=COL["on_accent"], selectcolor=COL["accent"], bd=0)
+        menu = PopupMenu(self.root, width=300)
         if not outs:
-            menu.add_command(label=_("No output device found"), state="disabled")
+            menu.add(_("No output device found"))
+        cur = self.out_var.get()
         for name, desc in outs:
-            menu.add_radiobutton(label=desc, value=desc, variable=self.out_var,
-                                 command=self._on_output)
+            menu.add(desc, lambda d=desc: (self.out_var.set(d), self._on_output()),
+                     icon="check" if desc == cur else "speaker")
         anchor = getattr(self, "listen_btn", None) or self.monitor_card
-        try:
-            menu.tk_popup(anchor.winfo_rootx(), anchor.winfo_rooty() + anchor.winfo_height() + 2)
-        finally:
-            menu.grab_release()
+        menu.below(anchor)
+        return menu
 
     # -------------------------------------------------------------- Kopf
     def _build_header(self, parent):
@@ -658,7 +677,6 @@ class WaveWindow:
         more.pack(side="right", padx=(8, 0))
         self.more_btn = more
         self.add_btn = Button(head, _("Add channel"), "plus", kind="primary", command=self._new_channel)
-        self.addmix_btn = Button(head, _("Create mix"), "plus", kind="primary", command=self._new_mix)
         self.scene_btn = Button(head, _("Scenes"), "layers", command=self._scene_menu)
         self.deck_btn = Button(head, _("Export to LinDeck"), "export", command=self.open_deck_export)
         self.setup_btn = Button(head, _("Set up mixer"), "wave", kind="primary",
@@ -678,25 +696,21 @@ class WaveWindow:
         tk.Frame(parent, bg=COL["border"], height=1).pack(fill="x")
 
     def _more_menu(self):
-        menu = tk.Menu(self.root, tearoff=False, bg=COL["panel2"], fg=COL["fg"], activebackground=COL["accent"],
-                       activeforeground=COL["on_accent"], bd=0)
-        menu.add_command(label=_("Setup wizard"), command=self.open_setup)
+        menu = PopupMenu(self.root)
+        menu.add(_("Setup wizard"), self.open_setup, icon="auto")
         if self.state.get("mixer_active"):
-            menu.add_command(label=_("Remove mixer"), command=lambda: self._mixer_enable(False))
+            menu.add(_("Remove mixer"), lambda: self._mixer_enable(False), icon="close")
         else:
-            menu.add_command(label=_("Set up mixer"), command=lambda: self._mixer_enable(True))
-        menu.add_separator()
-        menu.add_command(label=_("Settings"), command=self.open_settings)
-        menu.add_separator()
+            menu.add(_("Set up mixer"), lambda: self._mixer_enable(True), icon="wave")
+        menu.separator()
+        menu.add(_("Settings"), self.open_settings, icon="gear")
+        menu.separator()
         if parts.has_lindeck():
-            menu.add_command(label=_("Open LinDeck"), command=self.open_lindeck)
-        menu.add_command(label=_("Close window"), command=self.hide)
-        menu.add_command(label=_("Quit"), command=self.quit_app)
-        b = self.more_btn
-        try:
-            menu.tk_popup(b.winfo_rootx() + b.winfo_width() - 180, b.winfo_rooty() + b.winfo_height() + 4)
-        finally:
-            menu.grab_release()
+            menu.add(_("Open LinDeck"), self.open_lindeck, icon="grid")
+        menu.add(_("Close window"), self.hide, icon="close")
+        menu.add(_("Quit"), self.quit_app, icon="arrow")
+        menu.below(self.more_btn, right=True)
+        return menu
 
     def _update_header(self):
         st = self.state
@@ -708,7 +722,7 @@ class WaveWindow:
                 n = len(st.get("channels") or [])
                 k = len(st.get("mixes") or [])
                 self.sub_var.set(_("{count} channels · {mixes} mixes · everything is live").format(count=n, mixes=k))
-                shown = ("addmix", "deck", "scene")
+                shown = ("deck", "scene")
             else:
                 self.sub_var.set(_("The mixer is off – set it up to give every app its own channel."))
                 shown = ("setup",)
@@ -733,12 +747,10 @@ class WaveWindow:
         self.root.after_idle(self._fit_legend)
 
     def _pack_header(self):
-        widgets = {"add": (self.add_btn, {}), "addmix": (self.addmix_btn, {}),
-                   "deck": (self.deck_btn, {"padx": (0, 8)}),
+        widgets = {"add": (self.add_btn, {}), "deck": (self.deck_btn, {"padx": (0, 8)}),
                    "scene": (self.scene_btn, {"padx": (0, 8)}), "legend": (self.legend, {"padx": (0, 18)}),
                    "setup": (self.setup_btn, {})}
-        for w in (self.add_btn, self.addmix_btn, self.deck_btn, self.scene_btn, self.legend_long, self.legend_short,
-                  self.setup_btn):
+        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.legend_long, self.legend_short, self.setup_btn):
             w.pack_forget()
         for key in self._header_shown:
             w, kw = widgets[key]
@@ -863,6 +875,8 @@ class WaveWindow:
         meter.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(6, 0))
         for w in (tile, name):
             w.bind("<Button-1>", lambda e, mm=m: self._edit_mix(mm))
+        for w in (card, body, tile, name):
+            w.bind("<Button-3>", lambda e, mid=m["id"]: self._mix_menu(mid, e.x_root, e.y_root))
         db = tk.StringVar(self.root, value="")
         self.mix_meters[m["id"]] = {"meter": meter, "db": db}
         return {"card": card, "sub": sub, "ear": ear, "mix": m}
@@ -936,15 +950,11 @@ class WaveWindow:
         return {"fader": fader, "val": val, "mute": mute, "meter": meter, "label": lb}
 
     def _cell_menu(self, e, cid, mid):
-        menu = tk.Menu(self.root, tearoff=False, bg=COL["panel2"], fg=COL["fg"], activebackground=COL["accent"],
-                       activeforeground=COL["on_accent"], bd=0)
         mname = next((m["name"] for m in self.state.get("mixes") or [] if m["id"] == mid), mid)
-        menu.add_command(label=_("Remove from “{mix}”").format(mix=mname),
-                         command=lambda: self._toggle_member(cid, mid, False))
-        try:
-            menu.tk_popup(e.x_root, e.y_root)
-        finally:
-            menu.grab_release()
+        menu = PopupMenu(self.root)
+        menu.add(_("Remove from “{mix}”").format(mix=mname), lambda: self._toggle_member(cid, mid, False),
+                 icon="close")
+        return menu.popup(e.x_root, e.y_root)
 
     def _on_level(self, cid, mix, value):
         pct = int(round(float(value)))
@@ -1058,19 +1068,15 @@ class WaveWindow:
         return [c for c in channels if c["id"] != "mic" and c.get("kind", "apps") == "apps"]
 
     def _stream_menu(self, s, chip):
-        """Kanal für ein Programm wählen (wie früher die Auswahlliste)."""
+        """Kanal für ein Programm wählen."""
         channels = self.state.get("channels") or []
-        menu = tk.Menu(self.root, tearoff=False, bg=COL["panel2"], fg=COL["fg"], activebackground=COL["accent"],
-                       activeforeground=COL["on_accent"], selectcolor=COL["accent"], bd=0)
-        var = tk.StringVar(menu, value=s["channel"] or "")
-        menu._var = var
+        menu = PopupMenu(self.root)
         for c in self._app_channels(channels):
-            menu.add_radiobutton(label=c["name"], value=c["id"], variable=var,
-                                 command=lambda cid=c["id"]: self._on_stream(s, cid))
-        try:
-            menu.tk_popup(chip.winfo_rootx(), chip.winfo_rooty() + chip.winfo_height() + 2)
-        finally:
-            menu.grab_release()
+            glyph, _color = channel_look(c)
+            menu.add(c["name"], lambda cid=c["id"]: self._on_stream(s, cid),
+                     icon="check" if c["id"] == s["channel"] else glyph)
+        menu.below(chip)
+        return menu
 
     def _chip_for(self, parent, s, by_id):
         ch = by_id.get(s["channel"]) if s["channel"] else None
@@ -1212,22 +1218,16 @@ class WaveWindow:
     def _scene_menu(self):
         """Szenen-Menü am Knopf im Kopf: anwenden, aktuelle Einstellung speichern, verwalten."""
         scenes = self.state.get("scenes") or []
-        menu = tk.Menu(self.root, tearoff=False, bg=COL["panel2"], fg=COL["fg"], activebackground=COL["accent"],
-                       activeforeground=COL["on_accent"], selectcolor=COL["accent"], bd=0)
-        var = tk.StringVar(menu, value=self.state.get("active_scene") or "")
-        menu._var = var
+        active = self.state.get("active_scene") or ""
+        menu = PopupMenu(self.root, width=260)
         for sc in scenes:
-            menu.add_radiobutton(label=sc.get("name") or sc["id"], value=sc["id"], variable=var,
-                                 command=lambda sc=sc: self._apply_scene(sc))
-        if scenes:
-            menu.add_separator()
-        menu.add_command(label=_("Save current mix as scene …"), command=self._new_scene)
-        menu.add_command(label=_("Manage scenes …"), command=self.open_scenes)
-        b = self.scene_btn
-        try:
-            menu.tk_popup(b.winfo_rootx(), b.winfo_rooty() + b.winfo_height() + 4)
-        finally:
-            menu.grab_release()
+            menu.add(sc.get("name") or sc["id"], lambda sc=sc: self._apply_scene(sc),
+                     icon="check" if sc["id"] == active else "layers")
+        menu.separator()
+        menu.add(_("Save current mix as scene …"), self._new_scene, icon="plus")
+        menu.add(_("Manage scenes …"), self.open_scenes, icon="edit")
+        menu.below(self.scene_btn)
+        return menu
 
     def _scene_keys(self, st=None):
         keys = (st or self.state).get("shortcuts") or {}
@@ -1248,6 +1248,11 @@ class WaveWindow:
     def _sync_deck(ids, mixes=None):
         from . import deckexport
         return deckexport.sync(list(ids), mixes=list(mixes) if mixes is not None else None)
+
+    @staticmethod
+    def _adopt_decks():
+        from . import deckexport
+        return deckexport.adopt_new_devices()
 
     def _deck_synced(self, changed, err):
         if err is None and changed:
@@ -1844,6 +1849,12 @@ class WaveWindow:
         except Exception:  # noqa: BLE001
             st["scenes"], st["active_scene"] = [], None
         st["shortcuts"] = shortcuts.registered()
+        if has_lindeck():  # angeschlossene Stream Decks (USB) – für das Linewave-Profil
+            try:
+                from .models import connected_models
+                st["decks"] = tuple(sorted(d["model"] for d in connected_models()))
+            except Exception:  # noqa: BLE001
+                st["decks"] = ()
         mic = self.mic.status()
         if mic.get("hardware"):
             mic["gain_pct"] = int(round(mic.get("gain", 0) * 2.5))
@@ -2001,6 +2012,13 @@ class WaveWindow:
         if st.get("mixer_active") and ids and (ids, mix_ids) != getattr(self, "_deck_ids", None) and has_lindeck():
             self._deck_ids = (ids, mix_ids)
             self.worker.submit(lambda: self._sync_deck(ids, mix_ids), self._deck_synced)
+
+        # --- neu angeschlossenes Stream Deck: Linewave-Profil dafür anlegen (wenn schon einmal exportiert)
+        decks = st.get("decks")
+        if decks is not None and decks != getattr(self, "_decks", None):
+            self._decks = decks  # auch beim Start: Gerät kann angesteckt worden sein, als Linewave zu war
+            if decks:
+                self.worker.submit(self._adopt_decks, self._deck_synced)
 
         # --- Szenen und Tastenkürzel
         scenes = st.get("scenes") or []

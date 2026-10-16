@@ -779,12 +779,32 @@ class DeckExportDialog(Dialog):
         self.create_btn.pack(side="right")
         Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right", padx=8)
 
-        field(b, _("DEVICE"))
-        names = [self._device_label(d) for d in self.devices]
-        self.device = tk.StringVar(self, value=names[0])
-        self.device_box = ttk.Combobox(b, textvariable=self.device, values=names, state="readonly")
-        self.device_box.pack(fill="x", pady=(0, 14))
-        self.device_box.bind("<<ComboboxSelected>>", lambda e: self._update_hint())
+        plugged = [d for d in self.devices if d.get("connected")]
+        self.cards = []
+        self.device_box = None
+        if plugged:  # angeschlossene Stream Decks: als Karten, das erste ist gewählt
+            field(b, _("STREAM DECK – DETECTED AUTOMATICALLY"))
+            row = tk.Frame(b, bg=COL["bg"])
+            row.pack(fill="x", pady=(0, 6 if len(plugged) > 1 else 14))
+            self.sel = plugged[0]
+            for i, d in enumerate(plugged[:3]):
+                card = _CheckRow(row, d["name"], _("connected") + (" · " + _("profile exists") if d["profile"] else ""),
+                                 "deck", checked=i == 0, width=170 if len(plugged) > 1 else 456, height=54,
+                                 command=lambda on, d=d: self._pick(d))
+                card.pack(side="left", fill="x", expand=True, padx=(0, 6))
+                self.cards.append((d, card))
+            if len(plugged) > 1:
+                label(b, _("Several are connected: click the one the profile is for."), 9,
+                      color=COL["muted"]).pack(anchor="w", pady=(0, 14))
+        else:  # nichts angeschlossen: Modell wählen
+            field(b, _("DEVICE"))
+            label(b, _("No Stream Deck connected – choose the model:"), 9, color=COL["muted"]).pack(anchor="w",
+                                                                                                 pady=(0, 6))
+            names = [self._device_label(d) for d in self.devices]
+            self.device = tk.StringVar(self, value=names[0])
+            self.device_box = ttk.Combobox(b, textvariable=self.device, values=names, state="readonly")
+            self.device_box.pack(fill="x", pady=(0, 14))
+            self.device_box.bind("<<ComboboxSelected>>", lambda e: self._update_hint())
 
         field(b, _("CHANNELS"))
         box = tk.Frame(b, bg=COL["bg"])
@@ -798,8 +818,8 @@ class DeckExportDialog(Dialog):
 
         field(b, "MIX")
         self.mix = "selected"
-        SoftSegmented(b, [("selected", _("Choose on deck"), "deck"), ("both", _("Both mixes"), None),
-                          ("monitor", "Monitor", "headphones"), ("stream", "Stream", "stream")],
+        SoftSegmented(b, [("selected", _("Choose on deck"), "deck"), ("both", _("All mixes"), None),
+                          ("monitor", _("Personal"), "headphones"), ("stream", "Stream", "stream")],
                       command=self._set_mix, value="selected",
                       fill=True).pack(fill="x", pady=(0, 14))
 
@@ -815,7 +835,17 @@ class DeckExportDialog(Dialog):
         return d["name"] + (" · " + _("in use") if d["in_use"] else "")
 
     def _selected_device(self):
+        if self.device_box is None:
+            return self.sel
         return self.devices[max(0, self.device_box.current())]
+
+    def _pick(self, d):
+        """Eine der Gerätekarten gewählt: nur diese bleibt angehakt."""
+        self.sel = d
+        for dd, card in self.cards:
+            card.checked = dd is d
+            card._draw()
+        self._update_hint()
 
     def _selected_channels(self):
         return [cid for cid, _name in self.channels if self.chosen.get(cid)]
