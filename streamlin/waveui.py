@@ -859,9 +859,74 @@ class WaveWindow:
             self.mix_heads[m["id"]] = self._mix_head(tb, m, col)
         for row, ch in enumerate(sorted(channels, key=lambda c: c["id"] != "mic"), start=1):
             self._channel_row(tb, ch, mixes, row)
-        add = AddRowCard(tb, _("Create channel"), self._new_channel, width=CH_W, height=48)
-        add.grid(row=len(channels) + 1, column=0, sticky="nw", pady=(2, 0))
+        self.add_row = AddRowCard(tb, _("Create channel"), self._new_channel, width=CH_W, height=48)
+        self.add_row.grid(row=len(channels) + 1, column=0, sticky="nw", pady=(2, 0))
         self.root.after_idle(self.table_scroll._fit)
+
+    def _drop_cell(self, cid, mid):
+        cell = self.cells.pop((cid, mid), None)
+        part = self.strips.get(cid, {}).pop(mid, None)
+        if part and part.get("remove") is not None:
+            part["remove"].destroy()
+        if cell:
+            cell[0].destroy()
+
+    def _sync_table(self, channels, mixes, old, new):
+        """Nur das Geänderte umbauen: neue/gelöschte/geänderte Mixe (Spalten) und Kanäle (Zeilen);
+        der Rest der Tabelle bleibt stehen. False, wenn ein kompletter Neuaufbau nötig ist."""
+        if not hasattr(self, "add_row") or not self.add_row.winfo_exists():
+            return False
+        def no_excl(x):
+            return x[:4] + x[5:]
+        old_ch, new_ch = {c[0]: c for c in old[0]}, {c[0]: c for c in new[0]}
+        old_mx, new_mx = {x[0]: no_excl(x) for x in old[1]}, {x[0]: no_excl(x) for x in new[1]}
+        tb = self.table
+        # 1. gelöschte oder geänderte Spalten und Zeilen entfernen
+        for mid in [m for m in old_mx if new_mx.get(m) != old_mx[m]]:
+            head = self.mix_heads.pop(mid, None)
+            if head:
+                head["card"].destroy()
+            self.mix_meters.pop(mid, None)
+            for cid in list(self.strips):
+                self._drop_cell(cid, mid)
+        for cid in [c for c in old_ch if new_ch.get(c) != old_ch[c]]:
+            for mid in list(self.mix_heads):
+                self._drop_cell(cid, mid)
+            strip = self.strips.pop(cid, None)
+            if strip:
+                strip["card"].destroy()
+        # 2. Reihenfolge: Spalten = Mixe, Zeilen = Kanäle (Mikrofon zuerst)
+        order = sorted(channels, key=lambda c: c["id"] != "mic")
+        rows = {c["id"]: r for r, c in enumerate(order, start=1)}
+        cols = {m["id"]: c for c, m in enumerate(mixes, start=1)}
+        by_id = {m["id"]: m for m in mixes}
+        for (cid, mid), (w, _r, _c, _m) in list(self.cells.items()):
+            w.grid_configure(row=rows[cid], column=cols[mid])
+            self.cells[(cid, mid)] = (w, rows[cid], cols[mid], by_id[mid])
+        for cid, strip in self.strips.items():
+            strip["card"].grid_configure(row=rows[cid])
+        # 3. neue Spalten (für die bestehenden Zeilen) und neue Zeilen anlegen
+        for m in mixes:
+            mid = m["id"]
+            if mid in self.mix_heads:
+                self.mix_heads[mid]["card"].grid_configure(column=cols[mid])
+                self.mix_heads[mid]["mix"] = m
+                continue
+            self.mix_heads[mid] = self._mix_head(tb, m, cols[mid])
+            for cid in self.strips:
+                self._place_cell(tb, cid, m, rows[cid], cols[mid], cid not in (m.get("exclude") or []))
+        for ch in order:
+            if ch["id"] not in self.strips:
+                self._channel_row(tb, ch, mixes, rows[ch["id"]])
+        # 4. Zuordnungen abgleichen (z. B. neuer Kanal, der in keinem Mix ist)
+        for (cid, mid), (w, r, c, m) in list(self.cells.items()):
+            member = cid not in (m.get("exclude") or [])
+            if member == isinstance(w, EmptyCell):
+                self._drop_cell(cid, mid)
+                self._place_cell(tb, cid, m, r, c, member)
+        self.add_row.grid_configure(row=len(channels) + 1)
+        self.root.after_idle(self.table_scroll._fit)
+        return True
 
     def _mix_head(self, tb, m, col):
         color = m.get("color") or COL["accent"]
@@ -1106,7 +1171,7 @@ class WaveWindow:
                   on_delete=(lambda: self._delete_mix(m)) if m else None)
 
     def _save_mix(self, m, v):
-        self._strip_ids = None
+        self._table_force = True  # gleich abgleichen, auch während einer Zuordnung
 
         def work():
             if m is None:
@@ -1127,7 +1192,7 @@ class WaveWindow:
         if not messagebox.askyesno(_("Delete mix"), _("Really delete mix “{name}”?").format(name=m["name"]),
                                    parent=self.root):
             return
-        self._strip_ids = None
+        self._table_force = True
 
         def done(_res, err):
             if err is None:
@@ -1253,7 +1318,7 @@ class WaveWindow:
         self.worker.submit(self.mixer.inputs, opened)
 
     def _save_channel(self, ch, v):
-        self._strip_ids = None
+        self._table_force = True  # gleich abgleichen, auch während einer Zuordnung
 
         def work():
             if ch is None:
@@ -1280,7 +1345,7 @@ class WaveWindow:
                                    _("Really delete channel “{name}”?").format(name=ch["name"]),
                                    parent=self.root):
             return
-        self._strip_ids = None
+        self._table_force = True
 
         def done(res, err):
             if err is None:
@@ -1987,9 +2052,13 @@ class WaveWindow:
                    tuple((m["id"], m["name"], m.get("icon"), m.get("color"), tuple(m.get("exclude") or []),
                           bool(m.get("can_listen"))) for m in mixes))
             # _strip_ids None = Neuaufbau verlangt (z. B. neuer Mix); sonst nicht, solange eine Zuordnung läuft
-            if ids != self._strip_ids and (self._strip_ids is None or not self._held("member")):
-                self._strip_ids = ids
-                self._build_table(st["channels"], mixes)
+            # _strip_ids None = ganz neu aufbauen; sonst nur Geändertes abgleichen (nicht während einer
+            # Zuordnung, außer ein neuer/geänderter Mix oder Kanal verlangt es)
+            force = getattr(self, "_table_force", False)
+            if ids != self._strip_ids and (self._strip_ids is None or force or not self._held("member")):
+                old, self._strip_ids, self._table_force = self._strip_ids, ids, False
+                if old is None or not self._sync_table(st["channels"], mixes, old, ids):
+                    self._build_table(st["channels"], mixes)
             if ids[1] != self._mix_card_ids:
                 self._mix_card_ids = ids[1]
                 self._fill_mix_cards(mixes)
