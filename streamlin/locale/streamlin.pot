@@ -4441,8 +4441,8 @@ msgstr ""
 msgid "A scene remembers the volume and mute state of every channel. Apply it with one click, a keyboard shortcut or a Stream Deck key."
 msgstr ""
 
-#: streamlin/wavedialogs.py:627 streamlin/wavedialogs.py:631
-msgid "Channels on the Stream Deck"
+#: streamlin/wavedialogs.py:627 streamlin/wavedialogs.py:631 streamlin/waveui.py:589
+msgid "Export to LinDeck"
 msgstr ""
 
 #: streamlin/wavedialogs.py:632
@@ -4873,10 +4873,6 @@ msgstr ""
 
 #: streamlin/waveui.py:588 streamlin/waveui.py:1775
 msgid "Scenes"
-msgstr ""
-
-#: streamlin/waveui.py:589
-msgid "Stream Deck"
 msgstr ""
 
 #: streamlin/waveui.py:590 streamlin/waveui.py:613 streamlin/waveui.py:703 streamlin/waveui.py:707

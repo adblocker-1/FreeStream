@@ -624,13 +624,13 @@ class DeckExportDialog(Dialog):
 
     def __init__(self, master, channels, on_done=None):
         from . import deckexport
-        super().__init__(master, _("Channels on the Stream Deck"), width=560)
+        super().__init__(master, _("Export to LinDeck"), width=560)
         self.dx, self.on_done = deckexport, on_done
         self.channels = channels  # [(id, Name)]
         b = self.body
-        header(b, _("Channels on the Stream Deck"),
+        header(b, _("Export to LinDeck"),
                _("Creates a LinDeck profile “Linewave” with volume controls for the chosen channels. "
-                 "It is updated by itself when you add or delete channels."), icon="deck", wrap=460)
+                 "It is updated by itself when you add or delete channels."), icon="export", wrap=460)
         self.devices = deckexport.devices()
         footer(self)
         self.create_btn = Button(self.buttons, _("Create profile"), icon="plus", kind="primary", command=self._create)

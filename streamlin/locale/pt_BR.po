@@ -4452,9 +4452,9 @@ msgstr "Cenas do mixer"
 msgid "A scene remembers the volume and mute state of every channel. Apply it with one click, a keyboard shortcut or a Stream Deck key."
 msgstr "Uma cena guarda o volume e o estado mudo de cada canal. Aplique-a com um clique, um atalho de teclado ou uma tecla do Stream Deck."
 
-#: streamlin/wavedialogs.py:627 streamlin/wavedialogs.py:631
-msgid "Channels on the Stream Deck"
-msgstr "Canais no Stream Deck"
+#: streamlin/wavedialogs.py:627 streamlin/wavedialogs.py:631 streamlin/waveui.py:589
+msgid "Export to LinDeck"
+msgstr "Exportar para o LinDeck"
 
 #: streamlin/wavedialogs.py:632
 msgid "Creates a LinDeck profile “Linewave” with volume controls for the chosen channels. It is updated by itself when you add or delete channels."
@@ -4885,10 +4885,6 @@ msgstr "Adicionar canal"
 #: streamlin/waveui.py:588 streamlin/waveui.py:1775
 msgid "Scenes"
 msgstr "Cenas"
-
-#: streamlin/waveui.py:589
-msgid "Stream Deck"
-msgstr "Stream Deck"
 
 #: streamlin/waveui.py:590 streamlin/waveui.py:613 streamlin/waveui.py:703 streamlin/waveui.py:707
 msgid "Set up mixer"

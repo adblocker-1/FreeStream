@@ -586,7 +586,7 @@ class WaveWindow:
         self.more_btn = more
         self.add_btn = Button(head, _("Add channel"), "plus", kind="primary", command=self._new_channel)
         self.scene_btn = Button(head, _("Scenes"), "layers", command=self._scene_menu)
-        self.deck_btn = Button(head, _("Stream Deck"), "deck", command=self.open_deck_export)
+        self.deck_btn = Button(head, _("Export to LinDeck"), "export", command=self.open_deck_export)
         self.setup_btn = Button(head, _("Set up mixer"), "wave", kind="primary",
                                 command=lambda: self._mixer_enable(True))
         # Farblegende lang und kurz; die kurze, wenn die Kopfzeile zu schmal ist
