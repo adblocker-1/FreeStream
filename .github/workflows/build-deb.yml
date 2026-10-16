@@ -1,4 +1,4 @@
-name: Build packages
+name: Build .deb
 
 on:
   push:
@@ -7,6 +7,10 @@ on:
     inputs:
       release:
         description: "Release v<Version> aus diesem Commit anlegen"
+        type: boolean
+        default: false
+      replace:
+        description: "Vorhandenes Release v<Version> samt Tag löschen und neu anlegen"
         type: boolean
         default: false
 
@@ -24,7 +28,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y python3-pip python3-pil python3-evdev python3-cairosvg python3-tk \
             python3-pil.imagetk xvfb fonts-dejavu-core
-          sudo apt-get install -y --no-install-recommends rpm
           pip install --break-system-packages "streamdeck>=0.10" pyflakes pytest
 
       - name: Code prüfen
@@ -34,17 +37,27 @@ jobs:
         run: xvfb-run -a python3 -m pytest -q tests
 
       - name: Pakete bauen
-        run: |
-          ./packaging/build-deb.sh dist
-          ./packaging/build-rpm.sh dist
+        run: ./packaging/build-deb.sh dist
 
       - name: Paket testen
         run: |
+          # startet das installierte Programm und prüft, dass es läuft (kein Absturz beim Start)
+          starts() {
+            pkill -f 'python3 -m streamlin' || true; sleep 1  # sonst holt der Start nur eine laufende Instanz nach vorne
+            out=$(STREAMLIN_NO_UPDATE_CHECK=1 timeout 10 xvfb-run -a "$@" 2>&1) && rc=0 || rc=$?
+            pkill -f 'python3 -m streamlin' || true
+            echo "$out"
+            if [ "$rc" != 124 ] || echo "$out" | grep -q Traceback; then
+              echo "::error::$* startet nicht (Rückgabewert $rc)"; return 1
+            fi
+          }
           # beide Programme in einem Paket
           sudo apt-get install -y ./dist/streamlin_*.deb
           lindeck --version
           lindeck profiles
           linewave mixer --help
+          starts lindeck
+          starts linewave
           # Updates: das installierte Paket wird erkannt
           (cd / && python3 -c "import sys; sys.path.insert(0, '/opt/streamlin'); from streamlin import updater; p = updater.installed_packages(); print(p); assert set(p) == {'streamlin'}")
           # einzeln: ersetzt das Paket streamlin, beide arbeiten zusammen
@@ -52,122 +65,44 @@ jobs:
           lindeck --version
           lindeck mixer --help
           linewave mixer --help
+          starts lindeck
           # nur LinDeck: Linewave-Befehle melden sich als nicht installiert
           sudo apt-get remove -y linewave
           lindeck profiles
           ! lindeck mixer
-
-      - name: RPM testen (Fedora)
-        run: docker run --rm -v "$PWD/dist:/dist:ro" -v "$PWD/packaging:/p:ro" quay.io/fedora/fedora:latest bash /p/test-rpm.sh /dist
-
-      - name: RPM testen (openSUSE Tumbleweed, nur zur Info)
-        continue-on-error: true
-        run: docker run --rm -v "$PWD/dist:/dist:ro" -v "$PWD/packaging:/p:ro" registry.opensuse.org/opensuse/tumbleweed:latest bash /p/test-rpm.sh /dist
 
       - uses: actions/upload-artifact@v4
         with:
           name: streamlin-deb
           path: dist/*.deb
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: streamlin-rpm
-          path: dist/*.rpm
-
-  flatpak:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Version
-        id: v
-        run: echo "version=$(python3 -c 'import streamlin; print(streamlin.__version__)')" >> "$GITHUB_OUTPUT"
-
-      - name: flatpak und Laufzeit
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils xvfb xauth dbus-x11
-          # Ubuntu 24.04 sperrt unprivilegierte User-Namespaces (bwrap) per AppArmor
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
-          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y --noninteractive flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
-
-      - name: Zwischenspeicher (Downloads und Module)
-        uses: actions/cache@v4
-        with:
-          path: .flatpak-build/state
-          key: flatpak-${{ hashFiles('packaging/flatpak/*.yml') }}-${{ github.sha }}
-          restore-keys: |
-            flatpak-${{ hashFiles('packaging/flatpak/*.yml') }}-
-            flatpak-
-
-      - name: Flatpak bauen
-        run: ./packaging/flatpak/build-flatpak.sh dist
-
-      - name: Flatpak testen
-        run: |
-          APP=io.github.adblocker1.Streamlin
-          flatpak install --user -y --noninteractive "dist/streamlin-${{ steps.v.outputs.version }}.flatpak"
-          flatpak run "$APP" --version
-          flatpak run --command=linewave "$APP" mixer --help
-          # pystray sucht beim Import ein Display; ohne Bildschirm das Dummy-Backend nehmen
-          flatpak run --env=PYSTRAY_BACKEND=dummy --command=python3 "$APP" -c "import tkinter, PIL.ImageTk, evdev, cairosvg, pystray, StreamDeck.DeviceManager; tkinter.Tcl(); print('Tk', tkinter.TkVersion)"
-          flatpak run --command=sh "$APP" -c 'find /app -name "libhidapi*" -o -name "libusb-1.0*"'
-          flatpak run --command=python3 "$APP" -c "import ctypes; ctypes.CDLL('libhidapi-libusb.so.0'); print('hidapi ok')"
-          flatpak run --command=sh "$APP" -c 'test -x /app/bin/pactl && test -f /app/share/streamlin/70-streamlin.rules'
-
-      - name: Flatpak-Fenster (Tk unter Xvfb, nur zur Info)
-        continue-on-error: true
-        run: |
-          xvfb-run -a flatpak run --command=python3 io.github.adblocker1.Streamlin -c \
-            "import tkinter; r = tkinter.Tk(); r.update(); print('Fenster ok', r.winfo_screenwidth())"
-
-      - name: Flatpak-Hub (gemeinsamer Prozess-Namensraum, nur zur Info)
-        continue-on-error: true
-        run: |
-          xvfb-run -a dbus-run-session -- sh -c 'flatpak run io.github.adblocker1.Streamlin profiles; flatpak ps'
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: streamlin-flatpak
-          path: dist/*.flatpak
-
-  release:
-    # Das Flatpak ist kein Muss: schlägt nur dessen Bau fehl, gibt es das Release ohne .flatpak
-    if: always() && needs.build.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || inputs.release)
-    needs: [build, flatpak]
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-
       - name: Release anlegen
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          shopt -s nullglob
-          FILES=(dist/*.deb dist/*.rpm dist/*.flatpak)
-          ls -l "${FILES[@]}"
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             TAG="${GITHUB_REF_NAME}"
           else
             TAG="v$(python3 -c 'import streamlin; print(streamlin.__version__)')"
+          fi
+          if [ "${{ inputs.replace }}" = "true" ] && gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG wird neu angelegt"
+            gh release delete "$TAG" --cleanup-tag --yes
+            sleep 5
           fi
           NOTES="packaging/release-notes/$TAG.md"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG gibt es schon – Pakete bleiben, nur der Text wird aktualisiert"
           elif [ -f "$NOTES" ]; then
             # Ohne vorhandenen Tag legt gh ihn auf dem gebauten Commit an
-            gh release create "$TAG" "${FILES[@]}" --target "${GITHUB_SHA}" --title "Streamlin $TAG" --notes-file "$NOTES"
+            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "Streamlin $TAG" --notes-file "$NOTES"
           else
-            gh release create "$TAG" "${FILES[@]}" --target "${GITHUB_SHA}" --title "Streamlin $TAG" --generate-notes
+            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "Streamlin $TAG" --generate-notes
           fi
 
       - name: Release-Texte aktualisieren
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

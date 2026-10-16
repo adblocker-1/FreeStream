@@ -42,9 +42,8 @@ Available in **English, German, Spanish, French and Portuguese (Brazil)**.
    asks for your microphone, headphones and channels. In OBS, pick
    “Monitor of Linewave Stream Mix” as the audio source.
 
-**Requirements:** Python ≥ 3.10 and X11 or Wayland on a Debian-based
-distribution (Debian 12/13, Ubuntu 22.04+, Linux Mint 21+, Pop!_OS …), Fedora or
-openSUSE. The package sets up device access, hotkeys, autostart and menu
+**Requirements:** a Debian-based distribution (Debian 12/13, Ubuntu 22.04+,
+Linux Mint 21+, Pop!_OS, Zorin …) with Python ≥ 3.10, X11 or Wayland. The package sets up device access, hotkeys, autostart and menu
 entries. If LinDeck does not start right after installing, log out and back in
 once.
 
@@ -53,26 +52,6 @@ install it after you confirm. You can switch this off in **Settings**.
 
 **Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`); your
 profiles stay in `~/.local/share/streamlin`.
-
-### Fedora, openSUSE and Flatpak
-
-- **RPM:** `sudo dnf install ./streamlin-<version>-1.noarch.rpm` (Fedora) or
-  `sudo zypper install --allow-unsigned-rpm ./streamlin-<version>-1.noarch.rpm`
-  (openSUSE). `lindeck-…` and `linewave-…` exist as well.
-- **Flatpak:** set up Flatpak for your distribution
-  ([flatpak.org/setup](https://flatpak.org/setup/)), then
-  `flatpak install --user ./streamlin-<version>.flatpak`. A Flatpak cannot set
-  up device access, so run this once:
-
-  ```sh
-  flatpak run --command=cat io.github.adblocker1.Streamlin /app/share/streamlin/70-streamlin.rules \
-    | sudo tee /etc/udev/rules.d/70-streamlin.rules
-  echo uinput | sudo tee /etc/modules-load.d/streamlin-uinput.conf
-  sudo modprobe uinput && sudo udevadm control --reload-rules && sudo udevadm trigger
-  ```
-
-  The Flatpak uses the audio tools of your system (`pactl`, `pw-cli` …) and does
-  not update itself.
 
 > **Status:** version 0.19, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
