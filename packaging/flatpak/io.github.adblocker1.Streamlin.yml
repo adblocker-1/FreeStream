@@ -86,6 +86,7 @@ modules:
     buildsystem: cmake-ninja
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_LIBDIR=lib   # sonst lib64, das der Lader in /app nicht durchsucht
       - -DHIDAPI_WITH_HIDRAW=OFF
       - -DHIDAPI_WITH_LIBUSB=ON
       - -DHIDAPI_BUILD_HIDTEST=OFF

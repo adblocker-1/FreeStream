@@ -112,6 +112,7 @@ jobs:
           flatpak run --command=linewave "$APP" mixer --help
           # pystray sucht beim Import ein Display; ohne Bildschirm das Dummy-Backend nehmen
           flatpak run --env=PYSTRAY_BACKEND=dummy --command=python3 "$APP" -c "import tkinter, PIL.ImageTk, evdev, cairosvg, pystray, StreamDeck.DeviceManager; tkinter.Tcl(); print('Tk', tkinter.TkVersion)"
+          flatpak run --command=sh "$APP" -c 'find /app -name "libhidapi*" -o -name "libusb-1.0*"'
           flatpak run --command=python3 "$APP" -c "import ctypes; ctypes.CDLL('libhidapi-libusb.so.0'); print('hidapi ok')"
           flatpak run --command=sh "$APP" -c 'test -x /app/bin/pactl && test -f /app/share/streamlin/70-streamlin.rules'
 
