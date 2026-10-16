@@ -20,7 +20,8 @@ Streamlin contains **two programs**, just like Elgato's software:
 Both start invisibly when you log in. The menu entry opens the window; closing
 the window keeps the program running in the background.
 
-Available in **English, German, Spanish, French and Portuguese (Brazil)**.
+Available in **English, German, Spanish, French and Portuguese (Brazil)**, with a
+**light and a dark mode** (or automatic, following your desktop).
 
 ## Get started
 
@@ -41,7 +42,7 @@ LinDeck does not start right after installing, log out and back in once.
 
 **Uninstall:** `sudo apt remove streamlin` (your profiles stay in `~/.local/share/streamlin`).
 
-> **Status:** version 0.14, tested with simulated devices of every model.
+> **Status:** version 0.15, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## Supported devices
@@ -232,10 +233,17 @@ by the package).
 On the Stream Deck, the actions **Mixer Channel** and **Wave Microphone**
 control all of this, even when the Linewave window is closed.
 
+## Light and dark mode
+
+The switch **Light / Dark / Auto** at the bottom of the sidebar changes the look of
+both programs. **Auto** follows your desktop setting (GNOME, KDE and others). The
+program offers to restart right away. For a single start you can also use
+`STREAMLIN_APPEARANCE=light lindeck`.
+
 ## Languages
 
 LinDeck and Linewave follow your system language. To change it, click the
-**globe button** at the top of either window. For a single start you can also
+**language button** (globe) at the bottom of the sidebar. For a single start you can also
 use `STREAMLIN_LANG=fr lindeck`.
 
 **Help translate:** the texts are standard gettext files in
@@ -266,6 +274,7 @@ Optional settings go into `~/.config/streamlin/config.json`, for example:
 ```json
 {
   "language": "auto",
+  "appearance": "auto",
   "brightness": 70,
   "sleep_after_minutes": 0,
   "keyboard_layout": "auto",

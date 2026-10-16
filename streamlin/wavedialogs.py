@@ -5,8 +5,10 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import effects
+from .dialogkit import ScrollArea, entry, field, footer, header
 from .i18n import _
-from .theme import COL, Card, Dialog, Fader, Icons, PillButton, Segmented, Switch, label
+from .theme import COL, Button, Card, Chip, Dialog, Fader, Icons, SoftSegmented, Switch, font, icon_tile, \
+    label, rounded_rect
 
 ICONS = ["music", "browser", "chat", "game", "sfx", "system", "mic", "headphones", "speaker", "wave", "record",
          "play", "input", "keyboard", "stream", "grid"]
@@ -21,11 +23,13 @@ class _Picker(tk.Frame):
         super().__init__(master, bg=master.cget("bg"))
         self.values, self.value, self.kind, self.color = values, value, kind, color
         self.command = command
+        self.watch = None  # wird nach jeder Änderung aufgerufen (Vorschau im Dialogkopf)
         self.icons = Icons(self)
         self.cells = []
         for i, v in enumerate(values):
-            cv = tk.Canvas(self, width=36, height=36, bg=self.cget("bg"), highlightthickness=0, cursor="hand2")
-            cv.grid(row=i // 8, column=i % 8, padx=3, pady=3)
+            cv = tk.Canvas(self, width=38, height=38, bg=self.cget("bg"), highlightthickness=0, cursor="hand2")
+            per_row = 10 if kind == "color" else 8
+            cv.grid(row=i // per_row, column=i % per_row, padx=2, pady=2)
             cv.bind("<Button-1>", lambda e, v=v: self.set(v, notify=True))
             self.cells.append((v, cv))
         self._draw()
@@ -33,24 +37,31 @@ class _Picker(tk.Frame):
     def set(self, v, notify=False):
         self.value = v
         self._draw()
+        if self.watch:
+            self.watch()
         if notify and self.command:
             self.command(v)
 
     def set_color(self, color):
         self.color = color
         self._draw()
+        if self.watch:
+            self.watch()
 
     def _draw(self):
         for v, cv in self.cells:
             cv.delete("all")
             sel = v == self.value
-            if sel:
-                cv.create_oval(1, 1, 35, 35, outline="#ffffff", width=2)
             if self.kind == "color":
-                cv.create_oval(6, 6, 30, 30, fill=v, outline="")
+                if sel:
+                    cv.create_oval(2, 2, 36, 36, outline=COL["fg"], width=2)
+                cv.create_oval(8, 8, 30, 30, fill=v, outline="")
             else:
-                cv.create_oval(5, 5, 31, 31, fill=self.color if sel else COL["raised"], outline="")
-                cv.create_image(18, 18, image=self.icons.get(v, 16, "#ffffff"))
+                if sel:
+                    cv.create_image(19, 19, image=icon_tile(cv, v, 34, self.color))
+                else:
+                    rounded_rect(cv, 2, 2, 36, 36, 9, fill=COL["panel2"], outline=COL["border"])
+                    cv.create_image(19, 19, image=self.icons.get(v, 16, COL["muted"]))
 
 
 class ChannelDialog(Dialog):
@@ -64,59 +75,66 @@ class ChannelDialog(Dialog):
         self.inputs = inputs
         self.on_save, self.on_delete = on_save, on_delete
         b = self.body
-        label(b, _("Edit channel") if edit else _("Create new channel"), 15, "bold").pack(anchor="w")
-        label(b, (_("Afterwards, put apps into the channel in the mixer under “Apps”.")
-                  if not edit else _("Changes are applied to the mixer right away.")),
-              9, color=COL["muted"]).pack(anchor="w", pady=(2, 14))
+        icon, color = c.get("icon") or default_look[0], c.get("color") or default_look[1]
+        color = color if color in COLORS else COLORS[5]
+        self.head = header(b, _("Edit channel") if edit else _("Create new channel"),
+                           (_("Afterwards, put apps into the channel in the mixer under “Apps”.")
+                            if not edit else _("Changes are applied to the mixer right away.")), icon=icon, color=color)
 
+        card = Card(b, pad=18, stretch=True)
+        card.pack(fill="x")
+        cb = card.body
         self.name = tk.StringVar(self, value=c.get("name", ""))
-        label(b, "NAME", 9, "bold", color=COL["muted"]).pack(anchor="w")
-        self.entry = tk.Entry(b, textvariable=self.name, bg=COL["panel2"], fg=COL["fg"], relief="flat",
-                              insertbackground=COL["fg"], highlightthickness=1, highlightbackground=COL["border"],
-                              highlightcolor=COL["accent"], font=("TkDefaultFont", 11))
-        self.entry.pack(fill="x", ipady=6, pady=(4, 14))
+        field(cb, _("Name"))
+        self.entry = entry(cb, self.name)
+        self.entry.box.pack(fill="x", pady=(0, 14))
         if is_mic:
             self.entry.configure(state="disabled")
 
         self.kind = c.get("kind", "apps") if edit else "apps"
         if not edit:
-            label(b, _("TYPE"), 9, "bold", color=COL["muted"]).pack(anchor="w")
-            self.kind_seg = Segmented(b, [("apps", _("Apps")), ("input", _("Input device"))], command=self._kind)
-            self.kind_seg.pack(anchor="w", pady=(4, 4))
-            self.kind_hint = label(b, "", 9, color=COL["muted"], wraplength=460, justify="left")
-            self.kind_hint.pack(anchor="w", pady=(0, 10))
+            field(cb, _("TYPE"))
+            self.kind_seg = SoftSegmented(cb, [("apps", _("Apps"), "grid"), ("input", _("Input device"), "input")],
+                                          command=self._kind, fill=True, height=34)
+            self.kind_seg.pack(fill="x", pady=(0, 6))
+            self.kind_hint = label(cb, "", 9, color=COL["muted"], wraplength=440, justify="left")
+            self.kind_hint.pack(anchor="w", pady=(0, 14))
 
-        self.dev_frame = tk.Frame(b, bg=COL["bg"])
-        label(self.dev_frame, _("INPUT DEVICE"), 9, "bold", color=COL["muted"]).pack(anchor="w")
+        self.dev_frame = tk.Frame(cb, bg=COL["panel"])
+        field(self.dev_frame, _("INPUT DEVICE"))
         self.dev = tk.StringVar(self)
         names = [d for _n, d in inputs] or [_("No input device found")]
         self.dev_box = ttk.Combobox(self.dev_frame, textvariable=self.dev, values=names, state="readonly")
-        self.dev_box.pack(fill="x", pady=(4, 14))
+        self.dev_box.pack(fill="x", pady=(0, 14))
         cur = c.get("source") or ""
         self.dev.set(next((d for n, d in inputs if n == cur), names[0] if inputs else names[0]))
 
-        icon, color = c.get("icon") or default_look[0], c.get("color") or default_look[1]
-        label(b, _("ICON"), 9, "bold", color=COL["muted"]).pack(anchor="w")
-        self.icon = _Picker(b, ICONS, icon, "icon", color=color)
-        self.icon.pack(anchor="w", pady=(4, 12))
-        label(b, _("COLOR"), 9, "bold", color=COL["muted"]).pack(anchor="w")
-        self.color = _Picker(b, COLORS, color if color in COLORS else COLORS[5], "color",
-                             command=self.icon.set_color)
-        self.color.pack(anchor="w", pady=(4, 6))
+        field(cb, _("ICON"))
+        self.icon = _Picker(cb, ICONS, icon, "icon", color=color)
+        self.icon.pack(anchor="w", pady=(0, 14))
+        field(cb, _("COLOR"))
+        self.color = _Picker(cb, COLORS, color, "color", command=self.icon.set_color)
+        self.color.pack(anchor="w")
+        self.icon.watch = self.color.watch = self._look
         self.error = label(b, "", 9, color=COL["danger"])
-        self.error.pack(anchor="w", pady=(8, 0))
+        self.error.pack(anchor="w", pady=(10, 0))
 
-        ttk.Button(self.buttons, text=_("Save") if edit else _("Create channel"), style="Accent.TButton",
-                   command=self._save).pack(side="right")
-        ttk.Button(self.buttons, text=_("Cancel"), style="Ghost.TButton", command=self.destroy).pack(side="right",
-                                                                                                padx=8)
+        footer(self)
+        Button(self.buttons, _("Save") if edit else _("Create channel"), icon=None if edit else "plus",
+               kind="primary", command=self._save).pack(side="right")
+        Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right", padx=8)
         if edit and on_delete and not is_mic:
-            ttk.Button(self.buttons, text=_("Delete channel"), style="Danger.TButton", command=self._delete).pack(
+            Button(self.buttons, _("Delete channel"), icon="trash", kind="danger", command=self._delete).pack(
                 side="left")
         self._kind(self.kind)
         self.entry.focus_set()
         self.bind("<Return>", lambda e: self._save())
         self.show()
+
+    def _look(self):
+        tile = getattr(self.head, "tile", None)
+        if tile is not None:
+            tile.configure(image=icon_tile(tile, self.icon.value, 40, self.icon.color))
 
     def _kind(self, kind):
         self.kind = kind
@@ -126,7 +144,7 @@ class ChannelDialog(Dialog):
                 if kind == "apps" else
                 _("Bring a device straight into the mix – e.g. a second microphone, line-in or a capture card.")))
         if kind == "input":
-            self.dev_frame.pack(fill="x", after=self.kind_hint if hasattr(self, "kind_hint") else self.entry)
+            self.dev_frame.pack(fill="x", after=self.kind_hint if hasattr(self, "kind_hint") else self.entry.box)
         else:
             self.dev_frame.pack_forget()
 
@@ -162,31 +180,6 @@ def _fmt(value, c):
     return f"{value:.2f}{unit}" if abs(value) < 10 else f"{value:.1f}{unit}"
 
 
-class _ScrollArea(tk.Frame):
-    def __init__(self, master):
-        super().__init__(master, bg=COL["bg"])
-        self.cv = tk.Canvas(self, bg=COL["bg"], highlightthickness=0, bd=0)
-        bar = ttk.Scrollbar(self, orient="vertical", command=self.cv.yview)
-        self.cv.configure(yscrollcommand=bar.set)
-        bar.pack(side="right", fill="y")
-        self.cv.pack(side="left", fill="both", expand=True)
-        self.inner = tk.Frame(self.cv, bg=COL["bg"])
-        self._win = self.cv.create_window(0, 0, window=self.inner, anchor="nw")
-        self.inner.bind("<Configure>", lambda e: self.cv.configure(scrollregion=self.cv.bbox("all")))
-        self.cv.bind("<Configure>", lambda e: self.cv.itemconfigure(self._win, width=e.width))
-        for seq, d in (("<Button-4>", -2), ("<Button-5>", 2)):
-            self.bind_all(seq, lambda e, d=d: self._wheel(e, d), add="+")
-        self.bind_all("<MouseWheel>", lambda e: self._wheel(e, -1 if e.delta > 0 else 1), add="+")
-
-    def _wheel(self, e, d):
-        w = e.widget
-        while w is not None:
-            if w is self:
-                self.cv.yview_scroll(d, "units")
-                return
-            w = getattr(w, "master", None)
-
-
 class EffectsDialog(Dialog):
     """Effektkette eines Kanals: Effekte hinzufügen, an/aus, Reihenfolge, Regler."""
 
@@ -197,15 +190,14 @@ class EffectsDialog(Dialog):
         self.catalog = catalog
         self.on_change, self.on_control = on_change, on_control
         self.icons = Icons(self)
-        head = tk.Frame(self.body, bg=COL["bg"])
-        head.pack(fill="x")
-        label(head, _("Effects for “{name}”").format(name=channel["name"]), 15, "bold").pack(anchor="w")
-        label(head, _("Audio flows through the effects from top to bottom. Just like the plugins in Wave Link."),
-              9, color=COL["muted"]).pack(anchor="w", pady=(2, 12))
-        self.area = _ScrollArea(self.body)
+        header(self.body, _("Effects for “{name}”").format(name=channel["name"]),
+               _("Audio flows through the effects from top to bottom. Just like the plugins in Wave Link."),
+               icon="fx", color=channel.get("color") or COL["accent"], wrap=500)
+        self.area = ScrollArea(self.body)
         self.area.pack(fill="both", expand=True)
-        ttk.Button(self.buttons, text=_("Done"), style="Accent.TButton", command=self.destroy).pack(side="right")
-        PillButton(self.buttons, _("Add effect"), icon="plus", command=self._add, height=30).pack(side="left")
+        footer(self)
+        Button(self.buttons, _("Done"), kind="primary", command=self.destroy).pack(side="right")
+        Button(self.buttons, _("Add effect"), icon="plus", command=self._add).pack(side="left")
         self._render()
         self.show()
 
@@ -214,11 +206,15 @@ class EffectsDialog(Dialog):
         for w in self.area.inner.winfo_children():
             w.destroy()
         if not self.chain:
-            card = Card(self.area.inner, pad=22)
+            card = Card(self.area.inner, pad=22, stretch=True)
             card.pack(fill="x", pady=4)
-            label(card.body, _("No effects yet"), 11, "bold").pack(anchor="w")
-            label(card.body, _("Use “Add effect” to put e.g. noise suppression, a noise gate, a compressor or "
-                               "an equalizer on this channel."), 9, color=COL["muted"], wraplength=480,
+            tk.Label(card.body, image=icon_tile(card.body, "fx", 40, COL["raised"], fg=COL["muted"]),
+                     bg=COL["panel"]).pack(side="left", anchor="n")
+            txt = tk.Frame(card.body, bg=COL["panel"])
+            txt.pack(side="left", padx=14, fill="x", expand=True)
+            label(txt, _("No effects yet"), 11, "bold").pack(anchor="w")
+            label(txt, _("Use “Add effect” to put e.g. noise suppression, a noise gate, a compressor or "
+                         "an equalizer on this channel."), 9, color=COL["muted"], wraplength=420,
                   justify="left").pack(anchor="w", pady=(4, 0))
             return
         for i, fx in enumerate(self.chain):
@@ -226,31 +222,40 @@ class EffectsDialog(Dialog):
 
     def _card(self, i, fx):
         p = effects.lookup(fx["plugin"], self.catalog)
-        card = Card(self.area.inner, pad=16)
-        card.pack(fill="x", pady=5)
+        on = fx.get("enabled", True)
+        card = Card(self.area.inner, pad=16, stretch=True)
+        card.pack(fill="x", pady=(0, 10))
         b = card.body
         top = tk.Frame(b, bg=COL["panel"])
         top.pack(fill="x")
-        tk.Label(top, image=self.icons.get("fx", 26, "#ffffff", circle=COL["accent"] if fx.get("enabled", True)
-                                           else COL["raised"]), bg=COL["panel"]).pack(side="left")
+        tk.Label(top, image=icon_tile(top, "fx", 34, COL["accent"] if on and p else COL["raised"],
+                                      fg="#ffffff" if on and p else COL["muted"]),
+                 bg=COL["panel"]).pack(side="left", anchor="n")
         names = tk.Frame(top, bg=COL["panel"])
-        names.pack(side="left", padx=10, fill="x", expand=True)
-        label(names, fx.get("name") or (p or {}).get("name") or fx["plugin"], 11, "bold").pack(anchor="w")
+        names.pack(side="left", padx=12, fill="x", expand=True)
+        label(names, fx.get("name") or (p or {}).get("name") or fx["plugin"], 11, "bold",
+              color=COL["fg"] if on else COL["muted"]).pack(anchor="w")
         label(names, (p or {}).get("info") or (_("Plugin not found – is it installed?") if not p else ""),
-              8, color=COL["muted"] if p else COL["danger"], wraplength=250, justify="left").pack(anchor="w")
+              9, color=COL["muted"] if p else COL["danger"], wraplength=250, justify="left").pack(anchor="w")
         sw = Switch(top, command=lambda: self._toggle(i, sw.get()))
-        sw.set(fx.get("enabled", True))
-        sw.pack(side="right")
-        for icon, cmd in (("close", lambda: self._remove(i)), ("down", lambda: self._move(i, 1)),
-                          ("up", lambda: self._move(i, -1))):
-            PillButton(top, icon=icon, command=cmd, padx=6).pack(side="right", padx=(0, 6))
-        if not p:
+        sw.set(on)
+        sw.pack(side="right", padx=(8, 0))
+        for icon, cmd, ok in (("trash", lambda: self._remove(i), True),
+                              ("down", lambda: self._move(i, 1), i < len(self.chain) - 1),
+                              ("up", lambda: self._move(i, -1), i > 0)):
+            bt = Button(top, icon=icon, kind="ghost", command=cmd, height=30)
+            bt.configure_text(enabled=ok)
+            bt.pack(side="right", padx=(2, 0))
+        if not p or not p.get("controls"):
             return
+        tk.Frame(b, bg=COL["border"], height=1).pack(fill="x", pady=(14, 10))
         grid = tk.Frame(b, bg=COL["panel"])
-        grid.pack(fill="x", pady=(10, 0))
+        grid.pack(fill="x")
+        grid.grid_columnconfigure(1, weight=1)
         for r, c in enumerate(p.get("controls", [])):
             value = float(fx["controls"].get(c["name"], c["default"]))
-            label(grid, c.get("label") or c["name"], 9, color=COL["muted"], anchor="w", width=20).grid(row=r, column=0, sticky="w")
+            label(grid, c.get("label") or c["name"], 9, color=COL["muted"], anchor="w", width=20).grid(
+                row=r, column=0, sticky="w")
             val = tk.StringVar(self, value=_fmt(value, c))
             if c.get("toggle"):
                 w = Switch(grid)
@@ -265,7 +270,7 @@ class EffectsDialog(Dialog):
                 from_pos = (lambda t, lo=lo, hi=hi: lo * (hi / lo) ** (t / 100)) if use_log else \
                     (lambda t, lo=lo, hi=hi: lo + (hi - lo) * t / 100)
                 f = Fader(grid, length=230, thickness=26, orient="horizontal", from_=0, to=100,
-                          color=COL["accent"],
+                          color=COL["accent"] if on else COL["faint"],
                           command=lambda t, c=c, i=i, val=val, fp=from_pos: self._control(
                               i, c, round(fp(t)) if c.get("int") else fp(t), val))
                 f.set(max(0.0, min(100.0, to_pos(min(max(value, lo), hi)))))
@@ -314,12 +319,13 @@ class EffectsDialog(Dialog):
 class PluginPicker(Dialog):
     """Liste aller Effekte mit Suche – wie der Plugin-Browser in Wave Link."""
 
+    KINDS = ("builtin", "ladspa", "lv2")
+
     def __init__(self, master, catalog, on_pick):
-        super().__init__(master, _("Add effect"), width=560, height=600)
+        super().__init__(master, _("Add effect"), width=580, height=640)
         self.catalog, self.on_pick = catalog, on_pick
         self.icons = Icons(self)
-        label(self.body, _("Add effect"), 15, "bold").pack(anchor="w")
-        n = {t: sum(1 for p in catalog if p["type"] == t) for t in ("builtin", "ladspa", "lv2")}
+        n = {t: sum(1 for p in catalog if p["type"] == t) for t in self.KINDS}
         self.lv2_ok, self.lv2_hint = effects.lv2_status()
         info = _("Found {builtin} built-in filters, {ladspa} LADSPA and {lv2} LV2 plugins. More plugins: packages "
                  "swh-plugins, tap-plugins, x42-plugins, lsp-plugins-lv2, calf-plugins.").format(**n)
@@ -327,29 +333,41 @@ class PluginPicker(Dialog):
             info += " " + _("For LV2 plugins, install the package lilv-utils.")
         elif not self.lv2_ok:
             info += " " + self.lv2_hint + "."
-        label(self.body, info, 9, color=COL["muted"], wraplength=500, justify="left").pack(anchor="w", pady=(2, 8))
-        self.kind = "all"
-        self.seg = Segmented(self.body, [("all", _("All")), ("builtin", _("Built-in")), ("ladspa", "LADSPA"),
-                                         ("lv2", "LV2")], command=self._kind)
-        self.seg.pack(anchor="w", pady=(0, 8))
-        sb = tk.Frame(self.body, bg=COL["panel2"])
+        header(self.body, _("Add effect"), info, icon="fx", wrap=470)
+
+        sb = tk.Frame(self.body, bg=COL["panel"], highlightthickness=1, highlightbackground=COL["border"],
+                      highlightcolor=COL["accent"])
         sb.pack(fill="x", pady=(0, 10))
-        tk.Label(sb, image=self.icons.get("search", 16, COL["muted"]), bg=COL["panel2"]).pack(side="left", padx=8)
+        tk.Label(sb, image=self.icons.get("search", 16, COL["muted"]), bg=COL["panel"]).pack(side="left",
+                                                                                         padx=(10, 6))
         self.q = tk.StringVar(self)
-        e = tk.Entry(sb, textvariable=self.q, bg=COL["panel2"], fg=COL["fg"], insertbackground=COL["fg"],
-                     relief="flat", highlightthickness=0)
-        e.pack(side="left", fill="x", expand=True, ipady=6)
+        e = tk.Entry(sb, textvariable=self.q, bg=COL["panel"], fg=COL["fg"], insertbackground=COL["fg"],
+                     relief="flat", highlightthickness=0, font=font(sb, 10))
+        e.pack(side="left", fill="x", expand=True, ipady=7)
         e.focus_set()
         self.q.trace_add("write", lambda *a: self._fill())
-        self.area = _ScrollArea(self.body)
+
+        chips = tk.Frame(self.body, bg=COL["bg"])
+        chips.pack(fill="x", pady=(0, 12))
+        self.kind = "all"
+        self.chips = {}
+        for key, text in (("all", _("All")), ("builtin", _("Built-in")), ("ladspa", "LADSPA"), ("lv2", "LV2")):
+            ch = Chip(chips, text, command=lambda k=key: self._kind(k), active=key == "all")
+            ch.pack(side="left", padx=(0, 6))
+            self.chips[key] = ch
+        self.count = label(chips, "", 9, color=COL["faint"])
+        self.count.pack(side="right")
+        self.area = ScrollArea(self.body)
         self.area.pack(fill="both", expand=True)
-        ttk.Button(self.buttons, text=_("Close"), style="Ghost.TButton", command=self.destroy).pack(side="right")
+        footer(self)
+        Button(self.buttons, _("Close"), command=self.destroy).pack(side="right")
         self._fill()
         self.show()
 
     def _kind(self, kind):
         self.kind = kind
-        self.seg.set(kind)
+        for k, ch in self.chips.items():
+            ch.set(active=k == kind)
         self._fill()
 
     def _fill(self):
@@ -365,29 +383,37 @@ class PluginPicker(Dialog):
                 continue
             shown += 1
             if shown > 150:
-                label(self.area.inner, _("… more – narrow down your search"), 9, color=COL["muted"]).pack(anchor="w")
+                label(self.area.inner, _("… more – narrow down your search"), 9, color=COL["muted"]).pack(
+                    anchor="w", pady=(6, 0))
                 break
-            row = tk.Frame(self.area.inner, bg=COL["panel"], padx=12, pady=8, cursor="hand2")
-            row.pack(fill="x", pady=2)
-            tag = {"builtin": "PipeWire", "ladspa": "LADSPA", "lv2": "LV2"}.get(p["type"], p["type"])
-            ok = p["type"] != "lv2" or self.lv2_ok
-            circle = {"builtin": COL["accent"], "ladspa": COL["stream"], "lv2": COL["monitor"]}.get(p["type"],
-                                                                                                COL["raised"])
-            tk.Label(row, image=self.icons.get("fx", 24, "#ffffff", circle=circle if ok else COL["raised"]),
-                     bg=COL["panel"]).pack(side="left")
-            txt = tk.Frame(row, bg=COL["panel"])
-            txt.pack(side="left", padx=10, fill="x", expand=True)
-            label(txt, p["name"], 10, "bold").pack(anchor="w")
-            label(txt, f"{tag} · {p.get('info') or p.get('label', '')}" if ok else f"{tag} · {self.lv2_hint}",
-                  8, color=COL["muted"] if ok else COL["warn"], wraplength=330, justify="left").pack(anchor="w")
-            if not ok:
-                continue
-            add = PillButton(row, _("Add"), command=lambda p=p: self._pick(p))
-            add.pack(side="right")
-            for w in (row, txt):
-                w.bind("<Double-Button-1>", lambda e, p=p: self._pick(p))
+            self._row(p)
+        self.count.configure(text=str(min(shown, 150)) if shown else "")
+        if not shown:
+            label(self.area.inner, _("No effect matches your search."), 10, color=COL["muted"]).pack(
+                anchor="w", pady=12)
+        self.area.cv.yview_moveto(0)
+
+    def _row(self, p):
+        row = tk.Frame(self.area.inner, bg=COL["panel"], padx=12, pady=10, cursor="hand2",
+                       highlightthickness=1, highlightbackground=COL["border"])
+        row.pack(fill="x", pady=(0, 6))
+        tag = {"builtin": "PipeWire", "ladspa": "LADSPA", "lv2": "LV2"}.get(p["type"], p["type"])
+        ok = p["type"] != "lv2" or self.lv2_ok
+        tint = {"builtin": COL["accent"], "ladspa": COL["stream"], "lv2": COL["monitor"]}.get(p["type"],
+                                                                                          COL["raised"])
+        tk.Label(row, image=icon_tile(row, "fx", 32, tint if ok else COL["raised"],
+                                      fg="#ffffff" if ok else COL["muted"]), bg=COL["panel"]).pack(side="left")
+        txt = tk.Frame(row, bg=COL["panel"])
+        txt.pack(side="left", padx=12, fill="x", expand=True)
+        label(txt, p["name"], 10, "bold").pack(anchor="w")
+        label(txt, f"{tag} · {p.get('info') or p.get('label', '')}" if ok else f"{tag} · {self.lv2_hint}",
+              9, color=COL["muted"] if ok else COL["warn"], wraplength=340, justify="left").pack(anchor="w")
+        if not ok:
+            return
+        Button(row, _("Add"), icon="plus", command=lambda p=p: self._pick(p), height=30).pack(side="right")
+        for w in (row, txt, *txt.winfo_children()):
+            w.bind("<Double-Button-1>", lambda e, p=p: self._pick(p))
 
     def _pick(self, p):
         self.destroy()
         self.on_pick(p)
-

@@ -269,7 +269,11 @@ def test_gui_inspector_for_all_actions(app):
         slot = ("key", 1, 0) if C.KEY in t.controllers else ("dial", 0)
         app.place_action(t.uuid, slot)
         app.root.update()
-        assert app.inspector.inner.winfo_children()
+        for tab in app.INSPECTOR_TABS:  # alle Reiter der Eigenschaften
+            app.set_inspector_tab(tab)
+            app.root.update()
+            assert app.inspector.inner.winfo_children()
+        app.set_inspector_tab("appearance")
     app.open_folder(None)
     app.place_action(C.FOLDER_UUID, ("key", 3, 1))
     fid = app.doc.get(page, ("key", 3, 1))["Settings"]["ProfileUUID"]

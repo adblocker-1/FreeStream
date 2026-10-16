@@ -103,7 +103,7 @@ def test_app_window_device_and_quit(gui):
     assert root.state() == "normal"
     # Gerät erkannt, dessen Profil ist geöffnet
     assert ed.device == "SN1" and ed.doc.id == plus_id
-    assert "SN1" in ed.device_box.get()
+    assert "SN1" in ed.device_cards and ed.device_cards["SN1"].selected
     # Seite im Fenster wählen -> Gerät folgt
     ed.goto_page(ed.doc.page_ids[1])
     _pump(root)

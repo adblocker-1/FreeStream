@@ -140,21 +140,32 @@ def shot_lindeck(tmp):
         a = doc.place(page, ("dial", i), uuid)
         a.setdefault("Settings", {}).update(settings)
         doc.update_state(page, ("dial", i), 0, "Title", title)
+    doc.add_page()
+    doc.add_page()
     doc.save()
+    others = {}
+    for name, code, pages in (("Gaming", "20GBD9901", 2), ("Video editing", "20GBD9901", 1),
+                              ("Meetings", "20GAI9902", 1)):
+        d = E.ProfileDoc(E.create_profile(name, code, store))
+        for _i in range(pages - 1):
+            d.add_page()
+        d.save()
+        others[name] = d.id
 
     from streamlin.models import Geometry
     from streamlin.profiles import ProfileStore
     from test_app import FakeCtrl
     ctrl = FakeCtrl("DL41K1A04321", "20GBD9901", Geometry(4, 2, 4), doc.id)
+    ctrl.brightness = 70
 
     profiles = ProfileStore(store)
 
     class Daemon:  # angeschlossenes Stream Deck + (simuliert)
         controllers = {"a": ctrl}
         store = profiles
-        cfg = {}
+        cfg = {"devices": {"A00SA4212345": {"profile": others["Meetings"]}}}  # bekannt, nicht angeschlossen
     root = tk.Tk(className="lindeck")
-    root.geometry("1240x800")
+    root.geometry("1280x800")
     app = editor.EditorApp(root, store_root=store, daemon=Daemon())
     pump(root, 1.5)
     app.select(("key", 0, 0))
@@ -314,8 +325,15 @@ def shot_linewave(tmp):
                           ("voice", "stream", 0), ("browser", "monitor", 55), ("capture", "monitor", 40)):
         host.mixer.set_volume(cid, mix, vol)
     host.mixer.set_mute("voice", "stream", True)
+    import types
+    demo = {"music": .78, "browser": .55, "voice": .72, "game": .8, "system": .5, "podcast": .62, "capture": .66,
+            "mic": .82, "streammix": .74, "headphones": .8}
+
+    def fake_level(device):  # feste Pegel statt parec, damit das Bild immer gleich aussieht
+        key = next((k for k in demo if k in device), "")
+        return types.SimpleNamespace(level=demo.get(key, .5) if "Wave" in device or key else .6, stop=lambda: None)
     root = tk.Tk(className="linewave")
-    win = WaveWindow(root, host, tray=False)
+    win = WaveWindow(root, host, tray=False, level_factory=fake_level)
     pump(root, 3)
     grab(root, "linewave-mixer.png")
     win.show_view("mic")
