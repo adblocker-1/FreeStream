@@ -241,15 +241,9 @@ def test_wave_window(env, pactl):
         win._on_hw_bool("leds_off")
         assert _pump(root, lambda: host.mic._hw.get()["leds_off"] is True)
         # Menü „…“: Updates beim Start ein-/ausschalten
-        menus = []
-        orig_popup = tk.Menu.tk_popup
-        tk.Menu.tk_popup = lambda self, *a: menus.append(self)
-        try:
-            win._more_menu()
-        finally:
-            tk.Menu.tk_popup = orig_popup
-        m = menus[0]
-        labels = [m.entrycget(i, "label") for i in range(m.index("end") + 1) if m.type(i) != "separator"]
+        m = win._more_menu()  # Menü im Linewave-Design
+        labels = m.labels()
+        m.close()
         assert "Einstellungen" in labels
         # Einstellungen: ein Fenster, beim zweiten Öffnen dasselbe
         dlg = win.open_settings()

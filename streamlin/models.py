@@ -97,3 +97,38 @@ def model_geometry(code: str):
         base = base[:-2]
     m = MODELS.get(base)
     return m[1] if m else None
+
+
+ELGATO_VENDOR = "0fd9"
+USB_ROOT = "/sys/bus/usb/devices"
+
+
+def connected_models(usb_root=None):
+    """Angeschlossene Stream Decks laut USB (sysfs) – ohne das Gerät zu öffnen, aus jedem Programm.
+
+    Gibt [{"model", "name", "serial"}] zurück (Elgato-Vendor 0x0fd9, bekannte Product-IDs)."""
+    import os
+    root = usb_root or USB_ROOT
+    out = []
+    try:
+        entries = sorted(os.listdir(root))
+    except OSError:
+        return out
+
+    def read(d, name):
+        try:
+            with open(os.path.join(root, d, name), encoding="ascii", errors="ignore") as f:
+                return f.read().strip()
+        except OSError:
+            return ""
+    for d in entries:
+        if read(d, "idVendor").lower() != ELGATO_VENDOR:
+            continue
+        try:
+            pid = int(read(d, "idProduct"), 16)
+        except ValueError:
+            continue
+        code = PID_TO_MODEL.get(pid)
+        if code:
+            out.append({"model": code, "name": MODELS[code][0], "serial": read(d, "serial")})
+    return out

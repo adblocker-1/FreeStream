@@ -53,7 +53,7 @@ install it after you confirm. You can switch this off in **Settings**.
 **Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`); your
 profiles stay in `~/.local/share/streamlin`.
 
-> **Status:** version 0.21, tested with simulated devices of every model.
+> **Status:** version 0.24, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## The LinDeck window
@@ -63,6 +63,10 @@ actions on the right, the settings of the selected key at the bottom. Drag an
 action onto a key (or double-click it), drag keys to move them, right-click for
 copy, paste and delete. Changes show up on the deck right away. Profiles stay in
 the Elgato format, so you can take them back to Windows with **Export…**.
+
+LinDeck recognises the connected Stream Deck by itself: **New profile** only asks
+for a name, and profiles for a model that is not plugged in are shown greyed out.
+Right-click a profile to open, rename, duplicate, export or delete it.
 
 **Background** below the device spreads a picture across all keys of a page; on
 the Stream Deck + the touch strip can get its own image.
@@ -126,11 +130,12 @@ and mute for every channel:
 - **Personal Mix**: what you hear on your headphones (also on several devices at once)
 - **Stream Mix**: what your audience hears. In OBS, choose the audio source
   **“Monitor of Linewave Stream Mix”**.
-- **Your own mixes**: **Create mix**, e.g. a **Chat Mix** for Discord (choose
+- **Your own mixes**: **Create mix** below the mixes in the sidebar, e.g. a **Chat Mix** for Discord (choose
   “Monitor of Linewave Chat Mix” as microphone there). A mix goes to any devices
   you tick and/or to a virtual source for other programs.
 
 Click an empty cell to put a channel into a mix, right-click a cell to take it out.
+Right-click a mix (in the sidebar or its column header) to edit, listen to or delete it.
 The headphones button in a mix header lets you **listen** to that mix on your
 headphones for a moment.
 
@@ -143,7 +148,7 @@ or a capture card.
 | Feature | |
 |---|---|
 | **Effects** | **FX** below a channel: high-pass, EQ, gate, compressor, reverb and any LADSPA/LV2 plugin (`swh-plugins`, `tap-plugins`, `x42-plugins` …) |
-| **Channels on LinDeck** | **Export to LinDeck** in the Mixer header creates a LinDeck profile “Linewave” for your model – laid out like the Wave Link profile – and keeps it up to date when you add or delete channels: mix keys (All and every mix) and “Channels 1–7” on top, per channel a tile with its icon and volume (press = mute) and a fader over two keys (upper key = louder, lower key = quieter); dials on the Stream Deck + |
+| **Channels on LinDeck** | **Export to LinDeck** in the Mixer header creates a LinDeck profile “Linewave” for the connected Stream Deck (detected by itself; a deck plugged in later gets its own profile automatically) – laid out like the Wave Link profile – and keeps it up to date when you add or delete channels: mix keys (All and every mix) and “Channels 1–7” on top, per channel a tile with its icon and volume (press = mute) and a fader over two keys (upper key = louder, lower key = quieter); dials on the Stream Deck + |
 | **Scenes** | save the whole mix under a name and switch with one click, a shortcut or the Stream Deck key **Mixer Scene** |
 | **Auto-ducking** | music gets quieter while you speak and comes back exactly afterwards |
 | **Noise suppression** | for any microphone; uses [RNNoise](https://github.com/werman/noise-suppression-for-voice) if installed, otherwise PipeWire's built-in filter |

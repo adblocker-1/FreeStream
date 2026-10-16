@@ -24,7 +24,7 @@ import signal
 from . import paths
 from .editdoc import EditError, ProfileDoc, create_profile, init_profile
 from .i18n import _
-from .models import MODELS, model_geometry, model_name
+from .models import MODELS, connected_models, model_geometry, model_name
 from .profiles import ProfileStore
 
 MIXER_UUID = "com.lindeck.mixer.channel"
@@ -59,23 +59,53 @@ def _base(model):
     return base[:-2] if base.endswith("LL") else base
 
 
-def devices(store_root=None):
-    """Stream-Deck-Modelle zur Auswahl: [{"model", "name", "in_use", "profile"}], benutzte zuerst.
+def devices(store_root=None, connected=None):
+    """Stream-Deck-Modelle zur Auswahl: [{"model", "name", "connected", "in_use", "profile"}].
 
+    Angeschlossene (per USB erkannt) zuerst, dann die in LinDeck benutzten, dann alle übrigen.
     "profile" ist der Name eines schon vorhandenen Linewave-Profils für dieses Modell (sonst "")."""
     store = ProfileStore(store_root)
+    plugged = []
+    for d in (connected_models() if connected is None else connected):
+        m = _base(d["model"])
+        if m not in plugged:
+            plugged.append(m)
     used = _in_use_models(store)
     known = [_base(p.model) for p in store.profiles.values() if p.model]
-    order = used + [m for m in known if m not in used] + [m for m in MODELS if m not in used and m not in known]
+    order = plugged + used + known + list(MODELS)
     out, seen = [], set()
     for m in order:
         if m in seen or m not in MODELS:
             continue
         seen.add(m)
         managed = managed_profile(m, store_root)
-        out.append({"model": m, "name": model_name(m), "in_use": m in used,
+        out.append({"model": m, "name": model_name(m), "connected": m in plugged, "in_use": m in used,
                     "profile": managed.name if managed else ""})
     return out
+
+
+def adopt_new_devices(store_root=None, connected=None):
+    """Neu angeschlossenes Stream Deck ohne Linewave-Profil: Profil mit denselben Einstellungen anlegen
+    wie beim letzten Export – aber nur, wenn schon einmal exportiert wurde. Gibt neue Profilnamen zurück."""
+    managed = managed_profiles(store_root)
+    if not managed:
+        return []
+    newest = max(managed, key=lambda p: (p.root / META).stat().st_mtime if (p.root / META).exists() else 0)
+    lw = _meta(newest.root).get("linewave") or {}
+    have = {_base(p.model) for p in managed}
+    created = []
+    for d in (connected_models() if connected is None else connected):
+        m = _base(d["model"])
+        if m in have or m not in MODELS:
+            continue
+        have.add(m)
+        try:
+            name, _pages, _new = export(m, lw.get("channels") or [], lw.get("mix", "selected"), lw.get("all", True),
+                                        store_root)
+            created.append(name)
+        except ExportError:
+            continue  # z. B. Pedal: keine Lautstärketasten möglich
+    return created
 
 
 # ------------------------------------------------------------------ Belegung

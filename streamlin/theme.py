@@ -1132,11 +1132,13 @@ class Sidebar(tk.Frame):
 class NavItem(tk.Canvas):
     """Eintrag der Seitenleiste: Symbol, Text, rechts eine Zahl; gewählt = hinterlegt."""
 
-    def __init__(self, master, text, icon=None, count="", command=None, active=False, accent=False, height=34):
+    def __init__(self, master, text, icon=None, count="", command=None, active=False, accent=False, height=34,
+                 dim=False):
         bg = _bg_of(master)
         super().__init__(master, height=height, bg=bg, highlightthickness=0, bd=0, cursor="hand2")
         self.text, self.icon, self.count, self.command = text, icon, count, command
         self.active, self.accent, self.hover, self.h = active, accent, False, height
+        self.dim = dim  # z. B. Profil für ein gerade nicht angeschlossenes Gerät
         self.icons = Icons(self)
         self.f = font(self, 10, "normal")
         self.fb = font(self, 10, "bold")
@@ -1168,9 +1170,11 @@ class NavItem(tk.Canvas):
             rounded_rect(self, 0, 1, w - 1, h - 1, 9, outline="",
                          fill=COL["accent_soft"] if self.active else COL["raised"])
         fg = COL["accent"] if self.accent else (COL["fg"] if self.active else COL["muted"])
+        if self.dim and not self.active:
+            fg = COL["faint"]
         x = 10
         if self.icon:
-            ic = COL["accent"] if (self.active or self.accent) else COL["muted"]
+            ic = COL["accent"] if (self.active or self.accent) else (COL["faint"] if self.dim else COL["muted"])
             self.create_image(x + 8, h / 2, image=self.icons.get(self.icon, 16, ic))
             x += 26
         self.create_text(x, h / 2, text=self.text, anchor="w", fill=fg,
@@ -1458,3 +1462,160 @@ class LevelMeter(tk.Canvas):
             if self.level > 0:
                 rounded_rect(self, 0, 0, max(h, self.level * w), h, h / 2, fill=self.color or COL["accent"],
                              outline="")
+
+
+class PopupMenu:
+    """Menü im Design von LinDeck/Linewave (statt des grauen Systemmenüs): dunkle Fläche, runde Ecken,
+    Symbole, Hervorhebung beim Überfahren, rote Einträge zum Löschen.
+
+    m = PopupMenu(root); m.add(_("Rename …"), cmd, icon="edit"); m.separator(); m.add(..., danger=True)
+    m.popup(x, y) öffnet es an Bildschirmkoordinaten (z. B. event.x_root/y_root) bzw. m.below(widget)."""
+
+    ROW, PAD, W = 34, 6, 232
+    current = None  # gerade offenes Menü (höchstens eines)
+
+    def __init__(self, master, width=None):
+        self.master = master
+        self.entries = []  # dicts: label, command, icon, danger, enabled – oder None = Trenner
+        self.width = width or self.W
+        self.win = None
+        self.hover = None
+
+    def add(self, label, command=None, icon=None, danger=False, enabled=True, hint=""):
+        """hint: rechts daneben, grau (z. B. Tastenkürzel „Strg+C“)."""
+        self.entries.append({"label": label, "command": command, "icon": icon, "danger": danger,
+                             "enabled": enabled and command is not None, "hint": hint})
+        return self
+
+    def separator(self):
+        if self.entries and self.entries[-1] is not None:
+            self.entries.append(None)
+        return self
+
+    def labels(self):
+        return [e["label"] for e in self.entries if e is not None]
+
+    def invoke(self, label):
+        """Eintrag auslösen (für Tests und Tastatur)."""
+        e = next(e for e in self.entries if e is not None and e["label"] == label)
+        if e["enabled"]:
+            self.close()
+            e["command"]()
+
+    def _height(self):
+        return 2 * self.PAD + sum(9 if e is None else self.ROW for e in self.entries)
+
+    def below(self, widget, right=False):
+        x = widget.winfo_rootx() + (widget.winfo_width() - self.width if right else 0)
+        self.popup(x, widget.winfo_rooty() + widget.winfo_height() + 4)
+
+    def popup(self, x, y):
+        if PopupMenu.current is not None:
+            PopupMenu.current.close()
+        while self.entries and self.entries[-1] is None:
+            self.entries.pop()
+        w, h = self.width, self._height()
+        top = tk.Toplevel(self.master)
+        top.withdraw()
+        top.overrideredirect(True)
+        try:
+            top.attributes("-topmost", True)
+        except tk.TclError:
+            pass
+        sw, sh = top.winfo_screenwidth(), top.winfo_screenheight()
+        x = max(0, min(int(x), sw - w - 4))
+        y = int(y) if int(y) + h < sh else max(0, int(y) - h - 8)
+        top.geometry(f"{w}x{h}+{x}+{y}")
+        bg = COL["panel2"]  # ohne Compositor gibt es keine runden Fensterecken: schmaler Rand statt Rundung
+        top.configure(bg=bg)
+        cv = tk.Canvas(top, width=w, height=h, bg=bg, highlightthickness=0, bd=0)
+        cv.pack()
+        self.win, self.cv, self.icons = top, cv, Icons(cv)
+        self.f = font(top, 10)
+        self._rows = []
+        yy = self.PAD
+        for i, e in enumerate(self.entries):
+            if e is None:
+                yy += 9
+                continue
+            self._rows.append((i, yy, yy + self.ROW))
+            yy += self.ROW
+        self._draw()
+        cv.bind("<Motion>", self._motion)
+        cv.bind("<Leave>", lambda ev: self._set_hover(None))
+        cv.bind("<ButtonRelease-1>", self._click)
+        top.bind("<Escape>", lambda ev: self.close())
+        top.bind("<FocusOut>", lambda ev: self.close())
+        top.deiconify()
+        top.lift()
+        PopupMenu.current = self
+        try:
+            top.focus_force()
+            top.grab_set()
+            top.bind("<ButtonPress>", self._press_outside, add="+")
+        except tk.TclError:
+            pass
+        return self
+
+    def _draw(self):
+        cv = self.cv
+        cv.delete("all")
+        w, h = self.width, self._height()
+        cv.create_rectangle(0, 0, w - 1, h - 1, fill=COL["panel2"], outline=COL["border"])
+        yy = self.PAD
+        for i, e in enumerate(self.entries):
+            if e is None:
+                cv.create_line(12, yy + 4, w - 12, yy + 4, fill=COL["border"])
+                yy += 9
+                continue
+            if self.hover == i and e["enabled"]:
+                rounded_rect(cv, 6, yy + 1, w - 7, yy + self.ROW - 1, 8,
+                             fill=COL["danger_soft"] if e["danger"] else COL["accent_soft"], outline="")
+            col = COL["danger"] if e["danger"] else COL["fg"]
+            if not e["enabled"]:
+                col = COL["faint"]
+            if e["icon"]:
+                cv.create_image(26, yy + self.ROW / 2, image=self.icons.get(
+                    e["icon"], 15, col if (e["danger"] or not e["enabled"]) else COL["muted"]))
+            cv.create_text(46, yy + self.ROW / 2, text=e["label"], anchor="w", fill=col, font=self.f)
+            if e.get("hint"):
+                cv.create_text(w - 16, yy + self.ROW / 2, text=e["hint"], anchor="e", fill=COL["faint"], font=self.f)
+            yy += self.ROW
+
+    def _row_at(self, y):
+        return next((i for i, a, b in self._rows if a <= y < b), None)
+
+    def _set_hover(self, i):
+        if i != self.hover:
+            self.hover = i
+            self._draw()
+
+    def _motion(self, ev):
+        self._set_hover(self._row_at(ev.y))
+
+    def _click(self, ev):
+        i = self._row_at(ev.y)
+        if i is None:
+            return
+        e = self.entries[i]
+        if e["enabled"]:
+            self.close()
+            self.master.after_idle(e["command"])
+
+    def _press_outside(self, ev):
+        if self.win is None:
+            return
+        x, y = ev.x_root - self.win.winfo_rootx(), ev.y_root - self.win.winfo_rooty()
+        if not (0 <= x < self.width and 0 <= y < self._height()):
+            self.close()
+
+    def close(self):
+        if PopupMenu.current is self:
+            PopupMenu.current = None
+        if self.win is not None:
+            try:
+                self.win.grab_release()
+                self.win.destroy()
+            except tk.TclError:
+                pass
+            self.win = None
