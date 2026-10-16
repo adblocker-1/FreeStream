@@ -241,7 +241,11 @@ def test_wave_window(env, pactl):
             tk.Menu.tk_popup = orig_popup
         m = menus[0]
         labels = [m.entrycget(i, "label") for i in range(m.index("end") + 1) if m.type(i) != "separator"]
-        assert "Beim Start nach Updates suchen" in labels and "Jetzt nach Updates suchen…" in labels
+        assert "Einstellungen" in labels
+        # Einstellungen: ein Fenster, beim zweiten Öffnen dasselbe
+        dlg = win.open_settings()
+        assert win.open_settings() is dlg
+        dlg.destroy()
         # Fenster schließen = ausblenden, Beenden beendet die Hauptschleife
         win._hidden_once = True
         win.hide()

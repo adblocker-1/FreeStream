@@ -147,7 +147,7 @@ class UpdateDialog(Dialog):
         row = tk.Frame(b, bg=COL["bg"])
         row.pack(fill="x", pady=(14, 0))
         self.auto = Switch(row, command=self._toggle_auto)
-        self.auto.set(updater.enabled())
+        self.auto.set(updater.configured())
         self.auto.pack(side="left")
         label(row, _("Check for updates every time {app} starts").format(app=app), 10).pack(side="left", padx=10)
 

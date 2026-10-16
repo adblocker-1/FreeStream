@@ -82,6 +82,7 @@ def test_switch_off_and_on(home):
 def test_env_switches_off(monkeypatch):
     monkeypatch.setenv("STREAMLIN_NO_UPDATE_CHECK", "1")
     assert not updater.enabled()
+    assert updater.configured()  # die gespeicherte Einstellung bleibt
 
 
 def test_skip_and_later():
@@ -205,3 +206,22 @@ def test_dialog_later_and_skip(root, home):
     dlg = updateui.UpdateDialog(root, up, "Linewave", lambda: None)
     dlg._skip()
     assert updater.load_state()["skipped"] == "9.1.0"
+
+
+def test_settings_dialog(root, monkeypatch, home):
+    from streamlin import i18n, settingsui
+    restarts, asked = [], []
+    monkeypatch.setattr(settingsui, "choose_language", lambda code, app, restart, parent: asked.append(code))
+    dlg = settingsui.open_settings(root, "LinDeck", lambda: restarts.append(1))
+    assert settingsui.open_settings(root, "LinDeck", lambda: None) is dlg  # nur ein Fenster
+    # Updates ausschalten
+    assert dlg.auto_update.get()
+    dlg.auto_update.set(False)
+    dlg._toggle_updates()
+    assert not updater.enabled() and not updater.configured()
+    # Sprache wählen
+    idx = 1 + i18n.available().index("fr")
+    dlg.language_box.current(idx)
+    dlg._language()
+    assert asked == ["fr"]
+    dlg.destroy()

@@ -502,8 +502,6 @@ class Icons:
 # ===================================================================== Widgets
 def language_button(parent, icons, app, restart, bg=None, style="Ghost.TMenubutton"):
     """Knopf mit Globus und Sprachname; Auswahl speichert die Sprache und bietet einen Neustart an."""
-    from tkinter import messagebox
-
     from . import i18n
     from .i18n import _
 
@@ -516,15 +514,7 @@ def language_button(parent, icons, app, restart, bg=None, style="Ghost.TMenubutt
     btn._var = var  # am Leben halten
 
     def pick():
-        code = var.get()
-        i18n.save_language(code)
-        new = i18n.detect()
-        if new == i18n.current():
-            return
-        msg = _("{app} will be shown in {language} after a restart. Restart now?").format(
-            app=app, language=i18n.name(new))
-        if messagebox.askyesno(_("Language"), msg, parent=parent.winfo_toplevel()):
-            restart()
+        choose_language(var.get(), app, restart, parent)
 
     menu.add_radiobutton(label=_("System language"), value="auto", variable=var, command=pick)
     menu.add_separator()
@@ -532,6 +522,23 @@ def language_button(parent, icons, app, restart, bg=None, style="Ghost.TMenubutt
         menu.add_radiobutton(label=i18n.name(code), value=code, variable=var, command=pick)
     btn["menu"] = menu
     return btn
+
+
+def choose_language(code, app, restart, parent):
+    """Sprache speichern ("auto" = Systemsprache) und einen Neustart anbieten, wenn sie sich ändert."""
+    from tkinter import messagebox
+
+    from . import i18n
+    from .i18n import _
+
+    i18n.save_language(code)
+    new = i18n.detect()
+    if new == i18n.current():
+        return
+    msg = _("{app} will be shown in {language} after a restart. Restart now?").format(
+        app=app, language=i18n.name(new))
+    if messagebox.askyesno(_("Language"), msg, parent=parent.winfo_toplevel()):
+        restart()
 
 
 def restart_later(module):

@@ -43,11 +43,14 @@ def _read_config():
         return {}
 
 
-def enabled():
-    """Beim Start nach Updates suchen? (Standard: ja)"""
-    if os.environ.get("STREAMLIN_NO_UPDATE_CHECK"):
-        return False
+def configured():
+    """Einstellung „Beim Start nach Updates suchen“ (Standard: ja)."""
     return _read_config().get("check_updates", True) is not False
+
+
+def enabled():
+    """Beim Start nach Updates suchen? STREAMLIN_NO_UPDATE_CHECK schaltet es für einen Start ab."""
+    return not os.environ.get("STREAMLIN_NO_UPDATE_CHECK") and configured()
 
 
 def set_enabled(on):
