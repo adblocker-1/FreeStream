@@ -1,13 +1,14 @@
 """Dialog „Hintergrund“ im LinDeck-Fenster: Bild über alle Tasten einer Seite und Touchstreifen."""
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
 
 from PIL import Image, ImageTk
 
 from . import editdoc as E
 from . import render
 from .i18n import _, ngettext
-from .theme import COL, Card, Dialog, Fader, Icons, label
+from .dialogkit import field, footer, header
+from .theme import COL, Button, Card, Dialog, Fader, Icons, icon_tile, label
 
 IMAGE_TYPES = [(_("Images"), "*.png *.jpg *.jpeg *.webp *.gif *.bmp"), (_("All files"), "*")]
 
@@ -20,50 +21,60 @@ class BackgroundDialog(Dialog):
         self._job = None
         g = self.doc.geometry
         b = self.body
-        label(b, _("Background image"), 15, "bold").pack(anchor="w")
-        label(b, _("The image is spread across all keys of this page – like a desktop wallpaper. "
-                   "Keys with their own icon sit on top; empty keys show the image."),
-              9, color=COL["muted"], wraplength=500, justify="left").pack(anchor="w", pady=(2, 12))
+        header(b, _("Background image"),
+               _("The image is spread across all keys of this page – like a desktop wallpaper. "
+                 "Keys with their own icon sit on top; empty keys show the image."), icon="image", wrap=480)
 
-        card = Card(b, pad=16, stretch=True)
+        card = Card(b, pad=18, stretch=True)
         card.pack(fill="x")
         self.preview = tk.Label(card.body, bg=COL["panel"])
-        self.preview.pack(side="left")
+        self.preview.pack(side="left", anchor="n")
         side = tk.Frame(card.body, bg=COL["panel"])
-        side.pack(side="left", padx=16, fill="x", expand=True, anchor="n")
-        ttk.Button(side, text=_("Choose image …"), style="Accent.TButton", command=self.choose).pack(anchor="w")
-        self.remove_btn = ttk.Button(side, text=_("Remove"), command=self.remove)
-        self.remove_btn.pack(anchor="w", pady=(6, 0))
-        self.all_btn = ttk.Button(side, text=_("Apply to all pages"), style="Ghost.TButton",
-                                  command=self.apply_all)
-        self.all_btn.pack(anchor="w", pady=(6, 0))
-        label(side, _("DIM"), 9, "bold", color=COL["muted"]).pack(anchor="w", pady=(14, 4))
+        side.pack(side="left", padx=(18, 0), fill="x", expand=True, anchor="n")
         row = tk.Frame(side, bg=COL["panel"])
         row.pack(anchor="w")
-        self.dim = Fader(row, length=200, thickness=28, orient="horizontal", from_=0, to=80, color=COL["accent"],
+        Button(row, _("Choose image …"), icon="folder", kind="primary", command=self.choose).pack(side="left")
+        self.remove_btn = Button(row, _("Remove"), icon="trash", command=self.remove)
+        self.remove_btn.pack(side="left", padx=(8, 0))
+        self.all_btn = Button(side, _("Apply to all pages"), icon="layers", kind="ghost", command=self.apply_all,
+                              padx=6)
+        self.all_btn.pack(anchor="w", pady=(8, 0))
+        field(side, _("DIM"), pady=(16, 4))
+        row = tk.Frame(side, bg=COL["panel"])
+        row.pack(anchor="w", fill="x")
+        self.dim = Fader(row, length=190, thickness=26, orient="horizontal", from_=0, to=80, color=COL["accent"],
                          command=self._dim_changed)
         self.dim.pack(side="left")
         self.dim_val = tk.StringVar(self, value="")
-        label(row, textvariable=self.dim_val, size=9, width=6).pack(side="left", padx=6)
-        label(side, _("Darkens the image so titles stay easy to read."), 8, color=COL["faint"]).pack(
-            anchor="w", pady=(2, 0))
+        label(row, textvariable=self.dim_val, size=9, width=6, anchor="e").pack(side="left", padx=(6, 0))
+        label(side, _("Darkens the image so titles stay easy to read."), 9, color=COL["muted"],
+              wraplength=260, justify="left").pack(anchor="w", pady=(2, 0))
 
         if g.dials:
-            label(b, _("Touch strip"), 13, "bold").pack(anchor="w", pady=(18, 2))
-            label(b, _("Custom image for the whole touch strip of the Stream Deck + (as in the Elgato app)."),
-                  9, color=COL["muted"]).pack(anchor="w", pady=(0, 8))
-            sc = Card(b, pad=16, stretch=True)
-            sc.pack(fill="x")
-            self.strip_prev = tk.Label(sc.body, bg=COL["panel"])
+            sc = Card(b, pad=18, stretch=True)
+            sc.pack(fill="x", pady=(12, 0))
+            head = tk.Frame(sc.body, bg=COL["panel"])
+            head.pack(fill="x", pady=(0, 12))
+            tk.Label(head, image=icon_tile(head, "layers", 32, COL["stream"]), bg=COL["panel"]).pack(
+                side="left", anchor="n")
+            txt = tk.Frame(head, bg=COL["panel"])
+            txt.pack(side="left", padx=12, fill="x", expand=True)
+            label(txt, _("Touch strip"), 11, "bold").pack(anchor="w")
+            label(txt, _("Custom image for the whole touch strip of the Stream Deck + (as in the Elgato app)."),
+                  9, color=COL["muted"], wraplength=420, justify="left").pack(anchor="w")
+            body = tk.Frame(sc.body, bg=COL["panel"])
+            body.pack(fill="x")
+            self.strip_prev = tk.Label(body, bg=COL["panel"])
             self.strip_prev.pack(side="left")
-            sb = tk.Frame(sc.body, bg=COL["panel"])
-            sb.pack(side="left", padx=16, anchor="n")
-            ttk.Button(sb, text=_("Choose image …"), command=self.choose_strip).pack(anchor="w")
-            self.strip_remove = ttk.Button(sb, text=_("Remove"), command=self.remove_strip)
-            self.strip_remove.pack(anchor="w", pady=(6, 0))
+            sb = tk.Frame(body, bg=COL["panel"])
+            sb.pack(side="left", padx=(18, 0))
+            Button(sb, _("Choose image …"), icon="folder", command=self.choose_strip).pack(anchor="w")
+            self.strip_remove = Button(sb, _("Remove"), icon="trash", command=self.remove_strip)
+            self.strip_remove.pack(anchor="w", pady=(8, 0))
         else:
             self.strip_prev = None
-        ttk.Button(self.buttons, text=_("Done"), style="Accent.TButton", command=self.destroy).pack(side="right")
+        footer(self)
+        Button(self.buttons, _("Done"), kind="primary", command=self.destroy).pack(side="right")
         self.refresh()
         self.show()
 
@@ -85,9 +96,8 @@ class BackgroundDialog(Dialog):
         self.preview.configure(image=self._ph)
         self.dim.set(dim if path else 30)
         self.dim_val.set(f"{dim if path else 30} %")
-        state = ["!disabled"] if path else ["disabled"]
         for w in (self.remove_btn, self.all_btn):
-            w.state(state)
+            w.configure_text(enabled=path is not None)
         self.dim.enabled = path is not None
         self.dim.set_dimmed(path is None)
         if self.strip_prev is not None:
@@ -99,7 +109,7 @@ class BackgroundDialog(Dialog):
                     strip.alpha_composite(fr[0][0].convert("RGBA").resize((240, 40)))
             self._sph = ImageTk.PhotoImage(_round(strip, 8), master=self)
             self.strip_prev.configure(image=self._sph)
-            self.strip_remove.state(["!disabled"] if sp else ["disabled"])
+            self.strip_remove.configure_text(enabled=bool(sp))
 
     def _changed(self):
         self.refresh()

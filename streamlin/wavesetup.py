@@ -17,12 +17,13 @@ import subprocess
 import threading
 import tkinter as tk
 import wave
-from tkinter import ttk
+from tkinter import font as tkfont
 
 from . import effects, paths, wavemic
+from .dialogkit import field
 from .i18n import _
 from .mixer import DEFAULT_CHANNELS
-from .theme import COL, Card, Fader, Icons, PillButton, Switch, label
+from .theme import COL, Button, Card, Fader, Icons, Switch, font, gradient_mark, icon_tile, label, rounded_rect
 
 STEPS = [_("Welcome"), _("Microphone"), _("Headphones"), _("Sound"), _("Channels"), _("Done")]
 CHANNEL_ICONS = {"system": ("system", "#8e9bb0"), "music": ("music", "#30d158"), "browser": ("browser", "#2f7bff"),
@@ -126,21 +127,23 @@ class SetupWizard(tk.Toplevel):
         self.lowcut = tk.BooleanVar(self, value=True)
         self.clipguard = tk.BooleanVar(self, value=True)
 
-        self.head = tk.Frame(self, bg=COL["panel"], height=64)
+        self.head = tk.Frame(self, bg=COL["bg"], padx=22, pady=16)
         self.head.pack(fill="x")
-        self.head.pack_propagate(False)
-        self.dots = tk.Canvas(self.head, height=30, bg=COL["panel"], highlightthickness=0)
-        self.dots.pack(side="left", padx=20, pady=17, fill="x", expand=True)
-        foot = tk.Frame(self, bg=COL["panel"], padx=18, pady=12)
+        self.dots = tk.Canvas(self.head, height=26, bg=COL["bg"], highlightthickness=0)
+        self.dots.pack(fill="x")
+        tk.Frame(self, bg=COL["border"], height=1).pack(fill="x")
+        foot = tk.Frame(self, bg=COL["bg"], padx=22, pady=14)
         foot.pack(fill="x", side="bottom")
-        self.body = tk.Frame(self, bg=COL["bg"], padx=34, pady=20)
+        tk.Frame(self, bg=COL["border"], height=1).pack(fill="x", side="bottom")
+        self.body = tk.Frame(self, bg=COL["bg"], padx=22, pady=22)
         self.body.pack(fill="both", expand=True)
-        self.next_btn = ttk.Button(foot, text=_("Next"), style="Accent.TButton", command=self.next)
+        self.next_btn = Button(foot, _("Next"), kind="primary", command=self.next)
         self.next_btn.pack(side="right")
-        self.back_btn = ttk.Button(foot, text=_("Back"), style="Ghost.TButton", command=self.back)
+        self.back_btn = Button(foot, _("Back"), command=self.back)
         self.back_btn.pack(side="right", padx=8)
-        self.skip_btn = ttk.Button(foot, text=_("Set up later"), style="Ghost.TButton", command=self.skip)
+        self.skip_btn = Button(foot, _("Set up later"), kind="ghost", command=self.skip)
         self.skip_btn.pack(side="left")
+        self.dots.bind("<Configure>", lambda e: self._dots())
         self.protocol("WM_DELETE_WINDOW", self.skip)
         self.render()
         try:
@@ -150,20 +153,34 @@ class SetupWizard(tk.Toplevel):
 
     # -------------------------------------------------------------- Rahmen
     def _dots(self):
+        """Schrittanzeige oben: nummerierte Kreise mit Namen, verbunden durch feine Linien."""
         cv = self.dots
         cv.delete("all")
-        x = 0
-        for i, name in enumerate(STEPS):
+        fn, fb = font(cv, 9, "normal"), font(cv, 9, "bold")
+        fnt = tkfont.Font(cv, font=fb)
+        d, gap = 22, 10
+        widths = [d + 8 + fnt.measure(name) for name in STEPS]
+        avail = max(cv.winfo_width(), 200)
+        line = max(12, (avail - sum(widths) - 2 * gap * (len(STEPS) - 1)) / max(1, len(STEPS) - 1))
+        x, y = 0, 13
+        for i, (name, w) in enumerate(zip(STEPS, widths)):
             done, cur = i < self.step, i == self.step
-            col = COL["accent"] if (done or cur) else COL["raised"]
-            cv.create_oval(x, 6, x + 18, 24, fill=col, outline="")
-            if done:
-                cv.create_text(x + 9, 15, text="✓", fill="#ffffff", font=("TkDefaultFont", 8, "bold"))
+            if done or cur:
+                cv.create_oval(x, y - d / 2, x + d, y + d / 2, fill=COL["accent"], outline="")
+                if done:
+                    cv.create_image(x + d / 2, y, image=self.icons.get("check", 12, COL["on_accent"]))
+                else:
+                    cv.create_text(x + d / 2, y, text=str(i + 1), fill=COL["on_accent"], font=fb)
             else:
-                cv.create_text(x + 9, 15, text=str(i + 1), fill="#ffffff", font=("TkDefaultFont", 8, "bold"))
-            cv.create_text(x + 24, 15, text=name, anchor="w", fill=COL["fg"] if cur else COL["muted"],
-                           font=("TkDefaultFont", 9, "bold" if cur else "normal"))
-            x += 24 + len(name) * 7 + 22
+                cv.create_oval(x, y - d / 2, x + d, y + d / 2, fill=COL["panel"], outline=COL["border"])
+                cv.create_text(x + d / 2, y, text=str(i + 1), fill=COL["muted"], font=fn)
+            cv.create_text(x + d + 8, y, text=name, anchor="w", fill=COL["fg"] if cur else COL["muted"],
+                           font=fb if cur else fn)
+            x += w
+            if i < len(STEPS) - 1:
+                cv.create_line(x + gap, y, x + gap + line, y, fill=COL["accent"] if done else COL["border"],
+                               width=2 if done else 1)
+                x += 2 * gap + line
 
     def render(self):
         self._stop_meter()
@@ -171,9 +188,10 @@ class SetupWizard(tk.Toplevel):
             w.destroy()
         self._dots()
         getattr(self, f"_step_{self.step}")()
-        self.back_btn.state(["!disabled"] if 0 < self.step < len(STEPS) - 1 else ["disabled"])
+        self.back_btn.configure_text(enabled=0 < self.step < len(STEPS) - 1)
         last = self.step == len(STEPS) - 1
-        self.next_btn.configure(text=_("Finish") if last else (_("Let's go") if self.step == 0 else _("Next")))
+        self.next_btn.configure_text(text=_("Finish") if last else (_("Let's go") if self.step == 0 else _("Next")),
+                                     icon="check" if last else "")
         if last:
             self.skip_btn.pack_forget()
 
@@ -206,7 +224,7 @@ class SetupWizard(tk.Toplevel):
 
     # --------------------------------------------------------------- Teile
     def _title(self, title, text):
-        label(self.body, title, 18, "bold").pack(anchor="w")
+        label(self.body, title, 17, "bold").pack(anchor="w")
         label(self.body, text, 10, color=COL["muted"], wraplength=680, justify="left").pack(anchor="w",
                                                                                            pady=(4, 16))
 
@@ -220,13 +238,14 @@ class SetupWizard(tk.Toplevel):
         rows = []
 
         def paint():
-            for name, row, dot in rows:
+            for name, row, dot, tile in rows:
                 sel = var.get() == name
-                row.configure(bg=COL["raised"] if sel else COL["panel"])
+                bg = COL["accent_soft"] if sel else COL["panel"]
+                row.configure(bg=bg, highlightbackground=COL["accent"] if sel else COL["border"])
                 for ch in row.winfo_children():
-                    if not isinstance(ch, tk.Canvas):
-                        ch.configure(bg=row.cget("bg"))
-                dot.configure(bg=row.cget("bg"))
+                    ch.configure(bg=bg)
+                tile.configure(image=icon_tile(tile, icon, 30, COL["accent"] if sel else COL["raised"],
+                                               fg=COL["on_accent"] if sel else COL["muted"]))
                 dot.delete("all")
                 dot.create_oval(2, 2, 18, 18, outline=COL["accent"] if sel else COL["faint"], width=2)
                 if sel:
@@ -238,23 +257,25 @@ class SetupWizard(tk.Toplevel):
             if on_select:
                 on_select(name)
         for name, desc in items[:8]:
-            row = tk.Frame(box, bg=COL["panel"], padx=12, pady=9, cursor="hand2")
-            row.pack(fill="x", pady=3)
-            dot = tk.Canvas(row, width=20, height=20, highlightthickness=0, bg=COL["panel"])
-            dot.pack(side="left")
-            tk.Label(row, image=self.icons.get(icon, 20, COL["fg"]), bg=COL["panel"]).pack(side="left", padx=10)
-            label(row, desc, 10, "bold").pack(side="left")
+            row = tk.Frame(box, bg=COL["panel"], padx=14, pady=10, cursor="hand2", highlightthickness=1,
+                           highlightbackground=COL["border"])
+            row.pack(fill="x", pady=(0, 8))
+            tile = tk.Label(row, bg=COL["panel"])
+            tile.pack(side="left")
+            label(row, desc, 10, "bold").pack(side="left", padx=12)
             if badge and badge(name, desc):
-                label(row, "  Elgato Wave", 9, "bold", color=COL["ok"]).pack(side="left")
+                label(row, "Elgato Wave", 9, "bold", color=COL["ok"]).pack(side="left")
+            dot = tk.Canvas(row, width=20, height=20, highlightthickness=0, bg=COL["panel"])
+            dot.pack(side="right")
             for w in (row, *row.winfo_children()):
                 w.bind("<Button-1>", lambda e, n=name: pick(n))
-            rows.append((name, row, dot))
+            rows.append((name, row, dot, tile))
         paint()
 
     # ------------------------------------------------------------- Schritte
     def _step_0(self):
         b = self.body
-        tk.Label(b, image=self.icons.get("wave", 84, "#ffffff", circle=COL["accent"]), bg=COL["bg"]).pack(pady=(30, 16))
+        tk.Label(b, image=gradient_mark(b, 84, "wave"), bg=COL["bg"]).pack(pady=(40, 20))
         label(b, _("Welcome to Linewave"), 20, "bold").pack()
         label(b, _("In a few steps you set up your microphone, your headphones and the mixer – just like "
                    "the first start of Elgato Wave Link. You can change everything later at any time."),
@@ -266,12 +287,13 @@ class SetupWizard(tk.Toplevel):
                       "it is coming through."))
         self._device_list(self.data.get("inputs") or [], self.mic, "mic", on_select=self._start_meter,
                           badge=is_wave)
-        lv = tk.Frame(self.body, bg=COL["bg"])
-        lv.pack(fill="x", pady=(18, 0))
-        label(lv, _("LEVEL"), 9, "bold", color=COL["muted"], bg=COL["bg"]).pack(anchor="w")
-        self.meter_cv = tk.Canvas(lv, height=16, bg=COL["bg"], highlightthickness=0)
-        self.meter_cv.pack(fill="x", pady=(6, 0))
-        self.meter_hint = label(lv, "", 9, color=COL["faint"], bg=COL["bg"])
+        card = Card(self.body, pad=16, stretch=True)
+        card.pack(fill="x", pady=(10, 0))
+        lv = card.body
+        field(lv, _("LEVEL"))
+        self.meter_cv = tk.Canvas(lv, height=16, bg=COL["panel"], highlightthickness=0)
+        self.meter_cv.pack(fill="x", pady=(2, 0))
+        self.meter_hint = label(lv, "", 9, color=COL["muted"])
         self.meter_hint.pack(anchor="w", pady=(4, 0))
         self._start_meter(self.mic.get())
 
@@ -280,8 +302,7 @@ class SetupWizard(tk.Toplevel):
                     _("This is where your Monitor Mix goes – everything you want to hear yourself. Use the "
                       "test tone to check that it is the right device."))
         self._device_list(self.data.get("outputs") or [], self.out, "headphones")
-        PillButton(self.body, _("Play test tone"), icon="speaker", command=self._tone, height=32).pack(
-            anchor="w", pady=(16, 0))
+        Button(self.body, _("Play test tone"), icon="play", command=self._tone).pack(anchor="w", pady=(10, 0))
 
     def _step_3(self):
         wave3 = self.data.get("wave3") and is_wave(self.mic.get())
@@ -295,8 +316,10 @@ class SetupWizard(tk.Toplevel):
         card.pack(fill="x")
 
         def row(parent, title, text, var=None, enabled=True, sw_cb=None):
+            if parent.winfo_children():
+                tk.Frame(parent, bg=COL["border"], height=1).pack(fill="x", pady=6)
             r = tk.Frame(parent, bg=COL["panel"])
-            r.pack(fill="x", pady=4)
+            r.pack(fill="x")
             t = tk.Frame(r, bg=COL["panel"])
             t.pack(side="left", fill="x", expand=True)
             label(t, title, 11, "bold", color=COL["fg"] if enabled else COL["faint"]).pack(anchor="w")
@@ -312,14 +335,14 @@ class SetupWizard(tk.Toplevel):
         row(card.body, "Clipguard", _("Prevents clipping when you suddenly get loud"), self.clipguard,
             enabled=wave3 or bool(self._plugin("fastLookaheadLimiter")))
         if wave3:
+            tk.Frame(card.body, bg=COL["border"], height=1).pack(fill="x", pady=6)
             g = tk.Frame(card.body, bg=COL["panel"])
-            g.pack(fill="x", pady=(8, 0))
+            g.pack(fill="x")
             label(g, "Gain", 11, "bold", width=10, anchor="w").pack(side="left")
             self.gain = Fader(g, length=380, thickness=28, orient="horizontal", color=COL["accent"])
             self.gain.set(self.data.get("gain_pct", 70))
             self.gain.pack(side="left")
-        label(self.body, _("RECOMMENDED EFFECTS"), 9, "bold", color=COL["muted"], bg=COL["bg"]).pack(anchor="w",
-                                                                                              pady=(14, 6))
+        field(self.body, _("RECOMMENDED EFFECTS"), pady=(14, 6))
         fx = Card(self.body, pad=14, stretch=True)
         fx.pack(fill="x")
         for key, label_, title, text in (
@@ -344,9 +367,8 @@ class SetupWizard(tk.Toplevel):
         for i, c in enumerate(DEFAULT_CHANNELS):
             glyph, color = CHANNEL_ICONS.get(c["id"], ("wave", "#8e9bb0"))
             cell = Card(grid, pad=14, stretch=True)
-            cell.grid(row=i // 2, column=i % 2, sticky="we", padx=(0 if i % 2 == 0 else 10, 0), pady=5)
-            tk.Label(cell.body, image=self.icons.get(glyph, 30, "#ffffff", circle=color), bg=COL["panel"]).pack(
-                side="left")
+            cell.grid(row=i // 2, column=i % 2, sticky="we", padx=(0 if i % 2 == 0 else 12, 0), pady=6)
+            tk.Label(cell.body, image=icon_tile(cell.body, glyph, 34, color), bg=COL["panel"]).pack(side="left")
             label(cell.body, c["name"], 11, "bold").pack(side="left", padx=12)
             sw = Switch(cell.body)
             sw.set(self.channels[c["id"]].get())
@@ -357,24 +379,32 @@ class SetupWizard(tk.Toplevel):
 
     def _step_5(self):
         b = self.body
-        tk.Label(b, image=self.icons.get("wave", 64, "#ffffff", circle=COL["ok"]), bg=COL["bg"]).pack(pady=(10, 12))
+        tk.Label(b, image=icon_tile(b, "check", 56, COL["ok"], radius=0.5), bg=COL["bg"]).pack(pady=(6, 12))
         label(b, _("All set!"), 18, "bold").pack()
         self.result = label(b, _("Setting up mixer …"), 10, color=COL["muted"])
         self.result.pack(pady=(4, 16))
         card = Card(b, pad=18, stretch=True)
         card.pack(fill="x")
         fx_on = any(v.get() for v in self.fx_choice.values()) or (self.lowcut.get() and not self.data.get("wave3"))
-        tips = [("OBS Studio", _("Add the audio input “Monitor of Linewave Stream Mix” – it contains everything "
-                                 "your audience should hear.")),
-                ("Discord, Zoom & Co.", _("Select “Linewave Microphone (Effects)” as the microphone.") if fx_on
+        tips = [("stream", "OBS Studio",
+                 _("Add the audio input “Monitor of Linewave Stream Mix” – it contains everything "
+                   "your audience should hear.")),
+                ("chat", "Discord, Zoom & Co.",
+                 _("Select “Linewave Microphone (Effects)” as the microphone.") if fx_on
                  else _("Select your own microphone – or the Stream Mix if others should hear everything.")),
-                (_("Apps"), _("New apps automatically go into the matching channel; you can move them to "
-                              "another channel in the mixer under “Apps”."))]
-        for title, text in tips:
+                ("grid", _("Apps"), _("New apps automatically go into the matching channel; you can move them to "
+                                      "another channel in the mixer under “Apps”."))]
+        for i, (glyph, title, text) in enumerate(tips):
+            if i:
+                tk.Frame(card.body, bg=COL["border"], height=1).pack(fill="x", pady=10)
             r = tk.Frame(card.body, bg=COL["panel"])
-            r.pack(fill="x", pady=6)
-            label(r, title, 11, "bold").pack(anchor="w")
-            label(r, text, 9, color=COL["muted"], wraplength=620, justify="left").pack(anchor="w")
+            r.pack(fill="x")
+            tk.Label(r, image=icon_tile(r, glyph, 32, COL["accent_soft"], fg=COL["accent"]),
+                     bg=COL["panel"]).pack(side="left", anchor="n")
+            t = tk.Frame(r, bg=COL["panel"])
+            t.pack(side="left", padx=12, fill="x", expand=True)
+            label(t, title, 11, "bold").pack(anchor="w")
+            label(t, text, 9, color=COL["muted"], wraplength=580, justify="left").pack(anchor="w", pady=(2, 0))
 
     # -------------------------------------------------------------- Helfer
     def _plugin(self, label_):
@@ -394,11 +424,11 @@ class SetupWizard(tk.Toplevel):
             return
         cv.delete("all")
         w = cv.winfo_width() or 600
-        cv.create_rectangle(0, 3, w, 13, fill=COL["panel2"], outline="")
+        rounded_rect(cv, 0, 4, w, 12, 4, fill=COL["raised"], outline="")
         lv, pk = self.meter.level, self.meter.peak
         col = COL["ok"] if lv < 0.8 else (COL["warn"] if lv < 0.95 else COL["danger"])
         if lv > 0:
-            cv.create_rectangle(0, 3, w * lv, 13, fill=col, outline="")
+            rounded_rect(cv, 0, 4, max(8, w * lv), 12, 4, fill=col, outline="")
         if pk > 0:
             cv.create_rectangle(w * pk - 2, 1, w * pk, 15, fill=COL["fg"], outline="")
         self._meter_job = self.after(60, self._tick_meter)
