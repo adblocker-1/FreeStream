@@ -1757,8 +1757,11 @@ class ActionForm:
         prev = E.preview_action(self.doc, self.page_uuid, self.data, (36, 36), state=self.state_idx) \
             if self.slot[0] == "key" else E.preview_dial(self.doc, self.page_uuid, self.data, (72, 36))
         self._icon_photo = ImageTk.PhotoImage(_rounded(prev.convert("RGBA"), 7), master=self.app.root)
-        tk.Label(irow, image=self._icon_photo, bg=COL["panel"]).pack(side="left")
-        theme.Button(irow, _("Choose image…"), command=self._choose_icon).pack(side="left", padx=(8, 0))
+        pv = tk.Label(irow, image=self._icon_photo, bg=COL["panel"], cursor="hand2")
+        pv.pack(side="left")
+        pv.bind("<Button-1>", lambda e: self._icon_library())
+        # Bibliothek mit vordefinierten Icons; „Eigenes Bild …“ steckt darin
+        theme.Button(irow, _("Icons…"), "grid", command=self._icon_library).pack(side="left", padx=(8, 0))
         b = theme.Button(irow, _("Default"), kind="ghost", command=lambda: self._set_state("Image", "", rebuild=True))
         b.pack(side="left", padx=(4, 0))
         if not st.get("Image"):
@@ -1819,6 +1822,24 @@ class ActionForm:
         if res and res[1]:
             btn.configure(bg=res[1], activebackground=res[1])
             self._set_state("TitleColor", res[1])
+
+    def _icon_library(self):
+        from .iconlibui import IconLibrary
+        IconLibrary(self.app.root, on_pick=self._set_library_icon, on_file=self._choose_icon)
+
+    def _set_library_icon(self, name, style):
+        """Symbol aus der Icon-Bibliothek als Tastenbild übernehmen."""
+        import tempfile
+        from . import iconlib
+        with tempfile.TemporaryDirectory() as tmp:
+            path = f"{tmp}/{name}.png"
+            iconlib.render(name, style).save(path)
+            try:
+                self.doc.set_icon(self.page_uuid, self.slot, self.state_idx, path, action=self.data)
+            except E.EditError as e:
+                messagebox.showerror(_("Icon"), str(e), parent=self.app.root)
+                return
+        self.build_appearance()
 
     def _choose_icon(self):
         f = filedialog.askopenfilename(parent=self.app.root, title=_("Choose icon"),
