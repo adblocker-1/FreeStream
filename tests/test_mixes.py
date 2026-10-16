@@ -205,6 +205,18 @@ def test_window_mix_table(env, pactl):
         assert "chat" in win.strips["system"] and "chat" not in win.strips["music"]
         empty = [w for w in win.table.winfo_children() if isinstance(w, EmptyCell)]
         assert len(empty) == 1
+        # leere Zelle: beim Überfahren heller mit ⊕ und Hinweis
+        empty[0]._set_hover(True)
+        assert empty[0].tip.win is not None and empty[0].tip.text == "Kanal zum Mix hinzufügen"
+        empty[0]._set_hover(False)
+        assert empty[0].tip.win is None
+        # X zum Entfernen erst beim Überfahren der Zelle
+        badge = win.strips["system"]["chat"]["remove"]
+        root.update()
+        assert not badge.winfo_ismapped()
+        win.strips["system"]["chat"]["card"].event_generate("<Enter>")
+        root.update()
+        assert badge.winfo_ismapped()
         empty[0].command()  # Musik in den Chat-Mix aufnehmen
         assert _pump(root, lambda: "chat" in win.strips.get("music", {}))
         win._on_level("music", "chat", "45")

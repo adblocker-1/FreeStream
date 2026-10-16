@@ -316,6 +316,11 @@ def test_custom_channels(env, pactl):
         mx.move_stream("7", cap["id"])  # Programme nur in Programm-Kanäle
     with pytest.raises(RuntimeError):
         mx.add_channel("Ohne Gerät", "input")
+    # Kanal ohne Mix: erst die eigene Zuordnung legt eine Verbindung an
+    leer = mx.add_channel("Leer", "apps", in_mixes=False)
+    assert _loops(pactl, leer["id"]) == {} and not any(mx.in_mix(leer["id"], m) for m in mx.mix_ids())
+    mx.set_member(leer["id"], "stream", True)
+    assert set(_loops(pactl, leer["id"])) == {f"linewave_{leer['id']}_stream"}
     # Löschen
     mx.remove_channel("podcastgast")
     assert not _loops(pactl, "podcastgast")

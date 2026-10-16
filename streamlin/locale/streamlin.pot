@@ -380,11 +380,11 @@ msgstr ""
 msgid "cannot start: {reason}"
 msgstr ""
 
-#: streamlin/__main__.py:332 streamlin/waveui.py:780
+#: streamlin/__main__.py:332 streamlin/waveui.py:828
 msgid "Mixer removed"
 msgstr ""
 
-#: streamlin/__main__.py:418 streamlin/waveui.py:1288
+#: streamlin/__main__.py:418 streamlin/waveui.py:1363
 #, python-brace-format
 msgid "Scene “{name}” saved"
 msgstr ""
@@ -441,7 +441,7 @@ msgstr ""
 msgid "Error: {error}"
 msgstr ""
 
-#: streamlin/__main__.py:421 streamlin/waveui.py:1281
+#: streamlin/__main__.py:421 streamlin/waveui.py:1356
 #, python-brace-format
 msgid "Scene “{name}” applied"
 msgstr ""
@@ -495,12 +495,12 @@ msgstr ""
 msgid "Installed: {name} ({uuid}) – does not start: {reason}"
 msgstr ""
 
-#: streamlin/__main__.py:424 streamlin/waveui.py:1299
+#: streamlin/__main__.py:424 streamlin/waveui.py:1374
 #, python-brace-format
 msgid "Scene renamed to “{name}”"
 msgstr ""
 
-#: streamlin/__main__.py:428 streamlin/waveui.py:1311
+#: streamlin/__main__.py:428 streamlin/waveui.py:1386
 #, python-brace-format
 msgid "Scene “{name}” deleted"
 msgstr ""
@@ -637,11 +637,11 @@ msgstr ""
 msgid "on (software)"
 msgstr ""
 
-#: streamlin/__main__.py:378 streamlin/mixer.py:1069 streamlin/mixer.py:1091
+#: streamlin/__main__.py:378 streamlin/mixer.py:1076 streamlin/mixer.py:1098
 msgid "Mixer not set up – 'linewave mixer setup'"
 msgstr ""
 
-#: streamlin/__main__.py:375 streamlin/waveui.py:1001
+#: streamlin/__main__.py:375 streamlin/waveui.py:1074
 #, python-brace-format
 msgid "Listening to “{mix}”"
 msgstr ""
@@ -667,7 +667,7 @@ msgstr ""
 msgid "Volume"
 msgstr ""
 
-#: streamlin/actions.py:384 streamlin/actions.py:1069 streamlin/waveui.py:2046
+#: streamlin/actions.py:384 streamlin/actions.py:1069 streamlin/waveui.py:2126
 msgid "Muted"
 msgstr ""
 
@@ -1183,15 +1183,15 @@ msgstr ""
 msgid "Game"
 msgstr ""
 
-#: streamlin/catalog.py:185 streamlin/waveui.py:182 streamlin/waveui.py:606 streamlin/waveui.py:709
+#: streamlin/catalog.py:185 streamlin/waveui.py:182 streamlin/waveui.py:654 streamlin/waveui.py:757
 msgid "Effects"
 msgstr ""
 
-#: streamlin/catalog.py:188 streamlin/mixer.py:73 streamlin/waveui.py:616
+#: streamlin/catalog.py:188 streamlin/mixer.py:73 streamlin/waveui.py:664
 msgid "Personal Mix"
 msgstr ""
 
-#: streamlin/catalog.py:188 streamlin/mixer.py:75 streamlin/waveui.py:618
+#: streamlin/catalog.py:188 streamlin/mixer.py:75 streamlin/waveui.py:666
 msgid "Stream Mix"
 msgstr ""
 
@@ -2054,7 +2054,7 @@ msgstr ""
 msgid "Repeat"
 msgstr ""
 
-#: streamlin/catalog.py:263 streamlin/waveui.py:1464
+#: streamlin/catalog.py:263 streamlin/waveui.py:1539
 msgid "Mute microphone"
 msgstr ""
 
@@ -2333,7 +2333,7 @@ msgstr ""
 msgid "Plugins"
 msgstr ""
 
-#: streamlin/editor.py:566 streamlin/settingsui.py:36 streamlin/settingsui.py:43 streamlin/waveui.py:622
+#: streamlin/editor.py:566 streamlin/settingsui.py:36 streamlin/settingsui.py:43 streamlin/waveui.py:670
 msgid "Settings"
 msgstr ""
 
@@ -3430,49 +3430,49 @@ msgstr ""
 msgid "SFX"
 msgstr ""
 
-#: streamlin/mixer.py:623 streamlin/wavedialogs.py:255 streamlin/waveui.py:1975
+#: streamlin/mixer.py:630 streamlin/wavedialogs.py:255 streamlin/waveui.py:2055
 msgid "Linewave Stream Mix"
 msgstr ""
 
-#: streamlin/mixer.py:260 streamlin/mixer.py:293 streamlin/mixer.py:390 streamlin/mixer.py:407
+#: streamlin/mixer.py:263 streamlin/mixer.py:300 streamlin/mixer.py:397 streamlin/mixer.py:414
 msgid "Please enter a name"
 msgstr ""
 
-#: streamlin/mixer.py:264 streamlin/wavedialogs.py:162
+#: streamlin/mixer.py:267 streamlin/wavedialogs.py:162
 msgid "Please choose an input device"
 msgstr ""
 
-#: streamlin/mixer.py:310
+#: streamlin/mixer.py:317
 msgid "At least one channel for apps must remain"
 msgstr ""
 
-#: streamlin/mixer.py:384 streamlin/wavedialogs.py:304
+#: streamlin/mixer.py:391 streamlin/wavedialogs.py:304
 msgid "Choose at least one output"
 msgstr ""
 
-#: streamlin/mixer.py:434
+#: streamlin/mixer.py:441
 msgid "The Personal Mix and the Stream Mix cannot be deleted"
 msgstr ""
 
-#: streamlin/mixer.py:503
+#: streamlin/mixer.py:510
 msgid "pactl is missing (package pulseaudio-utils) – PipeWire with pipewire-pulse is required"
 msgstr ""
 
-#: streamlin/mixer.py:562
+#: streamlin/mixer.py:569
 #, python-brace-format
 msgid "Linewave {name} → {mix}"
 msgstr ""
 
-#: streamlin/mixer.py:1145 streamlin/wavedialogs.py:249 streamlin/waveui.py:664
+#: streamlin/mixer.py:1152 streamlin/wavedialogs.py:249 streamlin/waveui.py:712
 msgid "No output device found"
 msgstr ""
 
-#: streamlin/mixer.py:537
+#: streamlin/mixer.py:544
 #, python-brace-format
 msgid "Audio mixer set up: {count} channels, monitor → {output}"
 msgstr ""
 
-#: streamlin/mixer.py:995
+#: streamlin/mixer.py:1002
 #, python-brace-format
 msgid "Linewave listen: {mix}"
 msgstr ""
@@ -3481,82 +3481,82 @@ msgstr ""
 msgid "pactl error"
 msgstr ""
 
-#: streamlin/mixer.py:262
+#: streamlin/mixer.py:265
 #, python-brace-format
 msgid "Unknown kind: {kind}"
 msgstr ""
 
-#: streamlin/mixer.py:291 streamlin/mixer.py:308 streamlin/mixer.py:727 streamlin/mixer.py:901
+#: streamlin/mixer.py:298 streamlin/mixer.py:315 streamlin/mixer.py:734 streamlin/mixer.py:908
 #, python-brace-format
 msgid "Channel {id} not found"
 msgstr ""
 
-#: streamlin/mixer.py:405 streamlin/mixer.py:432 streamlin/mixer.py:974
+#: streamlin/mixer.py:412 streamlin/mixer.py:439 streamlin/mixer.py:981
 #, python-brace-format
 msgid "Mix {id} not found"
 msgstr ""
 
-#: streamlin/mixer.py:445 streamlin/mixer.py:871 streamlin/mixer.py:878
+#: streamlin/mixer.py:452 streamlin/mixer.py:878 streamlin/mixer.py:885
 #, python-brace-format
 msgid "Channel {id}/{mix} not found"
 msgstr ""
 
-#: streamlin/mixer.py:907
+#: streamlin/mixer.py:914
 #, python-brace-format
 msgid "Channel {id} has no input"
 msgstr ""
 
-#: streamlin/mixer.py:1046
+#: streamlin/mixer.py:1053
 #, python-brace-format
 msgid "Scene “{name}” not found"
 msgstr ""
 
-#: streamlin/mixer.py:1109
+#: streamlin/mixer.py:1116
 #, python-brace-format
 msgid "A scene named “{name}” already exists"
 msgstr ""
 
-#: streamlin/mixer.py:1225 streamlin/mixer.py:1235
+#: streamlin/mixer.py:1232 streamlin/mixer.py:1242
 #, python-brace-format
 msgid "Unknown channel: {id}"
 msgstr ""
 
-#: streamlin/mixer.py:848
+#: streamlin/mixer.py:855
 #, python-brace-format
 msgid "Channel {id} is in no mix"
 msgstr ""
 
-#: streamlin/mixer.py:857
+#: streamlin/mixer.py:864
 #, python-brace-format
 msgid "Channel {id}/{mix} not found – is the mixer set up? (linewave mixer setup)"
 msgstr ""
 
-#: streamlin/mixer.py:979
+#: streamlin/mixer.py:986
 #, python-brace-format
 msgid "“{name}” plays directly on a device – listen to it there"
 msgstr ""
 
-#: streamlin/mixer.py:1156
+#: streamlin/mixer.py:1163
 #, python-brace-format
 msgid "Output device “{device}” not found"
 msgstr ""
 
-#: streamlin/mixer.py:526
+#: streamlin/mixer.py:533
 #, python-brace-format
 msgid "Default output not set to Linewave {name}: {error}"
 msgstr ""
 
-#: streamlin/mixer.py:1218
+#: streamlin/mixer.py:1225
 #, python-brace-format
 msgid "Stream {index}"
 msgstr ""
 
-#: streamlin/mixer.py:1200
+#: streamlin/mixer.py:1207
 #, python-brace-format
 msgid "Moving {stream} failed: {error}"
 msgstr ""
 
-#: streamlin/mixkeys.py:157 streamlin/wavesetup.py:28 streamlin/waveui.py:1534
+#: streamlin/mixkeys.py:157 streamlin/wavesetup.py:28 streamlin/waveui.py:1609
 msgid "Channels"
 msgstr ""
 
@@ -4143,7 +4143,7 @@ msgstr ""
 msgid "System language"
 msgstr ""
 
-#: streamlin/settingsui.py:65 streamlin/waveui.py:605 streamlin/waveui.py:679 streamlin/waveui.py:696
+#: streamlin/settingsui.py:65 streamlin/waveui.py:653 streamlin/waveui.py:727 streamlin/waveui.py:744
 msgid "Mixer"
 msgstr ""
 
@@ -4220,7 +4220,7 @@ msgstr ""
 msgid "Remove mixer"
 msgstr ""
 
-#: streamlin/settingsui.py:70 streamlin/waveui.py:686 streamlin/waveui.py:755 streamlin/waveui.py:759
+#: streamlin/settingsui.py:70 streamlin/waveui.py:734 streamlin/waveui.py:803 streamlin/waveui.py:807
 msgid "Set up mixer"
 msgstr ""
 
@@ -4460,11 +4460,11 @@ msgstr ""
 msgid "Could not start the installation: {error}"
 msgstr ""
 
-#: streamlin/wave3hw.py:54 streamlin/wavesetup.py:28 streamlin/waveui.py:1480
+#: streamlin/wave3hw.py:54 streamlin/wavesetup.py:28 streamlin/waveui.py:1555
 msgid "Headphones"
 msgstr ""
 
-#: streamlin/wave3hw.py:54 streamlin/wavedialogs.py:255 streamlin/wavedialogs.py:264 streamlin/waveui.py:603
+#: streamlin/wave3hw.py:54 streamlin/wavedialogs.py:255 streamlin/wavedialogs.py:264 streamlin/waveui.py:651
 msgid "Mix"
 msgstr ""
 
@@ -4561,7 +4561,7 @@ msgstr ""
 msgid "Set"
 msgstr ""
 
-#: streamlin/wavedialogs.py:655 streamlin/wavedialogs.py:759 streamlin/waveui.py:1463
+#: streamlin/wavedialogs.py:655 streamlin/wavedialogs.py:759 streamlin/waveui.py:1538
 msgid "Keyboard shortcut"
 msgstr ""
 
@@ -4585,7 +4585,7 @@ msgstr ""
 msgid "A scene remembers the volume and mute state of every channel. Apply it with one click, a keyboard shortcut or a LinDeck key."
 msgstr ""
 
-#: streamlin/wavedialogs.py:769 streamlin/wavedialogs.py:773 streamlin/waveui.py:685
+#: streamlin/wavedialogs.py:769 streamlin/wavedialogs.py:773 streamlin/waveui.py:733
 msgid "Export to LinDeck"
 msgstr ""
 
@@ -4710,7 +4710,7 @@ msgstr ""
 msgid "Update profile"
 msgstr ""
 
-#: streamlin/wavedialogs.py:97 streamlin/wavesetup.py:402 streamlin/waveui.py:606 streamlin/waveui.py:712
+#: streamlin/wavedialogs.py:97 streamlin/wavesetup.py:402 streamlin/waveui.py:654 streamlin/waveui.py:760
 msgid "Apps"
 msgstr ""
 
@@ -4718,11 +4718,11 @@ msgstr ""
 msgid "Input device"
 msgstr ""
 
-#: streamlin/wavedialogs.py:123 streamlin/waveui.py:814
+#: streamlin/wavedialogs.py:123 streamlin/waveui.py:862
 msgid "Create channel"
 msgstr ""
 
-#: streamlin/wavedialogs.py:127 streamlin/waveui.py:1204
+#: streamlin/wavedialogs.py:127 streamlin/waveui.py:1279
 msgid "Delete channel"
 msgstr ""
 
@@ -4738,15 +4738,15 @@ msgstr ""
 msgid "Device"
 msgstr ""
 
-#: streamlin/wavedialogs.py:270 streamlin/waveui.py:637
+#: streamlin/wavedialogs.py:270 streamlin/waveui.py:685
 msgid "Create mix"
 msgstr ""
 
-#: streamlin/wavedialogs.py:274 streamlin/waveui.py:655 streamlin/waveui.py:1054
+#: streamlin/wavedialogs.py:274 streamlin/waveui.py:703 streamlin/waveui.py:1127
 msgid "Delete mix"
 msgstr ""
 
-#: streamlin/wavedialogs.py:357 streamlin/waveui.py:1156
+#: streamlin/wavedialogs.py:357 streamlin/waveui.py:1229
 msgid "No effects yet"
 msgstr ""
 
@@ -4927,7 +4927,7 @@ msgstr ""
 msgid "Removes hum and footfall noise"
 msgstr ""
 
-#: streamlin/wavesetup.py:335 streamlin/waveui.py:1456
+#: streamlin/wavesetup.py:335 streamlin/waveui.py:1531
 msgid "Prevents clipping when you suddenly get loud"
 msgstr ""
 
@@ -4935,7 +4935,7 @@ msgstr ""
 msgid "RECOMMENDED EFFECTS"
 msgstr ""
 
-#: streamlin/wavesetup.py:357 streamlin/waveui.py:1645 streamlin/waveui.py:1825
+#: streamlin/wavesetup.py:357 streamlin/waveui.py:1720 streamlin/waveui.py:1900
 msgid "Noise suppression"
 msgstr ""
 
@@ -4947,7 +4947,7 @@ msgstr ""
 msgid "Every app goes into a channel with its own controls for headphones and stream. You can create your own channels (e.g. for a capture card) later with “Add channel”."
 msgstr ""
 
-#: streamlin/wavesetup.py:391 streamlin/waveui.py:775
+#: streamlin/wavesetup.py:391 streamlin/waveui.py:823
 msgid "Setting up mixer …"
 msgstr ""
 
@@ -5037,418 +5037,418 @@ msgstr ""
 msgid "– not in mixer –"
 msgstr ""
 
-#: streamlin/waveui.py:292
-msgid "add"
+#: streamlin/waveui.py:320
+msgid "Add channel to mix"
 msgstr ""
 
-#: streamlin/waveui.py:598 streamlin/waveui.py:597
+#: streamlin/waveui.py:646 streamlin/waveui.py:645
 msgid "Looking for microphone …"
 msgstr ""
 
-#: streamlin/waveui.py:613
+#: streamlin/waveui.py:661
 msgid "Mixes"
 msgstr ""
 
-#: streamlin/waveui.py:650
+#: streamlin/waveui.py:698
 msgid "Edit …"
 msgstr ""
 
-#: streamlin/waveui.py:683 streamlin/waveui.py:227
+#: streamlin/waveui.py:731 streamlin/waveui.py:227
 msgid "Add channel"
 msgstr ""
 
-#: streamlin/waveui.py:684 streamlin/waveui.py:2025
+#: streamlin/waveui.py:732 streamlin/waveui.py:2105
 msgid "Scenes"
 msgstr ""
 
-#: streamlin/waveui.py:796
+#: streamlin/waveui.py:844
 msgid "no output"
 msgstr ""
 
-#: streamlin/waveui.py:1226
+#: streamlin/waveui.py:1301
 msgid "Save current mix as scene …"
 msgstr ""
 
-#: streamlin/waveui.py:1227
+#: streamlin/waveui.py:1302
 msgid "Manage scenes …"
 msgstr ""
 
-#: streamlin/waveui.py:1351
+#: streamlin/waveui.py:1426
 msgid "Linewave: mute microphone"
 msgstr ""
 
-#: streamlin/waveui.py:1358
+#: streamlin/waveui.py:1433
 msgid "Loading effects …"
 msgstr ""
 
-#: streamlin/waveui.py:1450
+#: streamlin/waveui.py:1525
 msgid "Filters out low hum and footfall noise"
 msgstr ""
 
-#: streamlin/waveui.py:1464
+#: streamlin/waveui.py:1539
 msgid "Works in every app, also on Wayland – it is added to your desktop's keyboard shortcuts."
 msgstr ""
 
-#: streamlin/waveui.py:1489
+#: streamlin/waveui.py:1564
 msgid "Monitoring"
 msgstr ""
 
-#: streamlin/waveui.py:1489
+#: streamlin/waveui.py:1564
 msgid "Balance of mic ↔ PC audio in your headphones"
 msgstr ""
 
-#: streamlin/waveui.py:1502
+#: streamlin/waveui.py:1577
 msgid "LEDs off"
 msgstr ""
 
-#: streamlin/waveui.py:1505
+#: streamlin/waveui.py:1580
 msgid "Flip LEDs"
 msgstr ""
 
-#: streamlin/waveui.py:1505
+#: streamlin/waveui.py:1580
 msgid "If the microphone is mounted upside down on a boom arm"
 msgstr ""
 
-#: streamlin/waveui.py:1645
+#: streamlin/waveui.py:1720
 msgid "Filters out keyboard, fans and background noise"
 msgstr ""
 
-#: streamlin/waveui.py:1652
+#: streamlin/waveui.py:1727
 msgid "Strength"
 msgstr ""
 
-#: streamlin/waveui.py:1653
+#: streamlin/waveui.py:1728
 msgid "Higher values mute everything that does not clearly sound like a voice"
 msgstr ""
 
-#: streamlin/waveui.py:515
+#: streamlin/waveui.py:563
 msgid "Linewave is still running"
 msgstr ""
 
-#: streamlin/waveui.py:516
+#: streamlin/waveui.py:564
 msgid "Mixer and microphone stay active. Open it again from the “Linewave” menu."
 msgstr ""
 
-#: streamlin/waveui.py:775
+#: streamlin/waveui.py:823
 msgid "Removing mixer …"
 msgstr ""
 
-#: streamlin/waveui.py:1303
+#: streamlin/waveui.py:1378
 msgid "Delete scene"
 msgstr ""
 
-#: streamlin/waveui.py:1319
+#: streamlin/waveui.py:1394
 #, python-brace-format
 msgid "Linewave: apply scene “{name}”"
 msgstr ""
 
-#: streamlin/waveui.py:1629
+#: streamlin/waveui.py:1704
 msgid "Switched off"
 msgstr ""
 
-#: streamlin/waveui.py:2038 streamlin/waveui.py:2056
+#: streamlin/waveui.py:2118 streamlin/waveui.py:2136
 msgid "No Wave microphone"
 msgstr ""
 
-#: streamlin/waveui.py:2058
+#: streamlin/waveui.py:2138
 msgid "All settings are stored directly in the microphone."
 msgstr ""
 
-#: streamlin/waveui.py:2065
+#: streamlin/waveui.py:2145
 msgid "Connect a microphone – the settings are applied as soon as it is detected."
 msgstr ""
 
-#: streamlin/waveui.py:448
+#: streamlin/waveui.py:496
 msgid "Open Linewave"
 msgstr ""
 
-#: streamlin/waveui.py:612
+#: streamlin/waveui.py:660
 msgid "Setup wizard"
 msgstr ""
 
-#: streamlin/waveui.py:652
+#: streamlin/waveui.py:700
 msgid "Stop listening"
 msgstr ""
 
-#: streamlin/waveui.py:652 streamlin/waveui.py:807
+#: streamlin/waveui.py:700 streamlin/waveui.py:855
 msgid "Listen"
 msgstr ""
 
-#: streamlin/waveui.py:703
+#: streamlin/waveui.py:751
 msgid "The mixer is off – set it up to give every app its own channel."
 msgstr ""
 
-#: streamlin/waveui.py:756
+#: streamlin/waveui.py:804
 msgid "Just like in Elgato Wave Link, every app gets a channel – with its own volume for your headphones (Personal Mix), your stream (Stream Mix) and any mix you create."
 msgstr ""
 
-#: streamlin/waveui.py:795
+#: streamlin/waveui.py:843
 msgid "virtual"
 msgstr ""
 
-#: streamlin/waveui.py:929
+#: streamlin/waveui.py:1002
 #, python-brace-format
 msgid "Remove from “{mix}”"
 msgstr ""
 
-#: streamlin/waveui.py:1132 streamlin/waveui.py:2111
+#: streamlin/waveui.py:1205 streamlin/waveui.py:2191
 msgid "Set up the mixer to add effects to channels."
 msgstr ""
 
-#: streamlin/waveui.py:1154
+#: streamlin/waveui.py:1227
 msgid "All effects are switched off."
 msgstr ""
 
-#: streamlin/waveui.py:1449
+#: streamlin/waveui.py:1524
 msgid "Filters"
 msgstr ""
 
-#: streamlin/waveui.py:1500
+#: streamlin/waveui.py:1575
 msgid "Mic"
 msgstr ""
 
-#: streamlin/waveui.py:1510
+#: streamlin/waveui.py:1585
 msgid "More settings with the Elgato Wave:3"
 msgstr ""
 
-#: streamlin/waveui.py:1511
+#: streamlin/waveui.py:1586
 msgid "Headphone volume, monitoring and the LEDs can be adjusted directly on the Wave:3. For Wave:1, Wave Neo and Wave XLR the protocol for this is not documented."
 msgstr ""
 
-#: streamlin/waveui.py:1528
+#: streamlin/waveui.py:1603
 msgid "Auto-ducking"
 msgstr ""
 
-#: streamlin/waveui.py:1531
+#: streamlin/waveui.py:1606
 msgid "Turns the selected channels down in both mixes while you speak and brings them back exactly afterwards."
 msgstr ""
 
-#: streamlin/waveui.py:1538
+#: streamlin/waveui.py:1613
 msgid "Lower by"
 msgstr ""
 
-#: streamlin/waveui.py:1544
+#: streamlin/waveui.py:1619
 msgid "Sensitivity"
 msgstr ""
 
-#: streamlin/waveui.py:1631
+#: streamlin/waveui.py:1706
 msgid "Works as soon as the mixer is set up."
 msgstr ""
 
-#: streamlin/waveui.py:1974
+#: streamlin/waveui.py:2054
 #, python-brace-format
 msgid "In OBS add {source}"
 msgstr ""
 
-#: streamlin/waveui.py:1977
+#: streamlin/waveui.py:2057
 msgid "Other virtual mixes: “Monitor of Linewave <name>”"
 msgstr ""
 
-#: streamlin/waveui.py:2042
+#: streamlin/waveui.py:2122
 msgid "No Wave microphone connected"
 msgstr ""
 
-#: streamlin/waveui.py:2061
+#: streamlin/waveui.py:2141
 msgid "Low Cut and Clipguard run as PipeWire filters. In Discord/OBS, select the microphone “Linewave Microphone”."
 msgstr ""
 
-#: streamlin/waveui.py:710
+#: streamlin/waveui.py:758
 msgid "Effect chains per channel – changes are live."
 msgstr ""
 
-#: streamlin/waveui.py:713
+#: streamlin/waveui.py:761
 msgid "Click an app to move it to another channel"
 msgstr ""
 
-#: streamlin/waveui.py:780
+#: streamlin/waveui.py:828
 msgid "Mixer set up"
 msgstr ""
 
-#: streamlin/waveui.py:791
+#: streamlin/waveui.py:839
 #, python-brace-format
 msgid "{n} output"
 msgid_plural "{n} outputs"
 msgstr[0] ""
 msgstr[1] ""
 
-#: streamlin/waveui.py:977
+#: streamlin/waveui.py:1050
 msgid "Channel added to the mix"
 msgstr ""
 
-#: streamlin/waveui.py:977
+#: streamlin/waveui.py:1050
 msgid "Channel removed from the mix"
 msgstr ""
 
-#: streamlin/waveui.py:1054
+#: streamlin/waveui.py:1127
 #, python-brace-format
 msgid "Really delete mix “{name}”?"
 msgstr ""
 
-#: streamlin/waveui.py:1158
+#: streamlin/waveui.py:1231
 msgid "Edit"
 msgstr ""
 
-#: streamlin/waveui.py:1205
+#: streamlin/waveui.py:1280
 #, python-brace-format
 msgid "Really delete channel “{name}”?"
 msgstr ""
 
-#: streamlin/waveui.py:1258 streamlin/waveui.py:1243
+#: streamlin/waveui.py:1333 streamlin/waveui.py:1318
 #, python-brace-format
 msgid "Profile “{name}” updated."
 msgstr ""
 
-#: streamlin/waveui.py:1304
+#: streamlin/waveui.py:1379
 #, python-brace-format
 msgid "Really delete scene “{name}”?"
 msgstr ""
 
-#: streamlin/waveui.py:1498 streamlin/waveui.py:2099
+#: streamlin/waveui.py:1573 streamlin/waveui.py:2179
 #, python-brace-format
 msgid "{value:.0f} % mic"
 msgstr ""
 
-#: streamlin/waveui.py:1633
+#: streamlin/waveui.py:1708
 msgid "You are speaking – channels are lowered."
 msgstr ""
 
-#: streamlin/waveui.py:1635
+#: streamlin/waveui.py:1710
 msgid "Listening – speak to see the level reach the marker."
 msgstr ""
 
-#: streamlin/waveui.py:1672
+#: streamlin/waveui.py:1747
 msgid "Noise suppression on"
 msgstr ""
 
-#: streamlin/waveui.py:1672
+#: streamlin/waveui.py:1747
 msgid "Noise suppression off"
 msgstr ""
 
-#: streamlin/waveui.py:1692
+#: streamlin/waveui.py:1767
 #, python-brace-format
 msgid "Off – method: {backend}"
 msgstr ""
 
-#: streamlin/waveui.py:1979
+#: streamlin/waveui.py:2059
 msgid "Click an empty cell to add the channel to the mix, right-click a cell to remove it."
 msgstr ""
 
-#: streamlin/waveui.py:2004
+#: streamlin/waveui.py:2084
 msgid "Mixer is off"
 msgstr ""
 
-#: streamlin/waveui.py:700
+#: streamlin/waveui.py:748
 #, python-brace-format
 msgid "{count} channels · {mixes} mixes · everything is live"
 msgstr ""
 
-#: streamlin/waveui.py:1016
+#: streamlin/waveui.py:1089
 #, python-brace-format
 msgid "Personal Mix → {output}"
 msgstr ""
 
-#: streamlin/waveui.py:1061
+#: streamlin/waveui.py:1134
 #, python-brace-format
 msgid "Mix “{name}” deleted"
 msgstr ""
 
-#: streamlin/waveui.py:1121
+#: streamlin/waveui.py:1194
 msgid "No app is playing audio right now."
 msgstr ""
 
-#: streamlin/waveui.py:1212
+#: streamlin/waveui.py:1287
 #, python-brace-format
 msgid "Channel “{name}” deleted"
 msgstr ""
 
-#: streamlin/waveui.py:1242
+#: streamlin/waveui.py:1317
 #, python-brace-format
 msgid "Profile “{name}” created – choose it in LinDeck for your device."
 msgstr ""
 
-#: streamlin/waveui.py:1346
+#: streamlin/waveui.py:1421
 msgid "Shortcut removed"
 msgstr ""
 
-#: streamlin/waveui.py:1397
+#: streamlin/waveui.py:1472
 #, python-brace-format
 msgid "{app} → channel “{channel}” (remembered)"
 msgstr ""
 
-#: streamlin/waveui.py:1694
+#: streamlin/waveui.py:1769
 #, python-brace-format
 msgid "Active: {backend}. The microphone channel in the mixer uses the filtered signal; in Discord/OBS you can also select “Linewave Microphone (noise suppression)”."
 msgstr ""
 
-#: streamlin/waveui.py:1974
+#: streamlin/waveui.py:2054
 #, python-brace-format
 msgid "Monitor of {device}"
 msgstr ""
 
-#: streamlin/waveui.py:2048
+#: streamlin/waveui.py:2128
 #, python-brace-format
 msgid "Gain {value} %"
 msgstr ""
 
-#: streamlin/waveui.py:2063
+#: streamlin/waveui.py:2143
 msgid "Clipguard needs the package swh-plugins."
 msgstr ""
 
-#: streamlin/waveui.py:1047
+#: streamlin/waveui.py:1120
 #, python-brace-format
 msgid "Mix “{name}” created"
 msgstr ""
 
-#: streamlin/waveui.py:1047
+#: streamlin/waveui.py:1120
 #, python-brace-format
 msgid "Mix “{name}” saved"
 msgstr ""
 
-#: streamlin/waveui.py:1197
+#: streamlin/waveui.py:1272
 #, python-brace-format
 msgid "Channel “{name}” created"
 msgstr ""
 
-#: streamlin/waveui.py:1197
+#: streamlin/waveui.py:1272
 #, python-brace-format
 msgid "Channel “{name}” saved"
 msgstr ""
 
-#: streamlin/waveui.py:1341
+#: streamlin/waveui.py:1416
 #, python-brace-format
 msgid "Shortcut {keys} set"
 msgstr ""
 
-#: streamlin/waveui.py:1698
+#: streamlin/waveui.py:1773
 #, python-brace-format
 msgid "Starts as soon as the mixer is set up ({backend})."
 msgstr ""
 
-#: streamlin/waveui.py:1700
+#: streamlin/waveui.py:1775
 #, python-brace-format
 msgid "Could not start ({backend})."
 msgstr ""
 
-#: streamlin/waveui.py:1736
+#: streamlin/waveui.py:1811
 #, python-brace-format
 msgid "{name} on"
 msgstr ""
 
-#: streamlin/waveui.py:1736
+#: streamlin/waveui.py:1811
 #, python-brace-format
 msgid "{name} off"
 msgstr ""
 
-#: streamlin/waveui.py:1966
+#: streamlin/waveui.py:2046
 msgid "listening"
 msgstr ""
 
-#: streamlin/waveui.py:2041
+#: streamlin/waveui.py:2121
 #, python-brace-format
 msgid "{name} · muted"
 msgstr ""
 
-#: streamlin/waveui.py:2059
+#: streamlin/waveui.py:2139
 #, python-brace-format
 msgid "Firmware API {api}."
 msgstr ""
