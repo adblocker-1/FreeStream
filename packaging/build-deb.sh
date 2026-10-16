@@ -18,7 +18,7 @@ mkdir -p "$OUT"
 COMMON_DEPS="python3 (>= 3.10), python3-pil, python3-tk, python3-pil.imagetk, fonts-dejavu-core, xdg-utils, libnotify-bin, udev"
 DECK_DEPS="python3-evdev, python3-cairosvg, libhidapi-libusb0, libusb-1.0-0, xdg-user-dirs, wl-clipboard, xclip, playerctl, pulseaudio-utils, msitools, kmod"
 WAVE_DEPS="pulseaudio-utils, libusb-1.0-0"
-COMMON_RECS="python3-pystray, gir1.2-ayatanaappindicator3-0.1"
+COMMON_RECS="python3-pystray, gir1.2-ayatanaappindicator3-0.1, zenity | kdialog"
 DECK_RECS="chromium | google-chrome-stable | firefox, mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, nodejs"
 WAVE_RECS="wireplumber, pipewire-pulse, pipewire-bin, swh-plugins, tap-plugins, lilv-utils, jalv, pipewire-jack, x42-plugins, libspa-0.2-modules, libpipewire-0.3-modules"
 

@@ -1,10 +1,11 @@
 """Dialog „Hintergrund“ im LinDeck-Fenster: Bild über alle Tasten einer Seite und Touchstreifen."""
 import tkinter as tk
-from tkinter import filedialog, messagebox
 
 from PIL import Image, ImageTk
 
 from . import editdoc as E
+from . import msgbox as filedialog
+from . import msgbox as messagebox
 from . import render
 from .i18n import _, ngettext
 from .dialogkit import field, footer, header

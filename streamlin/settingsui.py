@@ -7,9 +7,11 @@ import threading
 import tkinter as tk
 import webbrowser
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import ttk
 
 from . import __version__, i18n, support, system, updater, updateui
+from . import msgbox as filedialog
+from . import msgbox as messagebox
 from .dialogkit import ScrollArea, field, footer, header
 from .i18n import _
 from .theme import COL, Button, Card, Dialog, Switch, choose_language, label, mode_switch

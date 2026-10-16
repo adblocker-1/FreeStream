@@ -9,10 +9,11 @@ import shutil
 import subprocess
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox
 
 from PIL import Image, ImageTk
 
+from . import msgbox as filedialog
+from . import msgbox as messagebox
 from . import paths, plugins
 from .i18n import _, ngettext
 from .dialogkit import ScrollArea, footer, header

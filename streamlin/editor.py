@@ -12,7 +12,7 @@ import json
 import logging
 import tkinter as tk
 from pathlib import Path
-from tkinter import colorchooser, filedialog, messagebox, simpledialog, ttk
+from tkinter import ttk
 from tkinter import font as tkfont
 
 from PIL import Image, ImageDraw, ImageFilter, ImageTk
@@ -20,6 +20,10 @@ from PIL import Image, ImageDraw, ImageFilter, ImageTk
 from . import actions as A
 from . import catalog as C
 from . import editdoc as E
+from . import msgbox as colorchooser
+from . import msgbox as filedialog
+from . import msgbox as messagebox
+from . import msgbox as simpledialog
 from . import livekeys, paths, render, theme
 from .i18n import _, ngettext
 from .models import MODELS, connected_models, model_geometry, model_name

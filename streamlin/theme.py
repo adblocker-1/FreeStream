@@ -553,7 +553,7 @@ def language_button(parent, icons, app, restart, bg=None, style="Ghost.TMenubutt
 
 def choose_language(code, app, restart, parent):
     """Sprache speichern ("auto" = Systemsprache) und einen Neustart anbieten, wenn sie sich ändert."""
-    from tkinter import messagebox
+    from . import msgbox as messagebox
 
     from . import i18n
     from .i18n import _
@@ -1309,7 +1309,7 @@ class SoftSegmented(tk.Canvas):
 
 def mode_switch(parent, app, restart):
     """Umschalter Hell / Dunkel / Auto; speichert und bietet einen Neustart an."""
-    from tkinter import messagebox
+    from . import msgbox as messagebox
 
     from .i18n import _
 

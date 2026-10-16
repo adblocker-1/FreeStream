@@ -985,7 +985,7 @@ class WaveWindow:
         self.worker.submit(work, done)
 
     def _delete_mix(self, m):
-        from tkinter import messagebox
+        from . import msgbox as messagebox
         if not messagebox.askyesno(_("Delete mix"), _("Really delete mix “{name}”?").format(name=m["name"]),
                                    parent=self.root):
             return
@@ -1135,7 +1135,7 @@ class WaveWindow:
         self.worker.submit(work, done)
 
     def _delete_channel(self, ch):
-        from tkinter import messagebox
+        from . import msgbox as messagebox
         if not messagebox.askyesno(_("Delete channel"),
                                    _("Really delete channel “{name}”?").format(name=ch["name"]),
                                    parent=self.root):
@@ -1234,7 +1234,7 @@ class WaveWindow:
                         on_save=lambda name: self._scene_job(lambda: work(name), _("Scene renamed to “{name}”")))
 
     def _delete_scene(self, sc):
-        from tkinter import messagebox
+        from . import msgbox as messagebox
         if not messagebox.askyesno(_("Delete scene"),
                                    _("Really delete scene “{name}”?").format(name=sc.get("name")), parent=self.root):
             return

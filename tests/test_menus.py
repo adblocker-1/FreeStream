@@ -140,7 +140,7 @@ def test_linewave_mix_menu_and_create_in_sidebar(env, pactl, monkeypatch):
         assert menu.labels() == ["Bearbeiten …", "Abhören", "Mix löschen"]
         assert not next(e for e in menu.entries if e and e["label"] == "Mix löschen")["enabled"]  # fester Mix
         menu.close()
-        from tkinter import messagebox
+        from streamlin import msgbox as messagebox
         monkeypatch.setattr(messagebox, "askyesno", lambda *a, **k: True)
         win._mix_menu("chat", 10, 10).invoke("Mix löschen")
         assert _pump(root, lambda: "chat" not in win.mix_cards)
