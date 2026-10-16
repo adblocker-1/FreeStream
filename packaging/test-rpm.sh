@@ -19,7 +19,8 @@ lindeck profiles
 linewave mixer --help
 test -f /usr/lib/udev/rules.d/70-streamlin.rules
 test -f /usr/share/applications/lindeck.desktop -a -f /usr/share/applications/linewave.desktop
-test -f /usr/share/doc/streamlin/LICENSE.python-elgato-streamdeck
+# Container-Images installieren keine Dokumentation (tsflags=nodocs): im Paketinhalt prüfen
+rpm -ql streamlin | grep /usr/share/doc/streamlin/LICENSE.python-elgato-streamdeck >/dev/null
 
 # einzeln: ersetzt das Paket streamlin, beide arbeiten zusammen
 inst "$D"/lindeck-*.noarch.rpm "$D"/linewave-*.noarch.rpm

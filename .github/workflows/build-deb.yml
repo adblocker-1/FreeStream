@@ -86,7 +86,7 @@ jobs:
       - name: flatpak und Laufzeit
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder xvfb xauth dbus-x11
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder elfutils xvfb xauth dbus-x11
           # Ubuntu 24.04 sperrt unprivilegierte User-Namespaces (bwrap) per AppArmor
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
