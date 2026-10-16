@@ -19,6 +19,7 @@ verwaltet (Kanalauswahl und Mix).
 import json
 import os
 import shutil
+import signal
 
 from . import paths
 from .editdoc import EditError, ProfileDoc, create_profile, init_profile
@@ -223,8 +224,27 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None):
         raise ExportError(str(e)) from e
     meta["linewave"] = {"channels": list(channels), "all": bool(all_channels), "mix": mix}
     (root / META).write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    os.utime(root)  # LinDeck lädt geänderte Profile neu
+    os.utime(root)
+    notify_lindeck()
     return name, pages, created
+
+
+def notify_lindeck():
+    """Laufendem LinDeck Bescheid geben (SIGHUP): es lädt die Profile neu und zeigt das Profil
+    sofort in der Liste – ohne dass LinDeck danach suchen muss. Gibt True zurück, wenn LinDeck lief."""
+    try:
+        pid = int(paths.PID_FILE.read_text())
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            cmd = f.read().decode(errors="ignore")
+    except (OSError, ValueError):
+        return False
+    if pid == os.getpid() or not any(n in cmd for n in ("lindeck", "streamlin")):
+        return False
+    try:
+        os.kill(pid, signal.SIGHUP)
+    except OSError:
+        return False
+    return True
 
 
 def sync(channels, store_root=None):

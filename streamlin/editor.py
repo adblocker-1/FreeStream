@@ -474,6 +474,13 @@ class EditorApp:
             self.nav = [page]
             self.refresh_all()
 
+    def profiles_changed(self):
+        """Push von außen (Linewave-Export, „lindeck reload“): neue Profile sofort in der Liste zeigen."""
+        self._check_disk()
+        self.refresh_profiles()
+        if self.doc is None and self._profile_ids:  # bisher leer: neues Profil gleich öffnen
+            self.open_profile(self._profile_ids[0])
+
     # ======================================================= Fenster
     def show(self):
         self.root.deiconify()
