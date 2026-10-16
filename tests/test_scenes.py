@@ -487,6 +487,9 @@ def test_window_scenes_ducking_shortcut(env, pactl, monkeypatch):
         ev = types.SimpleNamespace(keysym="m", state=0x4 | 0x40)
         win.mic_shortcut._key(ev)
         assert _pump(root, lambda: shortcuts.get("linewave-mic-mute") == "Ctrl+Super+M")
+        # ein veralteter Zustand (vor dem Eintragen gesammelt) setzt das Feld nicht zurück
+        win.apply_state(dict(win.state, shortcuts={}))
+        assert win.mic_shortcut.binding == "Ctrl+Super+M"
         win.mic_shortcut._remove()
         assert _pump(root, lambda: shortcuts.get("linewave-mic-mute") == "")
         win.request_quit()
