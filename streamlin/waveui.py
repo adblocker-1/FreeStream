@@ -11,6 +11,9 @@ eigenen Arbeits-Thread, damit das Fenster nie hängt. Ergebnisse werden im
 Tk-Thread übernommen; Regler, die gerade bewegt werden, überschreibt die
 Aktualisierung nicht. Die Pegel kommen aus levels.py (parec) und laufen nur,
 solange der Mixer sichtbar ist.
+
+Mixer-Szenen (Knopf „Szenen“ im Kopf des Mixers), Auto-Ducking und globale
+Tastenkürzel (Ansicht Mikrofon) kommen aus mixer.py, ducking.py und shortcuts.py.
 """
 import logging
 import math
@@ -22,10 +25,11 @@ from tkinter import font as tkfont
 
 from PIL import Image, ImageDraw, ImageTk
 
-from . import levels, parts, theme, wavemic
+from . import ducking, levels, parts, shortcuts, theme, wavemic
+from .dialogkit import ScrollArea
 from .i18n import _
-from .theme import (COL, Button, Card, Fader, HScroll, InfoCard, LevelMeter, NavItem, RoundToggle, Segmented,
-                    Sidebar, Switch, icon_tile, label, rounded_rect)
+from .theme import (COL, Button, Card, Chip, Fader, HScroll, InfoCard, LevelMeter, NavItem, RoundToggle, Segmented,
+                    Sidebar, SoftSegmented, Switch, icon_tile, label, rounded_rect)
 
 log = logging.getLogger("streamlin.waveui")
 REFRESH_MS = 1500
@@ -41,6 +45,9 @@ CHANNEL_LOOK = {  # Kanal -> (Symbol, Farbe)
 }
 FADER_LEN = 190
 FADER_LEN_SMALL = 140
+MIC_SHORTCUT = "linewave-mic-mute"
+SCENE_SHORTCUT = "linewave-scene-"
+DUCK_MS = 80
 
 
 def mix_color(mix):
@@ -119,6 +126,42 @@ class MuteToggle(RoundToggle):
             fill, out, fg = (COL["raised"] if self.hover else COL["panel2"]), COL["border"], COL["muted"]
         rounded_rect(self, 0, 0, w - 1, h - 1, 9, fill=fill, outline=out)
         self.create_image(w / 2, h / 2, image=self.icons.get(self.icon_off, 15, fg))
+
+
+class DuckMeter(tk.Canvas):
+    """Mikrofonpegel für das Auto-Ducking mit Markierung der Schwelle (gleiche Skala wie der Regler)."""
+
+    LO, HI = -60.0, -5.0
+
+    def __init__(self, master, width, height=10):
+        super().__init__(master, width=width, height=height + 6, bg=theme._bg_of(master), highlightthickness=0,
+                         bd=0)
+        self.w, self.h = width, height
+        self.level, self.threshold, self.ducking = 0.0, -30.0, False
+        self._draw()
+
+    def _x(self, db):
+        return max(0.0, min(1.0, (db - self.LO) / (self.HI - self.LO))) * self.w
+
+    def set(self, level=None, threshold=None, ducking=None):
+        changed = False
+        for name, v in (("level", level), ("threshold", threshold), ("ducking", ducking)):
+            if v is not None and v != getattr(self, name):
+                setattr(self, name, v)
+                changed = True
+        if changed:
+            self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        w, h, y = self.w, self.h, 3
+        rounded_rect(self, 0, y, w, y + h, h / 2, fill=COL["raised"], outline="")
+        db = levels.level_db(self.level)
+        if db is not None and db > self.LO:
+            rounded_rect(self, 0, y, max(h, self._x(db)), y + h, h / 2,
+                         fill=COL["warn"] if self.ducking else COL["ok"], outline="")
+        x = self._x(self.threshold)
+        self.create_line(x, 0, x, h + 6, fill=COL["fg"], width=2)
 
 
 class FxPill(tk.Canvas):
@@ -541,6 +584,7 @@ class WaveWindow:
         more.pack(side="right", padx=(8, 0))
         self.more_btn = more
         self.add_btn = Button(head, _("Add channel"), "plus", kind="primary", command=self._new_channel)
+        self.scene_btn = Button(head, _("Scenes"), "layers", command=self._scene_menu)
         self.setup_btn = Button(head, _("Set up mixer"), "wave", kind="primary",
                                 command=lambda: self._mixer_enable(True))
         self.legend = tk.Frame(head, bg=COL["bg"])
@@ -575,7 +619,7 @@ class WaveWindow:
     def _update_header(self):
         st = self.state
         active = bool(st.get("mixer_active"))
-        for w in (self.add_btn, self.setup_btn, self.legend):
+        for w in (self.add_btn, self.scene_btn, self.setup_btn, self.legend):
             w.pack_forget()
         if self.view == "mixer":
             self.title_var.set(_("Mixer"))
@@ -583,6 +627,7 @@ class WaveWindow:
                 n = len(st.get("channels") or [])
                 self.sub_var.set(_("{count} channels · everything is live").format(count=n))
                 self.add_btn.pack(side="right")
+                self.scene_btn.pack(side="right", padx=(0, 8))
                 self.legend.pack(side="right", padx=(0, 18))
             else:
                 self.sub_var.set(_("The mixer is off – set it up to give every app its own channel."))
@@ -946,6 +991,126 @@ class WaveWindow:
             self.refresh()
         self.worker.submit(lambda: self.mixer.remove_channel(ch["id"]), done)
 
+    # ------------------------------------------------------- Szenen
+    def _scene_menu(self):
+        """Szenen-Menü am Knopf im Kopf: anwenden, aktuelle Einstellung speichern, verwalten."""
+        scenes = self.state.get("scenes") or []
+        menu = tk.Menu(self.root, tearoff=False, bg=COL["panel2"], fg=COL["fg"], activebackground=COL["accent"],
+                       activeforeground=COL["on_accent"], selectcolor=COL["accent"], bd=0)
+        var = tk.StringVar(menu, value=self.state.get("active_scene") or "")
+        menu._var = var
+        for sc in scenes:
+            menu.add_radiobutton(label=sc.get("name") or sc["id"], value=sc["id"], variable=var,
+                                 command=lambda sc=sc: self._apply_scene(sc))
+        if scenes:
+            menu.add_separator()
+        menu.add_command(label=_("Save current mix as scene …"), command=self._new_scene)
+        menu.add_command(label=_("Manage scenes …"), command=self.open_scenes)
+        b = self.scene_btn
+        try:
+            menu.tk_popup(b.winfo_rootx(), b.winfo_rooty() + b.winfo_height() + 4)
+        finally:
+            menu.grab_release()
+
+    def _scene_keys(self, st=None):
+        keys = (st or self.state).get("shortcuts") or {}
+        return {k[len(SCENE_SHORTCUT):]: v.get("binding", "") for k, v in keys.items()
+                if k.startswith(SCENE_SHORTCUT)}
+
+    def open_scenes(self):
+        from .wavedialogs import ScenesDialog
+        dlg = getattr(self, "_scenes_dlg", None)
+        if dlg is not None and dlg.winfo_exists():
+            dlg.lift()
+            return dlg
+        self._scenes_dlg = ScenesDialog(
+            self.root, self.state.get("scenes") or [], self.state.get("active_scene"), self._scene_keys(),
+            {"apply": self._apply_scene, "rename": self._rename_scene, "delete": self._delete_scene,
+             "new": self._new_scene, "shortcut": self._scene_shortcut})
+        return self._scenes_dlg
+
+    def _scene_job(self, work, message):
+        def done(res, err):
+            if err is None and res is not None:
+                self.status(message.format(name=res.get("name", "")))
+            self.refresh()
+        self.worker.submit(work, done)
+
+    def _apply_scene(self, sc):
+        self._touched.clear()  # Regler sofort auf die Szene springen lassen
+        self._scene_job(lambda: self.mixer.apply_scene(sc["id"]), _("Scene “{name}” applied"))
+
+    def _new_scene(self):
+        from .wavedialogs import SceneNameDialog
+        active = next((x for x in self.state.get("scenes") or [] if x["id"] == self.state.get("active_scene")), None)
+        SceneNameDialog(self.root, name=(active or {}).get("name", ""),
+                        on_save=lambda name: self._scene_job(lambda: self.mixer.save_scene(name),
+                                                             _("Scene “{name}” saved")))
+
+    def _rename_scene(self, sc):
+        from .wavedialogs import SceneNameDialog
+
+        def work(name):
+            res = self.mixer.rename_scene(sc["id"], name)
+            shortcuts.update_command(SCENE_SHORTCUT + res["id"], self._scene_command(res),
+                                     name=self._scene_shortcut_name(res))
+            return res
+        SceneNameDialog(self.root, name=sc.get("name", ""), rename=True,
+                        on_save=lambda name: self._scene_job(lambda: work(name), _("Scene renamed to “{name}”")))
+
+    def _delete_scene(self, sc):
+        from tkinter import messagebox
+        if not messagebox.askyesno(_("Delete scene"),
+                                   _("Really delete scene “{name}”?").format(name=sc.get("name")), parent=self.root):
+            return
+
+        def work():
+            res = self.mixer.delete_scene(sc["id"])
+            shortcuts.unregister(SCENE_SHORTCUT + res["id"])
+            return res
+        self._scene_job(work, _("Scene “{name}” deleted"))
+
+    @staticmethod
+    def _scene_command(sc):
+        return shortcuts.linewave_command("mixer", "scene", "apply", sc["id"])
+
+    @staticmethod
+    def _scene_shortcut_name(sc):
+        return _("Linewave: apply scene “{name}”").format(name=sc.get("name") or sc["id"])
+
+    def _scene_shortcut(self, sc, binding):
+        self._set_shortcut(SCENE_SHORTCUT + sc["id"], self._scene_shortcut_name(sc), self._scene_command(sc),
+                           binding)
+
+    # --------------------------------------------------- Tastenkürzel
+    def _set_shortcut(self, ident, name, command, binding):
+        """Globales Tastenkürzel eintragen (binding) oder entfernen (None) – im Arbeits-Thread."""
+        def work():
+            if not binding:
+                shortcuts.unregister(ident)
+                return None
+            return shortcuts.register(ident, name, command, binding)
+
+        def done(res, err):
+            if isinstance(err, shortcuts.Unsupported):
+                self.status("")
+                from .wavedialogs import ManualShortcutDialog
+                ManualShortcutDialog(self.root, str(err), err.command)
+            elif err is None:
+                if binding:
+                    msg = _("Shortcut {keys} set").format(keys=shortcuts.label(binding))
+                    if res and res.get("note"):
+                        msg += " – " + res["note"]
+                    self.status(msg)
+                else:
+                    self.status(_("Shortcut removed"))
+            self.refresh()
+        self.worker.submit(work, done)
+
+    def _on_mic_shortcut(self, binding):
+        self._set_shortcut(MIC_SHORTCUT, _("Linewave: mute microphone"),
+                           shortcuts.linewave_command("mic", "mute", "toggle"), binding)
+
     # ------------------------------------------------------- Effekte
     def _open_effects(self, ch):
         from . import effects
@@ -1007,7 +1172,9 @@ class WaveWindow:
         return row
 
     def _build_mic(self):
-        t = tk.Frame(self.view_mic, bg=COL["bg"])
+        area = ScrollArea(self.view_mic, bg=COL["bg"])
+        area.pack(fill="both", expand=True)
+        t = tk.Frame(area.inner, bg=COL["bg"])
         t.pack(fill="both", expand=True, padx=22, pady=18)
         self.v = {}
         # --- Karte Mikrofon
@@ -1050,10 +1217,24 @@ class WaveWindow:
         self.v["clipguard"] = Switch(row, command=lambda: self._on_filter("clipguard"))
         self.v["clipguard"].pack(side="right")
 
+        # --- globales Tastenkürzel zum Stummschalten
+        from .wavedialogs import ShortcutField
+        tk.Frame(b, bg=COL["border"], height=1).pack(fill="x", pady=8)
+        theme.section(b, _("Keyboard shortcut")).pack(fill="x", pady=(4, 0))
+        row = self._row(b, _("Mute microphone"), _("Works in every app, also on Wayland – it is added to your "
+                                                   "desktop's keyboard shortcuts."))
+        self.mic_shortcut = ShortcutField(b, on_set=self._on_mic_shortcut,
+                                          on_remove=lambda: self._on_mic_shortcut(None))
+        self.mic_shortcut.pack(anchor="w", pady=(0, 4))
+
         # --- Karte Wave:3 (nur mit Hardware)
-        right = tk.Frame(t, bg=COL["bg"])
-        right.pack(side="left", anchor="n", fill="x", expand=True)
-        self.hw_frame = Card(right, pad=20, radius=16)
+        outer = tk.Frame(t, bg=COL["bg"])
+        outer.pack(side="left", anchor="n", fill="x", expand=True)
+        right = tk.Frame(outer, bg=COL["bg"])  # Spalte: Wave:3-Karte und Auto-Ducking gleich breit
+        right.pack(anchor="nw")
+        hw_slot = tk.Frame(right, bg=COL["bg"])
+        hw_slot.pack(fill="x")
+        self.hw_frame = Card(hw_slot, pad=20, radius=16)
         h = self.hw_frame.body
         theme.section(h, "Wave:3").pack(fill="x")
         row = self._row(h, _("Headphones"))
@@ -1085,13 +1266,207 @@ class WaveWindow:
         self.v["leds_flip"] = Switch(row, command=lambda: self._on_hw_bool("leds_flip"))
         self.v["leds_flip"].pack(side="right")
 
-        self.no_hw = Card(right, pad=20, radius=16)
+        self.no_hw = Card(hw_slot, pad=20, radius=16)
         label(self.no_hw.body, _("More settings with the Elgato Wave:3"), 10, "bold").pack(anchor="w")
         label(self.no_hw.body, _("Headphone volume, monitoring and the LEDs can be adjusted directly on the "
                                  "Wave:3. For Wave:1, Wave Neo and Wave XLR the protocol for this is not "
                                  "documented."), 9, color=COL["muted"], wraplength=360, justify="left").pack(
             anchor="w", pady=(6, 0))
-        self.no_hw.pack(anchor="nw")
+        self.no_hw.pack(anchor="nw", fill="x")
+        self._build_noise(right)
+        self._build_ducking(right)
+
+    # ------------------------------------------------------- Auto-Ducking
+    def _build_ducking(self, parent):
+        """Karte „Auto-Ducking“: Kanäle leiser, solange du sprichst."""
+        card = Card(parent, pad=20, radius=16, stretch=True)
+        card.pack(fill="x", pady=(14, 0))
+        b = card.body
+        self.duck = {}
+        top = tk.Frame(b, bg=COL["panel"])
+        top.pack(fill="x")
+        theme.section(top, _("Auto-ducking")).pack(side="left")
+        self.duck["enabled"] = Switch(top, command=lambda: self._on_duck("enabled", self.duck["enabled"].get()))
+        self.duck["enabled"].pack(side="right")
+        label(b, _("Turns the selected channels down in both mixes while you speak and brings them back "
+                   "exactly afterwards."), 9, color=COL["muted"], wraplength=380, justify="left").pack(
+            anchor="w", pady=(6, 0))
+        theme.section(b, _("Channels")).pack(fill="x", pady=(16, 6))
+        self.duck_chips = tk.Frame(b, bg=COL["panel"], width=380, height=1)
+        self.duck_chips.pack(fill="x")
+        self._duck_chip_ids = None
+        theme.section(b, _("Lower by")).pack(fill="x", pady=(16, 6))
+        self.duck["amount"] = SoftSegmented(b, [(str(a), f"−{a} dB", None) for a in ducking.AMOUNTS],
+                                            command=lambda v: self._on_duck("amount_db", int(v)), value="12")
+        self.duck["amount"].pack(anchor="w")
+        row = tk.Frame(b, bg=COL["panel"])
+        row.pack(fill="x", pady=(16, 6))
+        theme.section(row, _("Sensitivity")).pack(side="left")
+        self.duck_thr = tk.StringVar(self.root, value="")
+        label(row, textvariable=self.duck_thr, size=9, color=COL["muted"]).pack(side="right")
+        self.duck["threshold"] = Fader(b, length=360, thickness=22, orient="horizontal", from_=-60, to=-5,
+                                       color=COL["accent"], command=self._on_duck_threshold)
+        self.duck["threshold"].pack(anchor="w")
+        self.duck_meter = DuckMeter(b, 360)
+        self.duck_meter.pack(anchor="w", pady=(8, 0))
+        self.duck_state = tk.StringVar(self.root, value="")
+        label(b, textvariable=self.duck_state, size=9, color=COL["muted"], wraplength=380, justify="left").pack(
+            anchor="w", pady=(6, 0))
+        self.root.after(DUCK_MS, self._tick_duck)
+
+    def _duck_conf(self):
+        return ducking.settings(self.host.cfg)
+
+    def _on_duck(self, key, value):
+        self._touch(f"duck:{key}")
+
+        def work():
+            mx = self.host.cfg.data.setdefault("mixer", {})
+            mx.setdefault("ducking", {})[key] = value
+            self.host.cfg.save()
+        self.worker.submit(work)
+
+    def _on_duck_threshold(self, value):
+        db = int(round(float(value)))
+        self.duck_thr.set(f"{db} dB")
+        self.duck_meter.set(threshold=db)
+        self._debounced("duck:threshold_db", lambda v: self._on_duck("threshold_db", v), db, delay=300)
+
+    def _toggle_duck_channel(self, cid):
+        chans = list(self._duck_conf().get("channels") or [])
+        chans = [c for c in chans if c != cid] if cid in chans else chans + [cid]
+        self._on_duck("channels", chans)
+        self._fill_duck_chips(self.state.get("channels") or self._duck_channels_fallback(), chans)
+
+    def _duck_channels_fallback(self):
+        try:
+            return self.mixer.channels()
+        except Exception:  # noqa: BLE001
+            return []
+
+    def _fill_duck_chips(self, channels, selected):
+        chans = [c for c in channels if c["id"] != "mic"]
+        ids = (tuple((c["id"], c["name"]) for c in chans), tuple(selected))
+        if ids == self._duck_chip_ids:
+            return
+        self._duck_chip_ids = ids
+        for w in self.duck_chips.winfo_children():
+            w.destroy()
+        chips = [Chip(self.duck_chips, c["name"], active=c["id"] in selected,
+                      command=lambda cid=c["id"]: self._toggle_duck_channel(cid)) for c in chans]
+        if chips:
+            self.root.update_idletasks()
+            _flow(self.duck_chips, chips, gap=6)
+
+    def _apply_duck(self, st):
+        conf = self._duck_conf()
+        if not self._held("duck:enabled"):
+            self.duck["enabled"].set(bool(conf.get("enabled")))
+        if not self._held("duck:amount_db"):
+            self.duck["amount"].set(str(conf.get("amount_db")))
+        if not self._held("duck:threshold_db"):
+            thr = int(conf.get("threshold_db") or -30)
+            self.duck["threshold"].set(thr)
+            self.duck_thr.set(f"{thr} dB")
+            self.duck_meter.set(threshold=thr)
+        if not self._held("duck:channels"):
+            self._fill_duck_chips(st.get("channels") or self._duck_channels_fallback(), conf.get("channels") or [])
+
+    def _tick_duck(self):
+        """Mikrofonpegel und Zustand des Auto-Duckings anzeigen (nur in der Ansicht Mikrofon)."""
+        if self.quitting:
+            return
+        try:
+            show = self.visible() and self.view == "mic"
+        except tk.TclError:
+            return
+        if show:
+            d = self.host.ducker
+            conf = self._duck_conf()
+            on = bool(conf.get("enabled"))
+            self.duck_meter.set(level=d.level if on else 0.0, ducking=d.ducking)
+            if not on:
+                text = _("Switched off")
+            elif not self.state.get("mixer_active"):
+                text = _("Works as soon as the mixer is set up.")
+            elif d.ducking:
+                text = _("You are speaking – channels are lowered.")
+            else:
+                text = _("Listening – speak to see the level reach the marker.")
+            self.duck_state.set(text)
+        self.root.after(DUCK_MS, self._tick_duck)
+
+
+    def _build_noise(self, parent):
+        """Karte Rauschunterdrückung (für das Mikrofon im Mixer, jedes Mikrofon)."""
+        card = Card(parent, pad=20, radius=16, stretch=True)
+        card.pack(fill="x", pady=(14, 0))
+        n = card.body
+        row = self._row(n, _("Noise suppression"), _("Filters out keyboard, fans and background noise"))
+        self.v["noise"] = Switch(row, command=self._on_noise)
+        self.v["noise"].pack(side="right")
+        self.noise_status = tk.StringVar(self.root, value="")
+        label(n, textvariable=self.noise_status, size=9, color=COL["muted"], wraplength=360,
+              justify="left").pack(anchor="w")
+        self.noise_strength = tk.Frame(n, bg=COL["panel"])
+        row = self._row(self.noise_strength, _("Strength"),
+                        _("Higher values mute everything that does not clearly sound like a voice"))
+        self.noise_val = tk.StringVar(self.root, value="")
+        label(row, textvariable=self.noise_val, color=COL["muted"], width=6).pack(side="right")
+        from .noise import MAX_STRENGTH
+        self.noise_fader = Fader(self.noise_strength, length=360, thickness=24, orient="horizontal", from_=0,
+                                 to=MAX_STRENGTH, color=CHANNEL_LOOK["mic"][1], command=self._on_noise_strength)
+        self.noise_fader.pack(anchor="w")
+
+    def _on_noise(self):
+        on = self.v["noise"].get()
+        self._touch("noise")
+        ns = self.mixer.noise
+
+        def work():
+            ns.set(enabled=on)
+            ns.apply()
+
+        def done(_res, err):
+            if err is None:
+                self.status(_("Noise suppression on") if on else _("Noise suppression off"))
+            self.refresh()
+        self.worker.submit(work, done)
+
+    def _on_noise_strength(self, value):
+        v = int(round(float(value)))
+        self.noise_val.set(f"{v} %")
+        self._debounced("noise_strength", self.mixer.noise.set_strength, v, delay=300)
+
+    def _apply_noise(self, ns):
+        """Schalter, Statuszeile und Stärke-Regler der Rauschunterdrückung."""
+        from . import noise
+        have = ns.get("available") or []
+        if not self._held("noise"):
+            self.v["noise"].set(bool(ns.get("enabled")))
+        self.v["noise"].set_enabled(bool(have) or bool(ns.get("enabled")))
+        backend = noise.backend_name(ns.get("backend"))
+        if not have:
+            text = ns.get("hint") or ""
+        elif not ns.get("enabled"):
+            text = _("Off – method: {backend}").format(backend=backend)
+        elif ns.get("running"):
+            text = _("Active: {backend}. The microphone channel in the mixer uses the filtered signal; in "
+                     "Discord/OBS you can also select “Linewave Microphone (noise suppression)”.").format(
+                backend=backend)
+        elif not self.state.get("mixer_active"):
+            text = _("Starts as soon as the mixer is set up ({backend}).").format(backend=backend)
+        else:
+            text = _("Could not start ({backend}).").format(backend=backend)
+        self.noise_status.set(text)
+        if ns.get("backend") == "rnnoise" and have:
+            if not self.noise_strength.winfo_manager():
+                self.noise_strength.pack(fill="x", pady=(4, 0))
+            if not self._held("noise_strength"):
+                self.noise_fader.set(ns.get("strength", 50))
+                self.noise_val.set(f"{ns.get('strength', 50)} %")
+        else:
+            self.noise_strength.pack_forget()
 
     def _on_gain(self, value):
         pct = int(round(float(value)))
@@ -1205,7 +1580,10 @@ class WaveWindow:
             for c in self.mixer.all_channels():
                 chain = self.mixer.fx.chain(c["id"])
                 on = [fx.get("name") or "FX" for fx in chain if fx.get("enabled", True)]
-                chans.append(dict(c, fx=len(on), fx_names=on, fx_total=len(chain)))
+                names = on
+                if c["id"] == "mic" and self.mixer.noise.enabled:  # Rauschunterdrückung vor den Effekten
+                    names = [_("Noise suppression")] + on
+                chans.append(dict(c, fx=len(on), fx_names=names, fx_total=len(chain)))
             st["channels"] = chans
             st["levels"] = self.mixer.levels()
             st["outputs"] = [(o["name"], o.get("description") or o["name"]) for o in self.mixer.outputs()]
@@ -1219,6 +1597,13 @@ class WaveWindow:
             if self.levels.available:
                 st["level_sources"] = levels.channel_sources(
                     self.mixer, chans, st["monitor_output"] or self.mixer.default_sink())
+        try:
+            st["scenes"] = self.mixer.scenes()
+            act = self.mixer.active_scene(st.get("levels")) if st["mixer_active"] else None
+            st["active_scene"] = act["id"] if act else None
+        except Exception:  # noqa: BLE001
+            st["scenes"], st["active_scene"] = [], None
+        st["shortcuts"] = shortcuts.registered()
         mic = self.mic.status()
         if mic.get("hardware"):
             mic["gain_pct"] = int(round(mic.get("gain", 0) * 2.5))
@@ -1231,6 +1616,10 @@ class WaveWindow:
         st["settings"] = dict(self.mic.settings)
         st["filter_running"] = self.mic.running()
         st["limiter"] = wavemic.limiter_available()
+        try:
+            st["noise"] = self.mixer.noise.status()
+        except Exception:  # noqa: BLE001
+            st["noise"] = {}
         return st
 
     def refresh(self):
@@ -1320,6 +1709,18 @@ class WaveWindow:
         if st.get("error"):
             self.status(st["error"])
 
+        # --- Szenen und Tastenkürzel
+        scenes = st.get("scenes") or []
+        active = next((x for x in scenes if x["id"] == st.get("active_scene")), None)
+        self.scene_btn.configure_text(text=active.get("name") if active else _("Scenes"))
+        dlg = getattr(self, "_scenes_dlg", None)
+        if dlg is not None and dlg.winfo_exists():
+            dlg.update_scenes(scenes, st.get("active_scene"), self._scene_keys(st))
+        mic_key = ((st.get("shortcuts") or {}).get(MIC_SHORTCUT) or {}).get("binding", "")
+        if not self.mic_shortcut.capturing and mic_key != self.mic_shortcut.binding:
+            self.mic_shortcut.set(mic_key)
+        self._apply_duck(st)
+
         # --- Mikrofon
         mic, cfg = st.get("mic") or {}, st.get("settings") or {}
         hw = bool(mic.get("hardware"))
@@ -1375,7 +1776,7 @@ class WaveWindow:
         if hw:
             self.no_hw.pack_forget()
             if not self.hw_frame.winfo_manager():
-                self.hw_frame.pack(anchor="nw")
+                self.hw_frame.pack(anchor="nw", fill="x")
             for key in ("leds_off", "leds_flip", "headphone_mute"):
                 if key in mic and not self._held(key):
                     self.v[key].set(bool(mic[key]))
@@ -1390,7 +1791,8 @@ class WaveWindow:
         else:
             self.hw_frame.pack_forget()
             if not self.no_hw.winfo_manager():
-                self.no_hw.pack(anchor="nw")
+                self.no_hw.pack(anchor="nw", fill="x")
+        self._apply_noise(st.get("noise") or {})
         self._update_header()
 
     def _build_fx_placeholder(self):

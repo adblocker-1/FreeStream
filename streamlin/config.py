@@ -1,5 +1,6 @@
 """Konfiguration (config.json) und Laufzeitzustand (state.json)."""
 import json
+import os
 import threading
 from copy import deepcopy
 
@@ -56,11 +57,21 @@ class Config:
         except OSError:
             return False
 
+    def has_secret(self) -> bool:
+        """True, wenn ein Zugangstoken (Home Assistant) in der Datei steht."""
+        ha = self.data.get("homeassistant")
+        return isinstance(ha, dict) and bool(ha.get("token"))
+
     def save(self) -> None:
         with self._lock:
             paths.ensure_dirs()
-            paths.CONFIG_FILE.write_text(json.dumps(self.data, indent=2, ensure_ascii=False), encoding="utf-8")
-            self.mtime = paths.CONFIG_FILE.stat().st_mtime
+            f = paths.CONFIG_FILE
+            if self.has_secret():
+                # nur für den Benutzer lesbar – vor dem Schreiben, damit der Token nie offen liegt
+                os.close(os.open(f, os.O_WRONLY | os.O_CREAT, 0o600))
+                os.chmod(f, 0o600)
+            f.write_text(json.dumps(self.data, indent=2, ensure_ascii=False), encoding="utf-8")
+            self.mtime = f.stat().st_mtime
 
     def get(self, key, default=None):
         return self.data.get(key, default)

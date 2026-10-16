@@ -19,10 +19,10 @@ KEY, DIAL = "key", "dial"
 
 @dataclass
 class Field:
-    kind: str            # text, multiline, int, bool, choice, file, hotkey, page, profile
+    kind: str            # text, multiline, int, bool, choice, file, hotkey, page, profile, entity
     key: str             # Schlüssel in "Settings" (bei hotkey: Index in "Hotkeys")
     label: str
-    options: list = None  # choice: [(Wert, Anzeige), ...]
+    options: list = None  # choice: [(Wert, Anzeige), ...] oder Funktion, die diese Liste liefert
     min: int = 0
     max: int = 100000
     hint: str = ""
@@ -185,6 +185,20 @@ _MIX_CHANNELS = [("system", _("System")), ("music", _("Music")), ("browser", _("
                  ("game", _("Game")), ("sfx", _("Effects")), ("mic", _("Microphone"))]
 _MIXES = [("both", _("Monitor and Stream Mix")), ("monitor", _("Monitor Mix only")), ("stream", _("Stream Mix only"))]
 _TOGGLE = [("toggle", _("toggle")), ("start", _("start")), ("stop", _("stop"))]
+# Feldart "entity": options = erlaubte Domains für die Auswahl (None = alle)
+HA_TOGGLE_DOMAINS = ["light", "switch", "fan", "cover", "input_boolean", "automation", "lock", "climate",
+                     "media_player", "siren", "humidifier", "input_number", "number", "button", "input_button"]
+
+
+def _scene_choices():
+    """Mixer-Szenen aus der Linewave-Konfiguration (für das Auswahlfeld im Editor)."""
+    try:
+        from .config import Config
+        scenes = [s for s in ((Config().get("mixer") or {}).get("scenes") or []) if isinstance(s, dict) and s.get("id")]
+    except Exception:  # noqa: BLE001
+        scenes = []
+    return [(s["id"], s.get("name") or s["id"]) for s in scenes] or [("", _("(no scenes saved in Linewave yet)"))]
+
 
 CATALOG += [
     # ------------------------------------------------------------- OBS
@@ -229,6 +243,28 @@ CATALOG += [
                               ("textchannel", _("Open text channel")), ("leave", _("Leave voice channel"))]),
                        Field("text", "channel_id", _("Channel ID (channel only)"))],
                description=_("Needs your own Discord app (see README)")),
+    # ---------------------------------------------------- Home Assistant
+    ActionType("com.lindeck.homeassistant.toggle", _("Toggle Entity"), "Home Assistant",
+               {"entity_id": "", "show_value": True, "step": 5}, states=2, controllers=(KEY, DIAL),
+               fields=[Field("entity", "entity_id", _("Entity"), HA_TOGGLE_DOMAINS),
+                       Field("bool", "show_value", _("Show brightness / position")),
+                       Field("int", "step", _("Dial step size (%)"), min=1, max=50)],
+               description=_("Switches a light, switch, fan, cover … (dial: brightness / temperature)")),
+    ActionType("com.lindeck.homeassistant.service", _("Call Service"), "Home Assistant",
+               {"service": "", "entity_id": "", "data": ""},
+               fields=[Field("text", "service", _("Service"), hint=_("e.g. light.turn_on")),
+                       Field("entity", "entity_id", _("Entity (optional)")),
+                       Field("multiline", "data", _("Service data (JSON, optional)"))],
+               description=_("Calls any Home Assistant service")),
+    ActionType("com.lindeck.homeassistant.scene", _("Scene / Script"), "Home Assistant", {"entity_id": ""},
+               fields=[Field("entity", "entity_id", _("Scene or script"), ["scene", "script"])],
+               description=_("Activates a scene or runs a script")),
+    ActionType("com.lindeck.homeassistant.state", _("Show State"), "Home Assistant",
+               {"entity_id": "", "attribute": "", "decimals": -1}, controllers=(KEY, DIAL),
+               fields=[Field("entity", "entity_id", _("Entity")),
+                       Field("text", "attribute", _("Attribute (empty = state)")),
+                       Field("int", "decimals", _("Decimal places (−1 = automatic)"), min=-1, max=6)],
+               description=_("Shows a sensor value with its unit, updated live")),
     # ------------------------------------------------------------- Mixer
     ActionType("com.lindeck.mixer.channel", _("Mixer Channel"), "Linewave",
                {"channel": "music", "mix": "both", "action": "mute", "step": 5}, controllers=(KEY, DIAL),
@@ -241,6 +277,9 @@ CATALOG += [
     ActionType("com.lindeck.mixer.output", _("Monitor Output"), "Linewave", {"device": ""},
                fields=[Field("text", "device", _("Device (empty = next)"))],
                description=_("Switches the Monitor Mix between headphones and speakers")),
+    ActionType("com.lindeck.mixer.scene", _("Mixer Scene"), "Linewave", {"scene": ""}, states=2,
+               fields=[Field("choice", "scene", _("Scene"), _scene_choices)],
+               description=_("Applies a mixer scene saved in Linewave and shows when it is active")),
     # -------------------------------------------------------- Wave-Mikro
     ActionType("com.lindeck.wavemic.control", _("Wave Microphone"), "Linewave", {"function": "mute", "step": 5},
                controllers=(KEY, DIAL),
@@ -251,6 +290,69 @@ CATALOG += [
                                                                ("ledsflip", _("Invert LEDs (Wave:3)"))]),
                        Field("int", "step", _("Gain step size (%)"), min=1, max=20)],
                description=_("Gain, mute, Low Cut, Clipguard, LEDs (dial: gain)")),
+]
+
+_COLORS = [("blue", _("Blue")), ("green", _("Green")), ("orange", _("Orange")), ("red", _("Red")),
+           ("purple", _("Purple")), ("teal", _("Turquoise")), ("white", _("White"))]
+_COLOR = Field("choice", "color", _("Accent color"), _COLORS)
+_GRAPH = Field("bool", "graph", _("Show graph"))
+CLOCK_CAT, SYSMON_CAT = _("Clock & timer"), _("System monitor")
+
+CATALOG += [
+    # -------------------------------------------------------- Uhr & Timer
+    ActionType("com.lindeck.clock.clock", _("Clock"), CLOCK_CAT,
+               {"hour24": True, "seconds": False, "show": "both", "date_format": "weekday", "timezone": "",
+                "color": "blue"}, controllers=(KEY, DIAL),
+               fields=[Field("choice", "show", _("Show"), [("both", _("Time and date")), ("time", _("Time only")),
+                                                          ("date", _("Date only"))]),
+                       Field("choice", "date_format", _("Date format"),
+                             [("weekday", _("Weekday and date")), ("dmy", "31.12.2026"), ("mdy", "12/31/2026"),
+                              ("iso", "2026-12-31")]),
+                       Field("bool", "hour24", _("24-hour format")), Field("bool", "seconds", _("Show seconds")),
+                       Field("text", "timezone", _("Time zone"), hint=_("e.g. Europe/Berlin (empty = local)")),
+                       _COLOR],
+               description=_("Shows the time and date, optionally in another time zone")),
+    ActionType("com.lindeck.clock.countdown", _("Countdown"), CLOCK_CAT,
+               {"duration": "5:00", "label": "", "play_sound": True, "sound": "", "volume": 100,
+                "repeat_sound": False, "notify": True, "dial_step": 30, "color": "orange"}, controllers=(KEY, DIAL),
+               fields=[Field("text", "duration", _("Duration"), hint=_("e.g. 5:00, 90s or 1h30m")),
+                       Field("text", "label", _("Label")), _COLOR,
+                       Field("bool", "play_sound", _("Sound at the end")),
+                       Field("bool", "notify", _("Notification at the end")),
+                       Field("file", "sound", _("Alarm sound"), hint=_("empty = default sound")),
+                       Field("int", "volume", _("Volume (%)"), min=0, max=100),
+                       Field("bool", "repeat_sound", _("Repeat sound")),
+                       Field("int", "dial_step", _("Dial step (seconds)"), min=1, max=3600)],
+               description=_("Press: start/pause · long press: reset · dial: change duration")),
+    ActionType("com.lindeck.clock.stopwatch", _("Stopwatch"), CLOCK_CAT, {"label": "", "color": "green"},
+               controllers=(KEY, DIAL), fields=[Field("text", "label", _("Label")), _COLOR],
+               description=_("Press: start/stop · long press: reset")),
+    # ------------------------------------------------------ Systemmonitor
+    ActionType("com.lindeck.sysmon.cpu", _("CPU Load"), SYSMON_CAT, {"graph": True, "color": "blue"},
+               controllers=(KEY, DIAL), fields=[_GRAPH, _COLOR], description=_("Processor load in percent")),
+    ActionType("com.lindeck.sysmon.memory", _("Memory"), SYSMON_CAT, {"graph": True, "color": "purple"},
+               controllers=(KEY, DIAL), fields=[_GRAPH, _COLOR], description=_("Used RAM in percent")),
+    ActionType("com.lindeck.sysmon.temperature", _("Temperature"), SYSMON_CAT,
+               {"graph": True, "unit": "c", "sensor": "", "color": "orange"}, controllers=(KEY, DIAL),
+               fields=[Field("choice", "unit", _("Unit"), [("c", "°C"), ("f", "°F")]), _GRAPH,
+                       Field("text", "sensor", _("Sensor"), hint=_("e.g. coretemp or k10temp (empty = automatic)")),
+                       _COLOR],
+               description=_("Temperature from the hardware sensors")),
+    ActionType("com.lindeck.sysmon.network", _("Network"), SYSMON_CAT,
+               {"interface": "", "graph": True, "color": "teal"}, controllers=(KEY, DIAL),
+               fields=[Field("text", "interface", _("Network interface"), hint=_("e.g. wlan0 (empty = all)")),
+                       _GRAPH, _COLOR],
+               description=_("Download and upload rate")),
+    ActionType("com.lindeck.sysmon.battery", _("Battery"), SYSMON_CAT, {"graph": False, "battery": "",
+                                                                         "color": "green"},
+               controllers=(KEY, DIAL),
+               fields=[_GRAPH, Field("text", "battery", _("Battery"), hint=_("e.g. BAT1 (empty = first)")), _COLOR],
+               description=_("Charge level and charging state")),
+    ActionType("com.lindeck.sysmon.disk", _("Disk Space"), SYSMON_CAT, {"path": "/", "graph": False,
+                                                                         "color": "blue"},
+               controllers=(KEY, DIAL),
+               fields=[Field("text", "path", _("Folder"), hint=_("e.g. / or /home")), _GRAPH, _COLOR],
+               description=_("Used space of a drive")),
 ]
 
 if not parts.has_linewave():  # Mixer und Wave-Mikrofon gibt es nur mit Linewave

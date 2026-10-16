@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageTk
 from . import actions as A
 from . import catalog as C
 from . import editdoc as E
-from . import parts, paths, render, theme
+from . import livekeys, parts, paths, render, theme
 from .i18n import _, ngettext
 from .models import MODELS, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
@@ -33,7 +33,8 @@ CATEGORY_LOOK = {
     _("System"): ("keyboard", "#64748b"), _("Navigation"): ("navigate", "#3b82f6"), "Stream Deck": ("grid", "#3b82f6"),
     "Multi Action": ("layers", "#8b5cf6"), "Soundboard": ("sfx", "#ec4899"), _("Audio"): ("speaker", "#22c55e"),
     "OBS Studio": ("record", "#ef4444"), _("Spotify & Media"): ("play", "#16a34a"), "Discord": ("chat", "#6366f1"),
-    "Linewave": ("wave", "#06b6d4"),
+    "Linewave": ("wave", "#06b6d4"), "Home Assistant": ("home", "#0ea5e9"),
+    C.CLOCK_CAT: ("clock", "#f97316"), C.SYSMON_CAT: ("gauge", "#14b8a6"),
 }
 # eigenes Symbol für einzelne Aktionen (sonst das der Kategorie)
 ACTION_GLYPH = {
@@ -48,7 +49,13 @@ ACTION_GLYPH = {
     "obs.audio": "mic", "obs.replay": "undo", "obs.virtualcam": "camera", "obs.studiomode": "grid",
     "obs.transition": "arrow", "obs.screenshot": "image", "media.player": "music", "discord.voice": "chat",
     "mixer.channel": "fx", "mixer.output": "headphones", "wavemic.control": "mic",
+    "clock.clock": "clock", "clock.countdown": "hourglass", "clock.stopwatch": "stopwatch", "sysmon.cpu": "cpu",
+    "sysmon.memory": "memory", "sysmon.temperature": "thermometer", "sysmon.network": "network",
+    "sysmon.battery": "battery", "sysmon.disk": "disk",
+    "homeassistant.toggle": "home", "homeassistant.service": "gear", "homeassistant.scene": "spark",
+    "homeassistant.state": "gauge",
 }
+theme.EXTRA_GLYPHS.update(livekeys.GLYPHS)  # selbst gezeichnete Symbole der Live-Tasten
 PLUGINS_CHIP = "plugins"
 
 
@@ -68,7 +75,7 @@ def action_look(uuid, cat):
 
 
 def chip_label(cat):
-    return {"OBS Studio": "OBS", _("Spotify & Media"): _("Media")}.get(cat, cat)
+    return {"OBS Studio": "OBS", _("Spotify & Media"): _("Media"), "Home Assistant": "Home"}.get(cat, cat)
 
 
 def profile_glyph(name):
@@ -1657,6 +1664,9 @@ class ActionForm:
                 theme.Button(f, _("Open folder"), icon="folder", command=lambda: self.app.open_folder(
                     (self.data.get("Settings") or {}).get("ProfileUUID"))).pack(anchor="w", pady=(0, 8))
                 shown = True
+            if self.data.get("UUID", "").startswith("com.lindeck.homeassistant."):
+                from . import hassui
+                hassui.connection_row(f, self.app)
             fields = self.type.fields_for(self.slot[0]) if self.type else []
             if fields:
                 self.build_fields(f, fields)
@@ -1726,7 +1736,8 @@ class ActionForm:
         grid.columnconfigure(3, weight=1)
         row = col = 0
         for fld in fields:
-            wide = fld.kind in ("multiline", "hotkey", "file", "profile") or (fld.kind == "text" and fld.hint)
+            wide = fld.kind in ("multiline", "hotkey", "file", "profile", "entity") or (
+                fld.kind == "text" and fld.hint)
             if wide and col:
                 row, col = row + 1, 0
             self.build_field(grid, row, fld, col=col, span=3 if wide else 1)
@@ -1908,7 +1919,9 @@ class ActionForm:
             var = tk.BooleanVar(value=bool(s.get(k)) if k in s else True if k == "bring_to_front" else False)
             ttk.Checkbutton(cell, variable=var, command=lambda: self._set(k, var.get())).pack(side="left")
         elif fld.kind == "choice":
-            vals = fld.options
+            vals = list(fld.options() if callable(fld.options) else fld.options)
+            if s.get(k) not in (None, "") and all(str(v) != str(s.get(k)) for v, _n in vals):
+                vals = [(s.get(k), str(s.get(k)))] + [(v, n) for v, n in vals if v != ""]  # z. B. gelöschte Szene
             box = ttk.Combobox(cell, state="readonly", width=28, values=[n for _v, n in vals])
             cur = s.get(k)
             idx = next((i for i, (v, _n) in enumerate(vals) if str(v) == str(cur)), 0)
@@ -1935,6 +1948,9 @@ class ActionForm:
             box.pack(side="left")
         elif fld.kind == "hotkey":
             HotkeyField(cell, self, int(k)).pack(side="left", fill="x", expand=True)
+        elif fld.kind == "entity":
+            from . import hassui
+            hassui.entity_field(cell, self, k, fld)
 
     def _browse(self, var):
         f = filedialog.askopenfilename(parent=self.app.root, title=_("Choose file"))

@@ -6,7 +6,7 @@ from tkinter import ttk
 
 from . import effects
 from .dialogkit import ScrollArea, entry, field, footer, header
-from .i18n import _
+from .i18n import _, ngettext
 from .theme import COL, Button, Card, Chip, Dialog, Fader, Icons, SoftSegmented, Switch, font, icon_tile, \
     label, rounded_rect
 
@@ -417,3 +417,203 @@ class PluginPicker(Dialog):
     def _pick(self, p):
         self.destroy()
         self.on_pick(p)
+
+
+# ================================================================ Tastenkürzel
+class ShortcutField(tk.Frame):
+    """Tastenkürzel festlegen: Feld zeigt die Tasten, „Festlegen“ nimmt sie auf, „Entfernen“ löscht sie.
+
+    on_set(binding) / on_remove() werden nach der Eingabe aufgerufen.
+    """
+
+    def __init__(self, master, binding="", on_set=None, on_remove=None, width=170):
+        from . import shortcuts
+        self._sc = shortcuts
+        bg = master.cget("bg")
+        super().__init__(master, bg=bg)
+        self.binding, self.on_set, self.on_remove = binding or "", on_set, on_remove
+        self.capturing, self.w, self.h = False, width, 32
+        self.icons = Icons(self)
+        self.f = font(self, 10, "bold")
+        self.fs = font(self, 9)
+        self.cv = tk.Canvas(self, width=width, height=self.h, bg=bg, highlightthickness=0, bd=0, cursor="hand2",
+                            takefocus=1)
+        self.cv.pack(side="left")
+        self.cv.bind("<Button-1>", lambda e: self.capture())
+        self.cv.bind("<KeyPress>", self._key)
+        self.cv.bind("<FocusOut>", lambda e: self._cancel())
+        self.set_btn = Button(self, _("Set"), command=self.capture)
+        self.set_btn.pack(side="left", padx=(8, 0))
+        self.rm_btn = Button(self, _("Remove"), kind="ghost", command=self._remove)
+        self.rm_btn.pack(side="left", padx=(4, 0))
+        self._draw()
+
+    def set(self, binding):
+        self.binding = binding or ""
+        self.capturing = False
+        self._draw()
+
+    def capture(self):
+        self.capturing = True
+        self.cv.focus_set()
+        self._draw()
+
+    def _cancel(self):
+        if self.capturing:
+            self.capturing = False
+            self._draw()
+
+    def _key(self, e):
+        if not self.capturing:
+            return None
+        if e.keysym == "Escape":
+            self._cancel()
+            return "break"
+        b = self._sc.from_tk(e.keysym, e.state)
+        if not b:
+            return "break"  # nur Modifier gedrückt oder Taste ohne Modifier
+        self.capturing = False
+        self.binding = b
+        self._draw()
+        if self.on_set:
+            self.on_set(b)
+        return "break"
+
+    def _remove(self):
+        if not self.binding:
+            return
+        self.binding = ""
+        self.capturing = False
+        self._draw()
+        if self.on_remove:
+            self.on_remove()
+
+    def _draw(self):
+        cv = self.cv
+        cv.delete("all")
+        w, h = self.w, self.h
+        rounded_rect(cv, 0, 0, w - 1, h - 1, 9, fill=COL["panel2"],
+                     outline=COL["accent"] if self.capturing else COL["border"])
+        if self.capturing:
+            text, fg, fnt = _("Press keys …"), COL["accent"], self.fs
+        elif self.binding:
+            text, fg, fnt = self._sc.label(self.binding), COL["fg"], self.f
+        else:
+            text, fg, fnt = _("Not set"), COL["faint"], self.fs
+        cv.create_image(16, h / 2, image=self.icons.get("keyboard", 15, COL["accent"] if self.capturing
+                                                         else COL["muted"]))
+        cv.create_text(32, h / 2, text=text, anchor="w", font=fnt, fill=fg)
+        self.rm_btn.configure_text(enabled=bool(self.binding))
+
+
+class ManualShortcutDialog(Dialog):
+    """Unbekannter Desktop: Befehl zum Kopieren, damit du ihn selbst als Tastenkürzel einträgst."""
+
+    def __init__(self, master, message, command):
+        super().__init__(master, _("Keyboard shortcut"), width=560)
+        header(self.body, _("Set up the shortcut in your desktop"), message, icon="keyboard", wrap=480)
+        self.var = tk.StringVar(self, value=command)
+        ent = entry(self.body, self.var, size=10)
+        ent.box.pack(fill="x")
+        ent.configure(state="readonly", readonlybackground=COL["panel2"])
+        footer(self)
+        Button(self.buttons, _("Close"), kind="primary", command=self.destroy).pack(side="right")
+        Button(self.buttons, _("Copy command"), command=self._copy).pack(side="left")
+        self.show()
+
+    def _copy(self):
+        self.clipboard_clear()
+        self.clipboard_append(self.var.get())
+
+
+# ================================================================ Mixer-Szenen
+class SceneNameDialog(Dialog):
+    """Szene speichern oder umbenennen: nur ein Name."""
+
+    def __init__(self, master, name="", on_save=None, rename=False):
+        title = _("Rename scene") if rename else _("Save scene")
+        super().__init__(master, title, width=460)
+        self.on_save = on_save
+        header(self.body, title, _("Saves the volume and mute state of every channel in both mixes.")
+               if not rename else "", icon="layers")
+        self.name = tk.StringVar(self, value=name)
+        field(self.body, _("Name"))
+        self.entry = entry(self.body, self.name)
+        self.entry.box.pack(fill="x")
+        self.error = label(self.body, "", 9, color=COL["danger"])
+        self.error.pack(anchor="w", pady=(8, 0))
+        footer(self)
+        Button(self.buttons, _("Save"), kind="primary", command=self._save).pack(side="right")
+        Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right", padx=8)
+        self.entry.focus_set()
+        self.entry.select_range(0, "end")
+        self.bind("<Return>", lambda e: self._save())
+        self.show()
+
+    def _save(self):
+        name = self.name.get().strip()
+        if not name:
+            self.error.configure(text=_("Please enter a name"))
+            return
+        self.destroy()
+        if self.on_save:
+            self.on_save(name)
+
+
+class ScenesDialog(Dialog):
+    """Mixer-Szenen verwalten: anwenden, Tastenkürzel, umbenennen, löschen, neue speichern.
+
+    actions: {"apply", "rename", "delete", "new", "shortcut"} -> Funktionen des Fensters.
+    """
+
+    def __init__(self, master, scenes, active, keys, actions):
+        super().__init__(master, _("Mixer scenes"), width=640, height=520)
+        self.actions = actions
+        self.icons = Icons(self)
+        header(self.body, _("Mixer scenes"), _("A scene remembers the volume and mute state of every channel. "
+                                               "Apply it with one click, a keyboard shortcut or a Stream Deck key."),
+               icon="layers", wrap=520)
+        self.area = ScrollArea(self.body)
+        self.area.pack(fill="both", expand=True)
+        footer(self)
+        Button(self.buttons, _("Done"), kind="primary", command=self.destroy).pack(side="right")
+        Button(self.buttons, _("Save current mix"), icon="plus", command=actions["new"]).pack(side="left")
+        self.update_scenes(scenes, active, keys)
+        self.show()
+
+    def update_scenes(self, scenes, active, keys):
+        """Liste neu aufbauen. keys: {Szenen-id: Tastenkürzel}."""
+        sig = (tuple((s["id"], s.get("name")) for s in scenes), active, tuple(sorted(keys.items())))
+        if sig == getattr(self, "_sig", None):
+            return
+        self._sig = sig
+        box = self.area.inner
+        for w in box.winfo_children():
+            w.destroy()
+        if not scenes:
+            label(box, _("No scenes yet. Set up the mixer the way you like it and save it as a scene."),
+                  color=COL["muted"], wraplength=520, justify="left").pack(anchor="w", pady=8)
+            return
+        for s in scenes:
+            on = s["id"] == active
+            card = Card(box, pad=12, radius=12, stretch=True, outline=COL["accent"] if on else None)
+            card.pack(fill="x", pady=(0, 8))
+            b = card.body
+            top = tk.Frame(b, bg=COL["panel"])
+            top.pack(fill="x")
+            tk.Label(top, image=icon_tile(top, "layers", 32, COL["accent"] if on else COL["faint"], radius=0.3),
+                     bg=COL["panel"]).pack(side="left")
+            txt = tk.Frame(top, bg=COL["panel"])
+            txt.pack(side="left", padx=12, fill="x", expand=True)
+            label(txt, s.get("name") or s["id"], 10, "bold").pack(anchor="w")
+            n = len(s.get("levels") or {})
+            label(txt, _("Active") if on else ngettext("{count} channel", "{count} channels", n).format(count=n), 9,
+                  color=COL["accent"] if on else COL["muted"]).pack(anchor="w")
+            Button(top, icon="trash", kind="ghost", command=lambda s=s: self.actions["delete"](s)).pack(side="right")
+            Button(top, icon="edit", kind="ghost", command=lambda s=s: self.actions["rename"](s)).pack(side="right")
+            Button(top, _("Apply"), command=lambda s=s: self.actions["apply"](s)).pack(side="right", padx=(0, 6))
+            row = tk.Frame(b, bg=COL["panel"])
+            row.pack(fill="x", pady=(10, 0))
+            label(row, _("Keyboard shortcut"), 9, color=COL["muted"]).pack(side="left", padx=(44, 12))
+            ShortcutField(row, keys.get(s["id"], ""), on_set=lambda bnd, s=s: self.actions["shortcut"](s, bnd),
+                          on_remove=lambda s=s: self.actions["shortcut"](s, None)).pack(side="left")

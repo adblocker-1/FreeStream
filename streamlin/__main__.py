@@ -365,6 +365,8 @@ def cmd_mixer(args):
             mx.remove_channel(args.args[0])
             _signal_wave_app()
             print(_("Channel deleted"))
+        elif args.action == "scene":
+            return _cmd_scene(mx, args.args)
         else:
             if not mx.is_active():
                 print(_("Mixer not set up – 'linewave mixer setup'"))
@@ -383,6 +385,53 @@ def cmd_mixer(args):
     return 0
 
 
+def _cmd_scene(mx, argv):
+    """linewave mixer scene list|save NAME|apply NAME|rename NAME NEW|delete NAME"""
+    sub = (argv[0] if argv else "list").lower()
+    rest = argv[1:]
+    if sub == "list":
+        scenes = mx.scenes()
+        if not scenes:
+            print(_("No scenes saved yet – 'linewave mixer scene save <name>'"))
+            return 0
+        try:
+            active = mx.active_scene()
+        except Exception:  # noqa: BLE001
+            active = None
+        for s in scenes:
+            mark = "*" if active and active["id"] == s["id"] else " "
+            print(f"{mark} {s['id']:<20} {s.get('name', '')}")
+        return 0
+    if sub not in ("save", "apply", "delete", "rename") or not rest or (sub == "rename" and len(rest) < 2):
+        print(_("Usage: linewave mixer scene list | save <name> | apply <name> | rename <name> <new name> | "
+                "delete <name>"))
+        return 1
+    if sub == "save":
+        s = mx.save_scene(" ".join(rest))
+        print(_("Scene “{name}” saved").format(name=s["name"]))
+    elif sub == "apply":
+        s = mx.apply_scene(" ".join(rest))
+        print(_("Scene “{name}” applied").format(name=s["name"]))
+    elif sub == "rename":
+        s = mx.rename_scene(rest[0], " ".join(rest[1:]))
+        print(_("Scene renamed to “{name}”").format(name=s["name"]))
+    else:
+        s = mx.delete_scene(" ".join(rest))
+        _remove_scene_shortcut(s["id"])
+        print(_("Scene “{name}” deleted").format(name=s["name"]))
+    _signal_wave_app()
+    return 0
+
+
+def _remove_scene_shortcut(scene_id):
+    """Tastenkürzel einer gelöschten Szene entfernen (nur eigene Einträge)."""
+    try:
+        from . import shortcuts
+        shortcuts.unregister("linewave-scene-" + scene_id)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _on_off(on):
     return pgettext("state", "on") if on else pgettext("state", "off")
 
@@ -391,11 +440,62 @@ def _muted_suffix(mute):
     return pgettext("state", " (muted)") if mute else ""
 
 
+ON_WORDS = ("on", "an", "1", "true", "ein")
+
+
+def cmd_noise(args):
+    """`linewave mic noise on|off|status|strength <0…95>|backend auto|rnnoise|webrtc`"""
+    from . import noise
+    from .config import Config
+    from .mixer import Mixer
+    ns = Mixer(Config()).noise
+    sub = (args.args[0] if args.args else "status").lower()
+    try:
+        if sub in ON_WORDS + ("off", "aus", "0", "false"):
+            on = sub in ON_WORDS
+            if on and not noise.available():
+                print(noise.install_hint())
+                return 1
+            ns.set(enabled=on)
+            ns.apply()
+        elif sub == "strength":
+            ns.set_strength(int(args.args[1]))
+        elif sub == "backend":
+            ns.set(backend=args.args[1].lower())
+            if ns.enabled:
+                ns.apply()
+        elif sub != "status":
+            print(_("Unknown command: {name}").format(name=sub))
+            return 1
+        st = ns.status()
+        if not st["enabled"]:
+            state = _on_off(False)
+        elif st["running"]:
+            state = _("on ({backend}, active)").format(backend=noise.backend_name(st["backend"]))
+        elif not st["available"]:
+            state = _("on – not available")
+        else:
+            state = _("on – starts as soon as the mixer is set up (linewave mixer setup)")
+        print(_("Noise suppression: {state}").format(state=state))
+        if st["available"]:
+            print(_("Available: {names}").format(names=", ".join(noise.backend_name(b) for b in st["available"])))
+            if (st["backend"] or "") == "rnnoise":
+                print(_("Strength: {value} % (VAD threshold)").format(value=st["strength"]))
+        else:
+            print(st["hint"])
+    except (RuntimeError, ValueError, IndexError) as e:
+        print(_("Error: {error}").format(error=e))
+        return 1
+    return 0
+
+
 def cmd_wave(args):
     from . import wavemic
     from .config import Config
+    if args.action == "noise":
+        return cmd_noise(args)
     mic = wavemic.WaveMic(Config())
-    on = (args.args[0] if args.args else "on").lower() in ("on", "an", "1", "true", "ein")
+    on = (args.args[0] if args.args else "on").lower() in ON_WORDS
     try:
         if args.action in ("lowcut", "clipguard"):
             if mic.hw():
@@ -426,7 +526,11 @@ def cmd_wave(args):
         elif args.action == "gain":
             mic.set_gain(int(args.args[0]))
         elif args.action == "mute":
-            mic.toggle_mute()
+            arg = (args.args[0] if args.args else "toggle").lower()
+            mode = "toggle" if arg == "toggle" else on
+            muted = mic.set_mute(mode)
+            if muted is not None:
+                print(_("Microphone muted") if muted else _("Microphone unmuted"))
         else:
             st = mic.status()
             if not st.get("source") and not st.get("hardware"):
@@ -498,6 +602,38 @@ def cmd_discord(args):
     return 0
 
 
+def cmd_homeassistant(args):
+    from . import hass
+    from .config import Config
+    c = hass.settings(Config())
+    if not c.get("url") or not c.get("token"):
+        print(_("Home Assistant is not set up yet. In the LinDeck window: choose a Home Assistant action → "
+                "“Connect …” (or config.json → homeassistant.url / homeassistant.token)."))
+        return 1
+    try:
+        info = hass.check_connection(c["url"], c["token"], c.get("verify_ssl", True) is not False)
+        if args.action == "test":
+            print(_("Connected to “{name}” (Home Assistant {version}).").format(
+                name=info.get("location_name") or "Home", version=info.get("version") or "?"))
+            return 0
+        cl = hass.HAClient(c["url"], c["token"], c.get("verify_ssl", True) is not False, timeout=10)
+        try:
+            states = cl.states()
+        finally:
+            cl.close()
+    except hass.HAError as e:
+        print(_("Error: {error}").format(error=e))
+        return 1
+    q = " ".join(args.filter).lower()
+    rows = sorted((s.get("entity_id", ""), hass.friendly_name(s, s.get("entity_id", "")), hass.format_state(s))
+                  for s in states if isinstance(s, dict))
+    rows = [r for r in rows if not q or q in r[0].lower() or q in r[1].lower()]
+    for eid, name, state in rows:
+        print(f"{eid:<40} {state:<14} {name}")
+    print(_("{shown} of {total} entities").format(shown=len(rows), total=len(states)))
+    return 0
+
+
 def cmd_selftest(args):
     from . import selftest
     from .daemon import Daemon
@@ -534,11 +670,76 @@ def _signal_daemon():
         return False
 
 
+def cmd_backup(args):
+    """Alle Benutzerdaten (Profile, Einstellungen, Plugins) in eine Datei sichern."""
+    from . import backup
+    dest = Path(args.file).expanduser() if args.file else Path.cwd() / backup.default_name()
+    if dest.is_dir():
+        dest = dest / backup.default_name()
+    try:
+        m = backup.create(dest, plugins=not args.no_plugins)
+    except backup.BackupError as e:
+        print(_("Error: {error}").format(error=e), file=sys.stderr)
+        return 1
+    for line in backup.describe(m):
+        print("  " + line)
+    print(_("Backup saved: {path}").format(path=m["path"]))
+    return 0
+
+
+def cmd_restore(args):
+    """Sicherung prüfen, Sicherheitskopie anlegen, Daten ersetzen, Programme neu starten."""
+    from . import backup
+    try:
+        m = backup.inspect(args.file)
+    except backup.BackupError as e:
+        print(_("Error: {error}").format(error=e), file=sys.stderr)
+        return 1
+    for line in backup.describe(m):
+        print("  " + line)
+    if not args.yes:
+        try:
+            ok = input(_("Replace your current profiles and settings with this backup? [y/N] ")).strip().lower()
+        except EOFError:
+            ok = ""
+        if not ok or ok[0] not in "yjos":  # yes, ja, oui, sí/sim
+            print(_("Cancelled. Nothing was changed."))
+            return 1
+    progs = backup.stop_programs()
+    try:
+        __, safety = backup.restore(args.file)
+    except backup.BackupError as e:
+        print(_("Error: {error}").format(error=e), file=sys.stderr)
+        backup.start_programs(progs)
+        return 1
+    backup.start_programs(progs)
+    if safety:
+        print(_("Your previous data was saved to {path}").format(path=safety))
+    print(_("Backup restored."))
+    return 0
+
+
+def cmd_support_report(args):
+    """Support-Bericht für ein GitHub-Issue schreiben."""
+    from . import support
+    try:
+        path = support.write_report(args.file, app=args.prog_name)
+    except OSError as e:
+        print(_("Could not create the support report: {error}").format(error=e), file=sys.stderr)
+        return 1
+    print(_("Support report saved: {path}").format(path=path))
+    print(_("Attach it to a new issue: {url}").format(url=support.ISSUE_URL))
+    return 0
+
+
 LINEWAVE_CMDS = ("mixer", "wave", "linewave", "wave-app")
+SHARED_CMDS = ("backup", "restore", "support-report")  # gehören zu beiden Programmen
 
 
 def _installed(cmd):
     """Gehört der Befehl zu einem Programm, das nicht installiert ist: Hinweis ausgeben."""
+    if cmd in SHARED_CMDS:
+        return True
     if cmd in LINEWAVE_CMDS:
         ok, program, package = parts.has_linewave(), "Linewave", "linewave"
     else:
@@ -615,18 +816,22 @@ def main(argv=None, prog="lindeck"):
     s = sub.add_parser("mixer", help=_("audio mixer (Wave Link replacement): status, setup, remove, set, mute, "
                                        "assign, output"))
     s.add_argument("action", nargs="?", default="status",
-                   choices=["status", "setup", "remove", "set", "mute", "assign", "output", "add", "delete"])
+                   choices=["status", "setup", "remove", "set", "mute", "assign", "output", "add", "delete",
+                            "scene"])
     s.add_argument("args", nargs="*", help=_("set <channel> <monitor|stream|both> <percent> · mute <channel> <mix> · "
                                              "assign <program> <channel> · output [device] · add <name> [input device] · "
                                              "delete <channel>"))
+    s.epilog = _("Scenes: scene list | save <name> | apply <name> | rename <name> <new name> | delete <name>")
     s.set_defaults(fn=cmd_mixer)
 
-    s = sub.add_parser("wave", help=_("Elgato Wave microphone: status, gain, mute, lowcut, clipguard, leds, flip, "
-                                      "headphone, monitor"))
+    s = sub.add_parser("wave", help=_("microphone: status, gain, mute, lowcut, clipguard, leds, flip, "
+                                      "headphone, monitor, noise"))
     s.add_argument("action", nargs="?", default="status",
-                   choices=["status", "gain", "mute", "lowcut", "clipguard", "leds", "flip", "headphone", "monitor"])
+                   choices=["status", "gain", "mute", "lowcut", "clipguard", "leds", "flip", "headphone", "monitor",
+                            "noise"])
     s.add_argument("args", nargs="*", help=_("gain <percent> · lowcut on|off [80|120] · clipguard on|off · "
-                                             "leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100>"))
+                                             "leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100> · "
+                                             "noise on|off|status|strength <0…95>|backend auto|rnnoise|webrtc"))
     s.set_defaults(fn=cmd_wave)
 
     s = sub.add_parser("linewave", aliases=["wave-app"], help=_("open Linewave: mixer and microphone (separate program)"))
@@ -641,6 +846,11 @@ def main(argv=None, prog="lindeck"):
     s = sub.add_parser("discord", help=_("connect to Discord (one-time authorization)"))
     s.set_defaults(fn=cmd_discord)
 
+    s = sub.add_parser("homeassistant", aliases=["ha"], help=_("Home Assistant: test the connection, list entities"))
+    s.add_argument("action", nargs="?", default="test", choices=["test", "entities"])
+    s.add_argument("filter", nargs="*", help=_("entities: only entities whose ID or name contains this text"))
+    s.set_defaults(fn=cmd_homeassistant)
+
     s = sub.add_parser("selftest", help=_("test connected Stream Decks step by step"))
     s.add_argument("--timeout", type=int, default=90, help=_("seconds per step"))
     s.add_argument("--stop-daemon", action="store_true", help=_("stop the running service for the test"))
@@ -649,6 +859,20 @@ def main(argv=None, prog="lindeck"):
 
     s = sub.add_parser("reload", help=_("reload the running service"))
     s.set_defaults(fn=cmd_reload)
+
+    s = sub.add_parser("backup", help=_("save all profiles, settings and plugins to one file"))
+    s.add_argument("file", nargs="?", help=_("target file or folder (default: streamlin-DATE.streamlin-backup)"))
+    s.add_argument("--no-plugins", action="store_true", help=_("do not include installed plugins"))
+    s.set_defaults(fn=cmd_backup)
+
+    s = sub.add_parser("restore", help=_("restore a backup (replaces profiles and settings)"))
+    s.add_argument("file", help=_("backup file (.streamlin-backup)"))
+    s.add_argument("--yes", action="store_true", help=_("do not ask for confirmation"))
+    s.set_defaults(fn=cmd_restore)
+
+    s = sub.add_parser("support-report", help=_("create a support report for a GitHub issue (secrets removed)"))
+    s.add_argument("file", nargs="?", help=_("file or folder for the report (default: home folder)"))
+    s.set_defaults(fn=cmd_support_report, prog_name="Linewave" if prog == "linewave" else "LinDeck")
 
     args = ap.parse_args(argv)
     _setup_logging(args.verbose)
@@ -663,7 +887,7 @@ def wave_main(argv=None):
     """Einstieg für `linewave`: ohne Befehl Fenster öffnen; `linewave mixer …`, `linewave mic …`."""
     argv = list(sys.argv[1:] if argv is None else argv)
     cmd = next((a for a in argv if not a.startswith("-")), "")
-    if cmd in ("mixer", "mic", "wave"):
+    if cmd in ("mixer", "mic", "wave") + SHARED_CMDS:
         i = argv.index(cmd)
         argv[i] = "wave" if cmd == "mic" else cmd
         return main(argv, prog="linewave")

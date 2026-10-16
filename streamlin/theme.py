@@ -242,9 +242,14 @@ def font(root, size=10, weight="normal"):
 
 
 # ===================================================================== Symbole
+EXTRA_GLYPHS = {}  # Name -> fn(size, color) -> RGBA-Bild (von Programmteilen eingetragen)
+
+
 def glyph(name, size=20, color=None, bg=None, circle=None):
     """Symbol als RGBA-Bild. circle: Hintergrundkreis in dieser Farbe."""
     color = color or COL["fg"]
+    if name in EXTRA_GLYPHS and not bg and not circle:
+        return EXTRA_GLYPHS[name](size, color)
     k = 4
     S = size * k
     im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
@@ -479,6 +484,13 @@ def glyph(name, size=20, color=None, bg=None, circle=None):
         for gy in (0.08, 0.54):
             for gx in (0.08, 0.54):
                 rect(gx, gy, gx + 0.38, gy + 0.38, r=0.12)
+    elif n == "home":
+        d.polygon([P(0.5, 0.04), P(0.96, 0.46), P(0.84, 0.46), P(0.84, 0.94), P(0.58, 0.94), P(0.58, 0.64),
+                   P(0.42, 0.64), P(0.42, 0.94), P(0.16, 0.94), P(0.16, 0.46), P(0.04, 0.46)], fill=c)
+    elif n == "gauge":
+        arc(0.04, 0.14, 0.96, 1.06, 180, 360)
+        line((0.5, 0.6), (0.76, 0.3))
+        ell(0.4, 0.5, 0.6, 0.7)
     else:  # Punkt als Ersatz
         ell(0.3, 0.3, 0.7, 0.7)
     return im.resize((size, size), Image.LANCZOS)

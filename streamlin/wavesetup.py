@@ -19,7 +19,7 @@ import tkinter as tk
 import wave
 from tkinter import font as tkfont
 
-from . import effects, paths, wavemic
+from . import effects, noise, paths, wavemic
 from .dialogkit import field
 from .i18n import _
 from .mixer import DEFAULT_CHANNELS
@@ -345,17 +345,24 @@ class SetupWizard(tk.Toplevel):
         field(self.body, _("RECOMMENDED EFFECTS"), pady=(14, 6))
         fx = Card(self.body, pad=14, stretch=True)
         fx.pack(fill="x")
+        # Rauschunterdrückung: eigene Stufe vor den Effekten (noise.py, RNNoise oder PipeWire WebRTC)
+        have = self.data.get("noise") or []
+        var = self.fx_choice.setdefault("noise", tk.BooleanVar(self, value=bool(have)))
+        if have:
+            text = _("Filters out keyboard, fans and background noise ({backend})").format(
+                backend=noise.backend_name(have[0]))
+        else:
+            var.set(False)
+            text = noise.install_hint()
+        row(fx.body, _("Noise suppression"), text, var, enabled=bool(have))
         for key, label_, title, text in (
-                ("noise_suppressor_mono", "noise", _("Noise suppression"),
-                 _("Filters out keyboard, fans and background noise (RNNoise)")),
                 ("gate", "gate", _("Noise Gate"), _("Mutes the microphone while you pause speaking")),
                 ("sc4m", "comp", _("Compressor"), _("Evens out loud and quiet passages"))):
             p = self._plugin(key)
             var = self.fx_choice.setdefault(key, tk.BooleanVar(self, value=bool(p) and key != "sc4m"))
             if not p:
                 var.set(False)
-                pkg = "noise-suppression-for-voice" if key.startswith("noise") else "swh-plugins"
-                text = _("{text} – package “{package}” is missing").format(text=text, package=pkg)
+                text = _("{text} – package “{package}” is missing").format(text=text, package="swh-plugins")
             row(fx.body, title, text, var, enabled=bool(p))
 
     def _step_4(self):
@@ -460,7 +467,7 @@ class SetupWizard(tk.Toplevel):
         wave3 = bool(self.data.get("wave3")) and is_wave(self.mic.get())
         if self.lowcut.get() and not wave3:
             chain.append(effects.new_effect(effects.lookup("builtin:highpass")))
-        for key in ("noise_suppressor_mono", "gate", "sc4m"):
+        for key in ("gate", "sc4m"):
             p = self._plugin(key)
             if p and self.fx_choice.get(key) and self.fx_choice[key].get():
                 chain.append(effects.new_effect(p))
@@ -470,7 +477,9 @@ class SetupWizard(tk.Toplevel):
         return {"mic": self.mic.get(), "output": self.out.get(), "wave3": wave3,
                 "lowcut": self.lowcut.get(), "clipguard": self.clipguard.get(),
                 "gain": self.gain.get() if wave3 and hasattr(self, "gain") else None,
-                "channels": [cid for cid, v in self.channels.items() if v.get()], "mic_fx": chain}
+                "channels": [cid for cid, v in self.channels.items() if v.get()], "mic_fx": chain,
+                "noise": bool(self.data.get("noise")) and bool(self.fx_choice.get("noise") and
+                                                               self.fx_choice["noise"].get())}
 
     def apply(self):
         ch = self.choices()
@@ -509,6 +518,8 @@ def apply_choices(host, ch):
         fx["mic"] = ch["mic_fx"]
     else:
         fx.pop("mic", None)
+    if "noise" in ch:
+        mx.setdefault("noise", {})["enabled"] = bool(ch["noise"])
     cfg.data.setdefault("linewave", {})["setup_done"] = True
     cfg.save()
     mic = host.mic
@@ -536,7 +547,7 @@ def collect(host):
     """Daten für den Assistenten (Geräte, Standardgeräte, Plugins) – im Arbeits-Thread."""
     mx = host.mixer
     out = {"inputs": mx.inputs(), "outputs": [(o["name"], o.get("description") or o["name"]) for o in mx.outputs()],
-           "catalog": effects.catalog(), "wave3": bool(host.mic.hw())}
+           "catalog": effects.catalog(), "wave3": bool(host.mic.hw()), "noise": noise.available()}
     for key, fn in (("default_source", mx.default_source), ("default_sink", mx.default_sink)):
         try:
             v = fn()

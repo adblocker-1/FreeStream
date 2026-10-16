@@ -14,6 +14,9 @@ Tasten auf dem Stream Deck (Mixer, Wave-Mikrofon) funktionieren auch ohne
 Linewave – sie stellen PipeWire bzw. das Mikrofon direkt. Ändert die
 Stream-Deck-App Low Cut/Clipguard, lädt Linewave die Einstellungen neu
 (Signal SIGHUP).
+
+Außerdem läuft hier das Auto-Ducking (ducking.py) als eigener Thread: Kanäle
+werden leiser, solange das Mikrofon spricht.
 """
 import logging
 import os
@@ -21,7 +24,7 @@ import signal
 import threading
 import time
 
-from . import desktop, wavemic
+from . import desktop, ducking, wavemic
 from .i18n import _
 from .mixer import Mixer
 
@@ -60,6 +63,7 @@ class WaveHost:
         self.mic.cfg = cfg
         self.mixer = Mixer(cfg)
         self.mic_service = wavemic.WaveMicService(self)
+        self.ducker = ducking.Ducker(self.mixer, cfg)
         self.running = True
         self.error = ""
         self._reload = threading.Event()
@@ -73,6 +77,8 @@ class WaveHost:
             try:
                 if not self.mixer.is_active():
                     self.mixer.setup()
+                else:  # Mixer lief schon: beendete Effekte/Rauschunterdrückung wieder anwerfen
+                    self._watch_effects(force=True)
             except Exception as e:  # noqa: BLE001
                 self.error = _("Mixer: {error}").format(error=e)
                 log.warning(_("Mixer not set up: {error}").format(error=e))
@@ -80,6 +86,7 @@ class WaveHost:
             self.mic_service.start()
         except Exception as e:  # noqa: BLE001
             log.warning(_("Wave microphone: {error}").format(error=e))
+        self.ducker.start()
 
     def request_reload(self):
         self._reload.set()
@@ -105,10 +112,10 @@ class WaveHost:
             log.debug(_("Wave microphone: {error}").format(error=e))
         self._watch_effects()
 
-    def _watch_effects(self):
-        """Abgestürzte Effektketten neu starten (alle 10 s)."""
+    def _watch_effects(self, force=False):
+        """Abgestürzte Effektketten und Rauschunterdrückung neu starten (alle 10 s)."""
         now = time.time()
-        if now - getattr(self, "_fx_check", 0) < 10 or not self.mixer_enabled:
+        if (not force and now - getattr(self, "_fx_check", 0) < 10) or not self.mixer_enabled:
             return
         self._fx_check = now
         try:
@@ -118,6 +125,12 @@ class WaveHost:
                 if self.mixer.fx.active(c["id"]) and not self.mixer.fx.running(c["id"]):
                     log.info(_("Restarting effects for {name}").format(name=c["name"]))
                     self.mixer.rebuild_channel(c["id"])
+            ns = self.mixer.noise
+            if ns.enabled and ns.backend() and not ns.running():
+                log.info(_("Restarting noise suppression"))
+                self.mixer.rebuild_channel("mic")
+            elif not ns.enabled and ns.running():  # in config.json ausgeschaltet
+                self.mixer.rebuild_channel("mic")
         except Exception as e:  # noqa: BLE001
             log.debug(_("Effects: {error}").format(error=e))
 
@@ -133,6 +146,7 @@ class WaveHost:
         self.running = False
 
     def cleanup(self):
+        self.ducker.stop()
         try:
             self.mic_service.stop()
         except Exception:  # noqa: BLE001
@@ -145,6 +159,7 @@ class WaveHost:
         if on:
             self.mixer.setup()
         else:
+            self.ducker.restore()
             self.mixer.teardown()
         self.error = ""
 
