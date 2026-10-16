@@ -58,11 +58,47 @@ KNOWN_APPS = {
 }
 
 
+FLATPAK_INFO = "/.flatpak-info"
+OWN_COMMANDS = ("lindeck", "linewave")
+
+
+def in_flatpak():
+    """Läuft Streamlin im Flatpak (Sandbox)?"""
+    return os.path.exists(FLATPAK_INFO)
+
+
+def host_cmd(cmd, shell=False):
+    """Im Flatpak starten Programme auf dem System (flatpak-spawn --host); sonst unverändert.
+
+    Eigene Befehle (lindeck, linewave, /app/…) bleiben in der Sandbox.
+    """
+    if not in_flatpak():
+        return cmd
+    if shell:
+        return ["flatpak-spawn", "--host", "sh", "-c", cmd]
+    if not cmd or cmd[0] in OWN_COMMANDS or str(cmd[0]).startswith("/app/"):
+        return cmd
+    return ["flatpak-spawn", "--host", *cmd]
+
+
+def _host_has(exe):
+    """Im Flatpak: gibt es das Programm auf dem System (über /run/host)?"""
+    if not in_flatpak():
+        return False
+    if exe == "flatpak":
+        return True
+    if exe.startswith("/"):
+        return os.path.exists(f"/run/host{exe}")
+    return any(os.path.exists(f"/run/host{d}/{exe}") for d in ("/usr/bin", "/usr/local/bin", "/bin"))
+
+
 def run_bg(cmd, shell=False):
     """Startet einen Prozess losgelöst im Hintergrund."""
     try:
         if isinstance(cmd, str) and not shell:
             cmd = shlex.split(os.path.expanduser(cmd))
+        if in_flatpak():
+            cmd, shell = host_cmd(cmd, shell), False
         subprocess.Popen(cmd, shell=shell, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, start_new_session=True)
         return True
@@ -86,7 +122,7 @@ def have(cmd):
 def first_available(cands):
     for c in cands:
         exe = shlex.split(os.path.expanduser(c))[0]
-        if exe == "xdg-open" or have(exe) or Path(exe).exists():
+        if exe == "xdg-open" or have(exe) or Path(exe).exists() or _host_has(exe):
             return c
     return None
 
@@ -105,6 +141,8 @@ def desktop_entries():
             "/usr/local/share/applications", "/var/lib/flatpak/exports/share/applications",
             os.path.expanduser("~/.local/share/flatpak/exports/share/applications"),
             "/var/lib/snapd/desktop/applications"]
+    if in_flatpak():  # Programme des Systems (Freigabe host-os)
+        dirs += ["/run/host/usr/share/applications", "/run/host/usr/local/share/applications"]
     entries = []
     for d in dirs:
         for f in glob.glob(os.path.join(d, "*.desktop")):
@@ -140,6 +178,8 @@ def find_desktop(name):
 
 
 def launch_desktop(entry):
+    if in_flatpak():  # gtk-launch/gio der Sandbox kennen die Programme des Systems nicht
+        return run_bg(re.sub(r"%[fFuUdDnNickvm]", "", entry["exec"]).strip())
     if have("gtk-launch"):
         return run_bg(["gtk-launch", entry["id"]])
     if have("gio"):
