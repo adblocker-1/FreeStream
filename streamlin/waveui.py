@@ -415,6 +415,7 @@ class WaveWindow:
         self._pending = {}
         self._timers = {}
         self._refreshing = False
+        self._refresh_again = False
         self._last_refresh = 0.0
         self.state = {}
         self.strips = {}
@@ -1874,14 +1875,18 @@ class WaveWindow:
 
     def refresh(self):
         if self._refreshing:
+            self._refresh_again = True  # läuft schon: danach gleich noch einmal (Zustand könnte veraltet sein)
             return
         self._refreshing = True
+        self._refresh_again = False
 
         def done(st, err):
             self._refreshing = False
             self._last_refresh = time.time()
             if err is None and st is not None:
                 self.apply_state(st)
+            if self._refresh_again:
+                self.refresh()
         self.worker.submit(self.collect, done)
 
     def _channel_sub(self, ch, apps, st):
@@ -1905,7 +1910,8 @@ class WaveWindow:
             ids = (tuple((c["id"], c["name"], c.get("icon"), c.get("color"), c.get("kind")) for c in st["channels"]),
                    tuple((m["id"], m["name"], m.get("icon"), m.get("color"), tuple(m.get("exclude") or []),
                           bool(m.get("can_listen"))) for m in mixes))
-            if ids != self._strip_ids and not self._held("member"):
+            # _strip_ids None = Neuaufbau verlangt (z. B. neuer Mix); sonst nicht, solange eine Zuordnung läuft
+            if ids != self._strip_ids and (self._strip_ids is None or not self._held("member")):
                 self._strip_ids = ids
                 self._build_table(st["channels"], mixes)
             if ids[1] != self._mix_card_ids:
