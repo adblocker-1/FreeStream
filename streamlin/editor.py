@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageTk
 from . import actions as A
 from . import catalog as C
 from . import editdoc as E
-from . import livekeys, parts, paths, render, theme
+from . import livekeys, paths, render, theme
 from .i18n import _, ngettext
 from .models import MODELS, connected_models, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
@@ -506,19 +506,6 @@ class EditorApp:
             n = ""
         self.plugins_item.set(count=n if n else "")
 
-    def open_wave(self):
-        """Das zweite Programm „Linewave“ (Mixer + Mikrofon) öffnen."""
-        import shutil
-        import subprocess
-        import sys
-        cmd = [shutil.which("linewave")] if shutil.which("linewave") else [sys.executable, "-m", "streamlin",
-                                                                                   "linewave"]
-        try:
-            subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                             start_new_session=True)
-        except OSError as e:
-            messagebox.showerror("Linewave", _("Could not start Linewave: {error}").format(error=e), parent=self.root)
-
     def _restart(self):
         theme.restart_later("streamlin")
         self.quit_app()
@@ -572,8 +559,6 @@ class EditorApp:
         b.pack(fill="x")
         self.plugins_item = theme.NavItem(b, _("Plugins"), "puzzle", command=self.open_plugins)
         self.plugins_item.pack(fill="x")
-        if parts.has_linewave():
-            theme.NavItem(b, _("Open Linewave"), "wave", command=self.open_wave).pack(fill="x", pady=(2, 0))
         self.settings_item = theme.NavItem(b, _("Settings"), "gear", command=self.open_settings)
         self.settings_item.pack(fill="x", pady=(2, 4))
         self._update_plugin_count()
@@ -589,13 +574,10 @@ class EditorApp:
         self.title_lbl.pack(anchor="w", pady=(10, 0))
         self.sub_lbl = theme.label(txt, "", 9, color=COL["muted"], anchor="w")
         self.sub_lbl.pack(anchor="w")
-        more = theme.Button(head, icon="more")
-        more.command = self._more_menu
-        self.more_btn = more
-        more.pack(side="right", padx=(8, 0))
-        self.btn["exp"] = theme.Button(head, _("Export"), command=self.export_profile)
+        # kein „…“-Menü: alles hat seinen Platz in der Seitenleiste oder hier oben
+        self.btn["exp"] = theme.Button(head, _("Export"), "export", command=self.export_profile)
         self.btn["exp"].pack(side="right", padx=(8, 0))
-        self.btn["imp"] = theme.Button(head, _("Import"), command=self.import_profiles)
+        self.btn["imp"] = theme.Button(head, _("Import"), "import", command=self.import_profiles)
         self.btn["imp"].pack(side="right", padx=(8, 0))
         self.btn["redo"] = theme.Button(head, icon="redo", command=self.redo)
         self.btn["redo"].pack(side="right", padx=(8, 0))
@@ -604,26 +586,6 @@ class EditorApp:
         for b in head.winfo_children():
             if isinstance(b, theme.Button):
                 b.pack_configure(pady=16)
-
-    def _more_menu(self):
-        """„…“ oben rechts: Menü im LinDeck-Design."""
-        on = self.doc is not None
-        m = theme.PopupMenu(self.root)
-        m.add(_("New profile"), self.new_profile, icon="plus")
-        m.add(_("Import…"), self.import_profiles, icon="import")
-        m.add(_("Export…"), self.export_profile if on else None, icon="export")
-        m.separator()
-        m.add(_("Background"), self.open_background if on else None, icon="image")
-        m.add(_("Plugins"), self.open_plugins, icon="puzzle")
-        if parts.has_linewave():
-            m.add(_("Open Linewave"), self.open_wave, icon="wave")
-        m.add(_("Settings"), self.open_settings, icon="gear")
-        m.separator()
-        if self.daemon is not None:
-            m.add(_("Close window"), self.hide, icon="close")
-        m.add(_("Quit"), self.quit_app, icon="arrow")
-        m.below(self.more_btn, right=True)
-        return m
 
     def _profile_context(self, pid, x, y):
         """Rechtsklick auf ein Profil in der Seitenleiste."""

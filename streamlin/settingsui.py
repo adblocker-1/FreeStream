@@ -15,7 +15,7 @@ from .i18n import _
 from .theme import COL, Button, Card, Dialog, Switch, choose_language, label, mode_switch
 
 
-def open_settings(master, app, restart):
+def open_settings(master, app, restart, mixer=None):
     """Fenster öffnen; ist es schon offen, nach vorne holen."""
     top = master.winfo_toplevel()
     dlg = getattr(top, "_settings_dialog", None)
@@ -24,12 +24,13 @@ def open_settings(master, app, restart):
         dlg.lift()
         dlg.focus_force()
         return dlg
-    top._settings_dialog = SettingsDialog(master, app, restart)
+    top._settings_dialog = SettingsDialog(master, app, restart, mixer=mixer)
     return top._settings_dialog
 
 
 class SettingsDialog(Dialog):
-    def __init__(self, master, app, restart):
+    def __init__(self, master, app, restart, mixer=None):
+        """mixer: (eingerichtet, enable(bool)) – nur in Linewave: Mixer einrichten/entfernen."""
         super().__init__(master, _("Settings"), width=500)
         self.app, self.restart = app, restart
         self._outer = self.body
@@ -55,6 +56,18 @@ class SettingsDialog(Dialog):
         self.language_box = ttk.Combobox(card, textvariable=self.language, values=names, state="readonly")
         self.language_box.pack(fill="x")
         self.language_box.bind("<<ComboboxSelected>>", self._language)
+
+        # ---------------------------------------------------------- Mixer (Linewave)
+        if mixer is not None:
+            active, enable = mixer
+            card = self._card(_("Mixer"))
+            label(card, (_("Remove mixer: the Linewave channels and mixes disappear, apps play directly on your "
+                           "device again. Your settings are kept.") if active else
+                         _("The mixer is off. Set it up to give every app its own channel.")), 9,
+                  color=COL["muted"], wraplength=420, justify="left").pack(anchor="w")
+            Button(card, _("Remove mixer") if active else _("Set up mixer"), icon="close" if active else "wave",
+                   kind="danger" if active else "primary", height=30,
+                   command=lambda: (self.destroy(), enable(not active))).pack(anchor="w", pady=(10, 0))
 
         # ---------------------------------------------------------- Updates
         card = self._card(_("Updates"))

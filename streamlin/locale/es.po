@@ -37,7 +37,7 @@ msgstr " (silenciado)"
 msgid "Reloaded"
 msgstr "Recargado"
 
-#: streamlin/__main__.py:725 streamlin/settingsui.py:267
+#: streamlin/__main__.py:725 streamlin/settingsui.py:280
 msgid "Backup restored."
 msgstr "Copia de seguridad restaurada."
 
@@ -261,7 +261,7 @@ msgstr "archivo o carpeta para el informe (predeterminado: carpeta personal)"
 msgid "Linewave is not running"
 msgstr "Linewave no se está ejecutando"
 
-#: streamlin/__main__.py:92 streamlin/editor.py:763 streamlin/editor.py:1055
+#: streamlin/__main__.py:92 streamlin/editor.py:725 streamlin/editor.py:1017
 #, python-brace-format
 msgid "{n} page"
 msgid_plural "{n} pages"
@@ -328,7 +328,7 @@ msgstr "{shown} de {total} entidades"
 msgid "The LinDeck service is running and is using the device. With --stop-daemon it is stopped for the test and restarted afterwards."
 msgstr "El servicio de LinDeck se está ejecutando y usa el dispositivo. Con --stop-daemon se detiene para la prueba y se reinicia después."
 
-#: streamlin/__main__.py:693 streamlin/settingsui.py:220
+#: streamlin/__main__.py:693 streamlin/settingsui.py:233
 #, python-brace-format
 msgid "Backup saved: {path}"
 msgstr "Copia de seguridad guardada: {path}"
@@ -337,7 +337,7 @@ msgstr "Copia de seguridad guardada: {path}"
 msgid "Cancelled. Nothing was changed."
 msgstr "Cancelado. No se cambió nada."
 
-#: streamlin/__main__.py:737 streamlin/settingsui.py:305
+#: streamlin/__main__.py:737 streamlin/settingsui.py:318
 #, python-brace-format
 msgid "Support report saved: {path}"
 msgstr "Informe de soporte guardado: {path}"
@@ -379,11 +379,11 @@ msgstr "Acciones de plugin no compatibles: {count}"
 msgid "cannot start: {reason}"
 msgstr "no se puede iniciar: {reason}"
 
-#: streamlin/__main__.py:332 streamlin/waveui.py:817
+#: streamlin/__main__.py:332 streamlin/waveui.py:776
 msgid "Mixer removed"
 msgstr "Mezclador eliminado"
 
-#: streamlin/__main__.py:418 streamlin/waveui.py:1289
+#: streamlin/__main__.py:418 streamlin/waveui.py:1248
 #, python-brace-format
 msgid "Scene “{name}” saved"
 msgstr "Escena «{name}» guardada"
@@ -415,7 +415,7 @@ msgstr "Sin conexión con OBS: {error}"
 msgid "Connected. Microphone {mic}, sound {sound}"
 msgstr "Conectado. Micrófono {mic}, sonido {sound}"
 
-#: streamlin/__main__.py:724 streamlin/settingsui.py:269
+#: streamlin/__main__.py:724 streamlin/settingsui.py:282
 #, python-brace-format
 msgid "Your previous data was saved to {path}"
 msgstr "Tus datos anteriores se guardaron en {path}"
@@ -440,7 +440,7 @@ msgstr "N.º de serie {serial}  FW {firmware}"
 msgid "Error: {error}"
 msgstr "Error: {error}"
 
-#: streamlin/__main__.py:421 streamlin/waveui.py:1282
+#: streamlin/__main__.py:421 streamlin/waveui.py:1241
 #, python-brace-format
 msgid "Scene “{name}” applied"
 msgstr "Escena «{name}» aplicada"
@@ -469,7 +469,7 @@ msgstr "silenciado"
 msgid "Connected to “{name}” (Home Assistant {version})."
 msgstr "Conectado a «{name}» (Home Assistant {version})."
 
-#: streamlin/__main__.py:735 streamlin/settingsui.py:302
+#: streamlin/__main__.py:735 streamlin/settingsui.py:315
 #, python-brace-format
 msgid "Could not create the support report: {error}"
 msgstr "No se pudo crear el informe de soporte: {error}"
@@ -494,12 +494,12 @@ msgstr "Instalado: {name} ({uuid})"
 msgid "Installed: {name} ({uuid}) – does not start: {reason}"
 msgstr "Instalado: {name} ({uuid}) – no se inicia: {reason}"
 
-#: streamlin/__main__.py:424 streamlin/waveui.py:1300
+#: streamlin/__main__.py:424 streamlin/waveui.py:1259
 #, python-brace-format
 msgid "Scene renamed to “{name}”"
 msgstr "Escena renombrada a «{name}»"
 
-#: streamlin/__main__.py:428 streamlin/waveui.py:1312
+#: streamlin/__main__.py:428 streamlin/waveui.py:1271
 #, python-brace-format
 msgid "Scene “{name}” deleted"
 msgstr "Escena «{name}» eliminada"
@@ -640,7 +640,7 @@ msgstr "activado (software)"
 msgid "Mixer not set up – 'linewave mixer setup'"
 msgstr "Mezclador no configurado – 'linewave mixer setup'"
 
-#: streamlin/__main__.py:375 streamlin/waveui.py:1004
+#: streamlin/__main__.py:375 streamlin/waveui.py:963
 #, python-brace-format
 msgid "Listening to “{mix}”"
 msgstr "Escuchando «{mix}»"
@@ -666,7 +666,7 @@ msgstr "Micrófono"
 msgid "Volume"
 msgstr "Volumen"
 
-#: streamlin/actions.py:384 streamlin/actions.py:1069 streamlin/waveui.py:2047
+#: streamlin/actions.py:384 streamlin/actions.py:1069 streamlin/waveui.py:2006
 msgid "Muted"
 msgstr "Silenciado"
 
@@ -735,7 +735,7 @@ msgstr "Falló el paso {action} de la Multi Action: {error}"
 msgid "LinDeck is running without a window – restarting with a window"
 msgstr "LinDeck se está ejecutando sin ventana – reiniciando con ventana"
 
-#: streamlin/app.py:79 streamlin/waveui.py:709
+#: streamlin/app.py:79
 msgid "Open LinDeck"
 msgstr "Abrir LinDeck"
 
@@ -834,7 +834,7 @@ msgstr "Versión de Streamlin: {version}"
 msgid "Settings: {state}"
 msgstr "Ajustes: {state}"
 
-#: streamlin/backup.py:292 streamlin/settingsui.py:220
+#: streamlin/backup.py:292 streamlin/settingsui.py:233
 #, python-brace-format
 msgid "Size: {size}"
 msgstr "Tamaño: {size}"
@@ -883,15 +883,15 @@ msgstr "No se pudo restaurar la copia de seguridad: {error}"
 msgid "Could not start {program}: {error}"
 msgstr "No se pudo iniciar {program}: {error}"
 
-#: streamlin/bgui.py:13 streamlin/editor.py:1859
+#: streamlin/bgui.py:13 streamlin/editor.py:1821
 msgid "Images"
 msgstr "Imágenes"
 
-#: streamlin/bgui.py:13 streamlin/editor.py:911 streamlin/editor.py:1860 streamlin/pluginui.py:217
+#: streamlin/bgui.py:13 streamlin/editor.py:873 streamlin/editor.py:1822 streamlin/pluginui.py:217
 msgid "All files"
 msgstr "Todos los archivos"
 
-#: streamlin/bgui.py:18 streamlin/bgui.py:126 streamlin/bgui.py:166 streamlin/editor.py:616
+#: streamlin/bgui.py:18 streamlin/bgui.py:126 streamlin/bgui.py:166 streamlin/editor.py:1032
 msgid "Background"
 msgstr "Fondo"
 
@@ -903,7 +903,7 @@ msgstr "Imagen de fondo"
 msgid "The image is spread across all keys of this page – like a desktop wallpaper. Keys with their own icon sit on top; empty keys show the image."
 msgstr "La imagen se extiende por todas las teclas de esta página, como un fondo de escritorio. Las teclas con icono propio quedan por encima; las teclas vacías muestran la imagen."
 
-#: streamlin/bgui.py:37 streamlin/bgui.py:72 streamlin/editor.py:2001 streamlin/pluginui.py:178
+#: streamlin/bgui.py:37 streamlin/bgui.py:72 streamlin/editor.py:1963 streamlin/pluginui.py:178
 msgid "Remove"
 msgstr "Quitar"
 
@@ -931,7 +931,7 @@ msgstr "Elegir imagen …"
 msgid "Darkens the image so titles stay easy to read."
 msgstr "Oscurece la imagen para que los títulos se lean bien."
 
-#: streamlin/bgui.py:77 streamlin/editor.py:2153 streamlin/wavedialogs.py:341 streamlin/wavedialogs.py:721
+#: streamlin/bgui.py:77 streamlin/editor.py:2115 streamlin/wavedialogs.py:341 streamlin/wavedialogs.py:721
 msgid "Done"
 msgstr "Listo"
 
@@ -1058,7 +1058,7 @@ msgstr "Alternar silencio"
 msgid "Set volume"
 msgstr "Ajustar volumen"
 
-#: streamlin/catalog.py:69 streamlin/editor.py:2121 streamlin/editor.py:2128
+#: streamlin/catalog.py:69 streamlin/editor.py:2083 streamlin/editor.py:2090
 msgid "Key combination"
 msgstr "Combinación de teclas"
 
@@ -1086,7 +1086,7 @@ msgstr "Sistema"
 msgid "Text"
 msgstr "Texto"
 
-#: streamlin/catalog.py:89 streamlin/editor.py:631
+#: streamlin/catalog.py:89 streamlin/editor.py:593
 msgid "Open"
 msgstr "Abrir"
 
@@ -1182,15 +1182,15 @@ msgstr "Chat de voz"
 msgid "Game"
 msgstr "Juego"
 
-#: streamlin/catalog.py:185 streamlin/waveui.py:183 streamlin/waveui.py:589 streamlin/waveui.py:733
+#: streamlin/catalog.py:185 streamlin/waveui.py:183 streamlin/waveui.py:578 streamlin/waveui.py:692
 msgid "Effects"
 msgstr "Efectos"
 
-#: streamlin/catalog.py:188 streamlin/mixer.py:73 streamlin/waveui.py:599
+#: streamlin/catalog.py:188 streamlin/mixer.py:73 streamlin/waveui.py:588
 msgid "Personal Mix"
 msgstr "Mezcla personal"
 
-#: streamlin/catalog.py:188 streamlin/mixer.py:75 streamlin/waveui.py:601
+#: streamlin/catalog.py:188 streamlin/mixer.py:75 streamlin/waveui.py:590
 msgid "Stream Mix"
 msgstr "Stream Mix"
 
@@ -1727,7 +1727,7 @@ msgstr "Invertir"
 msgid "Page"
 msgstr "Página"
 
-#: streamlin/catalog.py:131 streamlin/editor.py:928 streamlin/engine.py:254
+#: streamlin/catalog.py:131 streamlin/editor.py:890 streamlin/engine.py:254
 msgid "Profile"
 msgstr "Perfil"
 
@@ -1735,7 +1735,7 @@ msgstr "Perfil"
 msgid "24-hour format"
 msgstr "Formato de 24 horas"
 
-#: streamlin/catalog.py:140 streamlin/editor.py:1641 streamlin/settingsui.py:43 streamlin/theme.py:1320
+#: streamlin/catalog.py:140 streamlin/editor.py:1603 streamlin/settingsui.py:44 streamlin/theme.py:1320
 msgid "Appearance"
 msgstr "Apariencia"
 
@@ -2053,7 +2053,7 @@ msgstr "Aleatorio"
 msgid "Repeat"
 msgstr "Repetir"
 
-#: streamlin/catalog.py:263 streamlin/waveui.py:1465
+#: streamlin/catalog.py:263 streamlin/waveui.py:1424
 msgid "Mute microphone"
 msgstr "Silenciar micrófono"
 
@@ -2122,7 +2122,7 @@ msgstr "Siguiente mezcla (en ciclo)"
 msgid "Unknown key: {key}"
 msgstr "Tecla desconocida: {key}"
 
-#: streamlin/catalog.py:302 streamlin/editor.py:1433 streamlin/wavedialogs.py:496
+#: streamlin/catalog.py:302 streamlin/editor.py:1395 streamlin/wavedialogs.py:496
 msgid "All"
 msgstr "Todos"
 
@@ -2195,7 +2195,7 @@ msgstr "Elige al menos un canal."
 msgid "Unknown device."
 msgstr "Dispositivo desconocido."
 
-#: streamlin/desktop.py:65 streamlin/editor.py:624 streamlin/waveui.py:711
+#: streamlin/desktop.py:65
 msgid "Quit"
 msgstr "Salir"
 
@@ -2274,7 +2274,7 @@ msgstr "Los perfiles en formato v1 (app Stream Deck 4.x) no se pueden editar"
 msgid "The last page cannot be deleted"
 msgstr "La última página no se puede eliminar"
 
-#: streamlin/editdoc.py:737 streamlin/editor.py:612 streamlin/editor.py:2197 streamlin/editor.py:2200
+#: streamlin/editdoc.py:737 streamlin/editor.py:2159 streamlin/editor.py:2162 streamlin/editor.py:2190
 msgid "New profile"
 msgstr "Nuevo perfil"
 
@@ -2316,147 +2316,143 @@ msgstr "Cursiva"
 msgid "Bold italic"
 msgstr "Negrita cursiva"
 
-#: streamlin/editor.py:227 streamlin/editor.py:1483
+#: streamlin/editor.py:227 streamlin/editor.py:1445
 msgid "dials only"
 msgstr "solo diales"
 
-#: streamlin/editor.py:565
+#: streamlin/editor.py:552
 msgid "Devices"
 msgstr "Dispositivos"
 
-#: streamlin/editor.py:568
+#: streamlin/editor.py:555
 msgid "Profiles"
 msgstr "Perfiles"
 
-#: streamlin/editor.py:573 streamlin/editor.py:617 streamlin/editor.py:1433 streamlin/pluginui.py:82
+#: streamlin/editor.py:560 streamlin/editor.py:1395 streamlin/pluginui.py:82 streamlin/pluginui.py:91
 msgid "Plugins"
 msgstr "Plugins"
 
-#: streamlin/editor.py:577 streamlin/editor.py:620 streamlin/settingsui.py:33 streamlin/settingsui.py:40
+#: streamlin/editor.py:562 streamlin/settingsui.py:34 streamlin/settingsui.py:41 streamlin/waveui.py:594
 msgid "Settings"
 msgstr "Ajustes"
 
-#: streamlin/editor.py:596
+#: streamlin/editor.py:578
 msgid "Export"
 msgstr "Exportar"
 
-#: streamlin/editor.py:598 streamlin/editor.py:919
+#: streamlin/editor.py:580 streamlin/editor.py:881
 msgid "Import"
 msgstr "Importar"
 
-#: streamlin/editor.py:613
-msgid "Import…"
-msgstr "Importar…"
-
-#: streamlin/editor.py:614 streamlin/editor.py:634
-msgid "Export…"
-msgstr "Exportar…"
-
-#: streamlin/editor.py:632
+#: streamlin/editor.py:594
 msgid "Rename…"
 msgstr "Renombrar…"
 
-#: streamlin/editor.py:633
+#: streamlin/editor.py:595
 msgid "Duplicate"
 msgstr "Duplicar"
 
-#: streamlin/editor.py:636 streamlin/editor.py:891
+#: streamlin/editor.py:596
+msgid "Export…"
+msgstr "Exportar…"
+
+#: streamlin/editor.py:598 streamlin/editor.py:853
 msgid "Delete profile"
 msgstr "Eliminar perfil"
 
-#: streamlin/editor.py:867
+#: streamlin/editor.py:829
 msgid "Duplicate profile"
 msgstr "Duplicar perfil"
 
-#: streamlin/editor.py:867
+#: streamlin/editor.py:829
 msgid "Name of the copy:"
 msgstr "Nombre de la copia:"
 
-#: streamlin/editor.py:880
+#: streamlin/editor.py:842
 msgid "Rename profile"
 msgstr "Renombrar perfil"
 
-#: streamlin/editor.py:880
+#: streamlin/editor.py:842
 msgid "New name:"
 msgstr "Nuevo nombre:"
 
-#: streamlin/editor.py:945
+#: streamlin/editor.py:907
 msgid "Saving…"
 msgstr "Guardando…"
 
-#: streamlin/editor.py:1014
+#: streamlin/editor.py:976
 msgid "Settings page opened – changes are applied automatically"
 msgstr "Página de ajustes abierta – los cambios se aplican automáticamente"
 
-#: streamlin/editor.py:1080
+#: streamlin/editor.py:1042
 msgid "Move left"
 msgstr "Mover a la izquierda"
 
-#: streamlin/editor.py:1081
+#: streamlin/editor.py:1043
 msgid "Move right"
 msgstr "Mover a la derecha"
 
-#: streamlin/editor.py:1083
+#: streamlin/editor.py:1045
 msgid "Add page"
 msgstr "Añadir página"
 
-#: streamlin/editor.py:1084 streamlin/editor.py:1102
+#: streamlin/editor.py:1046 streamlin/editor.py:1064
 msgid "Delete page"
 msgstr "Eliminar página"
 
-#: streamlin/editor.py:1366
+#: streamlin/editor.py:1328
 msgid "Cut"
 msgstr "Cortar"
 
-#: streamlin/editor.py:1367
+#: streamlin/editor.py:1329
 msgid "Copy"
 msgstr "Copiar"
 
-#: streamlin/editor.py:1368 streamlin/editor.py:1595
+#: streamlin/editor.py:1330 streamlin/editor.py:1557
 msgid "Paste"
 msgstr "Pegar"
 
-#: streamlin/editor.py:1376 streamlin/editor.py:1689
+#: streamlin/editor.py:1338 streamlin/editor.py:1651
 msgid "Delete"
 msgstr "Eliminar"
 
-#: streamlin/editor.py:1769 streamlin/native.py:311
+#: streamlin/editor.py:1731 streamlin/native.py:311
 msgid "Title"
 msgstr "Título"
 
-#: streamlin/editor.py:1777
+#: streamlin/editor.py:1739
 msgid "Font"
 msgstr "Fuente"
 
-#: streamlin/editor.py:1788 streamlin/editor.py:1866
+#: streamlin/editor.py:1750 streamlin/editor.py:1828
 msgid "Icon"
 msgstr "Icono"
 
-#: streamlin/editor.py:1796
+#: streamlin/editor.py:1758
 msgid "Default"
 msgstr "Predeterminado"
 
-#: streamlin/editor.py:1811
+#: streamlin/editor.py:1773
 msgid "Show title"
 msgstr "Mostrar título"
 
-#: streamlin/editor.py:1823 streamlin/editor.py:1852
+#: streamlin/editor.py:1785 streamlin/editor.py:1814
 msgid "Title color"
 msgstr "Color del título"
 
-#: streamlin/editor.py:1955
+#: streamlin/editor.py:1917
 msgid "INCLUDED ACTIONS"
 msgstr "ACCIONES INCLUIDAS"
 
-#: streamlin/editor.py:2121
+#: streamlin/editor.py:2083
 msgid "e.g. Ctrl+Shift+T, Alt+F4, Super+E, F13:"
 msgstr "p. ej. Ctrl+Shift+T, Alt+F4, Super+E, F13:"
 
-#: streamlin/editor.py:2164
+#: streamlin/editor.py:2126
 msgid "Settings (JSON)"
 msgstr "Ajustes (JSON)"
 
-#: streamlin/editor.py:2203 streamlin/wavedialogs.py:88 streamlin/wavedialogs.py:234 streamlin/wavedialogs.py:682
+#: streamlin/editor.py:2165 streamlin/wavedialogs.py:88 streamlin/wavedialogs.py:234 streamlin/wavedialogs.py:682
 msgid "Name"
 msgstr "Nombre"
 
@@ -2476,107 +2472,99 @@ msgstr "LinDeck sigue en ejecución"
 msgid "The Stream Deck stays active. Open it via the “LinDeck” menu."
 msgstr "El Stream Deck sigue activo. Ábrelo desde el menú “LinDeck”."
 
-#: streamlin/editor.py:619 streamlin/editor.py:576 streamlin/waveui.py:420
-msgid "Open Linewave"
-msgstr "Abrir Linewave"
-
-#: streamlin/editor.py:623 streamlin/waveui.py:710
-msgid "Close window"
-msgstr "Cerrar ventana"
-
-#: streamlin/editor.py:659 streamlin/editor.py:389 streamlin/hass.py:94 streamlin/models.py:91
+#: streamlin/editor.py:621 streamlin/editor.py:389 streamlin/hass.py:94 streamlin/models.py:91
 msgid "unknown"
 msgstr "desconocido"
 
-#: streamlin/editor.py:699
+#: streamlin/editor.py:661
 msgid "Search actions"
 msgstr "Buscar acciones"
 
-#: streamlin/editor.py:715
+#: streamlin/editor.py:677
 msgid "Drag onto a key or double-click"
 msgstr "Arrastra a una tecla o haz doble clic"
 
-#: streamlin/editor.py:909
+#: streamlin/editor.py:871
 msgid "Import profiles"
 msgstr "Importar perfiles"
 
-#: streamlin/editor.py:929
+#: streamlin/editor.py:891
 msgid "Export profile"
 msgstr "Exportar perfil"
 
-#: streamlin/editor.py:1057
+#: streamlin/editor.py:1019
 msgid "↩ Back"
 msgstr "↩ Atrás"
 
-#: streamlin/editor.py:1119
+#: streamlin/editor.py:1081
 msgid "Folder not found"
 msgstr "Carpeta no encontrada"
 
-#: streamlin/editor.py:1166
+#: streamlin/editor.py:1128
 msgid "Drag actions onto keys · right-click for more"
 msgstr "Arrastra acciones a las teclas · clic derecho para más"
 
-#: streamlin/editor.py:1321
+#: streamlin/editor.py:1283
 msgid "There is no free space on the target page"
 msgstr "No hay espacio libre en la página de destino"
 
-#: streamlin/editor.py:1363 streamlin/editor.py:1655
+#: streamlin/editor.py:1325 streamlin/editor.py:1617
 msgid "Open folder"
 msgstr "Abrir carpeta"
 
-#: streamlin/editor.py:1366
+#: streamlin/editor.py:1328
 msgid "Ctrl+X"
 msgstr "Ctrl+X"
 
-#: streamlin/editor.py:1367
+#: streamlin/editor.py:1329
 msgid "Ctrl+C"
 msgstr "Ctrl+C"
 
-#: streamlin/editor.py:1368
+#: streamlin/editor.py:1330
 msgid "Ctrl+V"
 msgstr "Ctrl+V"
 
-#: streamlin/editor.py:1376
+#: streamlin/editor.py:1338
 msgid "Del"
 msgstr "Supr"
 
-#: streamlin/editor.py:1533
+#: streamlin/editor.py:1495
 msgid "No free space – select a key to replace it"
 msgstr "No hay espacio libre – selecciona una tecla para reemplazarla"
 
-#: streamlin/editor.py:1579
+#: streamlin/editor.py:1541
 msgid "Select a key to edit it."
 msgstr "Selecciona una tecla para editarla."
 
-#: streamlin/editor.py:1717
+#: streamlin/editor.py:1679
 msgid "SETTINGS"
 msgstr "AJUSTES"
 
-#: streamlin/editor.py:1803
+#: streamlin/editor.py:1765
 msgid "State"
 msgstr "Estado"
 
-#: streamlin/editor.py:1858
+#: streamlin/editor.py:1820
 msgid "Choose icon"
 msgstr "Elegir icono"
 
-#: streamlin/editor.py:1947
+#: streamlin/editor.py:1909
 msgid "Choose file"
 msgstr "Elegir archivo"
 
-#: streamlin/editor.py:2200
+#: streamlin/editor.py:2162
 msgid "For the connected Stream Deck"
 msgstr "Para el Stream Deck conectado"
 
-#: streamlin/editor.py:2201
+#: streamlin/editor.py:2163
 msgid "No Stream Deck connected – the profile is for the model used last"
 msgstr "Ningún Stream Deck conectado: el perfil es para el último modelo usado"
 
-#: streamlin/editor.py:2206
+#: streamlin/editor.py:2168
 msgid "DEVICE – DETECTED AUTOMATICALLY"
 msgstr "DISPOSITIVO – DETECTADO AUTOMÁTICAMENTE"
 
-#: streamlin/editor.py:2206 streamlin/wavedialogs.py:800
+#: streamlin/editor.py:2168 streamlin/wavedialogs.py:800
 msgid "DEVICE"
 msgstr "DISPOSITIVO"
 
@@ -2584,43 +2572,43 @@ msgstr "DISPOSITIVO"
 msgid "Layout of this profile"
 msgstr "Diseño de este perfil"
 
-#: streamlin/editor.py:800
+#: streamlin/editor.py:762
 msgid "Open profile"
 msgstr "Abrir perfil"
 
-#: streamlin/editor.py:813
+#: streamlin/editor.py:775
 #, python-brace-format
 msgid "{name} opened – changes are saved automatically"
 msgstr "{name} abierto – los cambios se guardan automáticamente"
 
-#: streamlin/editor.py:921
+#: streamlin/editor.py:883
 #, python-brace-format
 msgid "{n} profile imported"
 msgid_plural "{n} profiles imported"
 msgstr[0] "{n} perfil importado"
 msgstr[1] "{n} perfiles importados"
 
-#: streamlin/editor.py:953
+#: streamlin/editor.py:915
 msgid "saved"
 msgstr "guardado"
 
-#: streamlin/editor.py:956 streamlin/hassui.py:98 streamlin/wavedialogs.py:688 streamlin/wavedialogs.py:123
+#: streamlin/editor.py:918 streamlin/hassui.py:98 streamlin/wavedialogs.py:688 streamlin/wavedialogs.py:123
 msgid "Save"
 msgstr "Guardar"
 
-#: streamlin/editor.py:1000
+#: streamlin/editor.py:962
 msgid "Settings page"
 msgstr "Página de ajustes"
 
-#: streamlin/editor.py:1000
+#: streamlin/editor.py:962
 msgid "LinDeck must be running for this (menu: “LinDeck” or `lindeck`), because it runs the plugins."
 msgstr "Para esto, LinDeck debe estar en ejecución (menú: “LinDeck” o `lindeck`), porque es quien ejecuta los plugins."
 
-#: streamlin/editor.py:1102
+#: streamlin/editor.py:1064
 msgid "This page contains actions. Delete it anyway?"
 msgstr "Esta página contiene acciones. ¿Eliminarla de todos modos?"
 
-#: streamlin/editor.py:1182
+#: streamlin/editor.py:1144
 msgid ""
 "No profiles yet.\n"
 "\n"
@@ -2632,91 +2620,91 @@ msgstr ""
 "“Nuevo…” crea un perfil vacío,\n"
 "“Importar…” trae perfiles de la app de Elgato."
 
-#: streamlin/editor.py:1326
+#: streamlin/editor.py:1288
 #, python-brace-format
 msgid "Action moved to page {n}"
 msgstr "Acción movida a la página {n}"
 
-#: streamlin/editor.py:1385
+#: streamlin/editor.py:1347
 msgid "Copied"
 msgstr "Copiado"
 
-#: streamlin/editor.py:1483
+#: streamlin/editor.py:1445
 msgid "keys and dials"
 msgstr "teclas y diales"
 
-#: streamlin/editor.py:1484
+#: streamlin/editor.py:1446
 msgid "keys"
 msgstr "teclas"
 
-#: streamlin/editor.py:1542
+#: streamlin/editor.py:1504
 #, python-brace-format
 msgid "“{name}” only works on dials"
 msgstr "“{name}” solo funciona en diales"
 
-#: streamlin/editor.py:1543
+#: streamlin/editor.py:1505
 #, python-brace-format
 msgid "“{name}” only works on keys"
 msgstr "“{name}” solo funciona en teclas"
 
-#: streamlin/editor.py:1553
+#: streamlin/editor.py:1515
 msgid "Replace folder"
 msgstr "Reemplazar carpeta"
 
-#: streamlin/editor.py:1553
+#: streamlin/editor.py:1515
 msgid "The folder and its contents will be replaced. Continue?"
 msgstr "La carpeta y su contenido se reemplazarán. ¿Continuar?"
 
-#: streamlin/editor.py:1558
+#: streamlin/editor.py:1520
 #, python-brace-format
 msgid "{name} added"
 msgstr "{name} añadido"
 
-#: streamlin/editor.py:1587
+#: streamlin/editor.py:1549
 #, python-brace-format
 msgid "Key {col},{row}"
 msgstr "Tecla {col},{row}"
 
-#: streamlin/editor.py:1588
+#: streamlin/editor.py:1550
 #, python-brace-format
 msgid "Dial {n}"
 msgstr "Dial {n}"
 
-#: streamlin/editor.py:1712 streamlin/editor.py:1688
+#: streamlin/editor.py:1674 streamlin/editor.py:1650
 msgid "Settings (JSON)…"
 msgstr "Ajustes (JSON)…"
 
-#: streamlin/editor.py:1795
+#: streamlin/editor.py:1757
 msgid "Choose image…"
 msgstr "Elegir imagen…"
 
-#: streamlin/editor.py:1990 streamlin/wavedialogs.py:555
+#: streamlin/editor.py:1952 streamlin/wavedialogs.py:555
 msgid "Add"
 msgstr "Añadir"
 
-#: streamlin/editor.py:2094
+#: streamlin/editor.py:2056
 msgid "Press keys…"
 msgstr "Pulsa las teclas…"
 
-#: streamlin/editor.py:2148
+#: streamlin/editor.py:2110
 #, python-brace-format
 msgid "Edit {name}"
 msgstr "Editar {name}"
 
-#: streamlin/editor.py:2182 streamlin/hass.py:422
+#: streamlin/editor.py:2144 streamlin/hass.py:422
 #, python-brace-format
 msgid "A JSON object { … } is expected"
 msgstr "Se espera un objeto JSON { … }"
 
-#: streamlin/editor.py:2208 streamlin/wavedialogs.py:791
+#: streamlin/editor.py:2170 streamlin/wavedialogs.py:791
 msgid "connected"
 msgstr "conectado"
 
-#: streamlin/editor.py:2216
+#: streamlin/editor.py:2178
 msgid "Create"
 msgstr "Crear"
 
-#: streamlin/editor.py:2217 streamlin/editor.py:2176 streamlin/hassui.py:99 streamlin/hassui.py:185
+#: streamlin/editor.py:2179 streamlin/editor.py:2138 streamlin/hassui.py:99 streamlin/hassui.py:185
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -2728,39 +2716,39 @@ msgstr "No hay ningún Stream Deck conectado"
 msgid "Switching device failed: %s"
 msgstr "Error al cambiar de dispositivo: %s"
 
-#: streamlin/editor.py:661
+#: streamlin/editor.py:623
 #, python-brace-format
 msgid "Page {n} of {total}"
 msgstr "Página {n} de {total}"
 
-#: streamlin/editor.py:786
+#: streamlin/editor.py:748
 msgid "Cleanup failed: %s"
 msgstr "Error en la limpieza: %s"
 
-#: streamlin/editor.py:868
+#: streamlin/editor.py:830
 #, python-brace-format
 msgid "{name} (copy)"
 msgstr "{name} (copia)"
 
-#: streamlin/editor.py:892
+#: streamlin/editor.py:854
 #, python-brace-format
 msgid "Permanently delete profile “{name}”?"
 msgstr "¿Eliminar definitivamente el perfil “{name}”?"
 
-#: streamlin/editor.py:910
+#: streamlin/editor.py:872
 msgid "Stream Deck profiles"
 msgstr "Perfiles de Stream Deck"
 
-#: streamlin/editor.py:932
+#: streamlin/editor.py:894
 msgid "Stream Deck profile"
 msgstr "Perfil de Stream Deck"
 
-#: streamlin/editor.py:935
+#: streamlin/editor.py:897
 #, python-brace-format
 msgid "Exported: {path}"
 msgstr "Exportado: {path}"
 
-#: streamlin/editor.py:1485
+#: streamlin/editor.py:1447
 #, python-brace-format
 msgid ""
 "{name}: {description} ({where}).\n"
@@ -2769,120 +2757,115 @@ msgstr ""
 "{name}: {description} ({where}).\n"
 "Arrastra a una tecla o haz doble clic."
 
-#: streamlin/editor.py:1591
+#: streamlin/editor.py:1553
 #, python-brace-format
 msgid "{where} – empty"
 msgstr "{where} – vacío"
 
-#: streamlin/editor.py:1834
+#: streamlin/editor.py:1796
 msgid "underline"
 msgstr "subrayado"
 
-#: streamlin/editor.py:1966 streamlin/hassui.py:184
+#: streamlin/editor.py:1928 streamlin/hassui.py:184
 msgid "Choose"
 msgstr "Elegir"
 
-#: streamlin/editor.py:1969 streamlin/editor.py:1999
+#: streamlin/editor.py:1931 streamlin/editor.py:1961
 msgid "Edit…"
 msgstr "Editar…"
 
-#: streamlin/editor.py:1971
+#: streamlin/editor.py:1933
 msgid "Clear"
 msgstr "Borrar"
 
-#: streamlin/editor.py:2098
+#: streamlin/editor.py:2060
 msgid "Type in…"
 msgstr "Escribir…"
 
-#: streamlin/editor.py:2166
+#: streamlin/editor.py:2128
 msgid "Raw data of the action (“Settings”) – for plugin actions and special cases."
 msgstr "Datos sin procesar de la acción (“Settings”) – para acciones de plugins y casos especiales."
 
-#: streamlin/editor.py:2175 streamlin/wavedialogs.py:756
+#: streamlin/editor.py:2137 streamlin/wavedialogs.py:756
 msgid "Apply"
 msgstr "Aplicar"
 
-#: streamlin/editor.py:2209
+#: streamlin/editor.py:2171
 #, python-brace-format
 msgid "{cols} × {rows} keys"
 msgstr "{cols} × {rows} teclas"
 
-#: streamlin/editor.py:2211
+#: streamlin/editor.py:2173
 #, python-brace-format
 msgid "{n} dial"
 msgid_plural "{n} dials"
 msgstr[0] "{n} dial"
 msgstr[1] "{n} diales"
 
-#: streamlin/editor.py:2295
+#: streamlin/editor.py:2257
 #, python-brace-format
 msgid "No graphical display available: {error}"
 msgstr "No hay pantalla gráfica disponible: {error}"
 
-#: streamlin/editor.py:520
-#, python-brace-format
-msgid "Could not start Linewave: {error}"
-msgstr "No se pudo iniciar Linewave: {error}"
-
-#: streamlin/editor.py:955
+#: streamlin/editor.py:917
 #, python-brace-format
 msgid "Saving failed: {error}"
 msgstr "Error al guardar: {error}"
 
-#: streamlin/editor.py:1171
+#: streamlin/editor.py:1133
 #, python-brace-format
 msgid "Brightness {n} %"
 msgstr "Brillo {n} %"
 
-#: streamlin/editor.py:1462
+#: streamlin/editor.py:1424
 msgid "No matching actions"
 msgstr "No hay acciones que coincidan"
 
-#: streamlin/editor.py:1580
+#: streamlin/editor.py:1542
 msgid "Tips: drag actions from the right onto keys · move keys by drag & drop (also onto another page) · right-click to copy/paste · double-click opens folders · Ctrl+Z undoes."
 msgstr "Consejos: arrastra acciones desde la derecha a las teclas · mueve teclas arrastrando y soltando (también a otra página) · clic derecho para copiar/pegar · doble clic abre carpetas · Ctrl+Z deshace."
 
-#: streamlin/editor.py:1592
+#: streamlin/editor.py:1554
 msgid "Drag an action here from the list on the right, or double-click it there."
 msgstr "Arrastra aquí una acción de la lista de la derecha o haz doble clic en ella."
 
-#: streamlin/editor.py:1641 streamlin/editor.py:1680
+#: streamlin/editor.py:1603 streamlin/editor.py:1642
 msgid "Action"
 msgstr "Acción"
 
-#: streamlin/editor.py:1642
+#: streamlin/editor.py:1604
 msgid "Advanced"
 msgstr "Avanzado"
 
-#: streamlin/editor.py:1373
+#: streamlin/editor.py:1335
 #, python-brace-format
 msgid "Move to page {n}"
 msgstr "Mover a la página {n}"
 
-#: streamlin/editor.py:1669 streamlin/editor.py:1686
+#: streamlin/editor.py:1631 streamlin/editor.py:1648
 msgid "Settings page…"
 msgstr "Página de ajustes…"
 
-#: streamlin/editor.py:1805
+#: streamlin/editor.py:1767
 #, python-brace-format
 msgid "State {n}"
 msgstr "Estado {n}"
 
-#: streamlin/editor.py:1673
+#: streamlin/editor.py:1635
 msgid "This action has no further settings."
 msgstr "Esta acción no tiene más ajustes."
 
-#: streamlin/editor.py:1695
+#: streamlin/editor.py:1657
 #, python-brace-format
 msgid "Action of the plugin “{plugin}” – cannot run on Linux (plugin not installed or only for Windows/macOS). Title, icon and settings are kept."
 msgstr "Acción del plugin “{plugin}” – no puede ejecutarse en Linux (plugin no instalado o solo para Windows/macOS). Se conservan el título, el icono y los ajustes."
 
-#: streamlin/editor.py:1924
+#: streamlin/editor.py:1886
 #, python-brace-format
 msgid "Page {n}"
 msgstr "Página {n}"
 
-#: streamlin/editor.py:1935
+#: streamlin/editor.py:1897
 msgid "(next profile)"
 msgstr "(perfil siguiente)"
 
@@ -3452,7 +3435,7 @@ msgstr "{size} libres"
 msgid "SFX"
 msgstr "Efectos"
 
-#: streamlin/mixer.py:623 streamlin/wavedialogs.py:255 streamlin/waveui.py:1976
+#: streamlin/mixer.py:623 streamlin/wavedialogs.py:255 streamlin/waveui.py:1935
 msgid "Linewave Stream Mix"
 msgstr "Linewave Stream Mix"
 
@@ -3485,7 +3468,7 @@ msgstr "Falta pactl (paquete pulseaudio-utils) – se necesita PipeWire con pipe
 msgid "Linewave {name} → {mix}"
 msgstr "Linewave {name} → {mix}"
 
-#: streamlin/mixer.py:1145 streamlin/wavedialogs.py:249 streamlin/waveui.py:657
+#: streamlin/mixer.py:1145 streamlin/wavedialogs.py:249 streamlin/waveui.py:636
 msgid "No output device found"
 msgstr "No se encontró ningún dispositivo de salida"
 
@@ -3578,7 +3561,7 @@ msgstr "Flujo {index}"
 msgid "Moving {stream} failed: {error}"
 msgstr "Error al mover {stream}: {error}"
 
-#: streamlin/mixkeys.py:157 streamlin/wavesetup.py:28 streamlin/waveui.py:1535
+#: streamlin/mixkeys.py:157 streamlin/wavesetup.py:28 streamlin/waveui.py:1494
 msgid "Channels"
 msgstr "Canales"
 
@@ -3914,7 +3897,7 @@ msgstr "Node.js {version} – los plugins pueden ejecutarse"
 msgid "Installed"
 msgstr "Instalado"
 
-#: streamlin/pluginui.py:120 streamlin/settingsui.py:92 streamlin/wavedialogs.py:505 streamlin/wavedialogs.py:662
+#: streamlin/pluginui.py:120 streamlin/settingsui.py:105 streamlin/wavedialogs.py:505 streamlin/wavedialogs.py:662
 msgid "Close"
 msgstr "Cerrar"
 
@@ -4081,116 +4064,120 @@ msgstr "Al dial {number} le falta: {actions}"
 msgid "Field {number}"
 msgstr "Campo {number}"
 
-#: streamlin/settingsui.py:40
+#: streamlin/settingsui.py:41
 msgid "These settings apply to LinDeck and Linewave."
 msgstr "Estos ajustes se aplican a LinDeck y Linewave."
 
-#: streamlin/settingsui.py:50 streamlin/theme.py:567
+#: streamlin/settingsui.py:51 streamlin/theme.py:567
 msgid "Language"
 msgstr "Idioma"
 
-#: streamlin/settingsui.py:60 streamlin/updateui.py:73 streamlin/updateui.py:88 streamlin/updateui.py:91
+#: streamlin/settingsui.py:73 streamlin/updateui.py:73 streamlin/updateui.py:88 streamlin/updateui.py:91
 msgid "Updates"
 msgstr "Actualizaciones"
 
-#: streamlin/settingsui.py:64
+#: streamlin/settingsui.py:77
 msgid "Include beta versions"
 msgstr "Incluir versiones beta"
 
-#: streamlin/settingsui.py:75
+#: streamlin/settingsui.py:88
 msgid "Help"
 msgstr "Ayuda"
 
-#: streamlin/settingsui.py:81
+#: streamlin/settingsui.py:94
 msgid "Create support report…"
 msgstr "Crear informe de soporte…"
 
-#: streamlin/settingsui.py:140
+#: streamlin/settingsui.py:153
 msgid "Backup"
 msgstr "Copia de seguridad"
 
-#: streamlin/settingsui.py:152
+#: streamlin/settingsui.py:165
 msgid "Create backup…"
 msgstr "Crear copia de seguridad…"
 
-#: streamlin/settingsui.py:154
+#: streamlin/settingsui.py:167
 msgid "Restore…"
 msgstr "Restaurar…"
 
-#: streamlin/settingsui.py:223
+#: streamlin/settingsui.py:236
 msgid "Creating backup…"
 msgstr "Creando copia de seguridad…"
 
-#: streamlin/settingsui.py:240
+#: streamlin/settingsui.py:253
 msgid "Your current profiles and settings will be replaced. A safety copy of them is saved first. LinDeck and Linewave restart afterwards. Continue?"
 msgstr "Tus perfiles y ajustes actuales se reemplazarán. Antes se guarda una copia de seguridad de ellos. LinDeck y Linewave se reinician después. ¿Continuar?"
 
-#: streamlin/settingsui.py:273
+#: streamlin/settingsui.py:286
 msgid "Restoring backup…"
 msgstr "Restaurando copia de seguridad…"
 
-#: streamlin/settingsui.py:289
+#: streamlin/settingsui.py:302
 msgid "Creating the support report…"
 msgstr "Creando el informe de soporte…"
 
-#: streamlin/settingsui.py:307
+#: streamlin/settingsui.py:320
 msgid "Support report"
 msgstr "Informe de soporte"
 
-#: streamlin/settingsui.py:52 streamlin/theme.py:546
+#: streamlin/settingsui.py:53 streamlin/theme.py:546
 msgid "System language"
 msgstr "Idioma del sistema"
 
-#: streamlin/settingsui.py:65
+#: streamlin/settingsui.py:63 streamlin/waveui.py:577 streamlin/waveui.py:651 streamlin/waveui.py:679
+msgid "Mixer"
+msgstr "Mezclador"
+
+#: streamlin/settingsui.py:78
 msgid "Beta versions bring new features earlier but may contain more bugs."
 msgstr "Las versiones beta traen funciones nuevas antes, pero pueden tener más errores."
 
-#: streamlin/settingsui.py:209
+#: streamlin/settingsui.py:222
 msgid "Create backup"
 msgstr "Crear copia de seguridad"
 
-#: streamlin/settingsui.py:229 streamlin/settingsui.py:243 streamlin/settingsui.py:268 streamlin/settingsui.py:238
+#: streamlin/settingsui.py:242 streamlin/settingsui.py:256 streamlin/settingsui.py:281 streamlin/settingsui.py:251
 msgid "Restore backup"
 msgstr "Restaurar copia de seguridad"
 
-#: streamlin/settingsui.py:46
+#: streamlin/settingsui.py:47
 msgid "Auto follows the light or dark setting of your desktop."
 msgstr "Auto sigue el modo claro u oscuro de tu escritorio."
 
-#: streamlin/settingsui.py:62 streamlin/updateui.py:241
+#: streamlin/settingsui.py:75 streamlin/updateui.py:241
 #, python-brace-format
 msgid "Check for updates every time {app} starts"
 msgstr "Buscar actualizaciones cada vez que se inicie {app}"
 
-#: streamlin/settingsui.py:70
+#: streamlin/settingsui.py:83
 msgid "Check now"
 msgstr "Buscar ahora"
 
-#: streamlin/settingsui.py:71
+#: streamlin/settingsui.py:84
 msgid "Install an earlier version…"
 msgstr "Instalar una versión anterior…"
 
-#: streamlin/settingsui.py:76
+#: streamlin/settingsui.py:89
 msgid "Something not working? Create a support report and attach it to a GitHub issue. Passwords and tokens are removed from it."
 msgstr "¿Algo no funciona? Crea un informe de soporte y adjúntalo a un issue de GitHub. Las contraseñas y los tokens se eliminan del informe."
 
-#: streamlin/settingsui.py:84
+#: streamlin/settingsui.py:97
 msgid "Report a problem on GitHub"
 msgstr "Informar de un problema en GitHub"
 
-#: streamlin/settingsui.py:141
+#: streamlin/settingsui.py:154
 msgid "Save all profiles, images, plugins and settings of LinDeck and Linewave to one file, or restore them from such a file."
 msgstr "Guarda todos los perfiles, imágenes, plugins y ajustes de LinDeck y Linewave en un archivo, o restáuralos desde un archivo así."
 
-#: streamlin/settingsui.py:149
+#: streamlin/settingsui.py:162
 msgid "Include installed plugins"
 msgstr "Incluir los plugins instalados"
 
-#: streamlin/settingsui.py:283
+#: streamlin/settingsui.py:296
 msgid "Save support report"
 msgstr "Guardar informe de soporte"
 
-#: streamlin/settingsui.py:307
+#: streamlin/settingsui.py:320
 #, python-brace-format
 msgid ""
 "The support report was saved to {path}.\n"
@@ -4201,20 +4188,36 @@ msgstr ""
 "\n"
 "Adjunta este archivo a un issue de GitHub. ¿Abrir la carpeta ahora?"
 
-#: streamlin/settingsui.py:210 streamlin/settingsui.py:230
+#: streamlin/settingsui.py:223 streamlin/settingsui.py:243
 msgid "Streamlin backup"
 msgstr "Copia de seguridad de Streamlin"
 
+#: streamlin/settingsui.py:64
+msgid "Remove mixer: the Linewave channels and mixes disappear, apps play directly on your device again. Your settings are kept."
+msgstr "Quitar mezclador: los canales y mezclas de Linewave desaparecen y las apps vuelven a sonar directamente en tu dispositivo. Tus ajustes se conservan."
+
+#: streamlin/settingsui.py:66
+msgid "The mixer is off. Set it up to give every app its own channel."
+msgstr "El mezclador está apagado. Configúralo para que cada app tenga su propio canal."
+
 #: streamlin/settingsui.py:68
+msgid "Remove mixer"
+msgstr "Eliminar mezclador"
+
+#: streamlin/settingsui.py:68 streamlin/waveui.py:658 streamlin/waveui.py:751 streamlin/waveui.py:755
+msgid "Set up mixer"
+msgstr "Configurar mezclador"
+
+#: streamlin/settingsui.py:81
 #, python-brace-format
 msgid "Installed version: {version}"
 msgstr "Versión instalada: {version}"
 
-#: streamlin/settingsui.py:285
+#: streamlin/settingsui.py:298
 msgid "Text file"
 msgstr "Archivo de texto"
 
-#: streamlin/settingsui.py:268
+#: streamlin/settingsui.py:281
 #, python-brace-format
 msgid "Backup restored. {app} restarts now."
 msgstr "Copia de seguridad restaurada. {app} se reinicia ahora."
@@ -4441,11 +4444,11 @@ msgstr "No se pudo cargar la lista de versiones: {error}"
 msgid "Could not start the installation: {error}"
 msgstr "No se pudo iniciar la instalación: {error}"
 
-#: streamlin/wave3hw.py:54 streamlin/wavesetup.py:28 streamlin/waveui.py:1481
+#: streamlin/wave3hw.py:54 streamlin/wavesetup.py:28 streamlin/waveui.py:1440
 msgid "Headphones"
 msgstr "Auriculares"
 
-#: streamlin/wave3hw.py:54 streamlin/wavedialogs.py:255 streamlin/wavedialogs.py:264 streamlin/waveui.py:586
+#: streamlin/wave3hw.py:54 streamlin/wavedialogs.py:255 streamlin/wavedialogs.py:264 streamlin/waveui.py:575
 msgid "Mix"
 msgstr "Mezcla"
 
@@ -4542,7 +4545,7 @@ msgstr "Añadir efecto"
 msgid "Set"
 msgstr "Definir"
 
-#: streamlin/wavedialogs.py:655 streamlin/wavedialogs.py:759 streamlin/waveui.py:1464
+#: streamlin/wavedialogs.py:655 streamlin/wavedialogs.py:759 streamlin/waveui.py:1423
 msgid "Keyboard shortcut"
 msgstr "Atajo de teclado"
 
@@ -4566,7 +4569,7 @@ msgstr "Escenas del mezclador"
 msgid "A scene remembers the volume and mute state of every channel. Apply it with one click, a keyboard shortcut or a Stream Deck key."
 msgstr "Una escena recuerda el volumen y el silencio de cada canal. Aplícala con un clic, un atajo de teclado o una tecla del Stream Deck."
 
-#: streamlin/wavedialogs.py:769 streamlin/wavedialogs.py:773 streamlin/waveui.py:681
+#: streamlin/wavedialogs.py:769 streamlin/wavedialogs.py:773 streamlin/waveui.py:657
 msgid "Export to LinDeck"
 msgstr "Exportar a LinDeck"
 
@@ -4695,7 +4698,7 @@ msgstr "en uso"
 msgid "Update profile"
 msgstr "Actualizar perfil"
 
-#: streamlin/wavedialogs.py:97 streamlin/wavesetup.py:402 streamlin/waveui.py:589 streamlin/waveui.py:736
+#: streamlin/wavedialogs.py:97 streamlin/wavesetup.py:402 streamlin/waveui.py:578 streamlin/waveui.py:695
 msgid "Apps"
 msgstr "Apps"
 
@@ -4703,11 +4706,11 @@ msgstr "Apps"
 msgid "Input device"
 msgstr "Dispositivo de entrada"
 
-#: streamlin/wavedialogs.py:123 streamlin/waveui.py:851
+#: streamlin/wavedialogs.py:123 streamlin/waveui.py:810
 msgid "Create channel"
 msgstr "Crear canal"
 
-#: streamlin/wavedialogs.py:127 streamlin/waveui.py:1205
+#: streamlin/wavedialogs.py:127 streamlin/waveui.py:1164
 msgid "Delete channel"
 msgstr "Eliminar canal"
 
@@ -4723,15 +4726,15 @@ msgstr "Lleva un dispositivo directamente a la mezcla, p. ej. un segundo micróf
 msgid "Device"
 msgstr "Dispositivo"
 
-#: streamlin/wavedialogs.py:270 streamlin/waveui.py:630
+#: streamlin/wavedialogs.py:270 streamlin/waveui.py:609
 msgid "Create mix"
 msgstr "Crear mezcla"
 
-#: streamlin/wavedialogs.py:274 streamlin/waveui.py:648 streamlin/waveui.py:1055
+#: streamlin/wavedialogs.py:274 streamlin/waveui.py:627 streamlin/waveui.py:1014
 msgid "Delete mix"
 msgstr "Borrar mezcla"
 
-#: streamlin/wavedialogs.py:357 streamlin/waveui.py:1157
+#: streamlin/wavedialogs.py:357 streamlin/waveui.py:1116
 msgid "No effects yet"
 msgstr "Aún no hay efectos"
 
@@ -4916,7 +4919,7 @@ msgstr "El sonido de tu micrófono"
 msgid "Removes hum and footfall noise"
 msgstr "Elimina el zumbido y los ruidos de pisadas"
 
-#: streamlin/wavesetup.py:335 streamlin/waveui.py:1457
+#: streamlin/wavesetup.py:335 streamlin/waveui.py:1416
 msgid "Prevents clipping when you suddenly get loud"
 msgstr "Evita la saturación cuando de repente hablas alto"
 
@@ -4924,7 +4927,7 @@ msgstr "Evita la saturación cuando de repente hablas alto"
 msgid "RECOMMENDED EFFECTS"
 msgstr "EFECTOS RECOMENDADOS"
 
-#: streamlin/wavesetup.py:357 streamlin/waveui.py:1646 streamlin/waveui.py:1826
+#: streamlin/wavesetup.py:357 streamlin/waveui.py:1605 streamlin/waveui.py:1785
 msgid "Noise suppression"
 msgstr "Supresión de ruido"
 
@@ -4936,7 +4939,7 @@ msgstr "¿Qué canales quieres?"
 msgid "Every app goes into a channel with its own controls for headphones and stream. You can create your own channels (e.g. for a capture card) later with “Add channel”."
 msgstr "Cada app va a un canal con sus propios controles para auriculares y stream. Más adelante puedes crear tus propios canales (p. ej. para una capturadora) con “Añadir canal”."
 
-#: streamlin/wavesetup.py:391 streamlin/waveui.py:812
+#: streamlin/wavesetup.py:391 streamlin/waveui.py:771
 msgid "Setting up mixer …"
 msgstr "Configurando el mezclador …"
 
@@ -5030,91 +5033,83 @@ msgstr "– fuera del mezclador –"
 msgid "add"
 msgstr "añadir"
 
-#: streamlin/waveui.py:582 streamlin/waveui.py:581
+#: streamlin/waveui.py:570 streamlin/waveui.py:569
 msgid "Looking for microphone …"
 msgstr "Buscando micrófono …"
 
-#: streamlin/waveui.py:596
+#: streamlin/waveui.py:585
 msgid "Mixes"
 msgstr "Mezclas"
 
-#: streamlin/waveui.py:643
+#: streamlin/waveui.py:622
 msgid "Edit …"
 msgstr "Editar …"
 
-#: streamlin/waveui.py:679 streamlin/waveui.py:228
+#: streamlin/waveui.py:655 streamlin/waveui.py:228
 msgid "Add channel"
 msgstr "Añadir canal"
 
-#: streamlin/waveui.py:680 streamlin/waveui.py:2026
+#: streamlin/waveui.py:656 streamlin/waveui.py:1985
 msgid "Scenes"
 msgstr "Escenas"
 
-#: streamlin/waveui.py:682 streamlin/waveui.py:704 streamlin/waveui.py:792 streamlin/waveui.py:796
-msgid "Set up mixer"
-msgstr "Configurar mezclador"
-
-#: streamlin/waveui.py:700 streamlin/waveui.py:595
-msgid "Setup wizard"
-msgstr "Asistente de configuración"
-
-#: streamlin/waveui.py:833
+#: streamlin/waveui.py:792
 msgid "no output"
 msgstr "sin salida"
 
-#: streamlin/waveui.py:1227
+#: streamlin/waveui.py:1186
 msgid "Save current mix as scene …"
 msgstr "Guardar mezcla actual como escena …"
 
-#: streamlin/waveui.py:1228
+#: streamlin/waveui.py:1187
 msgid "Manage scenes …"
 msgstr "Gestionar escenas …"
 
-#: streamlin/waveui.py:1352
+#: streamlin/waveui.py:1311
 msgid "Linewave: mute microphone"
 msgstr "Linewave: silenciar micrófono"
 
-#: streamlin/waveui.py:1359
+#: streamlin/waveui.py:1318
 msgid "Loading effects …"
 msgstr "Cargando efectos …"
 
-#: streamlin/waveui.py:1451
+#: streamlin/waveui.py:1410
 msgid "Filters out low hum and footfall noise"
 msgstr "Filtra el zumbido grave y los ruidos de pisadas"
 
-#: streamlin/waveui.py:1465
+#: streamlin/waveui.py:1424
 msgid "Works in every app, also on Wayland – it is added to your desktop's keyboard shortcuts."
 msgstr "Funciona en cualquier aplicación, también en Wayland: se añade a los atajos de teclado de tu escritorio."
 
-#: streamlin/waveui.py:1490
+#: streamlin/waveui.py:1449
 msgid "Monitoring"
 msgstr "Monitorización"
 
-#: streamlin/waveui.py:1490
+#: streamlin/waveui.py:1449
 msgid "Balance of mic ↔ PC audio in your headphones"
 msgstr "Balance entre micro ↔ audio del PC en tus auriculares"
 
-#: streamlin/waveui.py:1503
+#: streamlin/waveui.py:1462
 msgid "LEDs off"
 msgstr "LEDs apagados"
 
-#: streamlin/waveui.py:1506
+#: streamlin/waveui.py:1465
 msgid "Flip LEDs"
 msgstr "Invertir LEDs"
 
-#: streamlin/waveui.py:1506
+#: streamlin/waveui.py:1465
 msgid "If the microphone is mounted upside down on a boom arm"
 msgstr "Si el micrófono está montado boca abajo en un brazo articulado"
 
-#: streamlin/waveui.py:1646
+#: streamlin/waveui.py:1605
 msgid "Filters out keyboard, fans and background noise"
 msgstr "Elimina el teclado, los ventiladores y el ruido de fondo"
 
-#: streamlin/waveui.py:1653
+#: streamlin/waveui.py:1612
 msgid "Strength"
 msgstr "Intensidad"
 
-#: streamlin/waveui.py:1654
+#: streamlin/waveui.py:1613
 msgid "Higher values mute everything that does not clearly sound like a voice"
 msgstr "Los valores altos silencian todo lo que no suene claramente a voz"
 
@@ -5126,334 +5121,334 @@ msgstr "Linewave sigue en ejecución"
 msgid "Mixer and microphone stay active. Open it again from the “Linewave” menu."
 msgstr "El mezclador y el micrófono siguen activos. Vuelve a abrirlo desde el menú “Linewave”."
 
-#: streamlin/waveui.py:588 streamlin/waveui.py:672 streamlin/waveui.py:720
-msgid "Mixer"
-msgstr "Mezclador"
-
-#: streamlin/waveui.py:702
-msgid "Remove mixer"
-msgstr "Eliminar mezclador"
-
-#: streamlin/waveui.py:812
+#: streamlin/waveui.py:771
 msgid "Removing mixer …"
 msgstr "Eliminando el mezclador …"
 
-#: streamlin/waveui.py:1304
+#: streamlin/waveui.py:1263
 msgid "Delete scene"
 msgstr "Eliminar escena"
 
-#: streamlin/waveui.py:1320
+#: streamlin/waveui.py:1279
 #, python-brace-format
 msgid "Linewave: apply scene “{name}”"
 msgstr "Linewave: aplicar escena «{name}»"
 
-#: streamlin/waveui.py:1630
+#: streamlin/waveui.py:1589
 msgid "Switched off"
 msgstr "Desactivado"
 
-#: streamlin/waveui.py:2039 streamlin/waveui.py:2057
+#: streamlin/waveui.py:1998 streamlin/waveui.py:2016
 msgid "No Wave microphone"
 msgstr "Sin micrófono Wave"
 
-#: streamlin/waveui.py:2059
+#: streamlin/waveui.py:2018
 msgid "All settings are stored directly in the microphone."
 msgstr "Todos los ajustes se guardan directamente en el micrófono."
 
-#: streamlin/waveui.py:2066
+#: streamlin/waveui.py:2025
 msgid "Connect a microphone – the settings are applied as soon as it is detected."
 msgstr "Conecta un micrófono: los ajustes se aplican en cuanto se detecte."
 
-#: streamlin/waveui.py:645
+#: streamlin/waveui.py:420
+msgid "Open Linewave"
+msgstr "Abrir Linewave"
+
+#: streamlin/waveui.py:584
+msgid "Setup wizard"
+msgstr "Asistente de configuración"
+
+#: streamlin/waveui.py:624
 msgid "Stop listening"
 msgstr "Dejar de escuchar"
 
-#: streamlin/waveui.py:645 streamlin/waveui.py:844
+#: streamlin/waveui.py:624 streamlin/waveui.py:803
 msgid "Listen"
 msgstr "Escuchar"
 
-#: streamlin/waveui.py:686
+#: streamlin/waveui.py:662
 msgid "Monitor – what you hear"
 msgstr "Monitor – lo que oyes"
 
-#: streamlin/waveui.py:686
+#: streamlin/waveui.py:662
 msgid "Stream – what your audience hears"
 msgstr "Stream – lo que oye tu público"
 
-#: streamlin/waveui.py:727
+#: streamlin/waveui.py:686
 msgid "The mixer is off – set it up to give every app its own channel."
 msgstr "El mezclador está apagado: configúralo para dar a cada aplicación su propio canal."
 
-#: streamlin/waveui.py:793
+#: streamlin/waveui.py:752
 msgid "Just like in Elgato Wave Link, every app gets a channel – with its own volume for your headphones (Personal Mix), your stream (Stream Mix) and any mix you create."
 msgstr "Como en Elgato Wave Link, cada app tiene su canal, con volumen propio para tus auriculares (mezcla personal), tu stream (mezcla de stream) y cada mezcla que crees."
 
-#: streamlin/waveui.py:832
+#: streamlin/waveui.py:791
 msgid "virtual"
 msgstr "virtual"
 
-#: streamlin/waveui.py:955
+#: streamlin/waveui.py:914
 #, python-brace-format
 msgid "Remove from “{mix}”"
 msgstr "Quitar de «{mix}»"
 
-#: streamlin/waveui.py:1133 streamlin/waveui.py:2112
+#: streamlin/waveui.py:1092 streamlin/waveui.py:2071
 msgid "Set up the mixer to add effects to channels."
 msgstr "Configura el mezclador para añadir efectos a los canales."
 
-#: streamlin/waveui.py:1155
+#: streamlin/waveui.py:1114
 msgid "All effects are switched off."
 msgstr "Todos los efectos están desactivados."
 
-#: streamlin/waveui.py:1450
+#: streamlin/waveui.py:1409
 msgid "Filters"
 msgstr "Filtros"
 
-#: streamlin/waveui.py:1501
+#: streamlin/waveui.py:1460
 msgid "Mic"
 msgstr "Micro"
 
-#: streamlin/waveui.py:1511
+#: streamlin/waveui.py:1470
 msgid "More settings with the Elgato Wave:3"
 msgstr "Más ajustes con el Elgato Wave:3"
 
-#: streamlin/waveui.py:1512
+#: streamlin/waveui.py:1471
 msgid "Headphone volume, monitoring and the LEDs can be adjusted directly on the Wave:3. For Wave:1, Wave Neo and Wave XLR the protocol for this is not documented."
 msgstr "El volumen de los auriculares, la monitorización y los LEDs se pueden ajustar directamente en el Wave:3. Para Wave:1, Wave Neo y Wave XLR, el protocolo necesario no está documentado."
 
-#: streamlin/waveui.py:1529
+#: streamlin/waveui.py:1488
 msgid "Auto-ducking"
 msgstr "Atenuación automática"
 
-#: streamlin/waveui.py:1532
+#: streamlin/waveui.py:1491
 msgid "Turns the selected channels down in both mixes while you speak and brings them back exactly afterwards."
 msgstr "Baja los canales seleccionados en ambas mezclas mientras hablas y los restaura exactamente después."
 
-#: streamlin/waveui.py:1539
+#: streamlin/waveui.py:1498
 msgid "Lower by"
 msgstr "Bajar en"
 
-#: streamlin/waveui.py:1545
+#: streamlin/waveui.py:1504
 msgid "Sensitivity"
 msgstr "Sensibilidad"
 
-#: streamlin/waveui.py:1632
+#: streamlin/waveui.py:1591
 msgid "Works as soon as the mixer is set up."
 msgstr "Funciona en cuanto el mezclador esté configurado."
 
-#: streamlin/waveui.py:1975
+#: streamlin/waveui.py:1934
 #, python-brace-format
 msgid "In OBS add {source}"
 msgstr "En OBS añade {source}"
 
-#: streamlin/waveui.py:1978
+#: streamlin/waveui.py:1937
 msgid "Other virtual mixes: “Monitor of Linewave <name>”"
 msgstr "Otras mezclas virtuales: «Monitor of Linewave <nombre>»"
 
-#: streamlin/waveui.py:2043
+#: streamlin/waveui.py:2002
 msgid "No Wave microphone connected"
 msgstr "Ningún micrófono Wave conectado"
 
-#: streamlin/waveui.py:2062
+#: streamlin/waveui.py:2021
 msgid "Low Cut and Clipguard run as PipeWire filters. In Discord/OBS, select the microphone “Linewave Microphone”."
 msgstr "Low Cut y Clipguard funcionan como filtros de PipeWire. En Discord/OBS, selecciona el micrófono “Linewave Micrófono”."
 
-#: streamlin/waveui.py:734
+#: streamlin/waveui.py:693
 msgid "Effect chains per channel – changes are live."
 msgstr "Cadenas de efectos por canal: los cambios se aplican al instante."
 
-#: streamlin/waveui.py:737
+#: streamlin/waveui.py:696
 msgid "Click an app to move it to another channel"
 msgstr "Haz clic en una aplicación para moverla a otro canal"
 
-#: streamlin/waveui.py:817
+#: streamlin/waveui.py:776
 msgid "Mixer set up"
 msgstr "Mezclador configurado"
 
-#: streamlin/waveui.py:828
+#: streamlin/waveui.py:787
 #, python-brace-format
 msgid "{n} output"
 msgid_plural "{n} outputs"
 msgstr[0] "{n} salida"
 msgstr[1] "{n} salidas"
 
-#: streamlin/waveui.py:989
+#: streamlin/waveui.py:948
 msgid "Channel added to the mix"
 msgstr "Canal añadido a la mezcla"
 
-#: streamlin/waveui.py:989
+#: streamlin/waveui.py:948
 msgid "Channel removed from the mix"
 msgstr "Canal quitado de la mezcla"
 
-#: streamlin/waveui.py:1055
+#: streamlin/waveui.py:1014
 #, python-brace-format
 msgid "Really delete mix “{name}”?"
 msgstr "¿Seguro que quieres borrar la mezcla «{name}»?"
 
-#: streamlin/waveui.py:1159
+#: streamlin/waveui.py:1118
 msgid "Edit"
 msgstr "Editar"
 
-#: streamlin/waveui.py:1206
+#: streamlin/waveui.py:1165
 #, python-brace-format
 msgid "Really delete channel “{name}”?"
 msgstr "¿Seguro que quieres eliminar el canal “{name}”?"
 
-#: streamlin/waveui.py:1259 streamlin/waveui.py:1244
+#: streamlin/waveui.py:1218 streamlin/waveui.py:1203
 #, python-brace-format
 msgid "Profile “{name}” updated."
 msgstr "Perfil “{name}” actualizado."
 
-#: streamlin/waveui.py:1305
+#: streamlin/waveui.py:1264
 #, python-brace-format
 msgid "Really delete scene “{name}”?"
 msgstr "¿Eliminar de verdad la escena «{name}»?"
 
-#: streamlin/waveui.py:1499 streamlin/waveui.py:2100
+#: streamlin/waveui.py:1458 streamlin/waveui.py:2059
 #, python-brace-format
 msgid "{value:.0f} % mic"
 msgstr "{value:.0f} % micro"
 
-#: streamlin/waveui.py:1634
+#: streamlin/waveui.py:1593
 msgid "You are speaking – channels are lowered."
 msgstr "Estás hablando: los canales están atenuados."
 
-#: streamlin/waveui.py:1636
+#: streamlin/waveui.py:1595
 msgid "Listening – speak to see the level reach the marker."
 msgstr "Escuchando: habla para ver cómo el nivel alcanza la marca."
 
-#: streamlin/waveui.py:1673
+#: streamlin/waveui.py:1632
 msgid "Noise suppression on"
 msgstr "Supresión de ruido activada"
 
-#: streamlin/waveui.py:1673
+#: streamlin/waveui.py:1632
 msgid "Noise suppression off"
 msgstr "Supresión de ruido desactivada"
 
-#: streamlin/waveui.py:1693
+#: streamlin/waveui.py:1652
 #, python-brace-format
 msgid "Off – method: {backend}"
 msgstr "Desactivada – método: {backend}"
 
-#: streamlin/waveui.py:1980
+#: streamlin/waveui.py:1939
 msgid "Click an empty cell to add the channel to the mix, right-click a cell to remove it."
 msgstr "Haz clic en una celda vacía para añadir el canal a la mezcla; clic derecho en una celda para quitarlo."
 
-#: streamlin/waveui.py:2005
+#: streamlin/waveui.py:1964
 msgid "Mixer is off"
 msgstr "Mezclador apagado"
 
-#: streamlin/waveui.py:724
+#: streamlin/waveui.py:683
 #, python-brace-format
 msgid "{count} channels · {mixes} mixes · everything is live"
 msgstr "{count} canales · {mixes} mezclas · todo en vivo"
 
-#: streamlin/waveui.py:1019
+#: streamlin/waveui.py:978
 #, python-brace-format
 msgid "Personal Mix → {output}"
 msgstr "Mezcla personal → {output}"
 
-#: streamlin/waveui.py:1062
+#: streamlin/waveui.py:1021
 #, python-brace-format
 msgid "Mix “{name}” deleted"
 msgstr "Mezcla «{name}» borrada"
 
-#: streamlin/waveui.py:1122
+#: streamlin/waveui.py:1081
 msgid "No app is playing audio right now."
 msgstr "Ninguna app está reproduciendo audio ahora mismo."
 
-#: streamlin/waveui.py:1213
+#: streamlin/waveui.py:1172
 #, python-brace-format
 msgid "Channel “{name}” deleted"
 msgstr "Canal “{name}” eliminado"
 
-#: streamlin/waveui.py:1243
+#: streamlin/waveui.py:1202
 #, python-brace-format
 msgid "Profile “{name}” created – choose it in LinDeck for your Stream Deck."
 msgstr "Perfil “{name}” creado: elígelo en LinDeck para tu Stream Deck."
 
-#: streamlin/waveui.py:1347
+#: streamlin/waveui.py:1306
 msgid "Shortcut removed"
 msgstr "Atajo eliminado"
 
-#: streamlin/waveui.py:1398
+#: streamlin/waveui.py:1357
 #, python-brace-format
 msgid "{app} → channel “{channel}” (remembered)"
 msgstr "{app} → canal “{channel}” (recordado)"
 
-#: streamlin/waveui.py:1695
+#: streamlin/waveui.py:1654
 #, python-brace-format
 msgid "Active: {backend}. The microphone channel in the mixer uses the filtered signal; in Discord/OBS you can also select “Linewave Microphone (noise suppression)”."
 msgstr "Activa: {backend}. El canal del micrófono en el mezclador usa la señal filtrada; en Discord/OBS también puedes elegir «Micrófono Linewave (supresión de ruido)»."
 
-#: streamlin/waveui.py:1975
+#: streamlin/waveui.py:1934
 #, python-brace-format
 msgid "Monitor of {device}"
 msgstr "Monitor of {device}"
 
-#: streamlin/waveui.py:2049
+#: streamlin/waveui.py:2008
 #, python-brace-format
 msgid "Gain {value} %"
 msgstr "Ganancia {value} %"
 
-#: streamlin/waveui.py:2064
+#: streamlin/waveui.py:2023
 msgid "Clipguard needs the package swh-plugins."
 msgstr "Clipguard necesita el paquete swh-plugins."
 
-#: streamlin/waveui.py:1048
+#: streamlin/waveui.py:1007
 #, python-brace-format
 msgid "Mix “{name}” created"
 msgstr "Mezcla «{name}» creada"
 
-#: streamlin/waveui.py:1048
+#: streamlin/waveui.py:1007
 #, python-brace-format
 msgid "Mix “{name}” saved"
 msgstr "Mezcla «{name}» guardada"
 
-#: streamlin/waveui.py:1198
+#: streamlin/waveui.py:1157
 #, python-brace-format
 msgid "Channel “{name}” created"
 msgstr "Canal “{name}” creado"
 
-#: streamlin/waveui.py:1198
+#: streamlin/waveui.py:1157
 #, python-brace-format
 msgid "Channel “{name}” saved"
 msgstr "Canal “{name}” guardado"
 
-#: streamlin/waveui.py:1342
+#: streamlin/waveui.py:1301
 #, python-brace-format
 msgid "Shortcut {keys} set"
 msgstr "Atajo {keys} definido"
 
-#: streamlin/waveui.py:1699
+#: streamlin/waveui.py:1658
 #, python-brace-format
 msgid "Starts as soon as the mixer is set up ({backend})."
 msgstr "Se inicia en cuanto el mezclador esté configurado ({backend})."
 
-#: streamlin/waveui.py:1701
+#: streamlin/waveui.py:1660
 #, python-brace-format
 msgid "Could not start ({backend})."
 msgstr "No se pudo iniciar ({backend})."
 
-#: streamlin/waveui.py:1737
+#: streamlin/waveui.py:1696
 #, python-brace-format
 msgid "{name} on"
 msgstr "{name} activado"
 
-#: streamlin/waveui.py:1737
+#: streamlin/waveui.py:1696
 #, python-brace-format
 msgid "{name} off"
 msgstr "{name} desactivado"
 
-#: streamlin/waveui.py:1967
+#: streamlin/waveui.py:1926
 msgid "listening"
 msgstr "escuchando"
 
-#: streamlin/waveui.py:2042
+#: streamlin/waveui.py:2001
 #, python-brace-format
 msgid "{name} · muted"
 msgstr "{name} · silenciado"
 
-#: streamlin/waveui.py:2060
+#: streamlin/waveui.py:2019
 #, python-brace-format
 msgid "Firmware API {api}."
 msgstr "API de firmware {api}."

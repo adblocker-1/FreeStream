@@ -53,7 +53,7 @@ install it after you confirm. You can switch this off in **Settings**.
 **Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`); your
 profiles stay in `~/.local/share/streamlin`.
 
-> **Status:** version 0.24, tested with simulated devices of every model.
+> **Status:** version 0.25, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## The LinDeck window
@@ -188,7 +188,7 @@ Optional settings go into `~/.config/streamlin/config.json`, for example:
 | Wrong characters from hotkeys | set `keyboard_layout` to your Windows layout |
 | A program doesn't start | `lindeck report` shows what's missing → add it to `app_map` |
 | Key shows a warning symbol | the plugin is missing or Windows-only |
-| No sound after setting up the mixer | choose your headphones in the Linewave sidebar; **Remove mixer** restores everything |
+| No sound after setting up the mixer | choose your headphones under **Listen** in the mixer; **Settings → Remove mixer** restores everything |
 
 Still stuck? **Settings → Help → Create support report…** and attach the file to
 a [GitHub issue](https://github.com/adblocker-1/Streamlin/issues/new).
