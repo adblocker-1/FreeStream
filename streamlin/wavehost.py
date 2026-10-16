@@ -73,6 +73,8 @@ class WaveHost:
             try:
                 if not self.mixer.is_active():
                     self.mixer.setup()
+                else:  # Mixer lief schon: beendete Effekte/Rauschunterdrückung wieder anwerfen
+                    self._watch_effects(force=True)
             except Exception as e:  # noqa: BLE001
                 self.error = _("Mixer: {error}").format(error=e)
                 log.warning(_("Mixer not set up: {error}").format(error=e))
@@ -105,10 +107,10 @@ class WaveHost:
             log.debug(_("Wave microphone: {error}").format(error=e))
         self._watch_effects()
 
-    def _watch_effects(self):
-        """Abgestürzte Effektketten neu starten (alle 10 s)."""
+    def _watch_effects(self, force=False):
+        """Abgestürzte Effektketten und Rauschunterdrückung neu starten (alle 10 s)."""
         now = time.time()
-        if now - getattr(self, "_fx_check", 0) < 10 or not self.mixer_enabled:
+        if (not force and now - getattr(self, "_fx_check", 0) < 10) or not self.mixer_enabled:
             return
         self._fx_check = now
         try:
@@ -118,6 +120,12 @@ class WaveHost:
                 if self.mixer.fx.active(c["id"]) and not self.mixer.fx.running(c["id"]):
                     log.info(_("Restarting effects for {name}").format(name=c["name"]))
                     self.mixer.rebuild_channel(c["id"])
+            ns = self.mixer.noise
+            if ns.enabled and ns.backend() and not ns.running():
+                log.info(_("Restarting noise suppression"))
+                self.mixer.rebuild_channel("mic")
+            elif not ns.enabled and ns.running():  # in config.json ausgeschaltet
+                self.mixer.rebuild_channel("mic")
         except Exception as e:  # noqa: BLE001
             log.debug(_("Effects: {error}").format(error=e))
 

@@ -25,6 +25,7 @@ Konfiguration (config.json):
     "monitor_output": "",                                  (leer = aktuelles Standardgerät)
     "mic": "",                                             (leer = Standardmikrofon)
     "routes": {"spotify": "music", "firefox": "browser"}   (Programm -> Kanal)
+    "noise": {"enabled": true, "backend": "auto", "strength": 50}   (Rauschunterdrückung, siehe noise.py)
   }
 """
 import json
@@ -113,7 +114,9 @@ class Mixer:
         self.state_file = paths.STATE_DIR / STATE_FILE
         self._moved = set()
         from .effects import Effects
+        from .noise import NoiseSuppression
         self.fx = Effects(self)
+        self.noise = NoiseSuppression(self)
 
     # ----------------------------------------------------------- Konfiguration
     @property
@@ -332,7 +335,11 @@ class Mixer:
         else:
             src = self.sink_name(c["id"]) + ".monitor"
         if not src or (c["id"] == "mic" and src.endswith(".monitor")):
+            if c["id"] == "mic":
+                self.noise.stop()
             return None
+        if c["id"] == "mic":  # Rauschunterdrückung vor den Effekten des Mikrofons
+            src = self.noise.source_for(src)
         return self.fx.source_for(c, src)
 
     def _load_channel(self, c, ctx):
@@ -434,6 +441,7 @@ class Mixer:
         st["channels"] = {}
         self._save_state(st)
         self.fx.stop_all()
+        self.noise.stop()
 
     # ------------------------------------------------------ Lautstärke/Mute
     def _loop_input(self, cid, mix):

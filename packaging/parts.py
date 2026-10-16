@@ -13,7 +13,7 @@ LINDECK = ["app.py", "daemon.py", "engine.py", "actions.py", "catalog.py", "edit
            "profiles.py", "render.py", "keyboard.py", "models.py", "plugins.py", "pluginui.py", "ws.py", "obs.py",
            "discord.py", "native.py", "autoimport.py", "assets.py", "bgui.py", "selftest.py"]
 LINEWAVE = ["linewave.py", "wavehost.py", "waveui.py", "wavedialogs.py", "wavesetup.py", "mixer.py", "effects.py",
-            "levels.py", "wavemic.py", "wave3hw.py"]
+            "levels.py", "wavemic.py", "wave3hw.py", "noise.py"]
 
 PACKAGES = {
     "streamlin": COMMON + LINDECK + LINEWAVE,

@@ -20,7 +20,7 @@ DECK_DEPS="python3-evdev, python3-cairosvg, libhidapi-libusb0, libusb-1.0-0, xdg
 WAVE_DEPS="pulseaudio-utils, libusb-1.0-0"
 COMMON_RECS="python3-pystray, gir1.2-ayatanaappindicator3-0.1"
 DECK_RECS="chromium | google-chrome-stable | firefox, mpv | ffmpeg | pipewire-bin, fonts-noto-color-emoji, wmctrl, x11-utils, nodejs"
-WAVE_RECS="wireplumber, pipewire-pulse, pipewire-bin, swh-plugins, tap-plugins, lilv-utils, jalv, pipewire-jack, x42-plugins"
+WAVE_RECS="wireplumber, pipewire-pulse, pipewire-bin, swh-plugins, tap-plugins, lilv-utils, jalv, pipewire-jack, x42-plugins, libspa-0.2-modules, libpipewire-0.3-modules"
 
 # ------------------------------------------------------------------ Bausteine
 launcher() {  # launcher <Paket> <Befehl> <Modul>

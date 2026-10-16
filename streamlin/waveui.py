@@ -1053,7 +1053,9 @@ class WaveWindow:
         # --- Karte Wave:3 (nur mit Hardware)
         right = tk.Frame(t, bg=COL["bg"])
         right.pack(side="left", anchor="n", fill="x", expand=True)
-        self.hw_frame = Card(right, pad=20, radius=16)
+        slot = tk.Frame(right, bg=COL["bg"])  # Wave:3-Karte bzw. Hinweis, darunter Rauschunterdrückung
+        slot.pack(anchor="nw", fill="x")
+        self.hw_frame = Card(slot, pad=20, radius=16)
         h = self.hw_frame.body
         theme.section(h, "Wave:3").pack(fill="x")
         row = self._row(h, _("Headphones"))
@@ -1085,13 +1087,85 @@ class WaveWindow:
         self.v["leds_flip"] = Switch(row, command=lambda: self._on_hw_bool("leds_flip"))
         self.v["leds_flip"].pack(side="right")
 
-        self.no_hw = Card(right, pad=20, radius=16)
+        self.no_hw = Card(slot, pad=20, radius=16)
         label(self.no_hw.body, _("More settings with the Elgato Wave:3"), 10, "bold").pack(anchor="w")
         label(self.no_hw.body, _("Headphone volume, monitoring and the LEDs can be adjusted directly on the "
                                  "Wave:3. For Wave:1, Wave Neo and Wave XLR the protocol for this is not "
                                  "documented."), 9, color=COL["muted"], wraplength=360, justify="left").pack(
             anchor="w", pady=(6, 0))
         self.no_hw.pack(anchor="nw")
+        self._build_noise(right)
+
+    def _build_noise(self, parent):
+        """Karte Rauschunterdrückung (für das Mikrofon im Mixer, jedes Mikrofon)."""
+        card = Card(parent, pad=20, radius=16)
+        card.pack(anchor="nw", pady=(14, 0))
+        n = card.body
+        row = self._row(n, _("Noise suppression"), _("Filters out keyboard, fans and background noise"))
+        self.v["noise"] = Switch(row, command=self._on_noise)
+        self.v["noise"].pack(side="right")
+        self.noise_status = tk.StringVar(self.root, value="")
+        label(n, textvariable=self.noise_status, size=9, color=COL["muted"], wraplength=360,
+              justify="left").pack(anchor="w")
+        self.noise_strength = tk.Frame(n, bg=COL["panel"])
+        row = self._row(self.noise_strength, _("Strength"),
+                        _("Higher values mute everything that does not clearly sound like a voice"))
+        self.noise_val = tk.StringVar(self.root, value="")
+        label(row, textvariable=self.noise_val, color=COL["muted"], width=6).pack(side="right")
+        from .noise import MAX_STRENGTH
+        self.noise_fader = Fader(self.noise_strength, length=360, thickness=24, orient="horizontal", from_=0,
+                                 to=MAX_STRENGTH, color=CHANNEL_LOOK["mic"][1], command=self._on_noise_strength)
+        self.noise_fader.pack(anchor="w")
+
+    def _on_noise(self):
+        on = self.v["noise"].get()
+        self._touch("noise")
+        ns = self.mixer.noise
+
+        def work():
+            ns.set(enabled=on)
+            ns.apply()
+
+        def done(_res, err):
+            if err is None:
+                self.status(_("Noise suppression on") if on else _("Noise suppression off"))
+            self.refresh()
+        self.worker.submit(work, done)
+
+    def _on_noise_strength(self, value):
+        v = int(round(float(value)))
+        self.noise_val.set(f"{v} %")
+        self._debounced("noise_strength", self.mixer.noise.set_strength, v, delay=300)
+
+    def _apply_noise(self, ns):
+        """Schalter, Statuszeile und Stärke-Regler der Rauschunterdrückung."""
+        from . import noise
+        have = ns.get("available") or []
+        if not self._held("noise"):
+            self.v["noise"].set(bool(ns.get("enabled")))
+        self.v["noise"].set_enabled(bool(have) or bool(ns.get("enabled")))
+        backend = noise.backend_name(ns.get("backend"))
+        if not have:
+            text = ns.get("hint") or ""
+        elif not ns.get("enabled"):
+            text = _("Off – method: {backend}").format(backend=backend)
+        elif ns.get("running"):
+            text = _("Active: {backend}. The microphone channel in the mixer uses the filtered signal; in "
+                     "Discord/OBS you can also select “Linewave Microphone (noise suppression)”.").format(
+                backend=backend)
+        elif not self.state.get("mixer_active"):
+            text = _("Starts as soon as the mixer is set up ({backend}).").format(backend=backend)
+        else:
+            text = _("Could not start ({backend}).").format(backend=backend)
+        self.noise_status.set(text)
+        if ns.get("backend") == "rnnoise" and have:
+            if not self.noise_strength.winfo_manager():
+                self.noise_strength.pack(fill="x", pady=(4, 0))
+            if not self._held("noise_strength"):
+                self.noise_fader.set(ns.get("strength", 50))
+                self.noise_val.set(f"{ns.get('strength', 50)} %")
+        else:
+            self.noise_strength.pack_forget()
 
     def _on_gain(self, value):
         pct = int(round(float(value)))
@@ -1205,7 +1279,10 @@ class WaveWindow:
             for c in self.mixer.all_channels():
                 chain = self.mixer.fx.chain(c["id"])
                 on = [fx.get("name") or "FX" for fx in chain if fx.get("enabled", True)]
-                chans.append(dict(c, fx=len(on), fx_names=on, fx_total=len(chain)))
+                names = on
+                if c["id"] == "mic" and self.mixer.noise.enabled:  # Rauschunterdrückung vor den Effekten
+                    names = [_("Noise suppression")] + on
+                chans.append(dict(c, fx=len(on), fx_names=names, fx_total=len(chain)))
             st["channels"] = chans
             st["levels"] = self.mixer.levels()
             st["outputs"] = [(o["name"], o.get("description") or o["name"]) for o in self.mixer.outputs()]
@@ -1231,6 +1308,10 @@ class WaveWindow:
         st["settings"] = dict(self.mic.settings)
         st["filter_running"] = self.mic.running()
         st["limiter"] = wavemic.limiter_available()
+        try:
+            st["noise"] = self.mixer.noise.status()
+        except Exception:  # noqa: BLE001
+            st["noise"] = {}
         return st
 
     def refresh(self):
@@ -1391,6 +1472,7 @@ class WaveWindow:
             self.hw_frame.pack_forget()
             if not self.no_hw.winfo_manager():
                 self.no_hw.pack(anchor="nw")
+        self._apply_noise(st.get("noise") or {})
         self._update_header()
 
     def _build_fx_placeholder(self):

@@ -391,11 +391,62 @@ def _muted_suffix(mute):
     return pgettext("state", " (muted)") if mute else ""
 
 
+ON_WORDS = ("on", "an", "1", "true", "ein")
+
+
+def cmd_noise(args):
+    """`linewave mic noise on|off|status|strength <0…95>|backend auto|rnnoise|webrtc`"""
+    from . import noise
+    from .config import Config
+    from .mixer import Mixer
+    ns = Mixer(Config()).noise
+    sub = (args.args[0] if args.args else "status").lower()
+    try:
+        if sub in ON_WORDS + ("off", "aus", "0", "false"):
+            on = sub in ON_WORDS
+            if on and not noise.available():
+                print(noise.install_hint())
+                return 1
+            ns.set(enabled=on)
+            ns.apply()
+        elif sub == "strength":
+            ns.set_strength(int(args.args[1]))
+        elif sub == "backend":
+            ns.set(backend=args.args[1].lower())
+            if ns.enabled:
+                ns.apply()
+        elif sub != "status":
+            print(_("Unknown command: {name}").format(name=sub))
+            return 1
+        st = ns.status()
+        if not st["enabled"]:
+            state = _on_off(False)
+        elif st["running"]:
+            state = _("on ({backend}, active)").format(backend=noise.backend_name(st["backend"]))
+        elif not st["available"]:
+            state = _("on – not available")
+        else:
+            state = _("on – starts as soon as the mixer is set up (linewave mixer setup)")
+        print(_("Noise suppression: {state}").format(state=state))
+        if st["available"]:
+            print(_("Available: {names}").format(names=", ".join(noise.backend_name(b) for b in st["available"])))
+            if (st["backend"] or "") == "rnnoise":
+                print(_("Strength: {value} % (VAD threshold)").format(value=st["strength"]))
+        else:
+            print(st["hint"])
+    except (RuntimeError, ValueError, IndexError) as e:
+        print(_("Error: {error}").format(error=e))
+        return 1
+    return 0
+
+
 def cmd_wave(args):
     from . import wavemic
     from .config import Config
+    if args.action == "noise":
+        return cmd_noise(args)
     mic = wavemic.WaveMic(Config())
-    on = (args.args[0] if args.args else "on").lower() in ("on", "an", "1", "true", "ein")
+    on = (args.args[0] if args.args else "on").lower() in ON_WORDS
     try:
         if args.action in ("lowcut", "clipguard"):
             if mic.hw():
@@ -621,12 +672,14 @@ def main(argv=None, prog="lindeck"):
                                              "delete <channel>"))
     s.set_defaults(fn=cmd_mixer)
 
-    s = sub.add_parser("wave", help=_("Elgato Wave microphone: status, gain, mute, lowcut, clipguard, leds, flip, "
-                                      "headphone, monitor"))
+    s = sub.add_parser("wave", help=_("microphone: status, gain, mute, lowcut, clipguard, leds, flip, "
+                                      "headphone, monitor, noise"))
     s.add_argument("action", nargs="?", default="status",
-                   choices=["status", "gain", "mute", "lowcut", "clipguard", "leds", "flip", "headphone", "monitor"])
+                   choices=["status", "gain", "mute", "lowcut", "clipguard", "leds", "flip", "headphone", "monitor",
+                            "noise"])
     s.add_argument("args", nargs="*", help=_("gain <percent> · lowcut on|off [80|120] · clipguard on|off · "
-                                             "leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100>"))
+                                             "leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100> · "
+                                             "noise on|off|status|strength <0…95>|backend auto|rnnoise|webrtc"))
     s.set_defaults(fn=cmd_wave)
 
     s = sub.add_parser("linewave", aliases=["wave-app"], help=_("open Linewave: mixer and microphone (separate program)"))
