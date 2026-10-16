@@ -222,7 +222,7 @@ def test_window_mix_table(env, pactl):
         assert not any("aufnahme" in st for st in win.strips.values())
         # Zuordnung ändern tauscht nur die eine Zelle, die Tabelle bleibt stehen
         keep = win.strips["system"]["master"]["fader"]
-        win._toggle_member("system", "chat", False)
+        win.strips["system"]["chat"]["remove"].command()  # X auf der Ecke der Zelle
         assert "chat" not in win.strips["system"]
         assert _pump(root, lambda: "system" in host.mixer.mix("chat")["exclude"])
         win.refresh()

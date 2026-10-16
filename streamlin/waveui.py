@@ -296,6 +296,35 @@ class EmptyCell(tk.Canvas):
             self.create_text(x + 22, h / 2, text=text, anchor="w", fill=COL["accent_hi"], font=self.f)
 
 
+class RemoveBadge(tk.Canvas):
+    """Kleines X im Kreis auf der Ecke einer Zelle: Kanal aus dem Mix nehmen. Rot beim Überfahren."""
+
+    SIZE = 14
+
+    def __init__(self, master, command=None):
+        s = self.SIZE
+        super().__init__(master, width=s, height=s, bg=COL["bg"], highlightthickness=0, bd=0, cursor="hand2")
+        self.command = command
+        self.img = {k: self._image(k) for k in (False, True)}
+        self.item = self.create_image(s / 2, s / 2, image=self.img[False])
+        self.bind("<Enter>", lambda e: self.itemconfigure(self.item, image=self.img[True]))
+        self.bind("<Leave>", lambda e: self.itemconfigure(self.item, image=self.img[False]))
+        self.bind("<ButtonRelease-1>", lambda e: self.command and self.command())
+
+    def _image(self, hover):
+        k, s = 4, self.SIZE
+        S = s * k
+        fill, ring, x = ((COL["danger"], COL["danger"], "#ffffff") if hover
+                         else (COL["panel2"], COL["border"], COL["muted"]))
+        im = Image.new("RGBA", (S, S), theme.rgb(COL["bg"]) + (255,))
+        d = ImageDraw.Draw(im)
+        d.ellipse((k / 2, k / 2, S - k / 2, S - k / 2), fill=fill, outline=ring, width=k)
+        a = S * 0.17
+        for sgn in (1, -1):
+            d.line((S / 2 - a, S / 2 - sgn * a, S / 2 + a, S / 2 + sgn * a), fill=x, width=int(1.6 * k))
+        return ImageTk.PhotoImage(im.resize((s, s), Image.LANCZOS), master=self)
+
+
 class AppChip(tk.Canvas):
     """Programm mit Kanal: [Symbol] Spotify │ → Musik. Klick öffnet die Kanalauswahl."""
 
@@ -863,6 +892,9 @@ class WaveWindow:
             part = self._mix_cell(tb, cid, m, row, col)
             self.strips[cid][mid] = part
             widget = part["card"]
+            badge = RemoveBadge(tb, command=lambda: self._toggle_member(cid, mid, False))
+            badge.place(in_=widget, relx=1.0, x=-3, y=3, anchor="center")  # halb auf der Ecke
+            part["remove"] = badge
         else:
             self.strips[cid].pop(mid, None)
             widget = EmptyCell(tb, MIX_W, ROW_H, command=lambda: self._toggle_member(cid, mid, True))
@@ -928,6 +960,9 @@ class WaveWindow:
         cell = getattr(self, "cells", {}).get((cid, mid))
         if cell:
             widget, row, col, m = cell
+            badge = self.strips.get(cid, {}).get(mid, {}).get("remove")
+            if badge is not None:
+                badge.destroy()
             widget.destroy()
             cur = next((list(x[4]) for x in (self._strip_ids or ((), ()))[1] if x[0] == mid), m.get("exclude") or [])
             excl = [x for x in cur if x != cid] + ([] if on else [cid])
