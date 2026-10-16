@@ -183,7 +183,10 @@ CATALOG = [
 
 _MIX_CHANNELS = [("system", _("System")), ("music", _("Music")), ("browser", _("Browser")), ("voice", _("Voice Chat")),
                  ("game", _("Game")), ("sfx", _("Effects")), ("mic", _("Microphone"))]
-_MIXES = [("both", _("Monitor and Stream Mix")), ("monitor", _("Monitor Mix only")), ("stream", _("Stream Mix only"))]
+_MIXES = [("both", _("Monitor and Stream Mix")), ("monitor", _("Monitor Mix only")), ("stream", _("Stream Mix only")),
+          ("selected", _("Chosen with the Mix key"))]
+_DISPLAYS = [("", _("Text")), ("tile", _("Channel tile")), ("fader_top", _("Fader, upper half")),
+             ("fader_bottom", _("Fader, lower half"))]
 _TOGGLE = [("toggle", _("toggle")), ("start", _("start")), ("stop", _("stop"))]
 # Feldart "entity": options = erlaubte Domains für die Auswahl (None = alle)
 HA_TOGGLE_DOMAINS = ["light", "switch", "fan", "cover", "input_boolean", "automation", "lock", "climate",
@@ -272,8 +275,17 @@ CATALOG += [
                        Field("choice", "action", _("Key"), [("mute", _("toggle mute")), ("up", _("volume up")),
                                                            ("down", _("volume down")), ("set", _("Set volume"))]),
                        Field("int", "step", _("Step size (%)"), min=1, max=50),
-                       Field("int", "volume", _("Volume for “set” (%)"), min=0, max=100)],
+                       Field("int", "volume", _("Volume for “set” (%)"), min=0, max=100),
+                       Field("choice", "display", _("Look"), _DISPLAYS)],
                description=_("Wave Link replacement: channel volume per mix")),
+    ActionType("com.lindeck.mixer.mixselect", _("Choose Mix"), "Linewave", {"mix": "both"},
+               fields=[Field("choice", "mix", "Mix", [("both", _("All")), ("monitor", "Monitor"), ("stream", "Stream"),
+                                                     ("cycle", _("Next mix (cycle)"))])],
+               description=_("Chooses which mix the channel keys with “Chosen with the Mix key” control")),
+    ActionType("com.lindeck.mixer.pages", _("Channel Pages"), "Linewave", {"first": 1, "last": 1},
+               fields=[Field("int", "first", _("First channel"), min=1, max=99),
+                       Field("int", "last", _("Last channel"), min=1, max=99)],
+               description=_("Shows which channels this page controls; press to turn the page")),
     ActionType("com.lindeck.mixer.output", _("Monitor Output"), "Linewave", {"device": ""},
                fields=[Field("text", "device", _("Device (empty = next)"))],
                description=_("Switches the Monitor Mix between headphones and speakers")),

@@ -474,7 +474,29 @@ class MixerAction(NativeAction):
     @property
     def mix(self):
         m = str(_first(self.settings, "mix", "mixType", default="both")).lower()
+        if m == "selected":  # folgt der Mix-Wahl-Taste (Linewave-Profil)
+            return deck_mix()
         return "monitor" if "monitor" in m or "local" in m else "stream" if "stream" in m else "both"
+
+    @property
+    def display(self):
+        """Darstellung: "" (Text), "tile", "fader_top", "fader_bottom" (Linewave-Profil)."""
+        d = str(self.settings.get("display") or "").lower()
+        return d if d in ("tile", "fader_top", "fader_bottom") and self.func != "output" else ""
+
+    def frames(self, size):
+        if not self.display or self.image_override is not None or self._has_image():
+            return super().frames(size)
+        from . import mixkeys
+        if getattr(self.ctx.ctrl, "preview", False):
+            ch, (vol, mute) = None, (70, False)
+        else:
+            ch, (vol, mute) = self.mixer.channel(self.channel), self._level()
+        icon, color = theme_look(ch or self.channel)
+        self.title_override = ""
+        if self.display == "tile":
+            return [(mixkeys.tile(size, icon, color, vol, mute, self.mix), 0)]
+        return [(mixkeys.fader(size, self.display[6:], icon, color, vol, mute, self.mix), 0)]
 
     @property
     def key_action(self):
@@ -546,6 +568,79 @@ class MixerAction(NativeAction):
         vol, mute = self._level() if self.func != "output" else (None, False)
         fb["indicator"] = None if vol is None else (0 if mute else min(100, vol))
         return fb
+
+
+_DECK_MIX = {"mix": "both"}
+MIX_ORDER = ("both", "monitor", "stream")
+
+
+def deck_mix():
+    """Mix, den die Mix-Wahl-Tasten gerade gewählt haben (gilt für Kanäle mit mix "selected")."""
+    return _DECK_MIX["mix"]
+
+
+def theme_look(ch):
+    from .theme import channel_look
+    return channel_look(ch)
+
+
+class MixSelectAction(NativeAction):
+    """Mix-Wahl im Linewave-Profil: Alle / Monitor / Stream; "cycle" schaltet der Reihe nach weiter."""
+    inline = True
+
+    @property
+    def target(self):
+        m = str(self.settings.get("mix") or "both").lower()
+        return m if m in MIX_ORDER or m == "cycle" else "both"
+
+    def active(self):
+        return self.target == "cycle" or deck_mix() == self.target
+
+    def main_text(self):
+        from .mixkeys import mix_name
+        return mix_name(deck_mix() if self.target == "cycle" else self.target)
+
+    def status_text(self):
+        return deck_mix()
+
+    def frames(self, size):
+        if self.image_override is not None or self._has_image():
+            return super().frames(size)
+        from . import mixkeys
+        self.title_override = ""
+        if self.target == "cycle":
+            return [(mixkeys.mix_key(size, deck_mix(), True, sub="Mix"), 0)]
+        return [(mixkeys.mix_key(size, self.target, deck_mix() == self.target), 0)]
+
+    def key_down(self):
+        if self.target == "cycle":
+            _DECK_MIX["mix"] = MIX_ORDER[(MIX_ORDER.index(deck_mix()) + 1) % len(MIX_ORDER)]
+        else:
+            _DECK_MIX["mix"] = self.target
+        ctrl = self.ctx.ctrl if self.ctx else None
+        for a in list((getattr(ctrl, "keys", None) or {}).values()) + list((getattr(ctrl, "dials", None) or {}).values()):
+            if isinstance(a, (MixerAction, MixSelectAction)):
+                a._lv_at = 0
+                a.tick()
+                a.redraw()
+
+
+class MixerPagesAction(NativeAction):
+    """„Kanäle 1–7“: zeigt die Kanäle dieser Seite, Drücken blättert zur nächsten Seite."""
+    inline = True
+    needs_tick = False
+
+    def frames(self, size):
+        if self.image_override is not None or self._has_image():
+            return super().frames(size)
+        from . import mixkeys
+        self.title_override = ""
+        first = int(self.settings.get("first") or 1)
+        return [(mixkeys.pages_key(size, first, int(self.settings.get("last") or first)), 0)]
+
+    def key_down(self):
+        if self.ctx and self.ctx.ctrl:
+            self.ctx.ctrl.next_page()
 
 
 class MixerSceneAction(NativeAction):
@@ -748,6 +843,10 @@ def lookup(uuid: str):
         return WaveMicAction
     if u == "com.lindeck.mixer.scene":
         return MixerSceneAction
+    if u == "com.lindeck.mixer.mixselect":
+        return MixSelectAction
+    if u == "com.lindeck.mixer.pages":
+        return MixerPagesAction
     if u.startswith("com.lindeck.mixer.") or "wavelink" in plugin or "wave-link" in plugin:
         return MixerAction
     return None

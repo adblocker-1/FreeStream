@@ -114,6 +114,21 @@ COL = dict(PALETTES[MODE])
 FONT_FAMILIES = ("Inter", "Noto Sans", "Cantarell", "Ubuntu", "Segoe UI", "DejaVu Sans")
 
 
+CHANNEL_LOOK = {  # Mixer-Kanal -> (Symbol, Farbe); auch für die Tasten auf dem Stream Deck
+    "system": ("system", "#64748b"), "music": ("music", "#1fa463"), "browser": ("globe", "#ea580c"),
+    "voice": ("chat", "#5865f2"), "game": ("game", "#f59e0b"), "sfx": ("spark", "#ec4899"),
+    "mic": ("mic", "#e5484d"),
+}
+
+
+def channel_look(c):
+    """(Symbol, Farbe) eines Mixer-Kanals – eigene Angaben gehen vor."""
+    if isinstance(c, dict):
+        base = CHANNEL_LOOK.get(c.get("id"), ("input" if c.get("kind") == "input" else "wave", "#64748b"))
+        return c.get("icon") or base[0], c.get("color") or base[1]
+    return CHANNEL_LOOK.get(c, ("wave", "#64748b"))
+
+
 def rgb(hex_color):
     h = hex_color.lstrip("#")
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))

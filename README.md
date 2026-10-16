@@ -134,7 +134,7 @@ or a capture card.
 | Feature | |
 |---|---|
 | **Effects** | **FX** below a channel: high-pass, EQ, gate, compressor, reverb and any LADSPA/LV2 plugin (`swh-plugins`, `tap-plugins`, `x42-plugins` …) |
-| **Channels on the Stream Deck** | **Stream Deck** in the Mixer header creates a LinDeck profile “Linewave” for your model with volume controls for the channels you pick – like the Wave Link plugin – and keeps it up to date when you add or delete channels: dials on the Stream Deck + (turn = volume, press = mute), otherwise volume up / mute / volume down keys |
+| **Channels on LinDeck** | **Export to LinDeck** in the Mixer header creates a LinDeck profile “Linewave” for your model – laid out like the Wave Link profile – and keeps it up to date when you add or delete channels: mix keys (All / Monitor / Stream) and “Channels 1–7” on top, per channel a tile with its icon and volume (press = mute) and a fader over two keys (upper key = louder, lower key = quieter); dials on the Stream Deck + |
 | **Scenes** | save the whole mix under a name and switch with one click, a shortcut or the Stream Deck key **Mixer Scene** |
 | **Auto-ducking** | music gets quieter while you speak and comes back exactly afterwards |
 | **Noise suppression** | for any microphone; uses [RNNoise](https://github.com/werman/noise-suppression-for-voice) if installed, otherwise PipeWire's built-in filter |

@@ -42,19 +42,29 @@ def _pages(root):
 
 
 def test_plan_layouts():
+    # Stream Deck XL: oben Mix-Wahl und „Kanäle“, je Kanal Kachel + Fader über zwei Tasten
+    xl = deckexport.plan(Geometry(8, 4), CHANS)
+    assert len(xl) == 1
+    assert [(s, k) for s, c, k in xl[0] if c is None] == [
+        (("key", 0, 0), "mix:both"), (("key", 1, 0), "mix:monitor"), (("key", 2, 0), "mix:stream"),
+        (("key", 7, 0), "pages")]
+    assert (("key", 0, 1), "system", "tile") in xl[0] and (("key", 5, 2), "sfx", "fader_top") in xl[0]
+    assert (("key", 5, 3), "sfx", "fader_bottom") in xl[0]
+    assert len(deckexport.plan(Geometry(8, 4), CHANS * 2)) == 2
+    # MK.2: letzte Spalte Mix der Reihe nach und Seiten
+    mk2 = deckexport.plan(Geometry(5, 3), ["a", "b"])
+    assert mk2 == [[(("key", 0, 0), "a", "tile"), (("key", 0, 1), "a", "fader_top"), (("key", 0, 2), "a", "fader_bottom"),
+                    (("key", 1, 0), "b", "tile"), (("key", 1, 1), "b", "fader_top"), (("key", 1, 2), "b", "fader_bottom"),
+                    (("key", 4, 0), None, "mix:cycle"), (("key", 4, 1), None, "pages")]]
+    assert len(deckexport.plan(Geometry(5, 3), CHANS)) == 2
+    fixed = deckexport.plan(Geometry(5, 3), ["a"], selectable=False)
+    assert [k for _s, c, k in fixed[0] if c is None] == ["pages"]
+    mini = deckexport.plan(Geometry(3, 2), ["a", "b", "c"])
+    assert len(mini) == 2 and (("key", 0, 1), "a", "fader_bottom") in mini[0] and (("key", 2, 1), None, "pages") in mini[0]
     plus = deckexport.plan(Geometry(4, 2, dials=4), ["a", "b", "c", "d", "e"])
     assert len(plus) == 2
-    assert (("dial", 0), "a", "dial") in plus[0] and (("key", 3, 0), "d", "mute") in plus[0]
-    assert (("key", 2, 1), None, "prev") in plus[1] and (("key", 3, 1), None, "next") in plus[1]
-    mk2 = deckexport.plan(Geometry(5, 3), ["a", "b"])
-    assert mk2 == [[(("key", 0, 0), "a", "up"), (("key", 0, 1), "a", "mute"), (("key", 0, 2), "a", "down"),
-                    (("key", 1, 0), "b", "up"), (("key", 1, 1), "b", "mute"), (("key", 1, 2), "b", "down")]]
-    # mehr Kanäle als Spalten: letzte Spalte zum Blättern
-    many = deckexport.plan(Geometry(5, 3), CHANS)
-    assert len(many) == 2 and {k for _s, c, k in many[0] if c is None} == {"prev", "indicator", "next"}
-    assert not any(s == ("key", 4, 0) and c for s, c, _k in many[0])
-    mini = deckexport.plan(Geometry(3, 2), ["a", "b", "c", "d"])
-    assert len(mini) == 2 and (("key", 0, 1), "a", "down") in mini[0] and (("key", 2, 1), None, "next") in mini[0]
+    assert (("dial", 0), "a", "dial") in plus[0] and (("key", 3, 0), "d", "tile") in plus[0]
+    assert (("key", 1, 1), None, "mix:monitor") in plus[1] and (("key", 3, 1), None, "pages") in plus[1]
     with pytest.raises(deckexport.ExportError):
         deckexport.plan(Geometry(3, 1), ["a"])  # Pedal
     with pytest.raises(deckexport.ExportError):
@@ -70,7 +80,10 @@ def test_export_creates_own_profile(store):
     assert p1[0] == "Linewave 1"
     assert p1[1][("dial", 0)] == ("com.lindeck.mixer.channel", "system", "mute", "stream", 2)
     assert p1[1][("key", 3, 0)] == ("com.lindeck.mixer.channel", "voice", "mute", "stream", 5)
-    assert p2[1][("key", 3, 1)][0] == "com.elgato.streamdeck.page.next"
+    assert p2[1][("key", 3, 1)][0] == "com.lindeck.mixer.pages"
+    assert not any(v[0] == "com.lindeck.mixer.mixselect" for v in p1[1].values())  # feste Mischung
+    doc = editdoc.ProfileDoc(root)
+    assert doc.page(doc.page_ids[1]).get(("key", 3, 1))["Settings"] == {"first": 5, "last": 6}
     meta = json.loads((root / "lindeck-meta.json").read_text())
     assert meta["linewave"] == {"channels": CHANS, "all": True, "mix": "stream"}
     # zweites Mal: dasselbe Profil wird ersetzt, kein zweites
@@ -100,7 +113,8 @@ def test_sync_follows_channels(store):
     assert changed == ["Linewave"]  # nur das Profil mit „alle Kanäle“
     root = _profile(store, "Linewave")
     slots = _pages(root)[0][1]
-    assert slots[("key", 2, 1)][1:3] == ("podcast", "mute")
+    assert slots[("key", 2, 0)][1:4] == ("podcast", "mute", "selected")
+    assert slots[("key", 2, 2)][1:3] == ("podcast", "down")
     assert deckexport.sync(["system"]) == ["Linewave"]  # gelöschte Kanäle verschwinden
     plus = _profile(store, "Linewave (Stream Deck +)")
     assert deckexport.sync(["system"]) == []
@@ -196,9 +210,56 @@ def test_export_dialog(root, store):
     dlg._create()
     assert done == [("Linewave", True)]
     slots = _pages(_profile(store, "Linewave"))[0][1]
-    assert {v[1] for v in slots.values()} == {"system", "music"} and {v[3] for v in slots.values()} == {"monitor"}
+    mixers = {k: v for k, v in slots.items() if v[0] == "com.lindeck.mixer.channel"}
+    assert {v[1] for v in mixers.values()} == {"system", "music"} and {v[3] for v in mixers.values()} == {"monitor"}
     meta = json.loads((_profile(store, "Linewave") / "lindeck-meta.json").read_text())
     assert meta["linewave"]["all"] is False
     dlg = DeckExportDialog(root, chans)
     assert dlg.create_btn.text == "Profil aktualisieren"
     dlg.destroy()
+
+
+def test_key_looks_and_mix_select():
+    from streamlin import mixkeys, native
+    for img in (mixkeys.tile((72, 72), "music", "#1fa463", 40, False, "both"),
+                mixkeys.tile((72, 72), "mic", "#e5484d", 40, True, "stream"),
+                mixkeys.tile((72, 72), "music", "#1fa463", None, False, "both"),
+                mixkeys.fader((72, 72), "top", "game", "#f59e0b", 100, False, "monitor"),
+                mixkeys.fader((96, 96), "bottom", "game", "#f59e0b", 0, True, "monitor"),
+                mixkeys.mix_key((72, 72), "monitor", True), mixkeys.pages_key((72, 72), 1, 7)):
+        assert img.size in ((72, 72), (96, 96))
+    # Fader: bei 100 % ist der Knopf oben, bei 0 % unten – die Hälften unterscheiden sich
+    full_top = mixkeys.fader((72, 72), "top", "game", "#f59e0b", 100, False, "both")
+    empty_top = mixkeys.fader((72, 72), "top", "game", "#f59e0b", 0, False, "both")
+    assert full_top.tobytes() != empty_top.tobytes()
+
+    class Ctrl:
+        preview = False
+
+        def __init__(self):
+            self.keys, self.dials = {}, {}
+
+        def redraw_action(self, a):
+            pass
+
+    class Ctx:
+        ctrl = Ctrl()
+
+    def make(cls, uuid, settings):
+        return cls({"UUID": uuid, "Settings": settings}, None, Ctx)
+    monitor = make(native.MixSelectAction, "com.lindeck.mixer.mixselect", {"mix": "monitor"})
+    cycle = make(native.MixSelectAction, "com.lindeck.mixer.mixselect", {"mix": "cycle"})
+    chan = make(native.MixerAction, "com.lindeck.mixer.channel", {"channel": "music", "mix": "selected"})
+    assert native.lookup("com.lindeck.mixer.mixselect") is native.MixSelectAction
+    assert native.lookup("com.lindeck.mixer.pages") is native.MixerPagesAction
+    native._DECK_MIX["mix"] = "both"
+    try:
+        assert not monitor.active() and chan.mix == "both"
+        monitor.key_down()
+        assert monitor.active() and chan.mix == "monitor"
+        cycle.key_down()
+        assert native.deck_mix() == "stream" and chan.mix == "stream"
+        cycle.key_down()
+        assert native.deck_mix() == "both"
+    finally:
+        native._DECK_MIX["mix"] = "both"

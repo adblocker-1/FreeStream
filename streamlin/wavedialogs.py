@@ -624,13 +624,13 @@ class DeckExportDialog(Dialog):
 
     def __init__(self, master, channels, on_done=None):
         from . import deckexport
-        super().__init__(master, _("Channels on the Stream Deck"), width=560)
+        super().__init__(master, _("Export to LinDeck"), width=560)
         self.dx, self.on_done = deckexport, on_done
         self.channels = channels  # [(id, Name)]
         b = self.body
-        header(b, _("Channels on the Stream Deck"),
+        header(b, _("Export to LinDeck"),
                _("Creates a LinDeck profile “Linewave” with volume controls for the chosen channels. "
-                 "It is updated by itself when you add or delete channels."), icon="deck", wrap=460)
+                 "It is updated by itself when you add or delete channels."), icon="export", wrap=460)
         self.devices = deckexport.devices()
         footer(self)
         self.create_btn = Button(self.buttons, _("Create profile"), icon="plus", kind="primary", command=self._create)
@@ -655,9 +655,10 @@ class DeckExportDialog(Dialog):
             self.chips[cid] = chip
 
         field(b, "MIX")
-        self.mix = "both"
-        SoftSegmented(b, [("both", _("Both mixes"), None), ("monitor", "Monitor", "headphones"),
-                          ("stream", "Stream", "stream")], command=self._set_mix, value="both",
+        self.mix = "selected"
+        SoftSegmented(b, [("selected", _("Choose on deck"), "deck"), ("both", _("Both mixes"), None),
+                          ("monitor", "Monitor", "headphones"), ("stream", "Stream", "stream")],
+                      command=self._set_mix, value="selected",
                       fill=True).pack(fill="x", pady=(0, 14))
 
         self.hint = label(b, "", 9, color=COL["muted"], wraplength=500, justify="left")
@@ -684,13 +685,14 @@ class DeckExportDialog(Dialog):
 
     def _set_mix(self, value):
         self.mix = value
+        self._update_hint()
 
     def _update_hint(self):
         d = self._selected_device()
         try:
             geo = self.dx.geometry_of(d["model"])
             text = self.dx.describe(geo)
-            n = len(self.dx.plan(geo, self._selected_channels()))
+            n = len(self.dx.plan(geo, self._selected_channels(), selectable=self.mix == "selected"))
             if n > 1:
                 text += " " + _("The channels need {count} pages; keys to turn the page are added.").format(count=n)
             if d["profile"]:
