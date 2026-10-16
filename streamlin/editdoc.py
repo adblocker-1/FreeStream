@@ -158,7 +158,7 @@ class ProfileDoc:
                 except (ValueError, OSError):
                     continue
         if not self.pages and "Actions" in self.manifest:
-            raise EditError(_("Profiles in format v1 (Stream Deck app 4.x) cannot be edited"))
+            raise EditError(_("Profiles in format v1 (Elgato app 4.x) cannot be edited"))
         self.v3_names = any(self._is_uuid_name(p.dir.name) for p in self.pages.values())
         # Verweise im Manifest auf die tatsächliche Schreibweise der Seiten-UUIDs abbilden
         for pid in self.page_ids:

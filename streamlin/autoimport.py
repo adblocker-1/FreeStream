@@ -140,8 +140,8 @@ def run_once(state) -> bool:
                         n = len(ids)
                         log.info(ngettext("{n} profile imported from {path}", "{n} profiles imported from {path}",
                                           n).format(n=n, path=p))
-                        notify("LinDeck", ngettext("{n} Stream Deck profile imported from “{name}”",
-                                                   "{n} Stream Deck profiles imported from “{name}”",
+                        notify("LinDeck", ngettext("{n} profile imported from “{name}”",
+                                                   "{n} profiles imported from “{name}”",
                                                    n).format(n=n, name=p.name))
                         imported_any = True
             except Exception as e:  # noqa: BLE001

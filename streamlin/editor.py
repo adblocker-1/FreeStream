@@ -30,7 +30,7 @@ log = logging.getLogger("streamlin.editor")
 COL = theme.COL
 # Kategorie der Aktionsliste -> (Symbol, Farbe)
 CATEGORY_LOOK = {
-    _("System"): ("keyboard", "#64748b"), _("Navigation"): ("navigate", "#3b82f6"), "Stream Deck": ("grid", "#3b82f6"),
+    _("System"): ("keyboard", "#64748b"), _("Navigation"): ("navigate", "#3b82f6"), "LinDeck": ("grid", "#3b82f6"),
     "Multi Action": ("layers", "#8b5cf6"), "Soundboard": ("sfx", "#ec4899"), _("Audio"): ("speaker", "#22c55e"),
     "OBS Studio": ("record", "#ef4444"), _("Spotify & Media"): ("play", "#16a34a"), "Discord": ("chat", "#6366f1"),
     "Linewave": ("wave", "#06b6d4"), "Home Assistant": ("home", "#0ea5e9"),
@@ -398,7 +398,7 @@ class EditorApp:
             card.pack(fill="x", pady=(0, 8))
             self.device_cards[c.serial] = card
         if not ctrls:
-            theme.InfoCard(self.devbox, _("No Stream Deck connected"), "", image=off_img, dim=True).pack(
+            theme.InfoCard(self.devbox, _("No device connected"), "", image=off_img, dim=True).pack(
                 fill="x", pady=(0, 8))
 
     def select_device(self, serial):
@@ -480,7 +480,7 @@ class EditorApp:
         if not self._hidden_once:
             self._hidden_once = True
             from .desktop import notify
-            notify(_("LinDeck keeps running"), _("The Stream Deck stays active. Open it via the “LinDeck” menu."))
+            notify(_("LinDeck keeps running"), _("LinDeck stays active. Open it again via its icon in the tray."))
 
     def open_background(self):
         """Hintergrundbild der aktuellen Seite (und des Touchstreifens) einstellen."""
@@ -724,7 +724,7 @@ class EditorApp:
             other = bool(shapes) and _shape(p.model) not in shapes  # Profil für ein nicht angeschlossenes Gerät
             count = ngettext("{n} page", "{n} pages", n).format(n=n) if on else n
             if other and not on:  # kurzer Modellname statt Seitenzahl („Mini MK.2“)
-                count = (model_name(p.model) if p.model else "").replace("Stream Deck ", "")
+                count = (model_name(p.model) if p.model else "").replace("LinDeck ", "")
             it = theme.NavItem(f, p.name, profile_glyph(p.name), count, active=on, dim=other,
                                command=lambda i=p.id: self._on_profile_selected(i))
             it.bind("<Button-3>", lambda e, i=p.id: self._profile_context(i, e.x_root, e.y_root))
@@ -869,7 +869,7 @@ class EditorApp:
     def import_profiles(self):
         files = filedialog.askopenfilenames(
             parent=self.root, title=_("Import profiles"),
-            filetypes=[(_("Stream Deck profiles"), "*.streamDeckProfile *.streamDeckProfilesBackup *.zip"),
+            filetypes=[(_("Profiles (Elgato format)"), "*.streamDeckProfile *.streamDeckProfilesBackup *.zip"),
                        (_("All files"), "*")])
         if not files:
             return
@@ -891,7 +891,7 @@ class EditorApp:
         f = filedialog.asksaveasfilename(parent=self.root, title=_("Export profile"),
                                          initialfile=f"{safe}.streamDeckProfile",
                                          defaultextension=".streamDeckProfile",
-                                         filetypes=[(_("Stream Deck profile"), "*.streamDeckProfile")])
+                                         filetypes=[(_("Profile (Elgato format)"), "*.streamDeckProfile")])
         if f:
             out = self.doc.export(f)
             self.status(_("Exported: {path}").format(path=out))
@@ -2159,8 +2159,8 @@ class NewProfileDialog(theme.Dialog):
         super().__init__(app_root, _("New profile"), width=520)
         self.result = None
         b = self.body
-        header(b, _("New profile"), _("For the connected Stream Deck") if plugged else
-               _("No Stream Deck connected – the profile is for the model used last"), icon="plus")
+        header(b, _("New profile"), _("For the connected device") if plugged else
+               _("No device connected – the profile is for the model used last"), icon="plus")
         self.name = tk.StringVar(self, value=_("New profile"))
         field(b, _("Name"))
         self.entry = entry(b, self.name)

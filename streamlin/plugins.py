@@ -46,7 +46,7 @@ from pathlib import Path
 
 from . import __version__, i18n, paths, system, ws
 from .i18n import _
-from .models import model_name
+from .models import elgato_name
 
 log = logging.getLogger("streamlin.plugins")
 
@@ -375,7 +375,7 @@ class PluginHost:
     @staticmethod
     def _device_info(ctrl):
         code = (ctrl.model or "")[:5]
-        return {"id": ctrl.serial, "name": model_name(ctrl.model),
+        return {"id": ctrl.serial, "name": elgato_name(ctrl.model),
                 "size": {"columns": ctrl.geometry.cols, "rows": ctrl.geometry.rows},
                 "type": DEVICE_TYPES.get(code, 0)}
 

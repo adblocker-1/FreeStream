@@ -60,7 +60,7 @@ class BackgroundDialog(Dialog):
             txt = tk.Frame(head, bg=COL["panel"])
             txt.pack(side="left", padx=12, fill="x", expand=True)
             label(txt, _("Touch strip"), 11, "bold").pack(anchor="w")
-            label(txt, _("Custom image for the whole touch strip of the Stream Deck + (as in the Elgato app)."),
+            label(txt, _("Custom image for the whole touch strip (as in the Elgato app)."),
                   9, color=COL["muted"], wraplength=420, justify="left").pack(anchor="w")
             body = tk.Frame(sc.body, bg=COL["panel"])
             body.pack(fill="x")

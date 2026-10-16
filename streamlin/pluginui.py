@@ -214,7 +214,7 @@ class PluginManager(Dialog):
     def install(self):
         files = filedialog.askopenfilenames(
             parent=self, title=_("Install plugin"),
-            filetypes=[(_("Stream Deck plugin"), "*.streamDeckPlugin *.zip"), (_("All files"), "*")])
+            filetypes=[(_("Plugin (Elgato format)"), "*.streamDeckPlugin *.zip"), (_("All files"), "*")])
         if not files:
             return
         msgs = []

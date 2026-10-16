@@ -611,7 +611,8 @@ class MixSelectAction(NativeAction):
         try:
             out += [(m["id"], m["name"], m.get("icon") or "wave") for m in self.mixer.mixes()]
         except Exception:  # noqa: BLE001
-            out += [(m, m.title(), {"monitor": "headphones", "stream": "stream"}[m]) for m in MIX_ORDER[1:]]
+            from .mixkeys import mix_name
+            out += [(m, mix_name(m), {"monitor": "headphones", "stream": "stream"}[m]) for m in MIX_ORDER[1:]]
         return out
 
     @property

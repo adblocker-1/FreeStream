@@ -22,7 +22,7 @@ MIX_ICON = {"both": "wave", "monitor": "headphones", "stream": "stream"}
 
 
 def mix_name(mix):
-    return {"both": pgettext("mix", "All"), "monitor": "Monitor", "stream": "Stream"}.get(mix, mix)
+    return {"both": pgettext("mix", "All"), "monitor": _("Personal"), "stream": "Stream"}.get(mix, mix)
 
 
 def _rgb(color):

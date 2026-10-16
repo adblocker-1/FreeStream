@@ -77,7 +77,7 @@ def test_report_file_without_any_tools(home, monkeypatch):
     path = support.write_report(app="LinDeck")
     assert path.parent == home / "home" and path.name.startswith("streamlin-support-")
     text = path.read_text()
-    for title in ("## Streamlin", "## System", "## Stream Deck devices", "## Audio", "## LinDeck / Linewave state",
+    for title in ("## Streamlin", "## System", "## LinDeck devices", "## Audio", "## LinDeck / Linewave state",
                   "## config.json", "## Log"):
         assert title in text
     assert "(pactl not available)" in text and "(lsusb not available)" in text

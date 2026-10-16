@@ -311,7 +311,7 @@ def log_info():
 
 
 def sections(app=""):
-    return [("Streamlin", lambda: streamlin_info(app)), ("System", system_info), ("Stream Deck devices", device_info),
+    return [("Streamlin", lambda: streamlin_info(app)), ("System", system_info), ("LinDeck devices", device_info),
             ("Audio", audio_info), ("LinDeck / Linewave state", state_info),
             ("config.json (secrets redacted)", config_info), ("Log", log_info)]
 

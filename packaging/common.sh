@@ -56,12 +56,16 @@ lindeck_desktop() {  # lindeck_desktop <Exec-Befehl> <Symbol>
 [Desktop Entry]
 Type=Application
 Name=LinDeck
-GenericName=Stream Deck
-Comment=Set up your Stream Deck: keys, profiles, plugins
-Comment[de]=Stream Deck einrichten: Tasten, Profile, Plugins
-Comment[es]=Configura tu Stream Deck: teclas, perfiles, plugins
-Comment[fr]=Configurer votre Stream Deck : touches, profils, plugins
-Comment[pt_BR]=Configure seu Stream Deck: teclas, perfis, plugins
+GenericName=Deck Control
+GenericName[de]=Deck-Steuerung
+GenericName[es]=Control del deck
+GenericName[fr]=Contrôle du deck
+GenericName[pt_BR]=Controle do deck
+Comment=Set up LinDeck: keys, profiles, plugins
+Comment[de]=LinDeck einrichten: Tasten, Profile, Plugins
+Comment[es]=Configura LinDeck: teclas, perfiles, plugins
+Comment[fr]=Configurer LinDeck : touches, profils, plugins
+Comment[pt_BR]=Configure o LinDeck: teclas, perfis, plugins
 Exec=$1
 Icon=$2
 Terminal=false
@@ -78,11 +82,11 @@ lindeck_autostart() {  # lindeck_autostart <Exec-Befehl> <Symbol>
 [Desktop Entry]
 Type=Application
 Name=LinDeck
-Comment=Start the Stream Deck in the background
-Comment[de]=Stream Deck im Hintergrund starten
-Comment[es]=Iniciar el Stream Deck en segundo plano
-Comment[fr]=Démarrer le Stream Deck en arrière-plan
-Comment[pt_BR]=Iniciar o Stream Deck em segundo plano
+Comment=Start LinDeck in the background
+Comment[de]=LinDeck im Hintergrund starten
+Comment[es]=Iniciar LinDeck en segundo plano
+Comment[fr]=Démarrer LinDeck en arrière-plan
+Comment[pt_BR]=Iniciar o LinDeck em segundo plano
 Exec=$1
 Icon=$2
 NoDisplay=true
@@ -101,11 +105,11 @@ GenericName[de]=Audio-Mixer
 GenericName[es]=Mezclador de audio
 GenericName[fr]=Mixeur audio
 GenericName[pt_BR]=Mixer de áudio
-Comment=Wave Link replacement: mixer (Monitor/Stream Mix) and Elgato Wave microphone
-Comment[de]=Wave-Link-Ersatz: Mixer (Monitor-/Stream-Mix) und Elgato-Wave-Mikrofon
-Comment[es]=Sustituto de Wave Link: mezclador (mezcla de monitor/stream) y micrófono Elgato Wave
-Comment[fr]=Remplaçant de Wave Link : mixeur (mix moniteur/stream) et micro Elgato Wave
-Comment[pt_BR]=Substituto do Wave Link: mixer (mix de monitor/stream) e microfone Elgato Wave
+Comment=Wave Link replacement: mixer with your own mixes and Elgato Wave microphone
+Comment[de]=Wave-Link-Ersatz: Mixer mit eigenen Mixen und Elgato-Wave-Mikrofon
+Comment[es]=Sustituto de Wave Link: mezclador con tus propias mezclas y micrófono Elgato Wave
+Comment[fr]=Remplaçant de Wave Link : mixeur avec vos propres mix et micro Elgato Wave
+Comment[pt_BR]=Substituto do Wave Link: mixer com seus próprios mixes e microfone Elgato Wave
 Exec=$1
 Icon=$2
 Terminal=false
@@ -218,17 +222,18 @@ EOF
 describe() {
     case "$1" in
         streamlin)
-            DESC="Stream Deck and Wave Link replacement for Linux (LinDeck + Linewave)
+            DESC="LinDeck and Linewave for Linux (Elgato decks and Wave Link)
  Both programs of Streamlin in one package: \"LinDeck\" drives every Elgato
- Stream Deck (Original, MK.2, Mini, XL, Neo, +, + XL, Studio, Pedal), reads
+ deck model (Original, MK.2, Mini, XL, Neo, +, + XL, Studio, Pedal), reads
  the profiles of the Elgato app directly and runs Elgato plugins; OBS,
  Spotify and Discord are built in. \"Linewave\" replaces Wave Link: PipeWire
- mixer with Monitor/Stream Mix, effect plugins and Elgato Wave microphones.
+ mixer with Personal Mix, Stream Mix and your own mixes, effect plugins and
+ Elgato Wave microphones.
  For only one of them, install the package lindeck or linewave instead."
             ;;
         lindeck)
-            DESC="Stream Deck software for Linux (part of Streamlin)
- LinDeck drives every Elgato Stream Deck (Original, MK.2, Mini, XL, Neo, +,
+            DESC="LinDeck - software for Elgato decks on Linux (part of Streamlin)
+ LinDeck drives every Elgato deck model (Original, MK.2, Mini, XL, Neo, +,
  + XL, Studio, Pedal), reads the profiles of the Elgato app directly and
  runs Elgato plugins; OBS, Spotify and Discord are built in. Install the
  package linewave as well for the audio mixer and Wave microphones – both
@@ -236,9 +241,9 @@ describe() {
             ;;
         linewave)
             DESC="Wave Link replacement for Linux (part of Streamlin)
- Linewave is a PipeWire audio mixer with Monitor and Stream Mix, channels
- per app, effect plugins (LADSPA, LV2) and control of Elgato Wave
- microphones. Install the package lindeck as well for the Stream Deck –
+ Linewave is a PipeWire audio mixer with Personal Mix, Stream Mix and your
+ own mixes, channels per app, effect plugins (LADSPA, LV2) and control of
+ Elgato Wave microphones. Install the package lindeck as well for LinDeck –
  both programs then work together like the package streamlin."
             ;;
     esac

@@ -120,7 +120,7 @@ def test_lindeck_devices_only_connected(app):
     app._device_key = None
     app.build_devices()
     titles = [c.title for c in app.devbox.winfo_children()]
-    assert titles == ["Kein Stream Deck verbunden"]
+    assert titles == ["Kein Gerät verbunden"]
     app.daemon = None
 
 

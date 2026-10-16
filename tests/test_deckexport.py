@@ -103,7 +103,7 @@ def test_export_creates_own_profile(store):
     assert deckexport.export(PLUS, CHANS[:2]) == ("Linewave", 1, False)
     assert len(list(store.iterdir())) == 2 and len(_pages(root)) == 1
     # anderes Modell mit gleichem Namen: eigener Name
-    assert deckexport.export(MK2, CHANS[:2])[0] == "Linewave (Stream Deck MK.2)"
+    assert deckexport.export(MK2, CHANS[:2])[0] == "Linewave (LinDeck MK.2)"
     with pytest.raises(deckexport.ExportError):
         deckexport.export(PEDAL, CHANS)
 
@@ -154,7 +154,7 @@ def test_devices_in_use_first(store):
     gaming = editdoc.create_profile("Gaming", MK2, store)
     (store.parent / "state.json").write_text(json.dumps({"SERIAL": {"profile": gaming.name[:-10]}}))
     devs = deckexport.devices()
-    assert devs[0] == {"model": MK2, "name": "Stream Deck MK.2", "connected": False, "in_use": True, "profile": ""}
+    assert devs[0] == {"model": MK2, "name": "LinDeck MK.2", "connected": False, "in_use": True, "profile": ""}
     assert {d["model"] for d in devs} >= {PLUS, MINI}
     deckexport.export(MK2, CHANS[:1])
     assert deckexport.devices()[0]["profile"] == "Linewave"
@@ -171,7 +171,7 @@ def test_sync_follows_channels(store):
     assert slots[("key", 2, 0)][1:4] == ("podcast", "mute", "selected")
     assert slots[("key", 2, 2)][1:3] == ("podcast", "down")
     assert deckexport.sync(["system"]) == ["Linewave"]  # gelöschte Kanäle verschwinden
-    plus = _profile(store, "Linewave (Stream Deck +)")
+    plus = _profile(store, "Linewave (LinDeck +)")
     assert deckexport.sync(["system"]) == []
     assert json.loads((plus / "lindeck-meta.json").read_text())["linewave"]["channels"] == ["music"]
 
@@ -334,8 +334,8 @@ def test_connected_decks_come_first_and_new_ones_get_a_profile(store, tmp_path):
     assert deckexport.adopt_new_devices() == []
     name, _p, _n = deckexport.export("20GAT9902", ["system", "music"], mix="selected")
     # das zweite angeschlossene Gerät bekommt automatisch ein Profil mit denselben Kanälen
-    assert deckexport.adopt_new_devices() == ["Linewave (Stream Deck +)"]
-    plus = _profile(store, "Linewave (Stream Deck +)")
+    assert deckexport.adopt_new_devices() == ["Linewave (LinDeck +)"]
+    plus = _profile(store, "Linewave (LinDeck +)")
     meta = json.loads((plus / deckexport.META).read_text())["linewave"]
     assert meta["channels"] == ["system", "music"] and meta["mix"] == "selected"
     assert deckexport.adopt_new_devices() == []  # nur einmal
