@@ -4,14 +4,16 @@ Wie das Wave-Link-Plugin der Elgato-App: Linewave legt für ein Stream-Deck-
 Modell ein Profil an, dessen Tasten bzw. Drehregler die Lautstärke der Mixer-
 Kanäle steuern, und hält es aktuell, wenn Kanäle dazukommen oder wegfallen.
 
-  * Geräte mit Drehreglern (Stream Deck +, + XL, Studio): Regler drehen =
-    Lautstärke, drücken = stumm; die Tasten darüber schalten stumm.
-  * Nur Tasten, mindestens drei Reihen: je Kanal eine Spalte mit
-    lauter / stumm (zeigt die Lautstärke) / leiser.
-  * Zwei Reihen (Mini, Neo): je Kanal lauter / leiser.
+Aufbau wie das Wave-Link-Profil (z. B. Stream Deck XL):
 
-Passen nicht alle Kanäle auf eine Seite, entstehen weitere Seiten mit Tasten
-zum Blättern. Das Profil merkt sich in lindeck-meta.json, dass Linewave es
+  * oben die Mix-Wahl (Alle / Monitor / Stream, der gewählte grün umrandet)
+    und „Kanäle 1–7“ (blättert weiter, wenn es mehr Seiten gibt)
+  * je Kanal eine Spalte: Kachel mit Kanal-Symbol und Lautstärke (drücken =
+    stumm), darunter ein Fader über zwei Tasten (oben lauter, unten leiser)
+  * kleinere Geräte: Mix und Seiten in der letzten Spalte; zwei Reihen nur Fader
+  * Geräte mit Drehreglern: Regler = Lautstärke, Tasten darüber = Kacheln
+
+Passen nicht alle Kanäle auf eine Seite, entstehen weitere Seiten. Das Profil merkt sich in lindeck-meta.json, dass Linewave es
 verwaltet (Kanalauswahl und Mix).
 """
 import json
@@ -25,9 +27,8 @@ from .models import MODELS, model_geometry, model_name
 from .profiles import ProfileStore
 
 MIXER_UUID = "com.lindeck.mixer.channel"
-PREV_UUID, NEXT_UUID, INDICATOR_UUID = ("com.elgato.streamdeck.page.previous", "com.elgato.streamdeck.page.next",
-                                        "com.elgato.streamdeck.page.indicator")
-MIXES = ("both", "monitor", "stream")
+MIXSELECT_UUID, PAGES_UUID = "com.lindeck.mixer.mixselect", "com.lindeck.mixer.pages"
+MIXES = ("selected", "both", "monitor", "stream")  # "selected": auf dem Deck wählbar
 KEY_STEP, DIAL_STEP = 5, 2
 META = "lindeck-meta.json"
 PROFILE_NAME = "Linewave"
@@ -77,52 +78,67 @@ def devices(store_root=None):
 
 
 # ------------------------------------------------------------------ Belegung
-def plan(geometry, channels):
-    """Belegung je Seite: [[(slot, kanal, aktion), …], …] – ohne Dateien (testbar).
+CHANNEL_KINDS = {"dial": "mute", "tile": "mute", "fader_top": "up", "fader_bottom": "down"}
+SELECTORS = ("mix:both", "mix:monitor", "mix:stream")
 
-    aktion: "dial", "mute", "up", "down" für Kanäle; bei mehreren Seiten zusätzlich
-    (slot, None, "prev" | "next" | "indicator") zum Blättern."""
+
+def plan(geometry, channels, selectable=True):
+    """Belegung je Seite: [[(slot, kanal, art), …], …] – ohne Dateien (testbar).
+
+    Kanal-Arten: "dial" (Drehregler), "tile" (Kachel, stumm), "fader_top" / "fader_bottom"
+    (Fader über zwei Tasten: oben lauter, unten leiser). Ohne Kanal: "mix:both|monitor|stream"
+    (Mix-Wahl), "mix:cycle" (Mix der Reihe nach) und "pages" („Kanäle 1–7“, blättert weiter).
+    selectable=False: feste Mischung, keine Mix-Wahl-Tasten."""
     cols, rows, dials = geometry.cols, geometry.rows, geometry.dials
     if not channels:
         raise ExportError(_("Choose at least one channel."))
+    if rows < 2 and not dials:
+        raise ExportError(_("This device has too few keys for volume controls."))
+    extra = []  # (slot, art) auf jeder Seite
     if dials:
         per_page = dials
-        nav = [((("key", cols - 2, rows - 1)), "prev"), ((("key", cols - 1, rows - 1)), "next")] if rows >= 2 else []
+        bottom = rows - 1
+        if rows >= 2:
+            if selectable and cols >= 4:
+                extra = [(("key", i, bottom), k) for i, k in enumerate(SELECTORS)]
+            elif selectable:
+                extra = [(("key", 0, bottom), "mix:cycle")]
+            extra.append((("key", cols - 1, bottom), "pages"))
 
         def page(chs):
             out = [(("dial", i), c, "dial") for i, c in enumerate(chs)]
-            return out + [(("key", i, 0), c, "mute") for i, c in enumerate(chs) if i < cols]
-    elif rows >= 2:
+            return out + [(("key", i, 0), c, "tile") for i, c in enumerate(chs) if i < cols and rows >= 2]
+    elif rows >= 4 and cols >= 4:
         per_page = cols
-        if rows >= 3:
-            nav = [(("key", cols - 1, 0), "prev"), (("key", cols - 1, 1), "indicator"), (("key", cols - 1, 2), "next")]
-            kinds = ("up", "mute", "down")
-        else:
-            nav = [(("key", cols - 1, 0), "prev"), (("key", cols - 1, 1), "next")]
-            kinds = ("up", "down")
+        extra = [(("key", i, 0), k) for i, k in enumerate(SELECTORS if selectable else ())]
+        extra.append((("key", cols - 1, 0), "pages"))
+        kinds = ("tile", "fader_top", "fader_bottom")
+
+        def page(chs):
+            return [(("key", i, r + 1), c, k) for i, c in enumerate(chs) for r, k in enumerate(kinds)]
+    else:
+        per_page = cols - 1  # letzte Spalte: Mix und Seiten
+        kinds = ("tile", "fader_top", "fader_bottom") if rows >= 3 else ("fader_top", "fader_bottom")
+        extra = ([(("key", cols - 1, 0), "mix:cycle")] if selectable else []) + \
+            [(("key", cols - 1, 1 if selectable else 0), "pages")]
 
         def page(chs):
             return [(("key", i, r), c, k) for i, c in enumerate(chs) for r, k in enumerate(kinds)]
-    else:
+    if per_page < 1:
         raise ExportError(_("This device has too few keys for volume controls."))
-    if len(channels) > per_page and not dials:
-        per_page = cols - 1  # letzte Spalte zum Blättern
-    if per_page < 1 or (len(channels) > per_page and not nav):
-        raise ExportError(_("This device has too few keys for volume controls."))
-    pages = [page(channels[i:i + per_page]) for i in range(0, len(channels), per_page)]
-    if len(pages) > 1:
-        pages = [p + [(slot, None, kind) for slot, kind in nav] for p in pages]
-    return pages
+    return [page(channels[i:i + per_page]) + [(slot, None, kind) for slot, kind in extra]
+            for i in range(0, len(channels), per_page)]
 
 
 def describe(geometry):
     """Kurzer Satz, wie das Profil aufgebaut wird."""
     if geometry.dials:
-        return _("Dials: turn to change the volume, press to mute. The keys above mute the channels.")
+        return _("Dials: turn to change the volume, press to mute. The keys above show each channel and mute it.")
     if geometry.rows >= 3:
-        return _("One column per channel: volume up, mute (shows the volume), volume down.")
+        return _("Per channel a tile (press to mute) and a fader over two keys: press the upper key for louder, "
+                 "the lower one for quieter.")
     if geometry.rows == 2:
-        return _("One column per channel: volume up and volume down.")
+        return _("Per channel a fader over two keys: press the upper key for louder, the lower one for quieter.")
     return _("This device has too few keys for volume controls.")
 
 
@@ -156,25 +172,30 @@ def managed_profiles(store_root=None):
 def _fill(root, model, channels, mix):
     """Profil root neu belegen (alte Seiten werden ersetzt)."""
     doc = ProfileDoc(root)
-    layout = plan(doc.geometry, channels)
+    layout = plan(doc.geometry, channels, selectable=mix == "selected")
     first = doc.page_ids[0]
     pages = [first] + [doc.add_page() for _i in layout[1:]]
     for n, (page, entries) in enumerate(zip(pages, layout)):
         if len(layout) > 1:
             doc.rename_page(page, f"{PROFILE_NAME} {n + 1}")
+        on_page = [channels.index(c) + 1 for _s, c, k in entries if c is not None]
         for slot, cid, kind in entries:
-            if cid is None:
-                doc.place(page, slot, {"prev": PREV_UUID, "next": NEXT_UUID, "indicator": INDICATOR_UUID}[kind])
-                continue
-            data = doc.place(page, slot, MIXER_UUID)
-            data["Settings"].update({"channel": cid, "mix": mix, "action": "mute" if kind == "dial" else kind,
-                                     "step": DIAL_STEP if kind == "dial" else KEY_STEP})
-            data["Settings"].pop("volume", None)
+            if kind.startswith("mix:"):
+                doc.place(page, slot, MIXSELECT_UUID)["Settings"] = {"mix": kind[4:]}
+            elif kind == "pages":
+                doc.place(page, slot, PAGES_UUID)["Settings"] = {"first": min(on_page), "last": max(on_page)}
+            else:
+                data = doc.place(page, slot, MIXER_UUID)
+                data["Settings"].update({"channel": cid, "mix": mix, "action": CHANNEL_KINDS[kind],
+                                         "step": DIAL_STEP if kind == "dial" else KEY_STEP})
+                data["Settings"].pop("volume", None)
+                if kind != "dial":
+                    data["Settings"]["display"] = kind
     doc.save()
     return len(layout)
 
 
-def export(model, channels, mix="both", all_channels=True, store_root=None):
+def export(model, channels, mix="selected", all_channels=True, store_root=None):
     """Linewave-Profil für dieses Modell anlegen oder neu belegen.
 
     channels: Kanal-ids in Reihenfolge. all_channels: später neue Kanäle automatisch dazunehmen.
@@ -221,7 +242,7 @@ def sync(channels, store_root=None):
         if want == old or not want:
             continue
         try:
-            export(p.model, want, lw.get("mix", "both"), lw.get("all", True), store_root)
+            export(p.model, want, lw.get("mix", "selected"), lw.get("all", True), store_root)
             changed.append(p.name)
         except ExportError:
             continue

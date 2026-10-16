@@ -655,9 +655,10 @@ class DeckExportDialog(Dialog):
             self.chips[cid] = chip
 
         field(b, "MIX")
-        self.mix = "both"
-        SoftSegmented(b, [("both", _("Both mixes"), None), ("monitor", "Monitor", "headphones"),
-                          ("stream", "Stream", "stream")], command=self._set_mix, value="both",
+        self.mix = "selected"
+        SoftSegmented(b, [("selected", _("Choose on deck"), "deck"), ("both", _("Both mixes"), None),
+                          ("monitor", "Monitor", "headphones"), ("stream", "Stream", "stream")],
+                      command=self._set_mix, value="selected",
                       fill=True).pack(fill="x", pady=(0, 14))
 
         self.hint = label(b, "", 9, color=COL["muted"], wraplength=500, justify="left")
@@ -684,13 +685,14 @@ class DeckExportDialog(Dialog):
 
     def _set_mix(self, value):
         self.mix = value
+        self._update_hint()
 
     def _update_hint(self):
         d = self._selected_device()
         try:
             geo = self.dx.geometry_of(d["model"])
             text = self.dx.describe(geo)
-            n = len(self.dx.plan(geo, self._selected_channels()))
+            n = len(self.dx.plan(geo, self._selected_channels(), selectable=self.mix == "selected"))
             if n > 1:
                 text += " " + _("The channels need {count} pages; keys to turn the page are added.").format(count=n)
             if d["profile"]:

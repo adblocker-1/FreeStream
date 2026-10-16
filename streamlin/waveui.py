@@ -39,11 +39,7 @@ TOUCH_HOLD = 2.5
 MIX_LABEL = {"monitor": "Monitor", "stream": "Stream"}
 MUTE_ICONS = {"monitor": ("headphones", "headphones_off"), "stream": ("stream", "stream_off")}
 NOT_IN_MIXER = _("– not in mixer –")
-CHANNEL_LOOK = {  # Kanal -> (Symbol, Farbe)
-    "system": ("system", "#64748b"), "music": ("music", "#1fa463"), "browser": ("globe", "#ea580c"),
-    "voice": ("chat", "#5865f2"), "game": ("game", "#f59e0b"), "sfx": ("spark", "#ec4899"),
-    "mic": ("mic", "#e5484d"),
-}
+CHANNEL_LOOK = theme.CHANNEL_LOOK
 FADER_LEN = 190
 FADER_LEN_SMALL = 140
 MIC_SHORTCUT = "linewave-mic-mute"
@@ -55,12 +51,7 @@ def mix_color(mix):
     return COL["monitor"] if mix == "monitor" else COL["stream"]
 
 
-def channel_look(c):
-    """(Symbol, Farbe) eines Kanals – eigene Angaben gehen vor."""
-    if isinstance(c, dict):
-        base = CHANNEL_LOOK.get(c["id"], ("input" if c.get("kind") == "input" else "wave", "#64748b"))
-        return c.get("icon") or base[0], c.get("color") or base[1]
-    return CHANNEL_LOOK.get(c, ("wave", "#64748b"))
+channel_look = theme.channel_look
 
 
 def post_fader(level, volume, muted):
