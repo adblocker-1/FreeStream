@@ -296,6 +296,35 @@ class EmptyCell(tk.Canvas):
             self.create_text(x + 22, h / 2, text=text, anchor="w", fill=COL["accent_hi"], font=self.f)
 
 
+class RemoveBadge(tk.Canvas):
+    """Kleines X im Kreis auf der Ecke einer Zelle: Kanal aus dem Mix nehmen. Rot beim Überfahren."""
+
+    SIZE = 14
+
+    def __init__(self, master, command=None):
+        s = self.SIZE
+        super().__init__(master, width=s, height=s, bg=COL["bg"], highlightthickness=0, bd=0, cursor="hand2")
+        self.command = command
+        self.img = {k: self._image(k) for k in (False, True)}
+        self.item = self.create_image(s / 2, s / 2, image=self.img[False])
+        self.bind("<Enter>", lambda e: self.itemconfigure(self.item, image=self.img[True]))
+        self.bind("<Leave>", lambda e: self.itemconfigure(self.item, image=self.img[False]))
+        self.bind("<ButtonRelease-1>", lambda e: self.command and self.command())
+
+    def _image(self, hover):
+        k, s = 4, self.SIZE
+        S = s * k
+        fill, ring, x = ((COL["danger"], COL["danger"], "#ffffff") if hover
+                         else (COL["panel2"], COL["border"], COL["muted"]))
+        im = Image.new("RGBA", (S, S), theme.rgb(COL["bg"]) + (255,))
+        d = ImageDraw.Draw(im)
+        d.ellipse((k / 2, k / 2, S - k / 2, S - k / 2), fill=fill, outline=ring, width=k)
+        a = S * 0.17
+        for sgn in (1, -1):
+            d.line((S / 2 - a, S / 2 - sgn * a, S / 2 + a, S / 2 + sgn * a), fill=x, width=int(1.6 * k))
+        return ImageTk.PhotoImage(im.resize((s, s), Image.LANCZOS), master=self)
+
+
 class AppChip(tk.Canvas):
     """Programm mit Kanal: [Symbol] Spotify │ → Musik. Klick öffnet die Kanalauswahl."""
 
@@ -769,7 +798,7 @@ class WaveWindow:
     def _build_table(self, channels, mixes):
         for w in self.table.winfo_children():
             w.destroy()
-        self.strips, self.mix_meters, self.mix_heads = {}, {}, {}
+        self.strips, self.mix_meters, self.mix_heads, self.cells = {}, {}, {}, {}
         tb = self.table
         # oben links: Abhören (welches Gerät, welcher Mix)
         lb = tk.Frame(tb, bg=COL["bg"], width=CH_W, height=HEAD_H)
@@ -852,14 +881,25 @@ class WaveWindow:
         fx.set(ch.get("fx_names") or [])
         strip = {"channel": ch, "apps": apps, "card": card, "fx": fx,
                  "master": {"fader": fader, "val": val, "mute": mute, "meter": meter}}
-        for col, m in enumerate(mixes, start=1):
-            mid = m["id"]
-            if cid in (m.get("exclude") or []):
-                cell = EmptyCell(tb, MIX_W, ROW_H, command=lambda mm=mid: self._toggle_member(cid, mm, True))
-                cell.grid(row=row, column=col, sticky="nw", padx=(0, 10), pady=(0, 8))
-                continue
-            strip[mid] = self._mix_cell(tb, cid, m, row, col)
         self.strips[cid] = strip
+        for col, m in enumerate(mixes, start=1):
+            self._place_cell(tb, cid, m, row, col, cid not in (m.get("exclude") or []))
+
+    def _place_cell(self, tb, cid, m, row, col, member):
+        """Zelle Kanal × Mix: Regler (im Mix) oder leer mit „+ hinzufügen“."""
+        mid = m["id"]
+        if member:
+            part = self._mix_cell(tb, cid, m, row, col)
+            self.strips[cid][mid] = part
+            widget = part["card"]
+            badge = RemoveBadge(tb, command=lambda: self._toggle_member(cid, mid, False))
+            badge.place(in_=widget, relx=1.0, x=-3, y=3, anchor="center")  # halb auf der Ecke
+            part["remove"] = badge
+        else:
+            self.strips[cid].pop(mid, None)
+            widget = EmptyCell(tb, MIX_W, ROW_H, command=lambda: self._toggle_member(cid, mid, True))
+            widget.grid(row=row, column=col, sticky="nw", padx=(0, 10), pady=(0, 8))
+        self.cells[(cid, mid)] = (widget, row, col, m)
 
     def _mix_cell(self, tb, cid, m, row, col):
         mid = m["id"]
@@ -881,7 +921,7 @@ class WaveWindow:
         lb.grid(row=0, column=2, rowspan=2)
         for w in (card, body, lb):
             w.bind("<Button-3>", lambda e: self._cell_menu(e, cid, mid))
-        return {"fader": fader, "val": val, "mute": mute, "meter": meter, "label": lb}
+        return {"fader": fader, "val": val, "mute": mute, "meter": meter, "label": lb, "card": card}
 
     def _cell_menu(self, e, cid, mid):
         mname = next((m["name"] for m in self.state.get("mixes") or [] if m["id"] == mid), mid)
@@ -915,14 +955,37 @@ class WaveWindow:
         self.worker.submit(lambda: self.mixer.set_master_mute(cid, on))
 
     def _toggle_member(self, cid, mid, on):
-        self._strip_ids = None
+        """Nur die eine Zelle tauschen – sofort, ohne die Tabelle neu aufzubauen."""
         self._touch("member")
+        cell = getattr(self, "cells", {}).get((cid, mid))
+        if cell:
+            widget, row, col, m = cell
+            badge = self.strips.get(cid, {}).get(mid, {}).get("remove")
+            if badge is not None:
+                badge.destroy()
+            widget.destroy()
+            cur = next((list(x[4]) for x in (self._strip_ids or ((), ()))[1] if x[0] == mid), m.get("exclude") or [])
+            excl = [x for x in cur if x != cid] + ([] if on else [cid])
+            m = dict(m, exclude=excl)
+            self._place_cell(self.table, cid, m, row, col, on)
+            if on:
+                self.strips[cid][mid]["fader"].set_dimmed(True)  # bis der Ausgang steht
+            self._strip_ids = self._ids_with(mid, excl)
 
         def done(_res, err):
             if err is None:
                 self.status(_("Channel added to the mix") if on else _("Channel removed from the mix"))
+            else:
+                self._strip_ids = None  # fehlgeschlagen: Tabelle aus dem echten Zustand neu aufbauen
             self.refresh()
         self.worker.submit(lambda: self.mixer.set_member(cid, mid, on), done)
+
+    def _ids_with(self, mid, excl):
+        """Kennung der Tabelle (siehe apply_state) mit geänderter Zuordnung eines Mixes."""
+        if not self._strip_ids:
+            return None
+        chans, mixes = self._strip_ids
+        return chans, tuple(x[:4] + (tuple(excl),) + x[5:] if x[0] == mid else x for x in mixes)
 
     def _on_listen(self, mid):
         cur = getattr(self, "_listen_now", None) or self.state.get("listen") or "monitor"
@@ -974,7 +1037,9 @@ class WaveWindow:
 
         def work():
             if m is None:
-                return self.mixer.add_mix(v["name"], v["icon"], v["color"], v["devices"], v["virtual"])
+                # neuer Mix startet leer: welche Kanäle hinein, wählt man selbst in der Tabelle
+                return self.mixer.add_mix(v["name"], v["icon"], v["color"], v["devices"], v["virtual"],
+                                          exclude=[c["id"] for c in self.mixer.all_channels()])
             return self.mixer.update_mix(m["id"], **v)
 
         def done(res, err):
