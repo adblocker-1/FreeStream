@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageTk
 from . import actions as A
 from . import catalog as C
 from . import editdoc as E
-from . import parts, paths, render, theme
+from . import livekeys, parts, paths, render, theme
 from .i18n import _, ngettext
 from .models import MODELS, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
@@ -33,7 +33,7 @@ CATEGORY_LOOK = {
     _("System"): ("keyboard", "#64748b"), _("Navigation"): ("navigate", "#3b82f6"), "Stream Deck": ("grid", "#3b82f6"),
     "Multi Action": ("layers", "#8b5cf6"), "Soundboard": ("sfx", "#ec4899"), _("Audio"): ("speaker", "#22c55e"),
     "OBS Studio": ("record", "#ef4444"), _("Spotify & Media"): ("play", "#16a34a"), "Discord": ("chat", "#6366f1"),
-    "Linewave": ("wave", "#06b6d4"),
+    "Linewave": ("wave", "#06b6d4"), C.CLOCK_CAT: ("clock", "#f97316"), C.SYSMON_CAT: ("gauge", "#14b8a6"),
 }
 # eigenes Symbol für einzelne Aktionen (sonst das der Kategorie)
 ACTION_GLYPH = {
@@ -48,7 +48,11 @@ ACTION_GLYPH = {
     "obs.audio": "mic", "obs.replay": "undo", "obs.virtualcam": "camera", "obs.studiomode": "grid",
     "obs.transition": "arrow", "obs.screenshot": "image", "media.player": "music", "discord.voice": "chat",
     "mixer.channel": "fx", "mixer.output": "headphones", "wavemic.control": "mic",
+    "clock.clock": "clock", "clock.countdown": "hourglass", "clock.stopwatch": "stopwatch", "sysmon.cpu": "cpu",
+    "sysmon.memory": "memory", "sysmon.temperature": "thermometer", "sysmon.network": "network",
+    "sysmon.battery": "battery", "sysmon.disk": "disk",
 }
+theme.EXTRA_GLYPHS.update(livekeys.GLYPHS)  # selbst gezeichnete Symbole der Live-Tasten
 PLUGINS_CHIP = "plugins"
 
 

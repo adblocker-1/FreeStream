@@ -553,14 +553,14 @@ def test_native_lookup(uuid, cls, kind):
 
 
 def test_native_catalog_actions_render(xdg):
-    from streamlin import obs
+    from streamlin import livekeys, obs
     obs_cfg = {"obs": {"host": "127.0.0.1", "port": 1}}
     for t in C.CATALOG:
         if not t.uuid.startswith("com.lindeck."):
             continue
         data = C.new_action(t.uuid)
         a, _ = make_action(data, obs_cfg, slot=("dial", 0) if C.KEY not in t.controllers else ("key", 0))
-        assert isinstance(a, native.NativeAction), t.uuid
+        assert isinstance(a, (native.NativeAction, livekeys.LiveAction)), t.uuid
         img = a.frames((72, 72))[0][0]
         assert img.size == (72, 72)
         a.feedback()
