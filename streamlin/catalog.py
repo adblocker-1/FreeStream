@@ -183,8 +183,27 @@ CATALOG = [
 
 _MIX_CHANNELS = [("system", _("System")), ("music", _("Music")), ("browser", _("Browser")), ("voice", _("Voice Chat")),
                  ("game", _("Game")), ("sfx", _("Effects")), ("mic", _("Microphone"))]
-_MIXES = [("both", _("Monitor and Stream Mix")), ("monitor", _("Monitor Mix only")), ("stream", _("Stream Mix only")),
-          ("selected", _("Chosen with the Mix key"))]
+def _mix_list():
+    """[(id, Name)] aller Mixe aus der Linewave-Konfiguration (feste zuerst)."""
+    names = {"monitor": _("Personal Mix"), "stream": _("Stream Mix")}
+    try:
+        from .config import Config
+        conf = [m for m in ((Config().get("mixer") or {}).get("mixes") or []) if isinstance(m, dict) and m.get("id")]
+    except Exception:  # noqa: BLE001
+        conf = []
+    for m in conf:
+        if m["id"] in names and m.get("name"):
+            names[m["id"]] = m["name"]
+    own = [(m["id"], m.get("name") or m["id"]) for m in conf if m["id"] not in ("monitor", "stream")]
+    return list(names.items()) + own
+
+
+def _mix_choices():
+    """Mix einer Kanal-Taste: alle, einer davon oder per Mix-Taste gewählt."""
+    return ([("both", _("All mixes"))] + [(k, _("{name} only").format(name=n)) for k, n in _mix_list()]
+            + [("selected", _("Chosen with the Mix key"))])
+
+
 _DISPLAYS = [("", _("Text")), ("tile", _("Channel tile")), ("fader_top", _("Fader, upper half")),
              ("fader_bottom", _("Fader, lower half"))]
 _TOGGLE = [("toggle", _("toggle")), ("start", _("start")), ("stop", _("stop"))]
@@ -271,7 +290,7 @@ CATALOG += [
     # ------------------------------------------------------------- Mixer
     ActionType("com.lindeck.mixer.channel", _("Mixer Channel"), "Linewave",
                {"channel": "music", "mix": "both", "action": "mute", "step": 5}, controllers=(KEY, DIAL),
-               fields=[Field("choice", "channel", _("Channel"), _MIX_CHANNELS), Field("choice", "mix", "Mix", _MIXES),
+               fields=[Field("choice", "channel", _("Channel"), _MIX_CHANNELS), Field("choice", "mix", "Mix", _mix_choices),
                        Field("choice", "action", _("Key"), [("mute", _("toggle mute")), ("up", _("volume up")),
                                                            ("down", _("volume down")), ("set", _("Set volume"))]),
                        Field("int", "step", _("Step size (%)"), min=1, max=50),
@@ -279,8 +298,8 @@ CATALOG += [
                        Field("choice", "display", _("Look"), _DISPLAYS)],
                description=_("Wave Link replacement: channel volume per mix")),
     ActionType("com.lindeck.mixer.mixselect", _("Choose Mix"), "Linewave", {"mix": "both"},
-               fields=[Field("choice", "mix", "Mix", [("both", _("All")), ("monitor", "Monitor"), ("stream", "Stream"),
-                                                     ("cycle", _("Next mix (cycle)"))])],
+               fields=[Field("choice", "mix", "Mix",
+                             lambda: [("both", _("All"))] + _mix_list() + [("cycle", _("Next mix (cycle)"))])],
                description=_("Chooses which mix the channel keys with “Chosen with the Mix key” control")),
     ActionType("com.lindeck.mixer.pages", _("Channel Pages"), "Linewave", {"first": 1, "last": 1},
                fields=[Field("int", "first", _("First channel"), min=1, max=99),

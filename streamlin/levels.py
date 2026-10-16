@@ -160,11 +160,10 @@ class LevelMonitor:
 
 
 def channel_sources(mixer, channels, monitor_output=""):
-    """Welche PipeWire-Quellen gemessen werden: je Kanal und die beiden Mixe.
+    """Welche PipeWire-Quellen gemessen werden: je Kanal und je Mix.
 
-    Schlüssel: Kanal-id, "mix:monitor" und "mix:stream".
+    Schlüssel: Kanal-id und "mix:<Mix-id>" (z. B. "mix:monitor", "mix:stream", "mix:chat").
     """
-    from .mixer import STREAM_SINK
     out = {}
     mic = ""
     try:
@@ -181,7 +180,11 @@ def channel_sources(mixer, channels, monitor_output=""):
             src = mixer.sink_name(cid) + ".monitor"
         if src:
             out[cid] = src
-    if monitor_output:
-        out["mix:monitor"] = monitor_output + ".monitor"
-    out["mix:stream"] = STREAM_SINK + ".monitor"
+    try:
+        out.update(mixer.level_sources())
+    except Exception:  # noqa: BLE001
+        from .mixer import STREAM_SINK
+        if monitor_output:
+            out["mix:monitor"] = monitor_output + ".monitor"
+        out["mix:stream"] = STREAM_SINK + ".monitor"
     return out

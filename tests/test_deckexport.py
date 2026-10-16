@@ -16,6 +16,7 @@ def store(tmp_path, monkeypatch):
     root.mkdir()
     monkeypatch.setattr(paths, "PROFILES_DIR", root)
     monkeypatch.setattr(paths, "STATE_FILE", tmp_path / "state.json")
+    monkeypatch.setattr(paths, "PID_FILE", tmp_path / "streamlin.pid")  # kein echtes LinDeck anstoßen
     return root
 
 
@@ -85,7 +86,7 @@ def test_export_creates_own_profile(store):
     doc = editdoc.ProfileDoc(root)
     assert doc.page(doc.page_ids[1]).get(("key", 3, 1))["Settings"] == {"first": 5, "last": 6}
     meta = json.loads((root / "lindeck-meta.json").read_text())
-    assert meta["linewave"] == {"channels": CHANS, "all": True, "mix": "stream"}
+    assert meta["linewave"] == {"channels": CHANS, "all": True, "mix": "stream", "mixes": ["monitor", "stream"]}
     # zweites Mal: dasselbe Profil wird ersetzt, kein zweites
     assert deckexport.export(PLUS, CHANS[:2]) == ("Linewave", 1, False)
     assert len(list(store.iterdir())) == 2 and len(_pages(root)) == 1
@@ -93,6 +94,48 @@ def test_export_creates_own_profile(store):
     assert deckexport.export(MK2, CHANS[:2])[0] == "Linewave (Stream Deck MK.2)"
     with pytest.raises(deckexport.ExportError):
         deckexport.export(PEDAL, CHANS)
+
+
+def test_export_pushes_to_running_lindeck(store, monkeypatch):
+    import signal
+    import subprocess
+    import sys
+    sent = []
+    monkeypatch.setattr(deckexport.os, "kill", lambda pid, sig: sent.append((pid, sig)))
+    assert deckexport.export(MK2, CHANS[:1])[0] == "Linewave" and sent == []  # LinDeck läuft nicht
+    fake = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)", "lindeck"])
+    try:
+        paths.PID_FILE.write_text(str(fake.pid))
+        deckexport.export(MK2, CHANS[:2])
+        assert sent == [(fake.pid, signal.SIGHUP)]
+        paths.PID_FILE.write_text(str(deckexport.os.getpid()))  # nie sich selbst
+        assert not deckexport.notify_lindeck()
+    finally:
+        monkeypatch.undo()  # os.kill wieder echt, sonst wird der Hilfsprozess nicht beendet
+        fake.kill()
+        fake.wait()
+
+
+def test_app_refreshes_profile_list_on_push():
+    import threading
+
+    from streamlin import app
+    calls = []
+
+    class Root:
+        def after(self, ms, fn):
+            calls.append("after")
+
+    class Editor:
+        def profiles_changed(self):
+            calls.append("profiles")
+    a = app.App.__new__(app.App)
+    a.root, a.editor = Root(), Editor()
+    a._want_show, a._want_quit, a._want_profiles = threading.Event(), threading.Event(), threading.Event()
+    a.request_profiles()
+    a._poll()
+    a._poll()
+    assert calls == ["profiles", "after", "after"]
 
 
 def test_devices_in_use_first(store):

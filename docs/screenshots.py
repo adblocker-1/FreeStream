@@ -294,8 +294,11 @@ def shot_linewave(tmp):
          "color": "#ff8a3d"}]
     hp, gate = effects.lookup("builtin:highpass"), effects.lookup("builtin:highshelf")
     fx = {"mic": [effects.new_effect(hp), effects.new_effect(gate)], "music": [effects.new_effect(gate)]}
+    mixes = [{"id": "monitor", "exclude": ["mic"]},
+             {"id": "chat", "name": "Chat Mix", "icon": "chat", "color": "#22c55e", "virtual": True, "devices": [],
+              "exclude": ["system", "music", "browser", "podcast"]}]
     (tmp / "config" / "config.json").write_text(json.dumps({"mixer": {"enabled": True, "channels": channels,
-                                                                       "effects": fx}}))
+                                                                       "effects": fx, "mixes": mixes}}))
     fake = TW.FakePactl()
     fake.sinks[0]["description"] = "Headphones"  # Beispieldaten der Tests sind deutsch
     for inp in fake.inputs.values():
@@ -331,7 +334,7 @@ def shot_linewave(tmp):
     host.mixer.set_mute("voice", "stream", True)
     import types
     demo = {"music": .78, "browser": .55, "voice": .72, "game": .8, "system": .5, "podcast": .62, "capture": .66,
-            "mic": .82, "streammix": .74, "headphones": .8}
+            "mic": .82, "streammix": .74, "headphones": .8, "mix_chat": .58}
 
     def fake_level(device):  # feste Pegel statt parec, damit das Bild immer gleich aussieht
         key = next((k for k in demo if k in device), "")

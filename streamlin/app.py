@@ -87,6 +87,7 @@ class App:
         self.root, self.daemon = root, daemon
         self._want_show = threading.Event()
         self._want_quit = threading.Event()
+        self._want_profiles = threading.Event()
         self.quitting = False
         self.editor = EditorApp(root, profile=profile, daemon=daemon, on_quit=self.request_quit)
         try:
@@ -107,6 +108,10 @@ class App:
     def request_quit(self):
         self._want_quit.set()
 
+    def request_profiles(self):
+        """Profile wurden außerhalb geändert (z. B. Export aus Linewave): Liste im Fenster auffrischen."""
+        self._want_profiles.set()
+
     def _poll(self):
         if self._want_quit.is_set():
             self._quit()
@@ -114,6 +119,9 @@ class App:
         if self._want_show.is_set():
             self._want_show.clear()
             self.editor.show()
+        if self._want_profiles.is_set():
+            self._want_profiles.clear()
+            self.editor.profiles_changed()
         self.root.after(250, self._poll)
 
     def _quit(self):
@@ -174,7 +182,11 @@ def main(hidden=False, profile=None, transport=None, tray=True):
     signal.signal(signal.SIGUSR1, lambda *a: app.request_show())
     signal.signal(signal.SIGTERM, lambda *a: app.request_quit())
     signal.signal(signal.SIGINT, lambda *a: app.request_quit())
-    signal.signal(signal.SIGHUP, lambda *a: threading.Thread(target=daemon.reload, daemon=True).start())
+
+    def on_hup(*_a):  # Push von Linewave oder „lindeck reload“: Profile neu laden, ohne Suchen im Takt
+        threading.Thread(target=daemon.reload, daemon=True).start()
+        app.request_profiles()
+    signal.signal(signal.SIGHUP, on_hup)
     try:
         root.mainloop()
     finally:

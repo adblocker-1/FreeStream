@@ -171,6 +171,148 @@ class ChannelDialog(Dialog):
             self.on_delete()
 
 
+MIX_ICONS = ["headphones", "stream", "chat", "speaker", "record", "game", "music", "mic", "wave", "grid"]
+MIX_COLORS = ["#22c3ee", "#c084fc", "#22c55e", "#f5b13d", "#ff4d5a", "#5b7cff", "#ff6bd5", "#8e9bb0"]
+
+
+class _CheckRow(tk.Canvas):
+    """Zeile zum Anhaken: Kästchen, Symbol, Titel und Unterzeile (Ausgänge eines Mixes)."""
+
+    def __init__(self, master, title, sub, icon, checked=False, enabled=True, command=None, width=456, height=50):
+        super().__init__(master, width=width, height=height, bg=master.cget("bg"), highlightthickness=0, bd=0,
+                         cursor="hand2" if enabled else "")
+        self.title, self.sub, self.icon = title, sub, icon
+        self.checked, self.enabled, self.command = checked, enabled, command
+        self.icons = Icons(self)
+        self.f1, self.f2 = font(self, 10, "bold"), font(self, 9)
+        self.bind("<Configure>", lambda e: self._draw())
+        if enabled:
+            self.bind("<Button-1>", lambda e: self.toggle())
+        self._draw()
+
+    def toggle(self):
+        self.checked = not self.checked
+        self._draw()
+        if self.command:
+            self.command(self.checked)
+
+    def _draw(self):
+        self.delete("all")
+        w, h = max(self.winfo_width(), int(self["width"])), int(self["height"])
+        on = self.checked
+        rounded_rect(self, 0, 0, w - 1, h - 1, 9, fill=COL["panel2"], outline=COL["accent"] if on else COL["border"])
+        y = h / 2
+        rounded_rect(self, 14, y - 9, 32, y + 9, 4, fill=COL["accent"] if on else "",
+                     outline=COL["accent"] if on else COL["faint"], width=2)
+        if on:
+            self.create_image(23, y, image=self.icons.get("check", 13, "#ffffff"))
+        self.create_image(56, y, image=self.icons.get(self.icon, 17, COL["muted"]))
+        self.create_text(78, y - 8, text=self.title, anchor="w", fill=COL["fg"] if self.enabled else COL["muted"],
+                         font=self.f1)
+        self.create_text(78, y + 9, text=self.sub, anchor="w", fill=COL["muted"], font=self.f2)
+
+
+class MixDialog(Dialog):
+    """Mix anlegen oder bearbeiten: Name, Symbol, Farbe und Ausgänge (Geräte und/oder virtuelle Quelle)."""
+
+    def __init__(self, master, outputs, mix=None, current_devices=(), on_save=None, on_delete=None):
+        edit = mix is not None
+        m = mix or {}
+        super().__init__(master, _("Edit mix") if edit else _("New mix"), width=520)
+        self.outputs, self.on_save, self.on_delete = outputs, on_save, on_delete
+        self.mid = m.get("id", "")
+        b = self.body
+        icon = m.get("icon") or "chat"
+        color = m.get("color") or MIX_COLORS[2]
+        color = color if color in MIX_COLORS else MIX_COLORS[2]
+        self.head = header(b, _("Edit mix") if edit else _("Create new mix"),
+                           _("Where this mix goes and what it looks like"), icon=icon, color=color)
+        area = ScrollArea(b, bg=COL["bg"])
+        area.pack(fill="both", expand=True)
+        cb = area.inner
+        self.name = tk.StringVar(self, value=m.get("name", ""))
+        field(cb, _("Name"))
+        self.entry = entry(cb, self.name)
+        self.entry.box.pack(fill="x", pady=(0, 14))
+        field(cb, _("ICON AND COLOR"))
+        self.icon = _Picker(cb, MIX_ICONS, icon, "icon", color=color)
+        self.icon.pack(anchor="w", pady=(0, 6))
+        self.color = _Picker(cb, MIX_COLORS, color, "color", command=self.icon.set_color)
+        self.color.pack(anchor="w", pady=(0, 14))
+        self.icon.watch = self.color.watch = self._look
+        field(cb, _("OUTPUTS – THE MIX GOES TO ALL TICKED ONES"))
+        self.devices = list(current_devices)
+        self.current = list(current_devices)
+        rows = tk.Frame(cb, bg=COL["bg"])
+        rows.pack(fill="x")
+        if not outputs:
+            label(rows, _("No output device found"), 9, color=COL["muted"]).pack(anchor="w", pady=(0, 6))
+        for name, desc in outputs:
+            _CheckRow(rows, desc, _("Device"), "speaker", checked=name in self.devices,
+                      command=lambda on, n=name: self._device(n, on)).pack(fill="x", pady=(0, 6))
+        is_stream = self.mid == "stream"
+        self.virtual = bool(m.get("virtual", True)) if edit else True
+        vname = _("Linewave Stream Mix") if is_stream else "Linewave " + (m.get("name") or _("Mix"))
+        self.virtual_row = _CheckRow(rows, _("Virtual source “{name}”").format(name=vname),
+                                     _("always on – OBS records the Stream Mix from here") if is_stream else
+                                     _("for apps like Discord or OBS"), "stream", checked=self.virtual or is_stream,
+                                     enabled=not is_stream, command=self._virtual)
+        self.virtual_row.pack(fill="x", pady=(0, 6))
+        hint = (_("Without a ticked device the Personal Mix plays on the device chosen under “Listen”.")
+                if self.mid == "monitor" else
+                _("Tip: in Discord choose “Monitor of Linewave {name}” as microphone.").format(
+                    name=m.get("name") or _("Mix")))
+        label(cb, hint, 9, color=COL["muted"], wraplength=440, justify="left").pack(anchor="w", pady=(4, 0))
+        self.error = label(b, "", 9, color=COL["danger"])
+        self.error.pack(anchor="w", pady=(10, 0))
+
+        footer(self)
+        Button(self.buttons, _("Save") if edit else _("Create mix"), icon=None if edit else "plus",
+               kind="primary", command=self._save).pack(side="right")
+        Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right", padx=8)
+        if edit and on_delete and not m.get("builtin"):
+            Button(self.buttons, _("Delete mix"), icon="trash", kind="danger", command=self._delete).pack(side="left")
+        self.entry.focus_set()
+        self.bind("<Return>", lambda e: self._save())
+        self.geometry("560x720")
+        self.show()
+
+    def _look(self):
+        tile = getattr(self.head, "tile", None)
+        if tile is not None:
+            tile.configure(image=icon_tile(tile, self.icon.value, 40, self.icon.color))
+
+    def _device(self, name, on):
+        self.devices = [d for d in self.devices if d != name] + ([name] if on else [])
+
+    def _virtual(self, on):
+        self.virtual = on
+
+    def values(self):
+        # bisherige Geräte behalten ihre Reihenfolge (das erste ist beim Persönlichen Mix das Abhörgerät)
+        order = [d for d in self.current if d in self.devices] + [n for n, _d in self.outputs]
+        devices = sorted(self.devices, key=lambda d: order.index(d) if d in order else len(order))
+        return {"name": self.name.get().strip(), "icon": self.icon.value, "color": self.color.value,
+                "devices": devices, "virtual": self.virtual or self.mid == "stream"}
+
+    def _save(self):
+        v = self.values()
+        if not v["name"]:
+            self.error.configure(text=_("Please enter a name"))
+            return
+        if not v["devices"] and not v["virtual"] and self.mid != "monitor":
+            self.error.configure(text=_("Choose at least one output"))
+            return
+        self.destroy()
+        if self.on_save:
+            self.on_save(v)
+
+    def _delete(self):
+        self.destroy()
+        if self.on_delete:
+            self.on_delete()
+
+
 def _fmt(value, c):
     if c.get("toggle"):
         return _("on") if value >= 0.5 else _("off")

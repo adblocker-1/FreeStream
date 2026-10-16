@@ -19,6 +19,7 @@ verwaltet (Kanalauswahl und Mix).
 import json
 import os
 import shutil
+import signal
 
 from . import paths
 from .editdoc import EditError, ProfileDoc, create_profile, init_profile
@@ -79,16 +80,34 @@ def devices(store_root=None):
 
 # ------------------------------------------------------------------ Belegung
 CHANNEL_KINDS = {"dial": "mute", "tile": "mute", "fader_top": "up", "fader_bottom": "down"}
-SELECTORS = ("mix:both", "mix:monitor", "mix:stream")
+DEFAULT_MIXES = ("monitor", "stream")
 
 
-def plan(geometry, channels, selectable=True):
+def _selectors(mixes, room):
+    """Mix-Tasten für room Plätze: „Alle“ und jeder Mix; reicht der Platz nicht, zuletzt „nächster Mix“."""
+    keys = ["mix:both"] + [f"mix:{m}" for m in mixes]
+    if len(keys) > room:
+        keys = keys[:max(0, room - 1)] + ["mix:cycle"]
+    return keys
+
+
+def linewave_mixes():
+    """Mix-ids aus der Linewave-Konfiguration (Persönlicher Mix, Stream-Mix, eigene)."""
+    try:
+        from .config import Config
+        from .mixer import Mixer
+        return Mixer(Config()).mix_ids()
+    except Exception:  # noqa: BLE001 - Linewave nicht installiert
+        return list(DEFAULT_MIXES)
+
+
+def plan(geometry, channels, selectable=True, mixes=DEFAULT_MIXES):
     """Belegung je Seite: [[(slot, kanal, art), …], …] – ohne Dateien (testbar).
 
     Kanal-Arten: "dial" (Drehregler), "tile" (Kachel, stumm), "fader_top" / "fader_bottom"
-    (Fader über zwei Tasten: oben lauter, unten leiser). Ohne Kanal: "mix:both|monitor|stream"
+    (Fader über zwei Tasten: oben lauter, unten leiser). Ohne Kanal: "mix:both" und "mix:<Mix>"
     (Mix-Wahl), "mix:cycle" (Mix der Reihe nach) und "pages" („Kanäle 1–7“, blättert weiter).
-    selectable=False: feste Mischung, keine Mix-Wahl-Tasten."""
+    selectable=False: feste Mischung, keine Mix-Wahl-Tasten. mixes: Mix-ids aus Linewave."""
     cols, rows, dials = geometry.cols, geometry.rows, geometry.dials
     if not channels:
         raise ExportError(_("Choose at least one channel."))
@@ -100,7 +119,7 @@ def plan(geometry, channels, selectable=True):
         bottom = rows - 1
         if rows >= 2:
             if selectable and cols >= 4:
-                extra = [(("key", i, bottom), k) for i, k in enumerate(SELECTORS)]
+                extra = [(("key", i, bottom), k) for i, k in enumerate(_selectors(mixes, cols - 1))]
             elif selectable:
                 extra = [(("key", 0, bottom), "mix:cycle")]
             extra.append((("key", cols - 1, bottom), "pages"))
@@ -110,7 +129,7 @@ def plan(geometry, channels, selectable=True):
             return out + [(("key", i, 0), c, "tile") for i, c in enumerate(chs) if i < cols and rows >= 2]
     elif rows >= 4 and cols >= 4:
         per_page = cols
-        extra = [(("key", i, 0), k) for i, k in enumerate(SELECTORS if selectable else ())]
+        extra = [(("key", i, 0), k) for i, k in enumerate(_selectors(mixes, cols - 1) if selectable else ())]
         extra.append((("key", cols - 1, 0), "pages"))
         kinds = ("tile", "fader_top", "fader_bottom")
 
@@ -169,10 +188,10 @@ def managed_profiles(store_root=None):
     return [p for p in ProfileStore(store_root).profiles.values() if _meta(p.root).get("linewave") is not None]
 
 
-def _fill(root, model, channels, mix):
+def _fill(root, model, channels, mix, mixes=DEFAULT_MIXES):
     """Profil root neu belegen (alte Seiten werden ersetzt)."""
     doc = ProfileDoc(root)
-    layout = plan(doc.geometry, channels, selectable=mix == "selected")
+    layout = plan(doc.geometry, channels, selectable=mix == "selected", mixes=mixes)
     first = doc.page_ids[0]
     pages = [first] + [doc.add_page() for _i in layout[1:]]
     for n, (page, entries) in enumerate(zip(pages, layout)):
@@ -195,15 +214,17 @@ def _fill(root, model, channels, mix):
     return len(layout)
 
 
-def export(model, channels, mix="selected", all_channels=True, store_root=None):
+def export(model, channels, mix="selected", all_channels=True, store_root=None, mixes=None):
     """Linewave-Profil für dieses Modell anlegen oder neu belegen.
 
     channels: Kanal-ids in Reihenfolge. all_channels: später neue Kanäle automatisch dazunehmen.
+    mixes: Mix-ids für die Mix-Tasten (Standard: aus der Linewave-Konfiguration).
     Gibt (Profilname, Seitenzahl, neu angelegt) zurück."""
-    if mix not in MIXES:
+    mixes = list(linewave_mixes() if mixes is None else mixes)
+    if mix not in MIXES and mix not in mixes:
         raise ExportError(mix)
     model = _base(model)
-    plan(geometry_of(model), channels)  # vorher prüfen, damit kein halbes Profil entsteht
+    plan(geometry_of(model), channels, mixes=mixes)  # vorher prüfen, damit kein halbes Profil entsteht
     store_root = store_root or paths.PROFILES_DIR
     existing = managed_profile(model, store_root)
     if existing is not None:
@@ -218,19 +239,39 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None):
             name = f"{PROFILE_NAME} ({model_name(model)})"
         root, created, meta = create_profile(name, model, store_root), True, {}
     try:
-        pages = _fill(root, model, list(channels), mix)
+        pages = _fill(root, model, list(channels), mix, mixes)
     except EditError as e:
         raise ExportError(str(e)) from e
-    meta["linewave"] = {"channels": list(channels), "all": bool(all_channels), "mix": mix}
+    meta["linewave"] = {"channels": list(channels), "all": bool(all_channels), "mix": mix, "mixes": mixes}
     (root / META).write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    os.utime(root)  # LinDeck lädt geänderte Profile neu
+    os.utime(root)
+    notify_lindeck()
     return name, pages, created
 
 
-def sync(channels, store_root=None):
-    """Linewave-Profile an die aktuellen Kanäle anpassen (neue dazu, gelöschte weg).
+def notify_lindeck():
+    """Laufendem LinDeck Bescheid geben (SIGHUP): es lädt die Profile neu und zeigt das Profil
+    sofort in der Liste – ohne dass LinDeck danach suchen muss. Gibt True zurück, wenn LinDeck lief."""
+    try:
+        pid = int(paths.PID_FILE.read_text())
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            cmd = f.read().decode(errors="ignore")
+    except (OSError, ValueError):
+        return False
+    if pid == os.getpid() or not any(n in cmd for n in ("lindeck", "streamlin")):
+        return False
+    try:
+        os.kill(pid, signal.SIGHUP)
+    except OSError:
+        return False
+    return True
+
+
+def sync(channels, store_root=None, mixes=None):
+    """Linewave-Profile an die aktuellen Kanäle und Mixe anpassen (neue dazu, gelöschte weg).
 
     channels: alle Kanal-ids in Mixer-Reihenfolge. Gibt die Namen geänderter Profile zurück."""
+    mixes = list(linewave_mixes() if mixes is None else mixes)
     changed = []
     for p in managed_profiles(store_root):
         lw = _meta(p.root).get("linewave") or {}
@@ -239,10 +280,14 @@ def sync(channels, store_root=None):
             want = list(channels)
         else:
             want = [c for c in old if c in channels]
-        if want == old or not want:
+        old_mixes = lw.get("mixes") or list(DEFAULT_MIXES)
+        mix = lw.get("mix", "selected")
+        if mix not in MIXES and mix not in mixes:
+            mix = "selected"  # fester Mix wurde gelöscht
+        if (want == old and old_mixes == mixes and mix == lw.get("mix", "selected")) or not want:
             continue
         try:
-            export(p.model, want, lw.get("mix", "selected"), lw.get("all", True), store_root)
+            export(p.model, want, mix, lw.get("all", True), store_root, mixes=mixes)
             changed.append(p.name)
         except ExportError:
             continue

@@ -367,14 +367,21 @@ def cmd_mixer(args):
             print(_("Channel deleted"))
         elif args.action == "scene":
             return _cmd_scene(mx, args.args)
+        elif args.action == "master":
+            ch, vol = args.args
+            mx.set_master(ch, int(vol))
+        elif args.action == "listen":
+            mid = mx.listen(args.args[0] if args.args else "monitor")
+            print(_("Listening to “{mix}”").format(mix=mx.mix(mid)["name"]))
         else:
             if not mx.is_active():
                 print(_("Mixer not set up – 'linewave mixer setup'"))
                 return 1
             print(_("Monitor output: {output}").format(output=mx.monitor_output_name()))
+            masters = mx.masters()
             for c in mx.all_channels():
-                cells = []
-                for m in ("monitor", "stream"):
+                cells = [f"master: {masters[c['id']][0]}%"] if c["id"] in masters else []
+                for m in mx.channel_mixes(c["id"]):
                     vol, mute = mx.get(c["id"], m)
                     shown = "–" if vol is None else (pgettext("state", "muted") if mute else f"{vol}%")
                     cells.append(f"{m}: {shown}")
@@ -817,8 +824,9 @@ def main(argv=None, prog="lindeck"):
                                        "assign, output"))
     s.add_argument("action", nargs="?", default="status",
                    choices=["status", "setup", "remove", "set", "mute", "assign", "output", "add", "delete",
-                            "scene"])
-    s.add_argument("args", nargs="*", help=_("set <channel> <monitor|stream|both> <percent> · mute <channel> <mix> · "
+                            "scene", "master", "listen"])
+    s.add_argument("args", nargs="*", help=_("set <channel> <mix|both> <percent> · mute <channel> <mix> · "
+                                             "master <channel> <percent> · listen <mix> · "
                                              "assign <program> <channel> · output [device] · add <name> [input device] · "
                                              "delete <channel>"))
     s.epilog = _("Scenes: scene list | save <name> | apply <name> | rename <name> <new name> | delete <name>")

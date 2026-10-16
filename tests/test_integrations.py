@@ -469,8 +469,8 @@ def test_mixer_setup_volumes_routing(pactl):
     assert len(mods) == len(loads) == 1 + 6 * 3 + 2
     assert any("sink_name=linewave_music" in " ".join(c) for c in loads)
     # Kanalnamen mit Leerzeichen bleiben vollständig (sonst hieße jeder Kanal nur „Linewave“)
-    assert "sink_properties=\"device.description='Linewave Voice Chat' node.description='Linewave Voice Chat'\"" in [
-        x for c in loads for x in c]
+    assert ("sink_properties=\"device.description='Linewave Voice Chat' node.description='Linewave Voice Chat' "
+            "monitor.channel-volumes='true'\"") in [x for c in loads for x in c]
     assert any("sink=alsa_output.headphones" in c and "source=linewave_music.monitor" in c for c in loads)
     assert ["set-default-sink", "linewave_system"] in pactl.cmds
     assert mx.get("mic", "monitor") == (100, True)  # eigenes Mikro nicht auf dem Kopfhörer
