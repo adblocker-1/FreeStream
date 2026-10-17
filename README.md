@@ -19,8 +19,9 @@ Streamlin contains **two programs**, just like Elgato's software:
 
 Both start invisibly when you log in. The menu entry opens the window; closing
 the window keeps the program running in the background. Language, light/dark
-mode, updates, backups and the support report are under **Settings** (gear) at
-the bottom of the sidebar.
+mode, updates, autostart, backups and the support report are under **Settings**
+(gear) at the bottom of the sidebar – in LinDeck together with your devices,
+profiles, plugins and the key style (see [Settings](#settings)).
 
 Available in **English, German, Spanish, French and Portuguese (Brazil)**.
 
@@ -53,7 +54,7 @@ install it after you confirm. You can switch this off in **Settings**.
 **Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`); your
 profiles stay in `~/.local/share/streamlin`.
 
-> **Status:** version 0.25, tested with simulated devices of every model.
+> **Status:** version 0.27, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## The LinDeck window
@@ -67,6 +68,12 @@ the Elgato format, so you can take them back to Windows with **Export…**.
 LinDeck recognises the connected Stream Deck by itself: **New profile** only asks
 for a name, and profiles for a model that is not plugged in are shown greyed out.
 Right-click a profile to open, rename, duplicate, export or delete it.
+
+**Icons …** next to the key preview (or a click on the preview) opens the **icon
+library**: over 100 icons drawn for LinDeck in three packs – **Color**, **White**
+and **Black** – with a search field and zoom. **Own image …** takes any picture.
+
+![Icon library](docs/images/lindeck-icons.png)
 
 **Background** below the device spreads a picture across all keys of a page; on
 the Stream Deck + the touch strip can get its own image.
@@ -92,7 +99,7 @@ All built-in actions of the Elgato app work:
 | **Soundboard** | play/stop audio with volume and loop |
 | **Key Logic**, **Action Wheel**, **Dial Stack**, **Mouse Wheel** | |
 | **Volume Controller** | input/output devices and app volume |
-| **Smart Profiles** | switch profiles by active window (X11, KDE, Hyprland, Sway) |
+| **Smart Profiles** | switch profiles by active window (X11, KDE, Hyprland, Sway) – set up under **Settings → Profiles** |
 
 LinDeck adds its own **live keys**: **Clock**, **Countdown** (flashes and plays a
 sound at zero), **Stopwatch** and a **system monitor** (CPU, memory,
@@ -101,8 +108,10 @@ temperature, network, battery, disk space).
 ## Plugins
 
 **OBS, Spotify, Discord, Home Assistant and Wave Link** are built in. Other
-Elgato plugins run in the built-in plugin host: click **Plugins** →
-**Install plugin…** and choose the `.streamDeckPlugin` file.
+Elgato plugins run in the built-in plugin host: open **Settings → Plugins** (or
+**Plugins** in the sidebar) → **Install plugin …** and choose the
+`.streamDeckPlugin` file. On the right you see whether it runs, its log, and you
+can restart or remove it.
 
 ![Plugin management](docs/images/lindeck-plugins.png)
 
@@ -134,7 +143,9 @@ and mute for every channel:
   “Monitor of Linewave Chat Mix” as microphone there). A mix goes to any devices
   you tick and/or to a virtual source for other programs.
 
-Click an empty cell to put a channel into a mix, right-click a cell to take it out.
+Click an empty cell (it shows ⊕ when you point at it) to put a channel into a mix;
+the small ✕ on the corner of a cell takes it out. New mixes and new channels start
+empty – you decide what goes where.
 Right-click a mix (in the sidebar or its column header) to edit, listen to or delete it.
 The headphones button in a mix header lets you **listen** to that mix on your
 headphones for a moment.
@@ -160,14 +171,32 @@ or a capture card.
 On the Stream Deck, the actions **Mixer Channel**, **Mixer Scene** and **Wave
 Microphone** control all of this, even when the Linewave window is closed.
 
-## Settings file
+## Settings
 
-Optional settings go into `~/.config/streamlin/config.json`, for example:
+LinDeck's **Settings** have tabs, like the Elgato app:
+
+| Tab | |
+|---|---|
+| **General** | version and updates, start automatically when you log in, light/dark, language, help and backup |
+| **Devices** | per connected deck: name, on/off, **orientation** (upside down 180°), **sleep after** (never … 60 min), brightness, serial number, firmware and the profile it uses |
+| **Profiles** | switch to a profile **automatically** when a program is in the foreground (pick it from the list or take the active window) and choose your **default profile** |
+| **Plugins** | installed plugins with status, log, restart and remove |
+| **Style** | progress of a **Multi Action** on the key, and a **font for all keys** (title on/off, position, font, size, bold/italic/underline, colour) – new keys get it, **Apply to all keys** changes every profile |
+
+| | |
+|---|---|
+| ![General settings](docs/images/settings.png) | ![Device settings](docs/images/settings-devices.png) |
+| ![Profile settings](docs/images/settings-profiles.png) | ![Style settings](docs/images/settings-style.png) |
+
+Linewave's settings have the general part plus **Remove mixer / Set up mixer**.
+
+### Settings file
+
+Everything above is stored in `~/.config/streamlin/config.json`. A few options
+exist only there, for example:
 
 ```json
 {
-  "brightness": 70,
-  "sleep_after_minutes": 0,
   "keyboard_layout": "auto",
   "app_map": { "obs64.exe": "flatpak run com.obsproject.Studio" },
   "path_map": { "C:/Users/Alex/Music": "/home/alex/Music" }

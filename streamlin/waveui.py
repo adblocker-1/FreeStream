@@ -2133,8 +2133,8 @@ class WaveWindow:
             if any(m.get("virtual") and m["id"] != "stream" for m in mixes):
                 hint += "  ·  " + _("Other virtual mixes: “Monitor of Linewave <name>”")
             self.table_hint.configure(
-                text=hint + "\n" + _("Click an empty cell to add the channel to the mix, right-click a cell to "
-                                     "remove it."))
+                text=hint + "\n" + _("Click an empty cell to add the channel to the mix; the ✕ on the corner of a "
+                                     "cell removes it."))
             keys = tuple((s["index"], s["app"], s["channel"]) for s in st.get("streams") or [])
             self._stream_keys = keys
             fx_ids = tuple((c["id"], c["name"], c.get("icon"), c.get("color"), tuple(c.get("fx_names") or []),

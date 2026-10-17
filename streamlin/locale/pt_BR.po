@@ -5829,8 +5829,8 @@ msgid "Off – method: {backend}"
 msgstr "Desativada – método: {backend}"
 
 #: streamlin/waveui.py:2136
-msgid "Click an empty cell to add the channel to the mix, right-click a cell to remove it."
-msgstr "Clique numa célula vazia para pôr o canal no mix; clique direito numa célula para tirá-lo."
+msgid "Click an empty cell to add the channel to the mix; the ✕ on the corner of a cell removes it."
+msgstr "Clique numa célula vazia para adicionar o canal à mixagem; o ✕ no canto de uma célula o remove."
 
 #: streamlin/waveui.py:2161
 msgid "Mixer is off"
