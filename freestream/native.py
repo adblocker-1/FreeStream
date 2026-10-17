@@ -454,7 +454,8 @@ class DiscordAction(NativeAction):
 class MixerAction(NativeAction):
     @property
     def mixer(self):
-        from .mixer import Mixer
+        from .mixer import Mixer, want_watch
+        want_watch()  # Änderungen aus FreeWave/pavucontrol sofort mitbekommen (sonst springt die Lautstärke)
         return Mixer(getattr(getattr(self, "ctx", None), "cfg", None))
 
     @property
@@ -554,13 +555,17 @@ class MixerAction(NativeAction):
         if self.empty:
             return (None, False)
         now = time.time()
-        if now - getattr(self, "_lv_at", 0) > 1.0:
+        at0 = getattr(self, "_lv_at", 0)
+        if now - at0 > 1.0:
             mx = self.mixer
             mixes = mx.channel_mixes(self.channel) if self.mix == "both" else (self.mix,)
             vals = [mx.get(self.channel, m) for m in mixes]
             vols = [v for v, _mu in vals if v is not None]
-            self._lv = (max(vols) if vols else None, all(mu for _v, mu in vals) if vols else False)
-            self._lv_at = now
+            lv = (max(vols) if vols else None, all(mu for _v, mu in vals) if vols else False)
+            # während des Lesens hat ein Tastendruck einen neueren Stand gezeigt: der gilt (sonst springt
+            # die Anzeige beim Halten kurz auf den alten Wert zurück)
+            if getattr(self, "_lv_at", 0) == at0:
+                self._lv, self._lv_at = lv, now
         return self._lv
 
     def active(self):
@@ -640,9 +645,17 @@ class MixerAction(NativeAction):
             log.debug("share level: %s", e)
 
     def _fresh_level(self):
-        """Zuletzt gelesener Stand (Lautstärke, stumm), wenn er noch frisch ist, sonst None."""
+        """Stand (Lautstärke, stumm) für die sofortige Anzeige: aus derselben Quelle, aus der gleich
+        geschrieben wird (letzte Abfrage samt eigener Änderungen – auch aus dem FreeWave-Fenster), sonst
+        der eigene, wenn er noch frisch ist; None = erst nach dem Schreiben zeigen."""
+        try:
+            lv = self.mixer.recent_level(self.channel, self.mix)
+        except Exception:  # noqa: BLE001 - nur Anzeige
+            lv = None
+        if lv is not None and lv[0] is not None:
+            return lv
         lv = getattr(self, "_lv", None)
-        return lv if lv and lv[0] is not None and time.time() - getattr(self, "_lv_at", 0) < 3.0 else None
+        return lv if lv and lv[0] is not None and time.time() - getattr(self, "_lv_at", 0) < 1.5 else None
 
     def _show_now(self, vol=None, mute=None):
         """Neuen Stand sofort zeigen – das Schreiben an PipeWire läuft danach. Erst die gedrückte Taste,

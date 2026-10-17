@@ -142,7 +142,55 @@ KEEP_RECENT = ("set-sink-input-volume", "set-sink-input-mute")  # ändern nur We
 _RECENT = {"at": 0.0, "loops": {}}
 
 
-def _remember_loops(blocks):
+WRITTEN_S = 1.5  # so lange gilt ein selbst geschriebener Wert mehr als eine Abfrage von PipeWire
+_WRITTEN = {}    # Loopback-Index -> {"volume"/"mute": Wert, "at": Zeit}
+_CHANGE_LOCK = threading.RLock()  # Tastendrücke (Halten = Wiederholung) lesen-rechnen-schreiben nacheinander
+
+
+def _wrote(index, **values):
+    """Eigenen Schreibvorgang merken (siehe _apply_written)."""
+    w = _WRITTEN.setdefault(str(index), {})
+    w.update(values, at=time.monotonic())
+
+
+def _note_write(args):
+    """pactl set-sink-input-volume|-mute <Index> <Wert>: geschriebenen Wert merken (relative Angaben
+    und „toggle“ kennen wir nicht – dann gilt wieder, was PipeWire meldet)."""
+    cmd, index, value = args[0], str(args[1]), str(args[2])
+    try:
+        if cmd == "set-sink-input-volume" and value.endswith("%") and value[0] not in "+-":
+            _wrote(index, volume=int(value[:-1]))
+        elif cmd == "set-sink-input-mute" and value in ("0", "1"):
+            _wrote(index, mute=value == "1")
+        else:
+            _WRITTEN.pop(index, None)
+    except ValueError:
+        _WRITTEN.pop(index, None)
+
+
+def _apply_written(blocks, asked_at=None):
+    """Eine pactl-Abfrage kann vor unserem letzten Schreiben gestellt worden sein und erst danach ankommen
+    (Sekundentakt der Tasten, während eine Taste gehalten wird): dann den eben geschriebenen Wert behalten,
+    sonst rechnet der nächste Schritt vom alten Wert aus und die Anzeige springt zurück.
+    asked_at: wann die Abfrage gestellt wurde – war das nach dem Schreiben, stimmt sie sicher (auch
+    Änderungen anderer Programme danach) und der gemerkte Wert ist erledigt."""
+    if not _WRITTEN:
+        return
+    now = time.monotonic()
+    for idx in [i for i, w in _WRITTEN.items()
+                if now - w["at"] > WRITTEN_S or (asked_at is not None and w["at"] <= asked_at)]:
+        _WRITTEN.pop(idx, None)
+    for b in blocks:
+        w = _WRITTEN.get(str(b.get("index")))
+        if w:
+            for k in ("volume", "mute"):
+                if k in w:
+                    b[k] = w[k]
+
+
+def _remember_loops(blocks, asked_at=None):
+    _watch_loops()  # sobald Deck-Tasten Lautstärken lesen: Änderungen anderer Programme mitbekommen
+    _apply_written(blocks, asked_at)
     loops = {}
     for b in blocks:
         lid = _loop_id(b["props"])
@@ -152,7 +200,46 @@ def _remember_loops(blocks):
 
 
 def _recent_loops():
+    _watch_loops()
     return _RECENT["loops"] if time.monotonic() - _RECENT["at"] < RECENT_S else None
+
+
+WATCH = True        # Tests schalten das Mithören ab (eigener pactl-Prozess)
+_WATCH = {}         # "wanted": Deck-Tasten da (FreeDeck), "thread": laufender Beobachter
+
+
+def want_watch():
+    """FreeDeck: Deck-Tasten zeigen Lautstärken – Änderungen anderer Programme mitbekommen
+    (FreeWave hat dafür eine eigene PulseWatch)."""
+    _WATCH["wanted"] = True
+
+
+def _watch_loops():
+    """Ändert ein anderes Programm (FreeWave-Fenster, pavucontrol) eine Lautstärke, die gemerkten Werte
+    der Deck-Tasten sofort neu einlesen – sonst rechnet der nächste Tastendruck vom alten Wert aus und
+    die Lautstärke springt. Läuft erst, wenn Deck-Tasten den Zwischenspeicher benutzen."""
+    if not WATCH or not _WATCH.get("wanted") or "thread" in _WATCH:
+        return
+
+    def loop():
+        watch = system.PulseWatch().start()
+        seen = watch.version
+        while WATCH:
+            v = watch.wait(seen, 30)
+            if v == seen:
+                if not watch._running:
+                    break  # pactl subscribe geht nicht: dann gilt wie bisher der Sekundentakt
+                continue
+            time.sleep(0.04)  # mehrere Meldungen auf einmal (alle Mixe eines Kanals) zusammenfassen
+            seen = watch.version
+            try:
+                asked = time.monotonic()
+                _remember_loops(system._pactl_blocks("sink-inputs"), asked_at=asked)
+            except Exception as e:  # noqa: BLE001
+                log.debug("loopbacks neu lesen: %s", e)
+        _WATCH.pop("thread", None)
+    _WATCH["thread"] = threading.Thread(target=loop, name="freewave-loops-watch", daemon=True)
+    _WATCH["thread"].start()
 
 
 def _is_ours(props):
@@ -215,7 +302,10 @@ class Mixer:
         def tracked(args):
             if args and args[0] not in READ_ONLY and args[0] not in KEEP_RECENT:
                 _RECENT["at"] = 0.0  # Loopbacks neu angelegt/verschoben: gemerkte Indizes ungültig
-            return raw(args)
+            out = raw(args)
+            if args and args[0] in KEEP_RECENT and len(args) >= 3:
+                _note_write(args)  # jede eigene Änderung (Taste, Fenster, Szene, Ducking) merken
+            return out
         self.run = tracked
         self.state_file = paths.STATE_DIR / STATE_FILE
         self._moved = set()
@@ -943,6 +1033,27 @@ class Mixer:
         base = duck.base(f"{cid}_{mix}") if duck else None
         return (vol if base is None else base), bool(b.get("mute"))
 
+    def recent_level(self, cid, mix):
+        """(Lautstärke, stumm) aus der zuletzt gelesenen Abfrage samt eigener Schreibvorgänge – ohne
+        PipeWire zu fragen; None, wenn nichts Frisches da ist. Für die sofortige Anzeige am Deck."""
+        known = _recent_loops()
+        if known is None:
+            return None
+        try:
+            mixes = self._mixes_of(cid, mix)
+        except RuntimeError:
+            return None
+        blocks = [known.get(self.loop_name(cid, m)) for m in mixes]
+        if not blocks or any(b is None for b in blocks):
+            return None
+        _apply_written(blocks)
+        duck = self._duck()
+        vols = []
+        for m, b in zip(mixes, blocks):
+            base = duck.base(f"{cid}_{m}") if duck else None
+            vols.append(b.get("volume", 0) if base is None else base)
+        return max(vols), all(bool(b.get("mute")) for b in blocks)
+
     def _mixes_of(self, cid, mix):
         """Die Mixe hinter einer Angabe: "both"/"all" = alle Mixe, in denen der Kanal ist."""
         if mix in ("both", "all"):
@@ -1036,20 +1147,22 @@ class Mixer:
             self._write_volume(b["index"], key, pct, duck)
             b["volume"] = pct if base is None else b.get("volume", 0)  # gemerkten Stand nachführen
             out[m] = pct
-        self._write_all(cid, mix, write, recent=recent)
+        with _CHANGE_LOCK:
+            self._write_all(cid, mix, write, recent=recent)
         return out
 
     def set_mute(self, cid, mix, mute, recent=False):
         """Stumm schalten; "toggle" schaltet alle Mixe gemeinsam um. Gibt den neuen Zustand zurück."""
-        loops = self._loops(cid, mix, recent=recent)
-        if mute == "toggle":
-            mute = not all(b.get("mute") for _m, b in loops)
-        mute = bool(mute)
+        with _CHANGE_LOCK:
+            loops = self._loops(cid, mix, recent=recent)
+            if mute == "toggle":
+                mute = not all(b.get("mute") for _m, b in loops)
+            mute = bool(mute)
 
-        def write(_m, b):
-            self.run(["set-sink-input-mute", b["index"], "1" if mute else "0"])
-            b["mute"] = mute
-        self._write_all(cid, mix, write, recent=recent, loops=loops)
+            def write(_m, b):
+                self.run(["set-sink-input-mute", b["index"], "1" if mute else "0"])
+                b["mute"] = mute
+            self._write_all(cid, mix, write, recent=recent, loops=loops)
         return mute
 
     def raw_levels(self, with_index=False):

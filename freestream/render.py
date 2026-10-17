@@ -12,6 +12,21 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 
+
+def pillow_compat():
+    """Pillow < 9.1 (Ubuntu 22.04, Mint 21) kennt Image.Transpose und Image.Resampling noch nicht – die
+    Gerätebibliothek (python-elgato-streamdeck) braucht sie aber, um Tastenbilder zu spiegeln (XL,
+    Original, Mini). Ohne sie bleiben die Tasten dieser Decks dunkel. Gleiche Werte unter neuem Namen."""
+    names = {"Transpose": ("FLIP_LEFT_RIGHT", "FLIP_TOP_BOTTOM", "ROTATE_90", "ROTATE_180", "ROTATE_270",
+                           "TRANSPOSE", "TRANSVERSE"),
+             "Resampling": ("NEAREST", "BOX", "BILINEAR", "HAMMING", "BICUBIC", "LANCZOS")}
+    for group, members in names.items():
+        if not hasattr(Image, group):
+            setattr(Image, group, type(group, (), {m: getattr(Image, m) for m in members if hasattr(Image, m)}))
+
+
+pillow_compat()
+
 from . import paths
 from .i18n import _, pgettext
 
