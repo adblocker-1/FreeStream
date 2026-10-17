@@ -62,7 +62,7 @@ def test_short_press_and_multi_action_step_once():
 def test_mixer_key_repeats_volume(monkeypatch):
     from freestream import native
     calls = []
-    fake = types.SimpleNamespace(change_volume=lambda c, m, d: calls.append(d), channel=lambda c: None,
+    fake = types.SimpleNamespace(change_volume=lambda c, m, d, **kw: calls.append(d) or {m: 50}, channel=lambda c: None,
                                  mix_ids=lambda: ["monitor", "stream"], channel_mixes=lambda c: ["monitor"],
                                  get=lambda c, m: (50, False))
     monkeypatch.setattr(native.MixerAction, "mixer", property(lambda self: fake))
@@ -241,8 +241,9 @@ def test_mute_and_volume_read_once(monkeypatch):
     sets = [c[1:] for c in calls if c[1] == "set-sink-input-mute"]
     assert len(lists) == 1 and len(sets) == len(mx.channel_mixes("music")) and all(s[-1] == "1" for s in sets)
     calls.clear()
-    assert mx.change_volume("music", "both", 5) == {m: 65 for m in mx.channel_mixes("music")}
-    assert len([c for c in calls if c[1] == "list"]) == 1
+    assert mx.change_volume("music", "both", 5, recent=True) == {m: 65 for m in mx.channel_mixes("music")}
+    assert not [c for c in calls if c[1] == "list"]  # eben gelesen: gleich schreiben
+    assert all(c[1] == "set-sink-input-volume" for c in calls) and len(calls) == len(mx.channel_mixes("music"))
 
 
 def test_mixer_key_draws_known_state_without_asking_again(monkeypatch):
@@ -255,9 +256,12 @@ def test_mixer_key_draws_known_state_without_asking_again(monkeypatch):
     a.redraw = lambda: None
     a.tick()
     calls.clear()
+    drawn = []
+    a.redraw = lambda: drawn.append((a._level(), len(calls)))
     a.key_down()
     assert a._level() == (60, True)
-    assert [c[1] for c in calls] == ["list", "set-sink-input-mute"]  # lesen, schreiben – kein zweites Lesen
+    assert drawn[0] == ((60, True), 0)  # neuer Stand sofort gezeigt, noch bevor PipeWire etwas hört
+    assert [c[1] for c in calls] == ["set-sink-input-mute"]  # gerade gelesen: nur schreiben
 
 
 def test_mix_select_asks_pactl_once(monkeypatch):
@@ -281,3 +285,21 @@ def test_mix_select_asks_pactl_once(monkeypatch):
     assert len([c for c in calls if c[1] == "list"]) == 1  # früher eine je Taste und Mix
     assert order[0] is sel  # die gedrückte Mix-Taste zuerst
     native._DECK_MIX["mix"] = "both"
+
+
+def test_stale_loopback_index_is_read_again(monkeypatch):
+    from freestream import mixer as M
+    mx, calls = _fake_pactl(monkeypatch, muted=())
+    mx.set_mute("music", "monitor", True, recent=True)  # liest und merkt sich die Indizes
+    for b in M._RECENT["loops"].values():
+        b["index"] = "999"  # Loopback inzwischen neu angelegt: alter Index gilt nicht mehr
+    real = mx.run
+
+    def run(args):
+        if args[1:2] == ["999"]:
+            raise RuntimeError("No such entity")
+        return real(args)
+    mx.run = run
+    calls.clear()
+    assert mx.set_mute("music", "monitor", False, recent=True) is False
+    assert [c[1] for c in calls] == ["list", "set-sink-input-mute"]  # einmal frisch gelesen, dann geschrieben

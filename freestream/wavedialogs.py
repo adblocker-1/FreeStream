@@ -764,7 +764,7 @@ class ScenesDialog(Dialog):
 class DeckExportDialog(Dialog):
     """Profil „FreeWave“ für ein Stream-Deck-Modell anlegen (Lautstärke direkt am Gerät)."""
 
-    def __init__(self, master, channels, on_done=None, used=None):
+    def __init__(self, master, channels, on_done=None):
         from . import deckexport
         super().__init__(master, _("Export to FreeDeck"), width=560)
         self.dx, self.on_done = deckexport, on_done
@@ -807,21 +807,12 @@ class DeckExportDialog(Dialog):
             self.device_box.bind("<<ComboboxSelected>>", lambda e: self._update_hint())
 
         field(b, _("CHANNELS"))
-        # nur benutzte Kanäle vorauswählen (ein Programm spielt darin oder ist ihm zugeordnet, Mikrofon,
-        # Eingänge); leere Kanäle bleiben aus, lassen sich aber dazunehmen
-        ids = [cid for cid, _n in channels]
-        self.used = [c for c in ids if c in set(used)] if used else []
-        if not self.used:
-            self.used = ids
-        self.chosen = {cid: cid in self.used for cid in ids}
-        if len(self.used) < len(ids):
-            label(b, _("Channels nothing plays in are left out – click one to add it anyway."), 9,
-                  color=COL["muted"]).pack(anchor="w", pady=(0, 6))
         box = tk.Frame(b, bg=COL["bg"])
         box.pack(fill="x", pady=(0, 14))
+        self.chosen = {cid: True for cid, _n in channels}
         self.chips = {}
         for i, (cid, name) in enumerate(channels):
-            chip = Chip(box, name, active=self.chosen[cid], command=lambda c=cid: self._toggle(c))
+            chip = Chip(box, name, active=True, command=lambda c=cid: self._toggle(c))
             chip.grid(row=i // 4, column=i % 4, sticky="w", padx=(0, 6), pady=(0, 6))
             self.chips[cid] = chip
 
@@ -890,13 +881,8 @@ class DeckExportDialog(Dialog):
         d = self._selected_device()
         chans = self._selected_channels()
         try:
-            if len(chans) == len(self.channels):
-                mode = True  # alle: auch neue Kanäle kommen dazu
-            elif set(chans) == set(self.used):
-                mode = self.dx.USED  # die benutzten: später benutzte kommen dazu
-            else:
-                mode = False  # eigene Auswahl: bleibt so
-            name, pages, created = self.dx.export(d["model"], chans, mix=self.mix, all_channels=mode)
+            name, pages, created = self.dx.export(d["model"], chans, mix=self.mix,
+                                                  all_channels=len(chans) == len(self.channels))
         except (self.dx.ExportError, OSError) as e:
             self.result.configure(text=_("Error: {error}").format(error=e), fg=COL["danger"])
             return

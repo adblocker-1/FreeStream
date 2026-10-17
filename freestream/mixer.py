@@ -135,6 +135,26 @@ def _loop_id(props):
     return lid if _ours(lid) else ""
 
 
+# Zuletzt gelesene Loopbacks (Name -> Block): Tasten am Deck schreiben damit sofort, ohne erst
+# „pactl list“ abzuwarten. Nur kurz gültig; jede neue Abfrage frischt sie auf.
+RECENT_S = 2.0
+KEEP_RECENT = ("set-sink-input-volume", "set-sink-input-mute")  # ändern nur Werte, nicht die Indizes
+_RECENT = {"at": 0.0, "loops": {}}
+
+
+def _remember_loops(blocks):
+    loops = {}
+    for b in blocks:
+        lid = _loop_id(b["props"])
+        if lid:
+            loops[lid] = b
+    _RECENT["loops"], _RECENT["at"] = loops, time.monotonic()
+
+
+def _recent_loops():
+    return _RECENT["loops"] if time.monotonic() - _RECENT["at"] < RECENT_S else None
+
+
 def _is_ours(props):
     return bool(_loop_id(props)) or _ours(props.get("media.name", ""))
 
@@ -190,7 +210,13 @@ class Mixer:
 
     def __init__(self, cfg=None, run=None):
         self.cfg = cfg
-        self.run = run or _run
+        raw = run or _run
+
+        def tracked(args):
+            if args and args[0] not in READ_ONLY and args[0] not in KEEP_RECENT:
+                _RECENT["at"] = 0.0  # Loopbacks neu angelegt/verschoben: gemerkte Indizes ungültig
+            return raw(args)
+        self.run = tracked
         self.state_file = paths.STATE_DIR / STATE_FILE
         self._moved = set()
         from .effects import Effects
@@ -881,7 +907,9 @@ class Mixer:
     # ------------------------------------------------------ Lautstärke/Mute
     def _loop_input(self, cid, mix):
         name = self.loop_name(cid, mix)
-        for b in system._pactl_blocks("sink-inputs"):
+        blocks = system._pactl_blocks("sink-inputs")
+        _remember_loops(blocks)
+        for b in blocks:
             if _loop_id(b["props"]) == name:
                 return b
         return None
@@ -911,10 +939,17 @@ class Mixer:
             return ids
         return (mix,)
 
-    def _loops(self, cid, mix, hint=None):
-        """[(Mix, Loopback-Block)] aller Mixe hinter mix – aus einer einzigen pactl-Abfrage."""
+    def _loops(self, cid, mix, hint=None, recent=False):
+        """[(Mix, Loopback-Block)] aller Mixe hinter mix – aus einer einzigen pactl-Abfrage.
+
+        recent: eine höchstens RECENT_S alte Abfrage genügt (Tasten am Deck: sofort schreiben,
+        statt erst PipeWire auszulesen – der Sekundentakt der Tasten hält sie frisch)."""
+        mixes = self._mixes_of(cid, mix)
+        known = _recent_loops() if recent else None
+        if known is not None and all(self.loop_name(cid, m) in known for m in mixes):
+            return [(m, known[self.loop_name(cid, m)]) for m in mixes]
         with system.pactl_snapshot():
-            out = [(m, self._loop_input(cid, m)) for m in self._mixes_of(cid, mix)]
+            out = [(m, self._loop_input(cid, m)) for m in mixes]
         for m, b in out:
             if not b:
                 raise RuntimeError(hint.format(id=cid, mix=m) if hint else
@@ -932,26 +967,60 @@ class Mixer:
             pct = duck.user_set(key, pct)  # abgesenkt schreiben, Nutzerwert merken
         self.run(["set-sink-input-volume", index, f"{pct}%"])
 
-    def change_volume(self, cid, mix, delta):
-        """Lautstärke in allen Mixen um delta ändern; gibt die neuen Werte zurück ({Mix: Prozent})."""
+    def _write_all(self, cid, mix, write, recent=False, loops=None):
+        """write(Mix, Block) für alle Mixe hinter mix – gleichzeitig (je ein pactl-Aufruf). Stimmt ein
+        gemerkter Index nicht mehr (Loopback neu angelegt), einmal frisch auslesen und wiederholen."""
+        loops = loops if loops is not None else self._loops(cid, mix, recent=recent)
+        errors = []
+
+        def one(m, b):
+            try:
+                write(m, b)
+            except RuntimeError as e:
+                errors.append(e)
+        if len(loops) == 1:
+            one(*loops[0])
+        else:
+            threads = [threading.Thread(target=one, args=lb, daemon=True) for lb in loops]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+        if errors:
+            if recent:
+                _RECENT["at"] = 0.0
+                return self._write_all(cid, mix, write, recent=False)
+            raise errors[0]
+        return loops
+
+    def change_volume(self, cid, mix, delta, recent=False):
+        """Lautstärke in allen Mixen um delta ändern; gibt die neuen Werte zurück ({Mix: Prozent}).
+        recent: zuletzt gelesene Loopbacks genügen (Tasten am Deck – sofort schreiben)."""
         duck = self._duck()
         out = {}
-        for m, b in self._loops(cid, mix):  # erst alles lesen (eine Abfrage), dann schreiben
+
+        def write(m, b):
             key = f"{cid}_{m}"
             base = duck.base(key) if duck else None
             pct = max(0, min(MAX_VOLUME, int((b.get("volume", 0) if base is None else base) + delta)))
             self._write_volume(b["index"], key, pct, duck)
+            b["volume"] = pct if base is None else b.get("volume", 0)  # gemerkten Stand nachführen
             out[m] = pct
+        self._write_all(cid, mix, write, recent=recent)
         return out
 
-    def set_mute(self, cid, mix, mute):
+    def set_mute(self, cid, mix, mute, recent=False):
         """Stumm schalten; "toggle" schaltet alle Mixe gemeinsam um. Gibt den neuen Zustand zurück."""
-        loops = self._loops(cid, mix)
+        loops = self._loops(cid, mix, recent=recent)
         if mute == "toggle":
             mute = not all(b.get("mute") for _m, b in loops)
-        for _m, b in loops:
+        mute = bool(mute)
+
+        def write(_m, b):
             self.run(["set-sink-input-mute", b["index"], "1" if mute else "0"])
-        return bool(mute)
+            b["mute"] = mute
+        self._write_all(cid, mix, write, recent=recent, loops=loops)
+        return mute
 
     def raw_levels(self, with_index=False):
         """Tatsächliche Lautstärken der Loopbacks: {"music_monitor": (Prozent, stumm[, Index])}."""
@@ -1292,32 +1361,6 @@ class Mixer:
                         "app": (p.get("application.name") or p.get("application.process.binary")
                                 or p.get("node.name") or _("Stream {index}").format(index=b["index"])),
                         "key": (p.get("application.process.binary") or p.get("application.name") or "").lower()})
-        return out
-
-    # ------------------------------------------------------ benutzte Kanäle
-    def note_used(self, streams):
-        """Kanäle merken, in denen gerade ein Programm spielt (für den Export aufs Deck)."""
-        now = {s["channel"] for s in streams or () if s.get("channel")}
-        st = self._state()
-        seen = set(st.get("used_channels") or [])
-        if now - seen:
-            st["used_channels"] = sorted(seen | now)
-            self._save_state(st)
-
-    def used_channels(self, streams=()):
-        """Kanal-ids (Mixer-Reihenfolge), die wirklich benutzt werden: in mindestens einem Mix und
-        Mikrofon/Eingang, ein fest zugeordnetes Programm oder ein Programm, das darin spielt oder spielte.
-        Leere Programm-Kanäle (z. B. „SFX“, wenn nichts dorthin geht) gehören nicht dazu."""
-        seen = set(self._state().get("used_channels") or [])
-        seen |= {s["channel"] for s in streams or () if s.get("channel")}
-        seen |= set((self.conf.get("routes") or {}).values())  # vom Nutzer zugeordnete Programme
-        out = []
-        for c in self.all_channels():
-            cid = c["id"]
-            if not self.channel_mixes(cid):
-                continue  # in keinem Mix: kein Ton, kein Regler
-            if cid == "mic" or c.get("kind") == "input" or cid in seen:
-                out.append(cid)
         return out
 
     def move_stream(self, index, cid, remember=""):

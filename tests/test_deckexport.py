@@ -98,7 +98,8 @@ def test_export_creates_own_profile(store):
     doc = editdoc.ProfileDoc(root)
     assert doc.page(doc.page_ids[1]).get(("key", 3, 1))["Settings"] == {"first": 5, "last": 6}
     meta = json.loads((root / "lindeck-meta.json").read_text())
-    assert meta["linewave"] == {"channels": CHANS, "all": True, "mix": "stream", "mixes": ["monitor", "stream"]}
+    assert meta["linewave"] == {"channels": CHANS, "all": True, "mix": "stream", "mixes": ["monitor", "stream"],
+                              "layout": deckexport.LAYOUT}
     # zweites Mal: dasselbe Profil wird ersetzt, kein zweites
     assert deckexport.export(PLUS, CHANS[:2]) == ("FreeWave", 1, False)
     assert len(list(store.iterdir())) == 2 and len(_pages(root)) == 1
@@ -351,34 +352,61 @@ def test_export_dialog_uses_connected_deck(root, store, tmp_path):
     dlg.destroy()
 
 
-def test_export_only_used_channels(root, store):
-    from freestream.wavedialogs import DeckExportDialog
-    chans = [("system", "System"), ("music", "Musik"), ("sfx", "SFX"), ("mic", "Mikrofon")]
-    dlg = DeckExportDialog(root, chans, used=["system", "music", "mic"])
-    assert dlg._selected_channels() == ["system", "music", "mic"]  # SFX: nichts spielt dort
-    dlg._create()
-    root_dir = _profile(store, "FreeWave")
-    meta = json.loads((root_dir / "lindeck-meta.json").read_text())["linewave"]
-    assert meta["channels"] == ["system", "music", "mic"] and meta["all"] == deckexport.USED
-    ids = ["system", "music", "sfx", "mic"]
-    assert deckexport.sync(ids, used=["system", "mic"]) == []  # Programm zu: Taste bleibt
-    assert deckexport.sync(ids, used=["system", "music", "sfx", "mic"]) == ["FreeWave"]  # SFX benutzt: dazu
-    meta = json.loads((root_dir / "lindeck-meta.json").read_text())["linewave"]
-    assert meta["channels"] == ["system", "music", "sfx", "mic"] and meta["all"] == deckexport.USED
-    # nichts benutzt (frisch eingerichtet): alle vorausgewählt
-    dlg = DeckExportDialog(root, chans, used=[])
-    assert dlg._selected_channels() == ["system", "music", "sfx", "mic"]
-    dlg.destroy()
+def test_selected_mix_shows_only_its_channels(store, monkeypatch):
+    import types
+
+    from freestream import native
+    deckexport.export(MK2, ["system", "music", "game"])  # Mix-Wahl am Deck
+    pages = _pages(_profile(store, "FreeWave"))
+    doc = editdoc.ProfileDoc(_profile(store, "FreeWave"))
+    keys = [a for _s, a in doc.page(doc.page_ids[0]).items() if a["UUID"] == "com.lindeck.mixer.channel"]
+    assert {(a["Settings"]["slot"], a["Settings"]["channel"]) for a in keys} == {(0, "system"), (1, "music"),
+                                                                                  (2, "game")}
+    assert all(a["Settings"]["channels"] == ["system", "music", "game"] for a in keys)
+    assert pages  # Belegung wie bisher
+    # Mixer: Mix „lol“ enthält nur „game“
+    in_mix = {"system": ["monitor", "stream"], "music": ["monitor", "stream"], "game": ["monitor", "lol"]}
+    fake = types.SimpleNamespace(channel=lambda c: {"id": c, "name": c} if c in in_mix else None,
+                                 channel_mixes=lambda c: in_mix.get(c, []), mix_ids=lambda: ["monitor", "stream", "lol"],
+                                 mix=lambda m: {"id": m, "name": m}, get=lambda c, m: (50, False))
+    monkeypatch.setattr(native.MixerAction, "mixer", property(lambda self: fake))
+    ctx = types.SimpleNamespace(cfg=None, ctrl=types.SimpleNamespace(preview=False))
+    acts = {a["Settings"]["slot"]: native.MixerAction(a, None, ctx) for a in keys if a["Settings"]["display"] == "tile"}
+    try:
+        native._DECK_MIX["mix"] = "lol"
+        assert [acts[i].channel for i in range(3)] == ["game", "", ""]  # lückenlos vorn, Rest leer
+        assert acts[1].empty and acts[1].status_text() == "" and acts[1]._level() == (None, False)
+        img = acts[1].frames((72, 72))[0][0]
+        assert img.getbbox() is None or max(img.convert("RGB").getextrema()[0]) == 0  # dunkel
+        acts[1].key_down()  # leerer Platz: nichts passiert
+        native._DECK_MIX["mix"] = "stream"
+        assert [acts[i].channel for i in range(3)] == ["system", "music", ""]
+        native._DECK_MIX["mix"] = "both"
+        assert [acts[i].channel for i in range(3)] == ["system", "music", "game"]
+    finally:
+        native._DECK_MIX["mix"] = "both"
 
 
-def test_used_channels(tmp_path, monkeypatch):
-    from freestream import mixer as M
-    from freestream.config import Config
-    monkeypatch.setattr(paths, "STATE_DIR", tmp_path)
-    cfg = Config()
-    cfg.data["mixer"] = {"routes": {"spotify": "music"}}
-    mx = M.Mixer(cfg)
-    assert mx.used_channels() == ["music", "mic"]  # zugeordnetes Programm, Mikrofon
-    mx.note_used([{"channel": "game"}, {"channel": None}])
-    assert mx.used_channels() == ["music", "game", "mic"]  # gemerkt, auch wenn das Spiel wieder zu ist
-    assert mx.used_channels([{"channel": "sfx"}]) == ["music", "game", "sfx", "mic"]
+def test_fixed_mix_exports_only_its_channels(store, monkeypatch):
+    monkeypatch.setattr(deckexport, "_membership", lambda: lambda c, m: c == "game" or m == "both")
+    deckexport.export(MK2, ["system", "music", "game"], mix="stream", mixes=["monitor", "stream"])
+    slots = _pages(_profile(store, "FreeWave"))[0][1]
+    assert {v[1] for v in slots.values() if v[0] == "com.lindeck.mixer.channel"} == {"game"}
+    meta = json.loads((_profile(store, "FreeWave") / "lindeck-meta.json").read_text())["linewave"]
+    assert meta["channels"] == ["system", "music", "game"]  # gemerkt: alle, gezeigt: die des Mixes
+    # Zugehörigkeit geändert: force belegt neu, auch wenn die Kanalliste gleich ist
+    monkeypatch.setattr(deckexport, "_membership", lambda: lambda c, m: c in ("game", "music"))
+    assert deckexport.sync(["system", "music", "game"], mixes=["monitor", "stream"]) == []
+    assert deckexport.sync(["system", "music", "game"], mixes=["monitor", "stream"], force=True) == ["FreeWave"]
+    slots = _pages(_profile(store, "FreeWave"))[0][1]
+    assert {v[1] for v in slots.values() if v[0] == "com.lindeck.mixer.channel"} == {"music", "game"}
+
+
+def test_old_exports_are_redone(store):
+    deckexport.export(MK2, ["system", "music"])
+    meta_file = _profile(store, "FreeWave") / "lindeck-meta.json"
+    meta = json.loads(meta_file.read_text())
+    del meta["linewave"]["layout"]  # mit 0.29.3 oder älter exportiert
+    meta_file.write_text(json.dumps(meta))
+    assert deckexport.sync(["system", "music"], mixes=["monitor", "stream"]) == ["FreeWave"]
+    assert deckexport.sync(["system", "music"], mixes=["monitor", "stream"]) == []  # danach nicht mehr

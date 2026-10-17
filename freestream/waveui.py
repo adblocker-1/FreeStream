@@ -1387,13 +1387,12 @@ class WaveWindow:
         def done(profile, created):
             self.status((_("Profile “{name}” created – choose it in FreeDeck for your device.") if created
                          else _("Profile “{name}” updated.")).format(name=profile))
-        return DeckExportDialog(self.root, chans, on_done=done, used=self.state.get("used_channels"))
+        return DeckExportDialog(self.root, chans, on_done=done)
 
     @staticmethod
-    def _sync_deck(ids, mixes=None, used=None):
+    def _sync_deck(ids, mixes=None, force=False):
         from . import deckexport
-        return deckexport.sync(list(ids), mixes=list(mixes) if mixes is not None else None,
-                               used=list(used) if used is not None else None)
+        return deckexport.sync(list(ids), mixes=list(mixes) if mixes is not None else None, force=force)
 
     @staticmethod
     def _adopt_decks():
@@ -1991,11 +1990,6 @@ class WaveWindow:
             st["outputs"] = [(o["name"], o.get("description") or o["name"]) for o in self.mixer.outputs()]
             st["monitor_output"] = self.mixer._state().get("monitor_output", "")
             st["streams"] = self.mixer.streams()
-            try:
-                self.mixer.note_used(st["streams"])
-                st["used_channels"] = self.mixer.used_channels(st["streams"])
-            except Exception:  # noqa: BLE001
-                st["used_channels"] = [c["id"] for c in chans]
             if any(c.get("kind") == "input" for c in chans):
                 try:
                     st["inputs"] = dict(self.mixer.inputs())
@@ -2210,11 +2204,13 @@ class WaveWindow:
         # --- FreeWave-Profile auf dem Stream Deck an die Kanäle anpassen
         ids = tuple(c["id"] for c in st.get("channels") or [])
         mix_ids = tuple(m["id"] for m in st.get("mixes") or [])
-        used = tuple(st.get("used_channels") or ())
-        if st.get("mixer_active") and ids and (ids, mix_ids, used) != getattr(self, "_deck_ids", None) \
-                and has_freedeck():
-            self._deck_ids = (ids, mix_ids, used)
-            self.worker.submit(lambda: self._sync_deck(ids, mix_ids, used), self._deck_synced)
+        # welcher Kanal in welchem Mix ist: ändert sich das, zeigt das Deck bei diesem Mix andere Kanäle
+        members = tuple((m["id"], tuple(sorted(m.get("exclude") or []))) for m in st.get("mixes") or [])
+        last = getattr(self, "_deck_ids", None)
+        if st.get("mixer_active") and ids and (ids, mix_ids, members) != last and has_freedeck():
+            force = last is not None and last[2] != members
+            self._deck_ids = (ids, mix_ids, members)
+            self.worker.submit(lambda: self._sync_deck(ids, mix_ids, force), self._deck_synced)
 
         # --- neu angeschlossenes Stream Deck: FreeWave-Profil dafür anlegen (wenn schon einmal exportiert)
         decks = st.get("decks")

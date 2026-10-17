@@ -15,6 +15,8 @@ und nutzt sonst den Tastentitel (z. B. als Szenenname).
 import logging
 import time
 
+from PIL import Image
+
 from . import actions as A
 from . import parts, render, system
 from .i18n import _, pgettext
@@ -466,10 +468,38 @@ class MixerAction(NativeAction):
 
     @property
     def channel(self):
+        """Kanal-id dieser Taste; "" = Platz bleibt leer (im gewählten Mix gibt es so viele Kanäle nicht)."""
+        if self._placed():
+            shown = self.shown_channels()
+            place = self.settings["slot"]
+            return shown[place] if place < len(shown) else ""
         c = _first(self.settings, "channel", "mixerId", "mixerName", "identifier", "channelName",
                    default=(self.states[0].get("Title") if self.states else "") or "system")
         m = self.mixer.channel(str(c))
         return m["id"] if m else str(c).lower()
+
+    def shown_channels(self):
+        """FreeWave-Profil mit Mix-Wahl am Deck: die exportierten Kanäle, die im gewählten Mix sind
+        („Alle“: die in irgendeinem Mix), in Mixer-Reihenfolge – Taste Nr. n zeigt den n-ten davon."""
+        mx, mix = self.mixer, self.mix
+        out = []
+        for c in self.settings.get("channels") or []:
+            if mx.channel(str(c)) is None:
+                continue  # inzwischen gelöscht
+            mixes = mx.channel_mixes(c)
+            if mixes and (mix == "both" or mix in mixes):
+                out.append(c)
+        return out
+
+    def _placed(self):
+        """Taste mit Platz-Nummer (FreeWave-Profil mit Mix-Wahl am Deck)?"""
+        st = self.settings
+        return isinstance(st.get("slot"), int) and isinstance(st.get("channels"), list) \
+            and str(st.get("mix") or "").lower() == "selected"
+
+    @property
+    def empty(self):
+        return self._placed() and self.func != "output" and not self.channel
 
     @property
     def mix(self):
@@ -496,6 +526,9 @@ class MixerAction(NativeAction):
         return d if d in ("tile", "fader_top", "fader_bottom") and self.func != "output" else ""
 
     def frames(self, size):
+        if not getattr(self.ctx.ctrl, "preview", False) and self.empty:
+            self.title_override = ""
+            return [(Image.new("RGBA", size, (0, 0, 0, 255)), 0)]  # leerer Platz: dunkle Taste
         if not self.display or self.image_override is not None or self._has_image():
             return super().frames(size)
         from . import mixkeys
@@ -515,6 +548,8 @@ class MixerAction(NativeAction):
         return str(_first(self.settings, "action", default="mute")).lower()
 
     def _level(self):
+        if self.empty:
+            return (None, False)
         now = time.time()
         if now - getattr(self, "_lv_at", 0) > 1.0:
             mx = self.mixer
@@ -534,12 +569,16 @@ class MixerAction(NativeAction):
     def main_text(self):
         if self.func == "output":
             return pgettext("key label", "Output")
+        if self.empty:
+            return ""
         ch = self.mixer.channel(self.channel)
         return ch["name"] if ch else self.channel
 
     def status_text(self):
         if self.func == "output":
             return _fit(self.mixer.monitor_output_name(), 14)
+        if self.empty:
+            return ""
         vol, mute = self._level()
         if vol is None:
             return _("Mixer off")
@@ -551,8 +590,9 @@ class MixerAction(NativeAction):
         return bool(self.slot) and self.slot[0] == "dial"
 
     def key_down(self):
+        if self.empty:
+            return
         mx = self.mixer
-        self._lv_at = 0  # vor dem Neuzeichnen in run(): sonst zeigt die Taste noch den alten Wert
         if self.func == "output":
             self.run(mx.set_monitor_output, self.settings.get("device") or "next")
         elif self.key_action in ("up", "down"):
@@ -564,6 +604,7 @@ class MixerAction(NativeAction):
                         self.stop_repeat()
                 self.start_repeat(again)
         elif self.key_action == "set":
+            self._lv_at = 0  # vor dem Neuzeichnen in run(): sonst zeigt die Taste noch den alten Wert
             self.run(mx.set_volume, self.channel, self.mix, int(self.settings.get("volume") or 100))
         else:
             self.run(self._toggle_mute)
@@ -574,12 +615,37 @@ class MixerAction(NativeAction):
         self._lv = (old_vol if vol is None else vol, old_mute if mute is None else mute)
         self._lv_at = time.time()
 
+    def _fresh_level(self):
+        """Zuletzt gelesener Stand (Lautstärke, stumm), wenn er noch frisch ist, sonst None."""
+        lv = getattr(self, "_lv", None)
+        return lv if lv and lv[0] is not None and time.time() - getattr(self, "_lv_at", 0) < 3.0 else None
+
+    def _show_now(self, vol=None, mute=None):
+        """Neuen Stand sofort zeigen – das Schreiben an PipeWire läuft danach."""
+        self._known(vol=vol, mute=mute)
+        self.redraw()
+
     def _change(self, delta):
-        vols = self.mixer.change_volume(self.channel, self.mix, delta)
+        lv = self._fresh_level()
+        if lv is not None:
+            self._show_now(vol=max(0, min(100, lv[0] + delta)))
+        try:
+            vols = self.mixer.change_volume(self.channel, self.mix, delta, recent=True)
+        except Exception:
+            self._lv_at = 0  # gezeigter Stand stimmt nicht: beim nächsten Zeichnen neu lesen
+            raise
         self._known(vol=max(vols.values()) if vols else None)
 
     def _toggle_mute(self):
-        self._known(mute=self.mixer.set_mute(self.channel, self.mix, "toggle"))
+        lv = self._fresh_level()
+        target = "toggle" if lv is None else not lv[1]
+        if lv is not None:
+            self._show_now(mute=target)
+        try:
+            self._known(mute=self.mixer.set_mute(self.channel, self.mix, target, recent=True))
+        except Exception:
+            self._lv_at = 0
+            raise
 
     def key_up(self, held_ms=0):
         self.stop_repeat()
@@ -588,17 +654,19 @@ class MixerAction(NativeAction):
         self.stop_repeat()
 
     def dial_rotate(self, ticks):
-        self.run(self._change, int(self.settings.get("step") or 2) * ticks)
+        if not self.empty:
+            self.run(self._change, int(self.settings.get("step") or 2) * ticks)
 
     def dial_down(self):
-        self.run(self._toggle_mute)
+        if not self.empty:
+            self.run(self._toggle_mute)
 
     def dial_up(self, held_ms=0):
         pass
 
     def feedback(self):
         fb = super().feedback()
-        fb["title"] = self.title() or self.main_text()
+        fb["title"] = "" if self.empty else (self.title() or self.main_text())
         vol, mute = self._level() if self.func != "output" else (None, False)
         fb["indicator"] = None if vol is None else (0 if mute else min(100, vol))
         return fb

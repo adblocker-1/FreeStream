@@ -27,3 +27,12 @@ def _collect_tk_images():
         w.stop()
     gc.collect()
     gc.enable()  # theme.gc_in_main_thread schaltet sie ab, solange ein Fenster lebt
+
+
+@pytest.fixture(autouse=True)
+def _forget_recent_loops():
+    """Gemerkte Loopbacks (mixer._RECENT) gelten nur für den laufenden Test."""
+    from freestream import mixer
+    mixer._RECENT["at"] = 0.0
+    yield
+    mixer._RECENT["at"] = 0.0

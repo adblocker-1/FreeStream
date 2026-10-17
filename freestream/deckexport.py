@@ -109,7 +109,7 @@ def adopt_new_devices(store_root=None, connected=None):
 
 
 # ------------------------------------------------------------------ Belegung
-USED = "used"  # Export-Modus: nur benutzte Kanäle, später benutzte kommen dazu
+LAYOUT = 2  # Belegung: 2 = Kanaltasten mit Platz-Nummer (Mix-Wahl zeigt nur die Kanäle des Mixes)
 CHANNEL_KINDS = {"dial": "mute", "tile": "mute", "fader_top": "up", "fader_bottom": "down"}
 DEFAULT_MIXES = ("monitor", "stream")
 
@@ -219,9 +219,36 @@ def managed_profiles(store_root=None):
     return [p for p in ProfileStore(store_root).profiles.values() if _meta(p.root).get("linewave") is not None]
 
 
+def _membership():
+    """fn(Kanal, Mix) -> bool aus der FreeWave-Konfiguration ("both": in irgendeinem Mix) oder None."""
+    try:
+        from .config import Config
+        from .mixer import Mixer
+        mx = Mixer(Config())
+        mix_of = {c["id"]: set(mx.channel_mixes(c["id"])) for c in mx.all_channels()}
+    except Exception:  # noqa: BLE001 - FreeWave nicht installiert
+        return None
+
+    def member(cid, mix):
+        mixes = mix_of.get(cid)
+        if mixes is None:
+            return True  # unbekannter Kanal: lieber zeigen
+        return bool(mixes) if mix == "both" else mix in mixes
+    return member
+
+
 def _fill(root, model, channels, mix, mixes=DEFAULT_MIXES):
-    """Profil root neu belegen (alte Seiten werden ersetzt)."""
+    """Profil root neu belegen (alte Seiten werden ersetzt).
+
+    Fester Mix: nur die Kanäle, die in diesem Mix sind. Mix-Wahl am Deck ("selected"): alle Kanäle;
+    jede Kanaltaste hat eine Platz-Nummer und zeigt den Kanal, der im gewählten Mix an dieser Stelle
+    steht – so stehen die Kanäle eines Mixes lückenlos vorn, die übrigen Tasten bleiben leer."""
     doc = ProfileDoc(root)
+    all_channels = list(channels)
+    if mix != "selected":
+        member = _membership()
+        if member is not None:
+            channels = [c for c in channels if member(c, mix)] or channels
     layout = plan(doc.geometry, channels, selectable=mix == "selected", mixes=mixes)
     first = doc.page_ids[0]
     pages = [first] + [doc.add_page() for _i in layout[1:]]
@@ -238,6 +265,8 @@ def _fill(root, model, channels, mix, mixes=DEFAULT_MIXES):
                 data = doc.place(page, slot, MIXER_UUID)
                 data["Settings"].update({"channel": cid, "mix": mix, "action": CHANNEL_KINDS[kind],
                                          "step": DIAL_STEP if kind == "dial" else KEY_STEP})
+                if mix == "selected":
+                    data["Settings"].update({"slot": channels.index(cid), "channels": all_channels})
                 data["Settings"].pop("volume", None)
                 if kind != "dial":
                     data["Settings"]["display"] = kind
@@ -273,8 +302,8 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None, 
         pages = _fill(root, model, list(channels), mix, mixes)
     except EditError as e:
         raise ExportError(str(e)) from e
-    mode = USED if all_channels == USED else bool(all_channels)
-    meta["linewave"] = {"channels": list(channels), "all": mode, "mix": mix, "mixes": mixes}
+    meta["linewave"] = {"channels": list(channels), "all": bool(all_channels), "mix": mix, "mixes": mixes,
+                        "layout": LAYOUT}
     (root / META).write_text(json.dumps(meta, indent=2), encoding="utf-8")
     os.utime(root)
     notify_freedeck()
@@ -299,23 +328,17 @@ def notify_freedeck():
     return True
 
 
-def sync(channels, store_root=None, mixes=None, used=None):
+def sync(channels, store_root=None, mixes=None, force=False):
     """FreeWave-Profile an die aktuellen Kanäle und Mixe anpassen (neue dazu, gelöschte weg).
 
-    channels: alle Kanal-ids in Mixer-Reihenfolge; used: davon die benutzten (Mixer.used_channels).
-    Profile im Modus „benutzte Kanäle“ bekommen einen Kanal dazu, sobald er benutzt wird – entfernt
-    wird dabei nichts (sonst verschwände eine Taste, nur weil das Programm gerade zu ist).
-    Gibt die Namen geänderter Profile zurück."""
+    channels: alle Kanal-ids in Mixer-Reihenfolge. force: neu belegen, auch wenn sich nur geändert hat,
+    welcher Kanal in welchem Mix ist. Gibt die Namen geänderter Profile zurück."""
     mixes = list(linewave_mixes() if mixes is None else mixes)
     changed = []
     for p in managed_profiles(store_root):
         lw = _meta(p.root).get("linewave") or {}
         old = [c for c in lw.get("channels") or []]
-        mode = lw.get("all", True)
-        if mode == USED:
-            keep = set(old) | set(used or ())
-            want = [c for c in channels if c in keep]
-        elif mode:
+        if lw.get("all", True):
             want = list(channels)
         else:
             want = [c for c in old if c in channels]
@@ -323,7 +346,9 @@ def sync(channels, store_root=None, mixes=None, used=None):
         mix = lw.get("mix", "selected")
         if mix not in MIXES and mix not in mixes:
             mix = "selected"  # fester Mix wurde gelöscht
-        if (want == old and old_mixes == mixes and mix == lw.get("mix", "selected")) or not want:
+        outdated = lw.get("layout") != LAYOUT  # mit älterer Version exportiert: neu belegen
+        if not want or (not force and not outdated and want == old and old_mixes == mixes
+                        and mix == lw.get("mix", "selected")):
             continue
         try:
             export(p.model, want, mix, lw.get("all", True), store_root, mixes=mixes)
