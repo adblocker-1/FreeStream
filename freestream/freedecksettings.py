@@ -241,7 +241,7 @@ class DevicesPage(_Page):
         r = self.row(body, _("Display"), pady=14, width=w, top=True)
         self.v_modes = {}
         for mode, title, sub in (("window", _("Floating window"), _("move it anywhere, stays on top")),
-                                 ("edge", _("Edge bar"), _("slides in, mouse to the edge brings it"))):
+                                 ("edge", _("Edge bar"), _("click its grip to slide it away and back"))):
             card = ModeCard(r, mode, title, sub, command=lambda m=mode: self._v_set(mode=m))
             card.pack(side="left", padx=(0, 8))
             self.v_modes[mode] = card
