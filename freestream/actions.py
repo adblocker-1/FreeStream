@@ -218,7 +218,7 @@ class Action:
         pass
 
     # -------------------------------------------------------------- Helfer
-    REPEAT_DELAY, REPEAT_EVERY = 0.4, 0.12  # Gedrückthalten: nach 0,4 s alle 0,12 s wiederholen
+    REPEAT_DELAY, REPEAT_EVERY = 0.6, 0.15  # Gedrückthalten: nach 0,6 s alle 0,15 s wiederholen
 
     def start_repeat(self, fn):
         """fn wiederholen, solange die Taste gedrückt bleibt (bis key_up oder Seitenwechsel)."""
