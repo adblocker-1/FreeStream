@@ -470,7 +470,7 @@ class OpenApp(Action):
                 self.alert()
             return
         if not prog:
-            log.warning(_("Program '{name}' not found – add it to app_map in config.json").format(
+            log.warning(_("Program '{name}' not found – add it under Settings → Connections → Windows profiles").format(
                 name=s.get("app_name") or s.get("exec")))
             self.alert()
             return

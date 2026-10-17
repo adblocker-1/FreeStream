@@ -17,13 +17,12 @@ import subprocess
 import threading
 import tkinter as tk
 import wave
-from tkinter import font as tkfont
 
 from . import effects, noise, paths, wavemic
-from .dialogkit import field
+from .dialogkit import draw_steps, field
 from .i18n import _
 from .mixer import DEFAULT_CHANNELS
-from .theme import COL, Button, Card, Fader, Icons, Switch, font, gradient_mark, icon_tile, label, rounded_rect
+from .theme import COL, Button, Card, Fader, Icons, Switch, gradient_mark, icon_tile, label, rounded_rect
 
 STEPS = [_("Welcome"), _("Microphone"), _("Headphones"), _("Sound"), _("Channels"), _("Done")]
 CHANNEL_ICONS = {"system": ("system", "#8e9bb0"), "music": ("music", "#30d158"), "browser": ("browser", "#2f7bff"),
@@ -153,34 +152,7 @@ class SetupWizard(tk.Toplevel):
 
     # -------------------------------------------------------------- Rahmen
     def _dots(self):
-        """Schrittanzeige oben: nummerierte Kreise mit Namen, verbunden durch feine Linien."""
-        cv = self.dots
-        cv.delete("all")
-        fn, fb = font(cv, 9, "normal"), font(cv, 9, "bold")
-        fnt = tkfont.Font(cv, font=fb)
-        d, gap = 22, 10
-        widths = [d + 8 + fnt.measure(name) for name in STEPS]
-        avail = max(cv.winfo_width(), 200)
-        line = max(12, (avail - sum(widths) - 2 * gap * (len(STEPS) - 1)) / max(1, len(STEPS) - 1))
-        x, y = 0, 13
-        for i, (name, w) in enumerate(zip(STEPS, widths)):
-            done, cur = i < self.step, i == self.step
-            if done or cur:
-                cv.create_oval(x, y - d / 2, x + d, y + d / 2, fill=COL["accent"], outline="")
-                if done:
-                    cv.create_image(x + d / 2, y, image=self.icons.get("check", 12, COL["on_accent"]))
-                else:
-                    cv.create_text(x + d / 2, y, text=str(i + 1), fill=COL["on_accent"], font=fb)
-            else:
-                cv.create_oval(x, y - d / 2, x + d, y + d / 2, fill=COL["panel"], outline=COL["border"])
-                cv.create_text(x + d / 2, y, text=str(i + 1), fill=COL["muted"], font=fn)
-            cv.create_text(x + d + 8, y, text=name, anchor="w", fill=COL["fg"] if cur else COL["muted"],
-                           font=fb if cur else fn)
-            x += w
-            if i < len(STEPS) - 1:
-                cv.create_line(x + gap, y, x + gap + line, y, fill=COL["accent"] if done else COL["border"],
-                               width=2 if done else 1)
-                x += 2 * gap + line
+        draw_steps(self.dots, STEPS, self.step, self.icons)
 
     def render(self):
         self._stop_meter()

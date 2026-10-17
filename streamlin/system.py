@@ -204,7 +204,7 @@ def open_target(path: str, cfg) -> bool:
             prog = resolve_program(path, cfg.get("app_map"))
             if prog:
                 return launch(prog)
-            log.warning(_("Windows path without mapping: {path} (add it to path_map/app_map in config.json)")
+            log.warning(_("Windows path without mapping: {path} (add it under Settings → Connections → Windows profiles)")
                         .format(path=path))
             return False
     else:

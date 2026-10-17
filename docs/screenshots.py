@@ -180,7 +180,9 @@ def shot_lindeck(tmp):
     cfg = Config()
     cfg.data.update({"devices": {"DL41K1A04321": {"name": "Desk deck", "sleep_after_minutes": 15},
                                  "A00SA4212345": {"profile": others["Meetings"]}},  # bekannt, nicht angeschlossen
-                     "smart_profiles": {"obs": doc.id}, "default_profile": others["Gaming"]})
+                     "smart_profiles": {"obs": doc.id}, "default_profile": others["Gaming"],
+                     "obs": {"host": "127.0.0.1", "port": 4455, "password": "obs-websocket-pw"},
+                     "homeassistant": {"url": "http://homeassistant.local:8123", "token": "token"}})
 
     class Daemon:
         controllers = {"a": ctrl}
@@ -200,7 +202,8 @@ def shot_lindeck(tmp):
     dlg = app.open_settings()
     dlg.geometry("820x660")
     for tab, name in (("general", "settings.png"), ("devices", "settings-devices.png"),
-                      ("profiles", "settings-profiles.png"), ("style", "settings-style.png")):
+                      ("profiles", "settings-profiles.png"), ("connections", "settings-connections.png"),
+                      ("style", "settings-style.png")):
         dlg.show_tab(tab)
         if tab == "profiles":
             dlg.pages["profiles"].select(doc.id)
@@ -210,6 +213,14 @@ def shot_lindeck(tmp):
     pump(root, 1.5)
     grab(dlg, "lindeck-plugins.png")
     dlg.destroy()
+    from streamlin.decksetup import DeckSetup
+    setup = DeckSetup(app)
+    setup.found = [Path("/media/alex/USB/ProfilesV3")] * 6
+    setup.step = 2
+    setup.render()
+    pump(root, 1.0)
+    grab(setup, "lindeck-setup.png")
+    setup.destroy()
     app.close()
     try:
         root.after_cancel(app._dev_job)

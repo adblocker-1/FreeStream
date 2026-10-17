@@ -21,7 +21,8 @@ Both start invisibly when you log in. The menu entry opens the window; closing
 the window keeps the program running in the background. Language, light/dark
 mode, updates, autostart, backups and the support report are under **Settings**
 (gear) at the bottom of the sidebar – in LinDeck together with your devices,
-profiles, plugins and the key style (see [Settings](#settings)).
+profiles, plugins, connections (OBS, Discord, Home Assistant) and the key style
+(see [Settings](#settings)).
 
 Available in **English, German, Spanish, French and Portuguese (Brazil)**.
 
@@ -37,8 +38,12 @@ Available in **English, German, Spanish, French and Portuguese (Brazil)**.
    together they work exactly like `streamlin`.
 2. **Bring your profiles:** on Windows, copy the folder
    `%APPDATA%\Elgato\StreamDeck\ProfilesV3` to a USB stick and plug it in on
-   Linux. LinDeck imports everything by itself (also `.streamDeckProfile` files
-   and backups from your Downloads folder).
+   Linux. At the first start, LinDeck's **setup** finds your deck and takes over
+   the profiles from the stick, your Downloads folder or files you choose – or
+   starts you off with an empty profile. Later, LinDeck still imports new
+   profiles from USB sticks and Downloads by itself.
+
+   ![LinDeck setup](docs/images/lindeck-setup.png)
 3. **Audio (optional):** open **Linewave** from the menu. A short setup wizard
    asks for your microphone, headphones and channels. In OBS, pick
    “Monitor of Linewave Stream Mix” as the audio source.
@@ -54,7 +59,7 @@ install it after you confirm. You can switch this off in **Settings**.
 **Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`); your
 profiles stay in `~/.local/share/streamlin`.
 
-> **Status:** version 0.27, tested with simulated devices of every model.
+> **Status:** version 0.28, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ## The LinDeck window
@@ -62,7 +67,8 @@ profiles stay in `~/.local/share/streamlin`.
 The layout is the same as in the Elgato app: the device in the middle, all
 actions on the right, the settings of the selected key at the bottom. The device
 is drawn like your model – touch strip and dials on the Stream Deck +, the info
-bar on the Neo, pedals on the Pedal; free keys are dashed with a “+”. Drag an
+bar on the Neo (click ‹ › to turn pages, like the touch keys on the device),
+pedals on the Pedal; free keys are dashed with a “+”. Drag an
 action onto a key (or double-click it), drag keys to move them, right-click for
 copy, paste and delete. Changes show up on the deck right away. Profiles stay in
 the Elgato format, so you can take them back to Windows with **Export…**.
@@ -125,10 +131,10 @@ Plugins built with the official SDK need [Node.js](https://nodejs.org/en/downloa
 
 | Integration | Setup |
 |---|---|
-| **OBS** | turn on the WebSocket server ([OBS guide](https://obsproject.com/kb/remote-control-guide)) and put its password into the settings file: `"obs": {"password": "…"}` |
+| **OBS** | turn on the WebSocket server ([OBS guide](https://obsproject.com/kb/remote-control-guide)) and enter its password under **Settings → Connections → OBS Studio** |
 | **Spotify and other players** | nothing to do – every MPRIS player works |
-| **Discord** | create an app in the [Discord Developer Portal](https://discord.com/developers/applications) with the redirect URL `http://localhost`, put `"discord": {"client_id": "…", "client_secret": "…"}` into the settings file and run `lindeck discord` |
-| **Home Assistant** | select a Home Assistant action, click **Connect …** and enter your address and a [long-lived access token](https://www.home-assistant.io/docs/authentication/#your-account-profile) |
+| **Discord** | create an app in the [Discord Developer Portal](https://discord.com/developers/applications) with the redirect URL `http://localhost`, enter its Client ID and Client Secret under **Settings → Connections → Discord** and click **Connect …** |
+| **Home Assistant** | enter your address and a [long-lived access token](https://www.home-assistant.io/docs/authentication/#your-account-profile) under **Settings → Connections → Home Assistant** (or **Connect …** at a Home Assistant action) |
 
 ## Linewave
 
@@ -186,19 +192,26 @@ LinDeck's **Settings** have tabs, like the Elgato app:
 | **Devices** | per connected deck: name, on/off, **orientation** (upside down 180°), **sleep after** (never … 60 min), brightness, serial number, firmware and the profile it uses |
 | **Profiles** | switch to a profile **automatically** when a program is in the foreground (pick it from the list or take the active window) and choose your **default profile** |
 | **Plugins** | installed plugins with status, log, restart and remove |
+| **Connections** | **OBS**, **Discord** and **Home Assistant** with a connection test, and **Windows profiles**: keyboard layout and which Linux program or folder replaces a Windows one |
 | **Style** | progress of a **Multi Action** on the key, and a **font for all keys** (title on/off, position, font, size, bold/italic/underline, colour) – new keys get it, **Apply to all keys** changes every profile |
 
 | | |
 |---|---|
 | ![General settings](docs/images/settings.png) | ![Device settings](docs/images/settings-devices.png) |
-| ![Profile settings](docs/images/settings-profiles.png) | ![Style settings](docs/images/settings-style.png) |
+| ![Profile settings](docs/images/settings-profiles.png) | ![Connections](docs/images/settings-connections.png) |
+| ![Style settings](docs/images/settings-style.png) | |
 
 Linewave's settings have the general part plus **Remove mixer / Set up mixer**.
 
 ### Settings file
 
-Everything above is stored in `~/.config/streamlin/config.json`. A few options
-exist only there, for example:
+Everything above is stored in `~/.config/streamlin/config.json`. Passwords and
+access tokens (OBS, Discord, Home Assistant) go into your desktop's **keyring**
+(GNOME Keyring, KWallet) instead; without a keyring they stay in the file, which
+then only you can read.
+
+**Settings → Connections → Windows profiles** sets the values for profiles from
+Windows; in the file they look like this:
 
 ```json
 {
@@ -219,8 +232,8 @@ exist only there, for example:
 | Device not detected | replug the device; log out and back in once after installing |
 | A key shows “No profile – choose in LinDeck” | there is no profile for this model yet: import one or create it in the window |
 | Hotkeys don't work | log out and back in; check `ls -l /dev/uinput` |
-| Wrong characters from hotkeys | set `keyboard_layout` to your Windows layout |
-| A program doesn't start | `lindeck report` shows what's missing → add it to `app_map` |
+| Wrong characters from hotkeys | **Settings → Connections → Windows profiles**: choose your Windows keyboard layout |
+| A program doesn't start | `lindeck report` shows what's missing → add it under **Settings → Connections → Windows profiles** |
 | Key shows a warning symbol | the plugin is missing or Windows-only |
 | No sound after setting up the mixer | choose your headphones under **Listen** in the mixer; **Settings → Remove mixer** restores everything |
 

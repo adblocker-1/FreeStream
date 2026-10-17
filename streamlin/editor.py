@@ -262,18 +262,44 @@ class ActionTile(tk.Canvas):
     def _draw(self):
         self.delete("all")
         w, h = max(self.winfo_width(), 60), self.H
+        if w <= 60:
+            return  # noch nicht angeordnet: gleich folgt <Configure> mit der echten Breite
         out = COL["accent"] if self.selected else (COL["faint"] if self.hover else COL["border"])
         theme.rounded_rect(self, 0, 0, w - 1, h - 1, 12, fill=COL["panel"], outline=out)
         self.create_image(11, 11, image=self.img, anchor="nw")
         if C.DIAL in self.type.controllers and C.KEY not in self.type.controllers:
             self.create_text(w - 10, 12, text="◎", anchor="ne", fill=COL["faint"], font=self.fs)
-        fnt = tkfont.Font(self, font=self.fb)
-        name = self.type.name
-        while fnt.measure(name) > w - 22 and len(name) > 3:
-            name = name.rstrip("…")[:-1] + "…"
+        name = _clip(self.type.name, _measure_font(self, self.fb), w - 22)
         self.create_text(11, 56, text=name, anchor="w", fill=COL["fg"], font=self.fb)
         desc = _clip_lines(self, self._description(), self.fs, w - 22, 2)
         self.create_text(11, 68, text=desc, anchor="nw", fill=COL["muted"], font=self.fs, width=w - 20)
+
+
+_FONTS = {}       # (Tk-Instanz, Schriftbeschreibung) -> tkfont.Font (anlegen ist teuer)
+_CLIPPED = {}     # (Text, Schrift, Breite, Zeilen) -> gekürzter Text
+
+
+def _measure_font(widget, fnt):
+    """Schrift zum Messen; je Tk-Instanz zwischengespeichert (ein neues Fenster bekommt neue Objekte)."""
+    key = (widget.tk, str(fnt))
+    f = _FONTS.get(key)
+    if f is None:
+        if len(_FONTS) > 50:
+            _FONTS.clear()
+        f = _FONTS[key] = tkfont.Font(widget, font=fnt)
+    return f
+
+
+def _cut(text, f, width):
+    """Längster Anfang von text, der mit „…“ in width passt (binäre Suche statt Zeichen für Zeichen)."""
+    lo, hi = 0, len(text)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if f.measure(text[:mid].rstrip() + "…") <= width:
+            lo = mid
+        else:
+            hi = mid - 1
+    return text[:lo].rstrip() + "…"
 
 
 def _clip(text, f, width):
@@ -281,14 +307,16 @@ def _clip(text, f, width):
     text = " ".join(str(text or "").split())
     if f.measure(text) <= width:
         return text
-    while text and f.measure(text + "…") > width:
-        text = text[:-1]
-    return text.rstrip() + "…"
+    return _cut(text, f, width)
 
 
 def _clip_lines(widget, text, fnt, width, lines):
     """Text auf höchstens `lines` Zeilen der Breite `width` kürzen (mit …)."""
-    f = tkfont.Font(widget, font=fnt)
+    key = (text, str(fnt), width, lines)
+    hit = _CLIPPED.get(key)
+    if hit is not None:
+        return hit
+    f = _measure_font(widget, fnt)
     words, out, cur = text.split(), [], ""
     for wd in words:
         t = (cur + " " + wd).strip()
@@ -297,16 +325,19 @@ def _clip_lines(widget, text, fnt, width, lines):
         else:
             out.append(cur)
             cur = wd
+            if len(out) > lines:
+                break  # mehr Zeilen braucht niemand
     if cur:
         out.append(cur)
     cut = len(out) > lines
     out = out[:lines]
     for i, line in enumerate(out):
         if f.measure(line) > width or (cut and i == len(out) - 1):
-            while line and f.measure(line + "…") > width:
-                line = line[:-1]
-            out[i] = line.rstrip() + "…"
-    return "\n".join(out)
+            out[i] = _cut(line, f, width)
+    if len(_CLIPPED) > 4000:
+        _CLIPPED.clear()
+    _CLIPPED[key] = result = "\n".join(out)
+    return result
 
 
 def _autowrap(label):
@@ -382,8 +413,21 @@ class EditorApp:
             self.open_profile(target.id)
         else:
             self.show_empty()
+            from . import decksetup
+            if decksetup.needed(self):
+                root.after(300, self.open_setup)
         if self.daemon is not None:
             self.refresh_devices(initial=True)
+
+    def open_setup(self):
+        """Einrichtung (erster Start): Gerät erkennen, Profile übernehmen oder neu anlegen."""
+        from .decksetup import DeckSetup
+
+        def done(ids):
+            self.refresh_profiles()
+            if ids:
+                self.open_profile(ids[0])
+        return DeckSetup(self, on_done=done)
 
     # ================================================================ Geräte
     def _controllers(self):
@@ -1343,13 +1387,22 @@ class EditorApp:
         cv = self.canvas
         h, tw = L["bar_h"], L["bar_h"]
         x1 = x0 + L["grid_w"]
-        for x, sign in ((x0, "‹"), (x1 - tw, "›")):
-            _round_rect(cv, x, y, x + tw, y + h, 10, fill=COL["card"], outline=COL["card_edge"], width=1)
-            cv.create_text(x + tw / 2, y + h / 2 - 1, text=sign, fill=COL["muted"], font=(self._fam, 15))
-        ix0, ix1 = x0 + tw + 10, x1 - tw - 10
-        _round_rect(cv, ix0, y, ix1, y + h, 10, fill=COL["device"], outline=COL["card_edge"], width=1)
         n = len(self.doc.page_ids)
         idx = self.doc.page_ids.index(self.nav[0]) + 1 if self.nav and self.nav[0] in self.doc.page_ids else 1
+        # Touch-Tasten blättern wie am Gerät durch die Seiten (in der Elgato-App nicht belegbar)
+        for x, sign, step in ((x0, "‹", -1), (x1 - tw, "›", 1)):
+            tag = f"neo{step}"
+            on = n > 1 and len(self.nav) == 1
+            _round_rect(cv, x, y, x + tw, y + h, 10, fill=COL["card"], outline=COL["card_edge"], width=1, tags=tag)
+            cv.create_text(x + tw / 2, y + h / 2 - 1, text=sign, fill=COL["fg"] if on else COL["faint"],
+                           font=(self._fam, 15), tags=tag)
+            if on:
+                target = self.doc.page_ids[(idx - 1 + step) % n]
+                cv.tag_bind(tag, "<Button-1>", lambda e, p=target: self.root.after_idle(self.goto_page, p))
+                cv.tag_bind(tag, "<Enter>", lambda e: cv.configure(cursor="hand2"))
+                cv.tag_bind(tag, "<Leave>", lambda e: cv.configure(cursor=""))
+        ix0, ix1 = x0 + tw + 10, x1 - tw - 10
+        _round_rect(cv, ix0, y, ix1, y + h, 10, fill=COL["device"], outline=COL["card_edge"], width=1)
         big = theme.font(self.root, 10, "bold")
         if h >= 40:
             cv.create_text((ix0 + ix1) / 2, y + h * 0.36, text=time.strftime("%H:%M"), fill="#e9ecf2", font=big)

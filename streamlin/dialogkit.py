@@ -108,3 +108,34 @@ class ScrollArea(tk.Frame):
                 self.cv.yview_scroll(d, "units")
                 return
             w = getattr(w, "master", None)
+
+
+def draw_steps(cv, steps, step, icons):
+    """Schrittanzeige eines Assistenten: nummerierte Kreise mit Namen, verbunden durch feine Linien."""
+    from tkinter import font as tkfont
+    cv.delete("all")
+    fn, fb = font(cv, 9, "normal"), font(cv, 9, "bold")
+    fnt = tkfont.Font(cv, font=fb)
+    d, gap = 22, 10
+    widths = [d + 8 + fnt.measure(name) for name in steps]
+    avail = max(cv.winfo_width(), 200)
+    line = max(12, (avail - sum(widths) - 2 * gap * (len(steps) - 1)) / max(1, len(steps) - 1))
+    x, y = 0, 13
+    for i, (name, w) in enumerate(zip(steps, widths)):
+        done, cur = i < step, i == step
+        if done or cur:
+            cv.create_oval(x, y - d / 2, x + d, y + d / 2, fill=COL["accent"], outline="")
+            if done:
+                cv.create_image(x + d / 2, y, image=icons.get("check", 12, COL["on_accent"]))
+            else:
+                cv.create_text(x + d / 2, y, text=str(i + 1), fill=COL["on_accent"], font=fb)
+        else:
+            cv.create_oval(x, y - d / 2, x + d, y + d / 2, fill=COL["panel"], outline=COL["border"])
+            cv.create_text(x + d / 2, y, text=str(i + 1), fill=COL["muted"], font=fn)
+        cv.create_text(x + d + 8, y, text=name, anchor="w", fill=COL["fg"] if cur else COL["muted"],
+                       font=fb if cur else fn)
+        x += w
+        if i < len(steps) - 1:
+            cv.create_line(x + gap, y, x + gap + line, y, fill=COL["accent"] if done else COL["border"],
+                           width=2 if done else 1)
+            x += 2 * gap + line

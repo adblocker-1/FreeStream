@@ -300,3 +300,18 @@ def test_gui_stage_all_models(app, store):
         assert len(slots) == g.cols * g.rows + g.dials, code
         app.select(("dial", 0) if g.dials else ("key", 1, 0))
         app.root.update()
+
+
+def test_gui_neo_touch_keys_turn_pages(app, store):
+    d = E.ProfileDoc(E.create_profile("Neo", "20GBJ9901", store))
+    second = d.add_page()
+    d.save()
+    app.root.geometry("1280x800")
+    app.open_profile(d.id)
+    app.root.update()
+    cv = app.canvas
+    x0, y0, x1, y1 = cv.bbox("neo1")
+    cv.event_generate("<Button-1>", x=(x0 + x1) // 2, y=(y0 + y1) // 2)
+    for _i in range(5):
+        app.root.update()
+    assert app.page_uuid == second

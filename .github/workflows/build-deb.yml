@@ -18,7 +18,21 @@ permissions:
   contents: write
 
 jobs:
+  # Tests und Paket auf den ältesten unterstützten Systemen (Python 3.10/3.11, ältere Pillow/Tk)
+  compat:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["debian:12", "ubuntu:22.04"]
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests und Paket auf ${{ matrix.image }}
+        run: sh packaging/ci/compat.sh
+
   build:
+    needs: compat
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

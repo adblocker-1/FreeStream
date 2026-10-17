@@ -271,3 +271,72 @@ def test_plugins_tab_with_plugin(settings, monkeypatch, tmp_path):
     monkeypatch.setattr(msgbox, "askyesno", lambda *a, **k: True)
     page._remove()
     assert not d.exists() and page.rows == {}
+
+
+@needs_x
+def test_connections_tab(settings, monkeypatch, tmp_path):
+    from streamlin import connectionsui, paths
+    monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path / "cfg")
+    monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "cfg" / "config.json")
+    dlg, ctrl, cfg = settings
+    dlg.show_tab("connections")
+    _pump(dlg)
+    page = dlg.pages["connections"]
+    assert [k for k, *_r in page.services()] == ["obs", "discord", "homeassistant", "windows"]
+    # OBS: Felder schreiben direkt in die Konfiguration
+    page.obs_host.set("192.168.1.5")
+    page.obs_port.set("4460")
+    page.obs_pw.set("pw")
+    assert cfg.data["obs"] == {"host": "192.168.1.5", "port": 4460, "password": "pw"}
+    page.obs_port.set("abc")  # keine Zahl: bleibt beim letzten gültigen Wert
+    assert cfg.data["obs"]["port"] == 4460
+    page.test_obs()
+    assert page.obs_status.cget("text") == "Der Port muss eine Zahl sein."
+    page.obs_port.set("4460")
+    monkeypatch.setattr(connectionsui, "obs_test", lambda *a: "Verbindung abgelehnt")
+    page.test_obs()
+    for _i in range(30):
+        _pump(dlg, 2)
+        if "abgelehnt" in page.obs_status.cget("text"):
+            break
+    assert "abgelehnt" in page.obs_status.cget("text")
+    _shot(dlg, "settings-connections")
+    # Discord
+    page.select("discord")
+    page.dc_id.set("123")
+    page.dc_secret.set("abc")
+    assert cfg.data["discord"] == {"client_id": "123", "client_secret": "abc"}
+    page.dc_secret.set("")
+    assert cfg.data["discord"] == {"client_id": "123"}
+    # Home Assistant
+    page.select("homeassistant")
+    page.ha_url.set("homeassistant.local:8123/")
+    page.ha_token.set("tok")
+    page.ha_insecure.set(True)
+    page._ha_ssl()
+    assert cfg.data["homeassistant"] == {"url": "http://homeassistant.local:8123", "token": "tok",
+                                         "verify_ssl": False}
+    # Windows-Profile: Layout und Zuordnungen
+    page.select("windows")
+    cfg.data["app_map"] = {"obs64.exe": "obs"}
+    page.select("windows")
+    _pump(dlg)
+    page._set_layout("de")
+    assert cfg.data["keyboard_layout"] == "de"
+    _shot(dlg, "settings-windows")
+    page.save_now()
+    assert (tmp_path / "cfg" / "config.json").exists()
+
+
+def test_obs_test_reports_error(monkeypatch):
+    from streamlin import connectionsui, obs
+
+    class Fake:
+        def __init__(self, *a):
+            self.connected, self.error = False, "refused"
+
+        def close(self):
+            self.closed = True
+    monkeypatch.setattr(obs, "OBSClient", Fake)
+    monkeypatch.setattr(obs, "wait_connected", lambda cl, t: False)
+    assert connectionsui.obs_test("h", 1, "") == "refused"
