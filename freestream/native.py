@@ -655,7 +655,8 @@ class MixerAction(NativeAction):
         except Exception:
             self._lv_at = 0  # gezeigter Stand stimmt nicht: beim nächsten Zeichnen neu lesen
             raise
-        self._known(vol=max(vols.values()) if vols else None)
+        # gekoppelter Kanal: alle Mixe geändert – gezeigt wird der Mix dieser Taste
+        self._known(vol=vols.get(self.mix, max(vols.values())) if vols else None)
 
     def _toggle_mute(self):
         lv = self._fresh_level()

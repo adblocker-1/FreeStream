@@ -401,6 +401,19 @@ class Mixer:
         """Mixe, in die ein Kanal geht."""
         return [m["id"] for m in self.mixes() if cid not in m["exclude"]]
 
+    # ------------------------------------------------------- gekoppelte Regler
+    def is_linked(self, cid):
+        """Regler des Kanals gekoppelt (wie das Schloss in Wave Link): alle Mixe bewegen sich gemeinsam."""
+        return cid in (self.conf.get("linked") or [])
+
+    def set_linked(self, cid, on):
+        mx = self.cfg.data.setdefault("mixer", {})
+        linked = [c for c in mx.get("linked") or [] if c != cid]
+        if on:
+            linked.append(cid)
+        mx["linked"] = linked
+        self._save_cfg()
+
     def _cfg_mix(self, mid, create=True):
         mx = self.cfg.data.setdefault("mixer", {})
         lst = mx.setdefault("mixes", [])
@@ -958,7 +971,21 @@ class Mixer:
 
     def set_volume(self, cid, mix, pct):
         duck = self._duck()
-        for m, b in self._loops(cid, mix, _("Channel {id}/{mix} not found – is the mixer set up? (freewave mixer setup)")):
+        hint = _("Channel {id}/{mix} not found – is the mixer set up? (freewave mixer setup)")
+        if mix not in ("both", "all") and self.is_linked(cid) and len(self.channel_mixes(cid)) > 1:
+            # gekoppelt: die anderen Mixe um denselben Betrag mitnehmen (Abstand bleibt)
+            loops = dict(self._loops(cid, "both", hint))
+            if mix in loops:
+                key = f"{cid}_{mix}"
+                base = duck.base(key) if duck else None
+                delta = int(pct) - int(loops[mix].get("volume", 0) if base is None else base)
+                for m, b in loops.items():
+                    k = f"{cid}_{m}"
+                    cur = pct if m == mix else (b.get("volume", 0) if not duck or duck.base(k) is None
+                                                else duck.base(k)) + delta
+                    self._write_volume(b["index"], k, cur, duck)
+                return
+        for m, b in self._loops(cid, mix, hint):
             self._write_volume(b["index"], f"{cid}_{m}", pct, duck)
 
     def _write_volume(self, index, key, pct, duck=None):
@@ -995,9 +1022,12 @@ class Mixer:
 
     def change_volume(self, cid, mix, delta, recent=False):
         """Lautstärke in allen Mixen um delta ändern; gibt die neuen Werte zurück ({Mix: Prozent}).
-        recent: zuletzt gelesene Loopbacks genügen (Tasten am Deck – sofort schreiben)."""
+        recent: zuletzt gelesene Loopbacks genügen (Tasten am Deck – sofort schreiben).
+        Gekoppelte Kanäle ändern sich in allen ihren Mixen."""
         duck = self._duck()
         out = {}
+        if mix not in ("both", "all") and self.is_linked(cid):
+            mix = "both"
 
         def write(m, b):
             key = f"{cid}_{m}"

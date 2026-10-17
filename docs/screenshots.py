@@ -381,6 +381,7 @@ def shot_freewave(tmp):
                           ("voice", "stream", 0), ("browser", "monitor", 55), ("capture", "monitor", 40)):
         host.mixer.set_volume(cid, mix, vol)
     host.mixer.set_mute("voice", "stream", True)
+    host.mixer.set_linked("music", True)  # gekoppelte Regler zeigen (Abstand 70/35 bleibt)
     import types
     demo = {"music": .78, "browser": .55, "voice": .72, "game": .8, "system": .5, "podcast": .62, "capture": .66,
             "mic": .82, "streammix": .74, "headphones": .8, "mix_chat": .58}
