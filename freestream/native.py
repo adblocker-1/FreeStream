@@ -13,6 +13,7 @@ Einstellungen sind nicht dokumentiert; FreeDeck liest die üblichen Felder
 und nutzt sonst den Tastentitel (z. B. als Szenenname).
 """
 import logging
+import threading
 import time
 
 from PIL import Image
@@ -642,9 +643,11 @@ class MixerAction(NativeAction):
         return lv if lv and lv[0] is not None and time.time() - getattr(self, "_lv_at", 0) < 3.0 else None
 
     def _show_now(self, vol=None, mute=None):
-        """Neuen Stand sofort zeigen – das Schreiben an PipeWire läuft danach."""
-        self._known(vol=vol, mute=mute)
+        """Neuen Stand sofort zeigen – das Schreiben an PipeWire läuft danach. Erst die gedrückte Taste,
+        dann die anderen Tasten des Kanals (jede Taste ist eine eigene USB-Übertragung)."""
+        self._known(vol=vol, mute=mute, share=False)
         self.redraw()
+        self._share()
 
     def _change(self, delta):
         lv = self._fresh_level()
@@ -766,16 +769,25 @@ class MixSelectAction(NativeAction):
         else:
             _DECK_MIX["mix"] = self.target
         ctrl = self.ctx.ctrl if self.ctx else None
-        # läuft im Ereignis-Thread des Decks: alle Kanaltasten aus EINER pactl-Abfrage (früher eine je Taste
-        # und Mix – das hielt sekundenlang alle folgenden Tastendrücke auf)
         acts = list((getattr(ctrl, "keys", None) or {}).values()) + list((getattr(ctrl, "dials", None) or {}).values())
-        acts.sort(key=lambda a: not isinstance(a, MixSelectAction))  # die Mix-Tasten zuerst: sofort sichtbar
-        with system.pactl_snapshot():
-            for a in acts:
-                if isinstance(a, (MixerAction, MixSelectAction)):
+        # die Mix-Tasten sofort (im Ereignis-Thread, ohne PipeWire zu fragen) …
+        for a in acts:
+            if isinstance(a, MixSelectAction):
+                a.redraw()
+        # … die Kanaltasten daneben im Hintergrund: sonst wartet jeder weitere Tastendruck, bis alle neu
+        # gezeichnet sind. Alle aus EINER pactl-Abfrage; ein neuerer Mix-Wechsel bricht den alten ab.
+        chans = [a for a in acts if isinstance(a, MixerAction)]
+        _DECK_MIX["gen"] = gen = _DECK_MIX.get("gen", 0) + 1
+
+        def redraw_channels():
+            with system.pactl_snapshot():
+                for a in chans:
+                    if _DECK_MIX.get("gen") != gen:
+                        return
                     a._lv_at = 0
                     a.tick()
                     a.redraw()
+        threading.Thread(target=redraw_channels, name="mix-select", daemon=True).start()
 
 
 class MixerPagesAction(NativeAction):

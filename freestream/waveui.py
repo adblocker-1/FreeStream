@@ -395,7 +395,8 @@ class LinkToggle(tk.Canvas):
 
     def __init__(self, master, command=None):
         s = self.SIZE
-        super().__init__(master, width=s, height=s, bg=COL["bg"], highlightthickness=0, bd=0, cursor="hand2")
+        super().__init__(master, width=s, height=s, bg=theme._bg_of(master), highlightthickness=0, bd=0,
+                         cursor="hand2")
         self.command, self.on, self.hover = command, False, False
         self.icons = theme.Icons(self)
         self.bind("<Enter>", lambda e: self._set_hover(True))
@@ -415,9 +416,12 @@ class LinkToggle(tk.Canvas):
     def _draw(self):
         self.delete("all")
         s = self.SIZE
-        fill = COL["accent"] if self.on else (COL["raised"] if self.hover else COL["panel2"])
-        self.create_oval(1, 1, s - 2, s - 2, fill=fill, outline=COL["accent"] if self.on else COL["border"])
-        self.create_image(s / 2, s / 2, image=self.icons.get("link" if self.on else "link_off", 16,
+        # gekoppelt: farbiger Punkt mit verhakter Kette; getrennt: nur die offene Kette (Rand beim Überfahren)
+        if self.on:
+            self.create_oval(1, 1, s - 2, s - 2, fill=COL["accent"], outline="")
+        elif self.hover:
+            self.create_oval(1, 1, s - 2, s - 2, fill=COL["raised"], outline=COL["border"])
+        self.create_image(s / 2, s / 2, image=self.icons.get("link" if self.on else "link_off", 15,
                                                              "#ffffff" if self.on else COL["muted"]))
 
 
@@ -1213,6 +1217,7 @@ class WaveWindow:
             if btn is None:
                 btn = LinkToggle(self.table, command=lambda on, c=cid: self._on_link(c, on))
                 btn.anchor = anchor
+                btn.configure(bg=theme._bg_of(anchor.master))  # Farbe der Lücke, in der die Kette sitzt
                 btn.place(in_=anchor, relx=1.0, x=5, rely=0.5, anchor="center")  # in der Lücke zum nächsten Mix
                 tk.Misc.lift(btn)
                 btns[cid] = btn

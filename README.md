@@ -166,9 +166,9 @@ Turn it on under **Settings → Devices → Virtual deck** and choose how it loo
 | | |
 |---|---|
 | **Floating window** | move it anywhere by its title bar; **always on top** if you like; profile and pages at the bottom |
-| **Edge bar** | docked at the right or left screen edge; slides away when the mouse leaves and comes back when you move the mouse to the edge |
+| **Edge bar** | docked upright at the right or left screen edge (e.g. 2 × 4 instead of 4 × 2 – shown the same way in the FreeDeck window); slides away when the mouse leaves and comes back when you move the mouse to the edge |
 
-Also there: the **size** (3 × 2, 4 × 2, 5 × 3 or 8 × 4 keys), a **keyboard shortcut** to show
+Also there: the **size** (3 × 2, 4 × 2, 5 × 3 or 8 × 4 keys; FreeDeck creates one empty profile for it and moves it along when you try other sizes), a **keyboard shortcut** to show
 and hide it from anywhere (e.g. Super + D – or run `freedeck virtual-deck`) and the profile.
 Assign keys like on a real deck: choose **Virtual deck** in the sidebar of the FreeDeck window
 and drag actions onto it. Clicking a key doesn't take the focus away, so hotkeys go to the

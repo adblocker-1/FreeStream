@@ -8,7 +8,7 @@ das Fenster (virtualui.py) holt sie ab und meldet Klicks über press() zurück.
 Einstellungen in config.json unter „virtual_deck“ (Einstellungen › Geräte › Virtuelles Deck):
   enabled   an/aus
   mode      "window" (schwebendes Fenster) oder "edge" (Leiste am Bildschirmrand)
-  model     Größe, ein Code aus models.VIRTUAL_MODELS
+  model     Größe, ein Code aus models.VIRTUAL_SIZES (quer; als Randleiste hochkant, siehe device_model)
   topmost   Fenster immer im Vordergrund
   edge      "right" oder "left" (nur bei der Leiste)
   shortcut  Tastenkürzel zum Ein-/Ausblenden, z. B. "Super+D"
@@ -18,7 +18,7 @@ Name, Helligkeit und Profil stehen wie bei echten Geräten unter devices[SERIAL]
 """
 import threading
 
-from .models import VIRTUAL_DEFAULT, VIRTUAL_MODELS
+from .models import VIRTUAL_DEFAULT, VIRTUAL_MODELS, VIRTUAL_SIZES, VIRTUAL_UPRIGHT
 
 SERIAL = "VIRTUAL"
 KEY_PX = 96
@@ -33,13 +33,18 @@ def settings(cfg):
     s = dict(DEFAULTS)
     if isinstance(raw, dict):
         s.update({k: v for k, v in raw.items() if k in DEFAULTS})
-    if s["model"] not in VIRTUAL_MODELS:
+    if s["model"] not in VIRTUAL_SIZES:
         s["model"] = VIRTUAL_DEFAULT
     if s["mode"] not in ("window", "edge"):
         s["mode"] = "window"
     if s["edge"] not in ("right", "left"):
         s["edge"] = "right"
     return s
+
+
+def device_model(s):
+    """Modellcode des laufenden Decks: als Randleiste hochkant (2 × 4 statt 4 × 2)."""
+    return VIRTUAL_UPRIGHT[s["model"]] if s["mode"] == "edge" else s["model"]
 
 
 def update(cfg, **changes):

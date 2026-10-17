@@ -13,7 +13,7 @@ from . import msgbox as messagebox
 from . import plugins, system, virtualdeck
 from .dialogkit import ScrollArea, ShortcutField, entry
 from .i18n import _, ngettext
-from .models import VIRTUAL_MODELS, model_name
+from .models import VIRTUAL_MODELS, VIRTUAL_SIZES, VIRTUAL_UPRIGHT, model_name
 from .theme import COL, Button, Card, Fader, Icons, Segmented, Switch, font, icon_tile, label, rounded_rect, section
 
 SLEEP_CHOICES = [0, 1, 5, 10, 15, 30, 60]
@@ -238,10 +238,8 @@ class DevicesPage(_Page):
             card.pack(side="left", padx=(0, 8))
             self.v_modes[mode] = card
         r = self.row(body, _("Size"), width=w)
-        self.v_codes = list(VIRTUAL_MODELS)
-        self.v_size = ttk.Combobox(r, state="readonly", width=24, values=[
-            _("{cols} × {rows} keys").format(cols=g.cols, rows=g.rows) for g in VIRTUAL_MODELS.values()])
-        self.v_size.current(self.v_codes.index(s["model"]))
+        self.v_codes = list(VIRTUAL_SIZES)
+        self.v_size = ttk.Combobox(r, state="readonly", width=24)
         self.v_size.bind("<<ComboboxSelected>>", lambda e: self._v_set(model=self.v_codes[self.v_size.current()]))
         self.v_size.pack(side="left")
         r = self.row(body, _("Always on top"), width=w)
@@ -282,7 +280,11 @@ class DevicesPage(_Page):
         on = s["enabled"]
         for mode, card in self.v_modes.items():
             card.set(selected=mode == s["mode"], enabled=on)
-        self.v_size.configure(state="readonly" if on else "disabled")
+        # Randleiste: hochkant (2 × 4 statt 4 × 2) – so steht sie auch im Editor
+        geos = [VIRTUAL_MODELS[VIRTUAL_UPRIGHT[c] if s["mode"] == "edge" else c] for c in self.v_codes]
+        self.v_size.configure(values=[_("{cols} × {rows} keys").format(cols=g.cols, rows=g.rows) for g in geos],
+                              state="readonly" if on else "disabled")
+        self.v_size.current(self.v_codes.index(s["model"]))
         self.v_top.set_enabled(on and s["mode"] == "window")
         self.v_edge.configure(state="readonly" if on and s["mode"] == "edge" else "disabled")
         ctrl = self.virtual_controller()
@@ -300,7 +302,7 @@ class DevicesPage(_Page):
         virtualdeck.update(self.cfg, **changes)
         self.save_now()
         daemon = getattr(self.freedeck, "daemon", None)
-        if hasattr(daemon, "sync_virtual") and ("enabled" in changes or "model" in changes):
+        if hasattr(daemon, "sync_virtual") and {"enabled", "model", "mode"} & set(changes):
             try:
                 daemon.sync_virtual()  # gleich anlegen/ändern statt erst im nächsten Takt
             except Exception as e:  # noqa: BLE001
