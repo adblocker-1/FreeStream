@@ -1,4 +1,4 @@
-"""Tests für LinDeck als eine App (Fenster + Dienst in einem Prozess)."""
+"""Tests für FreeDeck als eine App (Fenster + Dienst in einem Prozess)."""
 import json
 import os
 import subprocess
@@ -7,15 +7,15 @@ import time
 
 import pytest
 
-from streamlin import editdoc as E
-from streamlin.models import Geometry
+from freestream import editdoc as E
+from freestream.models import Geometry
 
 
 @pytest.fixture
 def env(tmp_path, monkeypatch):
-    from streamlin import paths
+    from freestream import paths
     for name, sub in (("DATA_DIR", "data"), ("STATE_DIR", "state"), ("PROFILES_DIR", "data/profiles"),
-                      ("PLUGINS_DIR", "data/plugins"), ("PID_FILE", "state/lindeck.pid")):
+                      ("PLUGINS_DIR", "data/plugins"), ("PID_FILE", "state/freedeck.pid")):
         monkeypatch.setattr(paths, name, tmp_path / sub)
     (tmp_path / "data" / "profiles").mkdir(parents=True)
     (tmp_path / "state").mkdir()
@@ -23,7 +23,7 @@ def env(tmp_path, monkeypatch):
 
 
 def test_single_instance_detection(env):
-    from streamlin import app
+    from freestream import app
     assert app.running_instance() is None
     sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
     try:
@@ -36,7 +36,7 @@ def test_single_instance_detection(env):
 
 
 def test_icon():
-    from streamlin.app import make_icon
+    from freestream.app import make_icon
     img = make_icon(64)
     assert img.size == (64, 64) and img.getpixel((32, 32))[3] == 255
 
@@ -63,8 +63,8 @@ def gui(env):
     tk = pytest.importorskip("tkinter")
     if not os.environ.get("DISPLAY"):
         pytest.skip("kein Display (xvfb-run verwenden)")
-    from streamlin import paths
-    from streamlin.profiles import ProfileStore
+    from freestream import paths
+    from freestream.profiles import ProfileStore
     plus = E.create_profile("Plus", "20GBD9901", paths.PROFILES_DIR)
     mk2 = E.create_profile("Klassisch", "20GBA9901", paths.PROFILES_DIR)
     doc = E.ProfileDoc(plus)
@@ -77,7 +77,7 @@ def gui(env):
         store = ProfileStore(paths.PROFILES_DIR)
         cfg = {}
     root = tk.Tk()
-    from streamlin.app import App
+    from freestream.app import App
     a = App(root, Daemon(), hidden=True, tray=False)
     root.update()
     yield a, ctrl, plus.name[:-10], mk2.name[:-10]

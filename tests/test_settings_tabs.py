@@ -7,13 +7,13 @@ import types
 import pytest
 
 import test_editor
-from streamlin import editdoc as E
-from streamlin import plugins as _plugins
+from freestream import editdoc as E
+from freestream import plugins as _plugins
 
 ORIG_INSTALLED = _plugins.installed
 
 store, doc, app = test_editor.store, test_editor.doc, test_editor.app  # Fixtures
-SHOTS = os.environ.get("STREAMLIN_SHOTS", "")
+SHOTS = os.environ.get("FREESTREAM_SHOTS", "")
 needs_x = pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
 
 
@@ -60,9 +60,9 @@ def _shot(dlg, name):
 
 @pytest.fixture
 def settings(app, monkeypatch, tmp_path):
-    from streamlin import desktop, plugins
-    from streamlin.config import Config
-    from streamlin.settingsui import open_settings
+    from freestream import desktop, plugins
+    from freestream.config import Config
+    from freestream.settingsui import open_settings
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
     monkeypatch.setattr(desktop, "SYSTEM_AUTOSTART", tmp_path / "sys-autostart")
     monkeypatch.setattr(desktop, "installed_apps", lambda: [("OBS Studio", "obs"), ("Spotify", "spotify")])
@@ -72,7 +72,7 @@ def settings(app, monkeypatch, tmp_path):
                                        store=app.store)
     app.device = ctrl.serial
     app.root.geometry("+0+0")
-    dlg = open_settings(app.root, "LinDeck", lambda: None, lindeck=app)
+    dlg = open_settings(app.root, "FreeDeck", lambda: None, freedeck=app)
     dlg.geometry("820x660+0+0")
     _pump(app.root)
     yield dlg, ctrl, app.daemon.cfg
@@ -83,18 +83,18 @@ def settings(app, monkeypatch, tmp_path):
 
 @needs_x
 def test_general_tab_and_autostart(settings, tmp_path):
-    from streamlin import desktop
+    from freestream import desktop
     dlg, _ctrl, _cfg = settings
     assert dlg.tabs.value == "general" and [k for k, _t in dlg.tabs.items] == list(dlg.TABS)
     _shot(dlg, "settings-general")
-    assert desktop.autostart_enabled("lindeck") is False  # keine Systemdatei im Test
+    assert desktop.autostart_enabled("freedeck") is False  # keine Systemdatei im Test
     dlg.autostart.set(True)
     dlg._toggle_autostart()
-    f = tmp_path / "xdg" / "autostart" / "lindeck.desktop"
-    assert "Exec=lindeck run" in f.read_text() and desktop.autostart_enabled("lindeck")
+    f = tmp_path / "xdg" / "autostart" / "freedeck.desktop"
+    assert "Exec=freedeck run" in f.read_text() and desktop.autostart_enabled("freedeck")
     dlg.autostart.set(False)
     dlg._toggle_autostart()
-    assert "Hidden=true" in f.read_text() and not desktop.autostart_enabled("lindeck")
+    assert "Hidden=true" in f.read_text() and not desktop.autostart_enabled("freedeck")
 
 
 @needs_x
@@ -105,7 +105,7 @@ def test_devices_tab(settings):
     _shot(dlg, "settings-devices")
     page.name.set("Studio-Deck")
     assert cfg.device(ctrl.serial)["name"] == "Studio-Deck"
-    assert page.lindeck.device_cards[ctrl.serial].title == "Studio-Deck"  # Seitenleiste
+    assert page.freedeck.device_cards[ctrl.serial].title == "Studio-Deck"  # Seitenleiste
     page.rotation.current(1)
     page._set_rotation()
     page.enabled.set(False)
@@ -139,7 +139,7 @@ def test_profiles_tab(settings):
 
 @needs_x
 def test_plugins_and_style_tabs(settings, app):
-    from streamlin import catalog
+    from freestream import catalog
     dlg, _ctrl, cfg = settings
     dlg.show_tab("plugins")
     _shot(dlg, "settings-plugins")
@@ -157,7 +157,7 @@ def test_plugins_and_style_tabs(settings, app):
     page._set_progress()
     assert cfg.get("multi_progress") is False
     _shot(dlg, "settings-style")
-    from streamlin import msgbox
+    from freestream import msgbox
     msgbox_calls = []
     import pytest as _p
     mp = _p.MonkeyPatch()
@@ -189,7 +189,7 @@ def test_apply_title_style_counts(store, doc):
 
 def test_progress_overlay():
     from PIL import Image
-    from streamlin import render
+    from freestream import render
     half = render.compose_key((72, 72), None, "", {}, overlay=("progress", 0.5, 2, 4))
     y = int(72 * 0.88) + 1
     assert half.getpixel((14, y))[2] > 200 and half.getpixel((58, y))[2] < 120  # links gefüllt, rechts nicht
@@ -201,9 +201,9 @@ def test_engine_rotation_enabled_sleep_default(tmp_path, monkeypatch):
     pytest.importorskip("StreamDeck")
     from StreamDeck.DeviceManager import DeviceManager
 
-    from streamlin.config import Config, State
-    from streamlin.engine import DeckController
-    from streamlin.profiles import ProfileStore
+    from freestream.config import Config, State
+    from freestream.engine import DeckController
+    from freestream.profiles import ProfileStore
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     store_dir = tmp_path / "profiles"
@@ -253,7 +253,7 @@ def test_engine_rotation_enabled_sleep_default(tmp_path, monkeypatch):
 @needs_x
 def test_plugins_tab_with_plugin(settings, monkeypatch, tmp_path):
     import json
-    from streamlin import msgbox, paths, plugins
+    from freestream import msgbox, paths, plugins
     root = tmp_path / "plugins"
     d = root / "com.test.demo.sdPlugin"
     d.mkdir(parents=True)
@@ -275,7 +275,7 @@ def test_plugins_tab_with_plugin(settings, monkeypatch, tmp_path):
 
 @needs_x
 def test_connections_tab(settings, monkeypatch, tmp_path):
-    from streamlin import connectionsui, paths
+    from freestream import connectionsui, paths
     monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path / "cfg")
     monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "cfg" / "config.json")
     dlg, ctrl, cfg = settings
@@ -329,7 +329,7 @@ def test_connections_tab(settings, monkeypatch, tmp_path):
 
 
 def test_obs_test_reports_error(monkeypatch):
-    from streamlin import connectionsui, obs
+    from freestream import connectionsui, obs
 
     class Fake:
         def __init__(self, *a):

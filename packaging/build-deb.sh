@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Baut die Pakete (Aufruf: ./packaging/build-deb.sh [Ausgabeordner] [Paket …])
-#   streamlin_<version>_all.deb  – LinDeck + Linewave
-#   lindeck_<version>_all.deb    – nur LinDeck (Stream Deck)
-#   linewave_<version>_all.deb   – nur Linewave (Mixer, Wave-Mikrofon)
+#   freestream_<version>_all.deb  – FreeDeck + FreeWave
+#   lindeck_<version>_all.deb    – nur FreeDeck (Stream Deck)
+#   linewave_<version>_all.deb   – nur FreeWave (Mixer, Wave-Mikrofon)
 # Welche Dateien in welches Paket gehören, steht in packaging/parts.py;
 # Dateiinhalte und Installationsskripte stehen in packaging/common.sh.
 set -euo pipefail
@@ -11,7 +11,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/packaging/common.sh"
 OUT="${1:-$ROOT/dist}"
 shift || true
-PACKAGES=("${@:-streamlin lindeck linewave}")
+# streamlin/lindeck/linewave: dasselbe Programm unter den Namen vor der Umbenennung (0.28) – damit ältere
+# Installationen das Update finden; ihr nächstes Update wechselt dann auf freestream/freedeck/freewave
+PACKAGES=("${@:-freestream freedeck freewave streamlin lindeck linewave}")
 read -r -a PACKAGES <<< "${PACKAGES[*]}"
 mkdir -p "$OUT"
 
@@ -23,7 +25,7 @@ DECK_RECS="chromium | google-chrome-stable | firefox, mpv | ffmpeg | pipewire-bi
 WAVE_RECS="wireplumber, pipewire-pulse, pipewire-bin, swh-plugins, tap-plugins, lilv-utils, jalv, pipewire-jack, x42-plugins, libspa-0.2-modules, libpipewire-0.3-modules"
 
 # ------------------------------------------------------------------ Installationsskripte
-scripts() {  # scripts <lindeck: 1/0> <linewave: 1/0>
+scripts() {  # scripts <freedeck: 1/0> <freewave: 1/0>
     hooks "$1" "$2"
     {
         echo '#!/bin/sh'
@@ -60,7 +62,7 @@ build() {
     local rel
     STAGE="$(mktemp -d)"
     PKG="$STAGE/${NAME}_${VERSION}_all"
-    mkdir -p "$PKG/DEBIAN" "$PKG/opt/$NAME/streamlin" "$PKG/usr/bin" "$PKG/$UDEV_DIR" "$PKG/etc/xdg/autostart" \
+    mkdir -p "$PKG/DEBIAN" "$PKG/opt/$NAME/freestream" "$PKG/usr/bin" "$PKG/$UDEV_DIR" "$PKG/etc/xdg/autostart" \
              "$PKG/usr/share/applications" "$PKG/usr/share/doc/$NAME" "$PKG/usr/lib/modules-load.d"
     stage_files "$NAME" "$deck" "$wave" "usr/share/doc/$NAME"
 
@@ -73,19 +75,34 @@ build() {
     fi
     [ "$deck" = 1 ] || rmdir "$PKG/usr/lib/modules-load.d"
     case "$NAME" in
+        freestream)
+            rel="Conflicts: freedeck, freewave, streamlin, lindeck, linewave
+Replaces: freedeck, freewave, streamlin, lindeck, linewave
+Provides: streamlin"
+            ;;
+        freedeck)
+            rel="Conflicts: freestream, streamlin, lindeck
+Replaces: freestream, streamlin, lindeck
+Provides: lindeck
+Suggests: freewave"
+            ;;
+        freewave)
+            rel="Conflicts: freestream, streamlin, linewave
+Replaces: freestream, streamlin, linewave
+Provides: linewave
+Suggests: freedeck"
+            ;;
         streamlin)
             rel="Conflicts: lindeck, linewave
 Replaces: lindeck, linewave"
             ;;
         lindeck)
             rel="Conflicts: streamlin
-Replaces: streamlin
-Suggests: linewave"
+Replaces: streamlin"
             ;;
         linewave)
             rel="Conflicts: streamlin
-Replaces: streamlin
-Suggests: lindeck"
+Replaces: streamlin"
             ;;
     esac
     describe "$NAME"

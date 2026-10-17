@@ -7,7 +7,7 @@ pytestmark = pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X
 
 
 def _buttons(w):
-    from streamlin.theme import Button
+    from freestream.theme import Button
     for c in w.winfo_children():
         if isinstance(c, Button):
             yield c
@@ -31,7 +31,7 @@ def _later(root, fn):
 
 def test_dialogs_are_themed():
     import tkinter as tk
-    from streamlin import msgbox
+    from freestream import msgbox
     root = tk.Tk()
     try:
         seen = {}
@@ -71,7 +71,7 @@ def test_dialogs_are_themed():
 
 def test_no_tkinter_system_dialogs_left():
     import pathlib
-    src = pathlib.Path(__file__).resolve().parent.parent / "streamlin"
+    src = pathlib.Path(__file__).resolve().parent.parent / "freestream"
     for f in src.glob("*.py"):
         if f.name == "msgbox.py":  # Rückfall ohne zenity/kdialog
             continue
@@ -83,7 +83,7 @@ def test_no_tkinter_system_dialogs_left():
 
 def test_color_picker():
     import tkinter as tk
-    from streamlin import msgbox
+    from freestream import msgbox
     root = tk.Tk()
     try:
         def pick(dlg):
@@ -111,7 +111,7 @@ def test_color_picker():
 
 def test_file_dialog_uses_desktop_tool(monkeypatch, tmp_path):
     import tkinter as tk
-    from streamlin import msgbox
+    from freestream import msgbox
     types = [("Bilder", "*.png *.jpg"), ("Alle Dateien", "*")]
     z = msgbox._command("zenity", "save", "Export", str(tmp_path), "a.json", types)
     assert z[:4] == ["zenity", "--file-selection", "--title", "Export"] and "--save" in z

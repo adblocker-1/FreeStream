@@ -1,8 +1,8 @@
 """Anzeigen auf den Tasten (erledigt, Fehler, Fortschritt, kein Profil) und Geräte-Vorschau im Fenster."""
 from PIL import Image
 
-from streamlin import render
-from streamlin.models import Geometry
+from freestream import render
+from freestream.models import Geometry
 
 
 def _differs(a, b):
@@ -39,7 +39,7 @@ def test_no_profile_key():
 
 
 def test_stage_layout_kinds():
-    from streamlin.editor import _layout, _stage_kind
+    from freestream.editor import _layout, _stage_kind
     assert _stage_kind("20GBF9901", Geometry(3, 1)) == "pedal"
     assert _stage_kind("20GBO9901", Geometry(16, 2, dials=2)) == "studio"
     assert _stage_kind("20GBJ9901", Geometry(4, 2, touch_keys=2)) == "neo"

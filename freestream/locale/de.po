@@ -1,0 +1,6230 @@
+# FreeDeck / FreeWave translation template.
+msgid ""
+msgstr ""
+"Project-Id-Version: freestream\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+
+#: freestream/__main__.py:832
+msgid "Scenes: scene list | save <name> | apply <name> | rename <name> <new name> | delete <name>"
+msgstr "Szenen: scene list | save <Name> | apply <Name> | rename <Name> <neuer Name> | delete <Name>"
+
+#: freestream/__main__.py:53
+msgid "Quitting FreeDeck"
+msgstr "FreeDeck wird beendet"
+
+#: freestream/__main__.py:143 freestream/__main__.py:213 freestream/plugins.py:679
+msgid "Profile not found"
+msgstr "Profil nicht gefunden"
+
+#: freestream/__main__.py:443 freestream/hasskeys.py:302 freestream/native.py:413 freestream/native.py:803
+msgctxt "state"
+msgid "on"
+msgstr "an"
+
+#: freestream/__main__.py:443 freestream/hasskeys.py:302 freestream/native.py:166 freestream/native.py:803
+msgctxt "state"
+msgid "off"
+msgstr "aus"
+
+#: freestream/__main__.py:447
+msgctxt "state"
+msgid " (muted)"
+msgstr " (stumm)"
+
+#: freestream/__main__.py:668
+msgid "Reloaded"
+msgstr "Neu geladen"
+
+#: freestream/__main__.py:725 freestream/settingsui.py:337
+msgid "Backup restored."
+msgstr "Sicherung wiederhergestellt."
+
+#: freestream/__main__.py:51 freestream/__main__.py:666
+msgid "FreeDeck is not running"
+msgstr "FreeDeck läuft nicht"
+
+#: freestream/__main__.py:64
+msgid "Quitting FreeWave"
+msgstr "FreeWave wird beendet"
+
+#: freestream/__main__.py:79
+msgid "No profiles found. Expected: .streamDeckProfile, backup file or ProfilesV2/V3 folder."
+msgstr "Keine Profile gefunden. Erwartet: .streamDeckProfile, Backup-Datei oder ProfilesV2/V3-Ordner."
+
+#: freestream/__main__.py:88
+msgid "No profiles imported yet. Use 'freedeck import <file>'."
+msgstr "Noch keine Profile importiert. 'freedeck import <datei>' verwenden."
+
+#: freestream/__main__.py:109
+msgid "No device found. Is it connected? Is the udev rule installed (install.sh)?"
+msgstr "Kein Gerät gefunden. Angeschlossen? udev-Regel installiert (install.sh)?"
+
+#: freestream/__main__.py:298
+msgid "No plugins installed. 'freedeck plugin install <file.streamDeckPlugin>'"
+msgstr "Keine Plugins installiert. 'freedeck plugin install <Datei.streamDeckPlugin>'"
+
+#: freestream/__main__.py:413
+msgid "Usage: freewave mixer scene list | save <name> | apply <name> | rename <name> <new name> | delete <name>"
+msgstr "Aufruf: freewave mixer scene list | save <Name> | apply <Name> | rename <Name> <neuer Name> | delete <Name>"
+
+#: freestream/__main__.py:584
+msgid "In OBS: Tools → WebSocket Server Settings → enable; enter the password in FreeDeck under Settings → Connections"
+msgstr "In OBS: Werkzeuge → WebSocket-Server-Einstellungen → aktivieren; das Passwort in FreeDeck unter Einstellungen → Verbindungen eintragen"
+
+#: freestream/__main__.py:601
+msgid "Connecting to Discord – please confirm the request in Discord …"
+msgstr "Verbinde mit Discord – bitte die Anfrage in Discord bestätigen …"
+
+#: freestream/__main__.py:617
+msgid "Home Assistant is not set up yet. In the FreeDeck window: choose a Home Assistant action → “Connect …” (or Settings → Connections)."
+msgstr "Home Assistant ist noch nicht eingerichtet. Im FreeDeck-Fenster: eine Home-Assistant-Aktion wählen → „Verbinden …“ (oder Einstellungen → Verbindungen)."
+
+#: freestream/__main__.py:761
+msgid "FreeDeck – software for Elgato decks on Linux"
+msgstr "FreeDeck – Software für Elgato-Decks unter Linux"
+
+#: freestream/__main__.py:766
+msgid "open the FreeDeck window (default without a command)"
+msgstr "FreeDeck-Fenster öffnen (Standard ohne Befehl)"
+
+#: freestream/__main__.py:771
+msgid "start FreeDeck hidden (autostart)"
+msgstr "FreeDeck unsichtbar starten (Autostart)"
+
+#: freestream/__main__.py:772
+msgid "start only the service, without a window (e.g. via SSH)"
+msgstr "nur den Dienst ohne Fenster starten (z. B. per SSH)"
+
+#: freestream/__main__.py:776
+msgid "open the FreeDeck window, optionally with a specific profile"
+msgstr "FreeDeck-Fenster öffnen, optional mit einem bestimmten Profil"
+
+#: freestream/__main__.py:777
+msgid "profile (ID or name) to open"
+msgstr "Profil (ID oder Name), das geöffnet werden soll"
+
+#: freestream/__main__.py:780
+msgid "quit the running FreeDeck"
+msgstr "laufendes FreeDeck beenden"
+
+#: freestream/__main__.py:783
+msgid "import Elgato profiles (.streamDeckProfile, backup, ProfilesV2/V3 folder)"
+msgstr "Elgato-Profile importieren (.streamDeckProfile, Backup, ProfilesV2/V3-Ordner)"
+
+#: freestream/__main__.py:785
+msgid "do not overwrite existing profiles"
+msgstr "vorhandene Profile nicht überschreiben"
+
+#: freestream/__main__.py:788
+msgid "show imported profiles"
+msgstr "importierte Profile anzeigen"
+
+#: freestream/__main__.py:791
+msgid "show connected devices"
+msgstr "angeschlossene Geräte anzeigen"
+
+#: freestream/__main__.py:795
+msgid "permanently assign a profile to a device"
+msgstr "Profil fest einem Gerät zuordnen"
+
+#: freestream/__main__.py:800
+msgid "delete a profile"
+msgstr "Profil löschen"
+
+#: freestream/__main__.py:804
+msgid "render profile pages as PNG (no device needed)"
+msgstr "Profilseiten als PNG rendern (ohne Gerät)"
+
+#: freestream/__main__.py:807
+msgid "also render folders"
+msgstr "auch Ordner rendern"
+
+#: freestream/__main__.py:810
+msgid "compatibility report for profiles"
+msgstr "Kompatibilitätsbericht für Profile"
+
+#: freestream/__main__.py:814
+msgid "copy the default icons from the Elgato installer"
+msgstr "Standard-Icons aus dem Elgato-Installer übernehmen"
+
+#: freestream/__main__.py:815
+msgid "Stream_Deck_*.msi or a copied program folder"
+msgstr "Stream_Deck_*.msi oder kopierter Programmordner"
+
+#: freestream/__main__.py:818
+msgid "manage Elgato plugins (list, install, remove)"
+msgstr "Elgato-Plugins verwalten (list, install, remove)"
+
+#: freestream/__main__.py:820
+msgid "file (.streamDeckPlugin) or plugin UUID"
+msgstr "Datei (.streamDeckPlugin) bzw. Plugin-UUID"
+
+#: freestream/__main__.py:823
+msgid "audio mixer (Wave Link replacement): status, setup, remove, set, mute, assign, output"
+msgstr "Audio-Mixer (Wave-Link-Ersatz): status, setup, remove, set, mute, assign, output"
+
+#: freestream/__main__.py:828
+msgid "set <channel> <mix|both> <percent> · mute <channel> <mix> · master <channel> <percent> · listen <mix> · assign <program> <channel> · output [device] · add <name> [input device] · delete <channel>"
+msgstr "set <Kanal> <Mix|both> <Prozent> · mute <Kanal> <Mix> · master <Kanal> <Prozent> · listen <Mix> · assign <Programm> <Kanal> · output [Gerät] · add <Name> [Eingangsgerät] · delete <Kanal>"
+
+#: freestream/__main__.py:835
+msgid "microphone: status, gain, mute, lowcut, clipguard, leds, flip, headphone, monitor, noise"
+msgstr "Mikrofon: status, gain, mute, lowcut, clipguard, leds, flip, headphone, monitor, noise"
+
+#: freestream/__main__.py:840
+msgid "gain <percent> · lowcut on|off [80|120] · clipguard on|off · leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100> · noise on|off|status|strength <0…95>|backend auto|rnnoise|webrtc"
+msgstr "gain <Prozent> · lowcut on|off [80|120] · clipguard on|off · leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100> · noise on|off|status|strength <0…95>|backend auto|rnnoise|webrtc"
+
+#: freestream/__main__.py:845
+msgid "open FreeWave: mixer and microphone (separate program)"
+msgstr "FreeWave öffnen: Mixer und Mikrofon (eigenes Programm)"
+
+#: freestream/__main__.py:846
+msgid "start hidden (autostart)"
+msgstr "unsichtbar starten (Autostart)"
+
+#: freestream/__main__.py:847
+msgid "no icon in the system tray"
+msgstr "kein Symbol in der Taskleiste"
+
+#: freestream/__main__.py:848
+msgid "quit the running FreeWave"
+msgstr "laufendes FreeWave beenden"
+
+#: freestream/__main__.py:851
+msgid "test the connection to OBS"
+msgstr "Verbindung zu OBS testen"
+
+#: freestream/__main__.py:854
+msgid "connect to Discord (one-time authorization)"
+msgstr "mit Discord verbinden (einmalige Freigabe)"
+
+#: freestream/__main__.py:857
+msgid "Home Assistant: test the connection, list entities"
+msgstr "Home Assistant: Verbindung testen, Entitäten auflisten"
+
+#: freestream/__main__.py:859
+msgid "entities: only entities whose ID or name contains this text"
+msgstr "entities: nur Entitäten, deren ID oder Name diesen Text enthält"
+
+#: freestream/__main__.py:862
+msgid "test connected devices step by step"
+msgstr "angeschlossene Geräte Schritt für Schritt testen"
+
+#: freestream/__main__.py:863
+msgid "seconds per step"
+msgstr "Sekunden je Schritt"
+
+#: freestream/__main__.py:864
+msgid "stop the running service for the test"
+msgstr "laufenden Dienst für den Test anhalten"
+
+#: freestream/__main__.py:868
+msgid "reload the running service"
+msgstr "laufenden Dienst neu laden"
+
+#: freestream/__main__.py:871
+msgid "save all profiles, settings and plugins to one file"
+msgstr "alle Profile, Einstellungen und Plugins in einer Datei sichern"
+
+#: freestream/__main__.py:872
+msgid "target file or folder (default: freestream-DATE.freestream-backup)"
+msgstr "Zieldatei oder -ordner (Standard: freestream-DATUM.freestream-backup)"
+
+#: freestream/__main__.py:873
+msgid "do not include installed plugins"
+msgstr "installierte Plugins nicht einschließen"
+
+#: freestream/__main__.py:876
+msgid "restore a backup (replaces profiles and settings)"
+msgstr "eine Sicherung wiederherstellen (ersetzt Profile und Einstellungen)"
+
+#: freestream/__main__.py:877
+msgid "backup file (.freestream-backup)"
+msgstr "Sicherungsdatei (.freestream-backup)"
+
+#: freestream/__main__.py:878
+msgid "do not ask for confirmation"
+msgstr "nicht nachfragen"
+
+#: freestream/__main__.py:881
+msgid "create a support report for a GitHub issue (secrets removed)"
+msgstr "Support-Bericht für ein GitHub-Issue erstellen (ohne Geheimnisse)"
+
+#: freestream/__main__.py:882
+msgid "file or folder for the report (default: home folder)"
+msgstr "Datei oder Ordner für den Bericht (Standard: Home-Ordner)"
+
+#: freestream/__main__.py:62
+msgid "FreeWave is not running"
+msgstr "FreeWave läuft nicht"
+
+#: freestream/__main__.py:92 freestream/editor.py:823 freestream/editor.py:1117
+#, python-brace-format
+msgid "{n} page"
+msgid_plural "{n} pages"
+msgstr[0] "{n} Seite"
+msgstr[1] "{n} Seiten"
+
+#: freestream/__main__.py:133
+#, python-brace-format
+msgid "Device {serial} -> {profile}"
+msgstr "Gerät {serial} -> {profile}"
+
+#: freestream/__main__.py:253
+#, python-brace-format
+msgid "Supported actions (built-in, Linux implementation or installed plugin): {count}"
+msgstr "Unterstützte Aktionen (eingebaut, Linux-Umsetzung oder installiertes Plugin): {count}"
+
+#: freestream/__main__.py:261
+msgid "Notes:"
+msgstr "Hinweise:"
+
+#: freestream/__main__.py:269
+#, python-brace-format
+msgid "Elgato icons copied to {path}"
+msgstr "Elgato-Icons übernommen nach {path}"
+
+#: freestream/__main__.py:277
+msgid "Specify a file: freedeck plugin install <file.streamDeckPlugin>"
+msgstr "Datei angeben: freedeck plugin install <Datei.streamDeckPlugin>"
+
+#: freestream/__main__.py:294
+msgid "Removed"
+msgstr "Entfernt"
+
+#: freestream/__main__.py:294
+msgid "Plugin not found"
+msgstr "Plugin nicht gefunden"
+
+#: freestream/__main__.py:301 freestream/freedecksettings.py:517 freestream/pluginui.py:188
+#, python-brace-format
+msgid "{n} action"
+msgid_plural "{n} actions"
+msgstr[0] "{n} Aktion"
+msgstr[1] "{n} Aktionen"
+
+#: freestream/__main__.py:326
+msgid "Mixer set up and enabled at startup. In OBS, choose “Monitor of FreeWave Stream Mix” as the audio source."
+msgstr "Mixer eingerichtet und beim Start aktiviert. In OBS als Audioquelle „Monitor of FreeWave Stream-Mix“ wählen."
+
+#: freestream/__main__.py:402
+msgid "No scenes saved yet – 'freewave mixer scene save <name>'"
+msgstr "Noch keine Szenen gespeichert – 'freewave mixer scene save <Name>'"
+
+#: freestream/__main__.py:588
+#, python-brace-format
+msgid "Connected to OBS {version} (obs-websocket {ws_version})"
+msgstr "Verbunden mit OBS {version} (obs-websocket {ws_version})"
+
+#: freestream/__main__.py:640 freestream/hassui.py:228
+#, python-brace-format
+msgid "{shown} of {total} entities"
+msgstr "{shown} von {total} Entitäten"
+
+#: freestream/__main__.py:650
+msgid "The FreeDeck service is running and is using the device. With --stop-daemon it is stopped for the test and restarted afterwards."
+msgstr "Der FreeDeck-Dienst läuft und belegt das Gerät. Mit --stop-daemon wird er für den Test angehalten und danach neu gestartet."
+
+#: freestream/__main__.py:693 freestream/settingsui.py:290
+#, python-brace-format
+msgid "Backup saved: {path}"
+msgstr "Sicherung gespeichert: {path}"
+
+#: freestream/__main__.py:713
+msgid "Cancelled. Nothing was changed."
+msgstr "Abgebrochen. Es wurde nichts geändert."
+
+#: freestream/__main__.py:737 freestream/settingsui.py:375
+#, python-brace-format
+msgid "Support report saved: {path}"
+msgstr "Support-Bericht gespeichert: {path}"
+
+#: freestream/__main__.py:738
+#, python-brace-format
+msgid "Attach it to a new issue: {url}"
+msgstr "Häng ihn an ein neues Issue an: {url}"
+
+#: freestream/__main__.py:75
+#, python-brace-format
+msgid "{src}: {n} profile imported"
+msgid_plural "{src}: {n} profiles imported"
+msgstr[0] "{src}: {n} Profil importiert"
+msgstr[1] "{src}: {n} Profile importiert"
+
+#: freestream/__main__.py:127 freestream/__main__.py:174
+#, python-brace-format
+msgid "Profile '{profile}' not found"
+msgstr "Profil '{profile}' nicht gefunden"
+
+#: freestream/__main__.py:140
+#, python-brace-format
+msgid "Profile '{profile}' deleted"
+msgstr "Profil '{profile}' gelöscht"
+
+#: freestream/__main__.py:178
+#, python-brace-format
+msgid "No matching device for geometry {geometry}"
+msgstr "Kein passendes Gerät für Geometrie {geometry}"
+
+#: freestream/__main__.py:257
+#, python-brace-format
+msgid "Unsupported plugin actions: {count}"
+msgstr "Nicht unterstützte Plugin-Aktionen: {count}"
+
+#: freestream/__main__.py:300
+#, python-brace-format
+msgid "cannot start: {reason}"
+msgstr "nicht startbar: {reason}"
+
+#: freestream/__main__.py:332 freestream/waveui.py:830
+msgid "Mixer removed"
+msgstr "Mixer entfernt"
+
+#: freestream/__main__.py:418 freestream/waveui.py:1434
+#, python-brace-format
+msgid "Scene “{name}” saved"
+msgstr "Szene „{name}“ gespeichert"
+
+#: freestream/__main__.py:483
+msgid "on – not available"
+msgstr "an – nicht verfügbar"
+
+#: freestream/__main__.py:485
+msgid "on – starts as soon as the mixer is set up (freewave mixer setup)"
+msgstr "an – startet, sobald der Mixer eingerichtet ist (freewave mixer setup)"
+
+#: freestream/__main__.py:486
+#, python-brace-format
+msgid "Noise suppression: {state}"
+msgstr "Rauschunterdrückung: {state}"
+
+#: freestream/__main__.py:524
+msgid "Note: Clipguard needs the swh-plugins package"
+msgstr "Hinweis: Clipguard braucht das Paket swh-plugins"
+
+#: freestream/__main__.py:583
+#, python-brace-format
+msgid "No connection to OBS: {error}"
+msgstr "Keine Verbindung zu OBS: {error}"
+
+#: freestream/__main__.py:603
+#, python-brace-format
+msgid "Connected. Microphone {mic}, sound {sound}"
+msgstr "Verbunden. Mikrofon {mic}, Ton {sound}"
+
+#: freestream/__main__.py:724 freestream/settingsui.py:339
+#, python-brace-format
+msgid "Your previous data was saved to {path}"
+msgstr "Deine bisherigen Daten wurden gesichert in {path}"
+
+#: freestream/__main__.py:755
+#, python-brace-format
+msgid "{program} is not installed. Install the package “{package}” (or “freestream” for both programs)."
+msgstr "{program} ist nicht installiert. Installiere das Paket „{package}“ (oder „freestream“ für beide Programme)."
+
+#: freestream/__main__.py:106
+#, python-brace-format
+msgid "USB access failed: {error}"
+msgstr "USB-Zugriff fehlgeschlagen: {error}"
+
+#: freestream/__main__.py:119
+#, python-brace-format
+msgid "Serial {serial}  FW {firmware}"
+msgstr "Seriennr. {serial}  FW {firmware}"
+
+#: freestream/__main__.py:390 freestream/__main__.py:494 freestream/__main__.py:573 freestream/__main__.py:607
+#, python-brace-format
+msgid "Error: {error}"
+msgstr "Fehler: {error}"
+
+#: freestream/__main__.py:421 freestream/waveui.py:1427
+#, python-brace-format
+msgid "Scene “{name}” applied"
+msgstr "Szene „{name}“ angewendet"
+
+#: freestream/__main__.py:481
+#, python-brace-format
+msgid "on ({backend}, active)"
+msgstr "an ({backend}, aktiv)"
+
+#: freestream/__main__.py:488
+#, python-brace-format
+msgid "Available: {names}"
+msgstr "Verfügbar: {names}"
+
+#: freestream/__main__.py:583
+msgid "timeout"
+msgstr "Zeitüberschreitung"
+
+#: freestream/__main__.py:604 freestream/__main__.py:386 freestream/mixkeys.py:122 freestream/mixkeys.py:82
+msgctxt "state"
+msgid "muted"
+msgstr "stumm"
+
+#: freestream/__main__.py:623 freestream/connectionsui.py:300 freestream/hassui.py:126
+#, python-brace-format
+msgid "Connected to “{name}” (Home Assistant {version})."
+msgstr "Verbunden mit „{name}“ (Home Assistant {version})."
+
+#: freestream/__main__.py:735 freestream/settingsui.py:372
+#, python-brace-format
+msgid "Could not create the support report: {error}"
+msgstr "Der Support-Bericht konnte nicht erstellt werden: {error}"
+
+#: freestream/__main__.py:117
+#, python-brace-format
+msgid "(no access: {error})"
+msgstr "(kein Zugriff: {error})"
+
+#: freestream/__main__.py:239
+#, python-brace-format
+msgid "{where}: audio file missing: {path}"
+msgstr "{where}: Audiodatei fehlt: {path}"
+
+#: freestream/__main__.py:285
+#, python-brace-format
+msgid "Installed: {name} ({uuid})"
+msgstr "Installiert: {name} ({uuid})"
+
+#: freestream/__main__.py:287
+#, python-brace-format
+msgid "Installed: {name} ({uuid}) – does not start: {reason}"
+msgstr "Installiert: {name} ({uuid}) – startet nicht: {reason}"
+
+#: freestream/__main__.py:424 freestream/waveui.py:1445
+#, python-brace-format
+msgid "Scene renamed to “{name}”"
+msgstr "Szene umbenannt in „{name}“"
+
+#: freestream/__main__.py:428 freestream/waveui.py:1457
+#, python-brace-format
+msgid "Scene “{name}” deleted"
+msgstr "Szene „{name}“ gelöscht"
+
+#: freestream/__main__.py:490
+#, python-brace-format
+msgid "Strength: {value} % (VAD threshold)"
+msgstr "Stärke: {value} % (VAD-Schwelle)"
+
+#: freestream/__main__.py:510
+#, python-brace-format
+msgid "{setting}: {state} (directly on the Wave:3)"
+msgstr "{setting}: {state} (direkt im Wave:3)"
+
+#: freestream/__main__.py:518
+#, python-brace-format
+msgid "{setting}: {state} (software filter in FreeWave)"
+msgstr "{setting}: {state} (Software-Filter in FreeWave)"
+
+#: freestream/__main__.py:521
+#, python-brace-format
+msgid "{setting}: {state} – saved; the software filter runs as soon as FreeWave is started (freewave)"
+msgstr "{setting}: {state} – gespeichert; der Software-Filter läuft, sobald FreeWave gestartet ist (freewave)"
+
+#: freestream/__main__.py:709
+msgid "Replace your current profiles and settings with this backup? [y/N] "
+msgstr "Deine aktuellen Profile und Einstellungen durch diese Sicherung ersetzen? [j/N] "
+
+#: freestream/__main__.py:234
+#, python-brace-format
+msgid "{where}: '{app}' -> no Linux mapping (Settings → Connections → Windows profiles)"
+msgstr "{where}: '{app}' -> keine Linux-Zuordnung (Einstellungen → Verbindungen → Windows-Profile)"
+
+#: freestream/__main__.py:475
+#, python-brace-format
+msgid "Unknown command: {name}"
+msgstr "Unbekannter Befehl: {name}"
+
+#: freestream/__main__.py:343
+#, python-brace-format
+msgid "{app} → {channel} ({count} running streams moved)"
+msgstr "{app} → {channel} ({count} laufende Streams verschoben)"
+
+#: freestream/__main__.py:346 freestream/__main__.py:380
+#, python-brace-format
+msgid "Monitor output: {output}"
+msgstr "Monitor-Ausgang: {output}"
+
+#: freestream/__main__.py:350
+msgid "Specify a name: freewave mixer add <name> [input device]"
+msgstr "Name angeben: freewave mixer add <Name> [Eingangsgerät]"
+
+#: freestream/__main__.py:367
+msgid "Channel deleted"
+msgstr "Kanal gelöscht"
+
+#: freestream/__main__.py:544 freestream/wavemic.py:200
+msgid "No Elgato Wave microphone found"
+msgstr "Kein Elgato-Wave-Mikrofon gefunden"
+
+#: freestream/__main__.py:571
+msgid "LEDs:       only controllable on the Wave:3"
+msgstr "LEDs:       nur beim Wave:3 steuerbar"
+
+#: freestream/__main__.py:363
+#, python-brace-format
+msgid "Channel created: {name} ({id})"
+msgstr "Kanal angelegt: {name} ({id})"
+
+#: freestream/__main__.py:540
+msgid "Microphone muted"
+msgstr "Mikrofon stummgeschaltet"
+
+#: freestream/__main__.py:540
+msgid "Microphone unmuted"
+msgstr "Mikrofon eingeschaltet"
+
+#: freestream/__main__.py:546
+#, python-brace-format
+msgid "Microphone: {source}"
+msgstr "Mikrofon:   {source}"
+
+#: freestream/__main__.py:548
+#, python-brace-format
+msgid "Wave:3 (firmware API {api}) – settings stored directly in the microphone"
+msgstr "Wave:3 (Firmware-API {api}) – Einstellungen direkt im Mikrofon"
+
+#: freestream/__main__.py:551 freestream/__main__.py:569
+#, python-brace-format
+msgid "Low cut:    {state}"
+msgstr "Low Cut:    {state}"
+
+#: freestream/__main__.py:553
+#, python-brace-format
+msgid "Headphones: {volume} dB{muted}"
+msgstr "Kopfhörer:  {volume} dB{muted}"
+
+#: freestream/__main__.py:555
+#, python-brace-format
+msgid "Monitoring: {percent} % microphone"
+msgstr "Mithören:   {percent} % Mikrofon"
+
+#: freestream/__main__.py:558
+#, python-brace-format
+msgid ", flipped: {answer}"
+msgstr ", umgekehrt: {answer}"
+
+#: freestream/__main__.py:567
+#, python-brace-format
+msgid "{freq} Hz (software)"
+msgstr "{freq} Hz (Software)"
+
+#: freestream/__main__.py:356
+#, python-brace-format
+msgid "Input device “{device}” not found. Available: {available}"
+msgstr "Eingangsgerät „{device}“ nicht gefunden. Vorhanden: {available}"
+
+#: freestream/__main__.py:559 freestream/backup.py:291 freestream/selftest.py:188
+msgctxt "answer"
+msgid "yes"
+msgstr "ja"
+
+#: freestream/__main__.py:559 freestream/backup.py:291 freestream/selftest.py:188
+msgctxt "answer"
+msgid "no"
+msgstr "nein"
+
+#: freestream/__main__.py:563
+#, python-brace-format
+msgid "Cannot control the Wave:3: {error}"
+msgstr "Wave:3-Steuerung nicht möglich: {error}"
+
+#: freestream/__main__.py:570
+msgid "on (software)"
+msgstr "an (Software)"
+
+#: freestream/__main__.py:378 freestream/mixer.py:1131 freestream/mixer.py:1153
+msgid "Mixer not set up – 'freewave mixer setup'"
+msgstr "Mixer nicht eingerichtet – 'freewave mixer setup'"
+
+#: freestream/__main__.py:375 freestream/waveui.py:1141
+#, python-brace-format
+msgid "Listening to “{mix}”"
+msgstr "„{mix}“ wird abgehört"
+
+#: freestream/actions.py:403
+msgid "Bright +"
+msgstr "Hell +"
+
+#: freestream/actions.py:571 freestream/decksetup.py:83 freestream/wavesetup.py:141
+msgid "Back"
+msgstr "Zurück"
+
+#: freestream/actions.py:687 freestream/livekeys.py:601 freestream/livekeys.py:698
+msgctxt "timer"
+msgid "running"
+msgstr "läuft"
+
+#: freestream/actions.py:1084 freestream/actions.py:1089 freestream/catalog.py:185 freestream/iconlib.py:53
+msgid "Microphone"
+msgstr "Mikrofon"
+
+#: freestream/actions.py:1084
+msgid "Volume"
+msgstr "Lautstärke"
+
+#: freestream/actions.py:384 freestream/actions.py:1090 freestream/waveui.py:2243
+msgid "Muted"
+msgstr "Stumm"
+
+#: freestream/actions.py:403
+msgid "Bright −"
+msgstr "Hell −"
+
+#: freestream/actions.py:403 freestream/catalog.py:133 freestream/freedecksettings.py:175
+msgid "Brightness"
+msgstr "Helligkeit"
+
+#: freestream/actions.py:561 freestream/catalog.py:385 freestream/editdoc.py:256 freestream/editdoc.py:330
+msgid "Folder"
+msgstr "Ordner"
+
+#: freestream/actions.py:688 freestream/livekeys.py:603 freestream/livekeys.py:700
+msgctxt "timer"
+msgid "paused"
+msgstr "Pause"
+
+#: freestream/actions.py:1089
+msgid "Output"
+msgstr "Ausgabe"
+
+#: freestream/actions.py:1098
+#, python-brace-format
+msgid "Action {uuid} does nothing on Linux"
+msgstr "Aktion {uuid} hat unter Linux keine Funktion"
+
+#: freestream/actions.py:473
+#, python-brace-format
+msgid "Program '{name}' not found – add it under Settings → Connections → Windows profiles"
+msgstr "Programm '{name}' nicht gefunden – unter Einstellungen → Verbindungen → Windows-Profile eintragen"
+
+#: freestream/actions.py:682 freestream/livekeys.py:599
+msgctxt "timer"
+msgid "done"
+msgstr "fertig"
+
+#: freestream/actions.py:711
+#, python-brace-format
+msgid "Audio file not found: {path}"
+msgstr "Audiodatei nicht gefunden: {path}"
+
+#: freestream/actions.py:1144
+#, python-brace-format
+msgid "Plugin action {uuid} not available yet"
+msgstr "Plugin-Aktion {uuid} noch nicht verfügbar"
+
+#: freestream/actions.py:1197
+#, python-brace-format
+msgid "Cannot load action {uuid}: {error}"
+msgstr "Aktion {uuid} nicht ladbar: {error}"
+
+#: freestream/actions.py:551
+#, python-brace-format
+msgid "of {n}"
+msgstr "von {n}"
+
+#: freestream/actions.py:783
+#, python-brace-format
+msgid "Multi Action step {action} failed: {error}"
+msgstr "Multi-Action-Schritt {action} fehlgeschlagen: {error}"
+
+#: freestream/app.py:155
+msgid "FreeDeck is running without a window – restarting with a window"
+msgstr "FreeDeck läuft ohne Fenster – starte neu mit Fenster"
+
+#: freestream/app.py:79
+msgid "Open FreeDeck"
+msgstr "FreeDeck öffnen"
+
+#: freestream/app.py:167
+#, python-brace-format
+msgid "No graphical interface ({error}) – FreeDeck is running as a service"
+msgstr "Keine grafische Oberfläche ({error}) – FreeDeck läuft als Dienst"
+
+#: freestream/assets.py:40
+msgid "No Elgato plugins found in the installer"
+msgstr "Keine Elgato-Plugins im Installer gefunden"
+
+#: freestream/assets.py:34
+msgid "Please install 'msitools': sudo apt install msitools"
+msgstr "Bitte 'msitools' installieren: sudo apt install msitools"
+
+#: freestream/autoimport.py:149
+msgid "Default icons imported from the Elgato installer"
+msgstr "Standard-Icons aus dem Elgato-Installer übernommen"
+
+#: freestream/autoimport.py:175
+#, python-brace-format
+msgid "Automatic import of {path} failed: {error}"
+msgstr "Automatischer Import von {path} fehlgeschlagen: {error}"
+
+#: freestream/autoimport.py:148
+#, python-brace-format
+msgid "Elgato icons imported from {name}"
+msgstr "Elgato-Icons aus {name} übernommen"
+
+#: freestream/autoimport.py:155
+#, python-brace-format
+msgid "Plugin {uuid} installed"
+msgstr "Plugin {uuid} installiert"
+
+#: freestream/autoimport.py:158
+#, python-brace-format
+msgid "Plugin “{name}” installed – cannot run on Linux ({reason})"
+msgstr "Plugin „{name}“ installiert – unter Linux nicht lauffähig ({reason})"
+
+#: freestream/autoimport.py:161
+#, python-brace-format
+msgid "Plugin “{name}” installed"
+msgstr "Plugin „{name}“ installiert"
+
+#: freestream/autoimport.py:168
+#, python-brace-format
+msgid "{n} profile imported from {path}"
+msgid_plural "{n} profiles imported from {path}"
+msgstr[0] "{n} Profil aus {path} importiert"
+msgstr[1] "{n} Profile aus {path} importiert"
+
+#: freestream/autoimport.py:170
+#, python-brace-format
+msgid "{n} profile imported from “{name}”"
+msgid_plural "{n} profiles imported from “{name}”"
+msgstr[0] "{n} Profil aus „{name}“ importiert"
+msgstr[1] "{n} Profile aus „{name}“ importiert"
+
+#: freestream/backup.py:216 freestream/backup.py:227 freestream/backup.py:223
+msgid "This file is not a FreeStream backup."
+msgstr "Diese Datei ist keine FreeStream-Sicherung."
+
+#: freestream/backup.py:229
+msgid "This backup was made with a newer version of FreeStream. Please update first."
+msgstr "Diese Sicherung wurde mit einer neueren FreeStream-Version erstellt. Bitte aktualisiere zuerst."
+
+#: freestream/backup.py:231
+msgid "The backup contains too many files."
+msgstr "Die Sicherung enthält zu viele Dateien."
+
+#: freestream/backup.py:243 freestream/backup.py:241 freestream/backup.py:333
+msgid "The backup is damaged or too large."
+msgstr "Die Sicherung ist beschädigt oder zu groß."
+
+#: freestream/backup.py:246 freestream/backup.py:249
+msgid "The backup is incomplete or damaged."
+msgstr "Die Sicherung ist unvollständig oder beschädigt."
+
+#: freestream/backup.py:290
+msgid "Plugins: not included (installed plugins are kept)"
+msgstr "Plugins: nicht enthalten (installierte Plugins bleiben erhalten)"
+
+#: freestream/backup.py:282
+#, python-brace-format
+msgid "Created: {date} on {host}"
+msgstr "Erstellt: {date} auf {host}"
+
+#: freestream/backup.py:283
+#, python-brace-format
+msgid "FreeStream version: {version}"
+msgstr "FreeStream-Version: {version}"
+
+#: freestream/backup.py:292
+#, python-brace-format
+msgid "Settings: {state}"
+msgstr "Einstellungen: {state}"
+
+#: freestream/backup.py:293 freestream/settingsui.py:290
+#, python-brace-format
+msgid "Size: {size}"
+msgstr "Größe: {size}"
+
+#: freestream/backup.py:361
+msgid "Not enough free disk space to restore this backup."
+msgstr "Nicht genug freier Speicherplatz, um diese Sicherung wiederherzustellen."
+
+#: freestream/backup.py:128
+#, python-brace-format
+msgid "Skipping link outside the data folder: {path}"
+msgstr "Verweis außerhalb des Datenordners übersprungen: {path}"
+
+#: freestream/backup.py:285
+#, python-brace-format
+msgid "Profiles: {count}"
+msgstr "Profile: {count}"
+
+#: freestream/backup.py:288
+#, python-brace-format
+msgid "Plugins: {count}"
+msgstr "Plugins: {count}"
+
+#: freestream/backup.py:192
+#, python-brace-format
+msgid "The backup could not be written: {error}"
+msgstr "Die Sicherung konnte nicht geschrieben werden: {error}"
+
+#: freestream/backup.py:225
+#, python-brace-format
+msgid "The backup could not be read: {error}"
+msgstr "Die Sicherung konnte nicht gelesen werden: {error}"
+
+#: freestream/backup.py:235 freestream/backup.py:237 freestream/backup.py:253 freestream/backup.py:381
+#, python-brace-format
+msgid "The backup contains an unsafe path: {path}"
+msgstr "Die Sicherung enthält einen unsicheren Pfad: {path}"
+
+#: freestream/backup.py:397
+#, python-brace-format
+msgid "The backup could not be restored: {error}"
+msgstr "Die Sicherung konnte nicht wiederhergestellt werden: {error}"
+
+#: freestream/backup.py:488
+#, python-brace-format
+msgid "Could not start {program}: {error}"
+msgstr "{program} konnte nicht gestartet werden: {error}"
+
+#: freestream/bgui.py:14 freestream/editor.py:2116
+msgid "Images"
+msgstr "Bilder"
+
+#: freestream/bgui.py:14 freestream/decksetup.py:300 freestream/editor.py:972 freestream/editor.py:2117
+msgid "All files"
+msgstr "Alle Dateien"
+
+#: freestream/bgui.py:19 freestream/bgui.py:127 freestream/bgui.py:167 freestream/editor.py:1132
+msgid "Background"
+msgstr "Hintergrund"
+
+#: freestream/bgui.py:25
+msgid "Background image"
+msgstr "Hintergrundbild"
+
+#: freestream/bgui.py:26
+msgid "The image is spread across all keys of this page – like a desktop wallpaper. Keys with their own icon sit on top; empty keys show the image."
+msgstr "Das Bild wird über alle Tasten dieser Seite verteilt – wie ein Hintergrundbild auf dem Desktop. Tasten mit eigenem Symbol liegen darüber; leere Tasten zeigen das Bild."
+
+#: freestream/bgui.py:38 freestream/bgui.py:73 freestream/editor.py:2258 freestream/freedecksettings.py:535
+msgid "Remove"
+msgstr "Entfernen"
+
+#: freestream/bgui.py:40
+msgid "Apply to all pages"
+msgstr "Auf alle Seiten übernehmen"
+
+#: freestream/bgui.py:43
+msgid "DIM"
+msgstr "ABDUNKELN"
+
+#: freestream/bgui.py:121
+msgid "Choose background image"
+msgstr "Hintergrundbild wählen"
+
+#: freestream/bgui.py:161
+msgid "Image for the touch strip"
+msgstr "Bild für den Touchstreifen"
+
+#: freestream/bgui.py:37 freestream/bgui.py:72
+msgid "Choose image …"
+msgstr "Bild wählen …"
+
+#: freestream/bgui.py:51
+msgid "Darkens the image so titles stay easy to read."
+msgstr "Macht das Bild dunkler, damit Titel gut lesbar bleiben."
+
+#: freestream/bgui.py:78 freestream/decksetup.py:22 freestream/editor.py:2410 freestream/iconlib.py:72
+msgid "Done"
+msgstr "Fertig"
+
+#: freestream/bgui.py:144
+#, python-brace-format
+msgid "Background applied to {n} more page"
+msgid_plural "Background applied to {n} more pages"
+msgstr[0] "Hintergrund auf {n} weitere Seite übernommen"
+msgstr[1] "Hintergrund auf {n} weitere Seiten übernommen"
+
+#: freestream/bgui.py:63
+msgid "Touch strip"
+msgstr "Touchstreifen"
+
+#: freestream/bgui.py:64
+msgid "Custom image for the whole touch strip (as in the Elgato app)."
+msgstr "Eigenes Bild für den ganzen Touchstreifen (wie in der Elgato-App)."
+
+#: freestream/catalog.py:328
+msgid "Accent color"
+msgstr "Akzentfarbe"
+
+#: freestream/catalog.py:329
+msgid "Show graph"
+msgstr "Verlauf anzeigen"
+
+#: freestream/catalog.py:330
+msgid "Clock & timer"
+msgstr "Uhr & Timer"
+
+#: freestream/catalog.py:330
+msgid "System monitor"
+msgstr "Systemmonitor"
+
+#: freestream/catalog.py:59
+msgid "Play / Pause"
+msgstr "Wiedergabe / Pause"
+
+#: freestream/catalog.py:59 freestream/catalog.py:255
+msgid "Next track"
+msgstr "Nächster Titel"
+
+#: freestream/catalog.py:59 freestream/catalog.py:256
+msgid "Previous track"
+msgstr "Vorheriger Titel"
+
+#: freestream/catalog.py:59 freestream/catalog.py:258 freestream/iconlib.py:56
+msgid "Stop"
+msgstr "Stopp"
+
+#: freestream/catalog.py:60
+msgid "Mute"
+msgstr "Stumm"
+
+#: freestream/catalog.py:60 freestream/catalog.py:66 freestream/catalog.py:258 freestream/iconlib.py:55
+msgid "Volume up"
+msgstr "Lauter"
+
+#: freestream/catalog.py:60 freestream/catalog.py:66 freestream/catalog.py:258 freestream/iconlib.py:55
+msgid "Volume down"
+msgstr "Leiser"
+
+#: freestream/catalog.py:60
+msgid "Fast forward"
+msgstr "Vorspulen"
+
+#: freestream/catalog.py:60
+msgid "Rewind"
+msgstr "Zurückspulen"
+
+#: freestream/catalog.py:61
+msgid "Volume (dial)"
+msgstr "Lautstärke (Dial)"
+
+#: freestream/catalog.py:62
+msgid "Brighter"
+msgstr "Heller"
+
+#: freestream/catalog.py:62
+msgid "Darker"
+msgstr "Dunkler"
+
+#: freestream/catalog.py:62
+msgid "Minimum"
+msgstr "Minimum"
+
+#: freestream/catalog.py:62
+msgid "Low"
+msgstr "Niedrig"
+
+#: freestream/catalog.py:62
+msgid "Medium"
+msgstr "Mittel"
+
+#: freestream/catalog.py:63
+msgid "High"
+msgstr "Hoch"
+
+#: freestream/catalog.py:63
+msgid "Maximum"
+msgstr "Maximum"
+
+#: freestream/catalog.py:64
+msgid "Play / Overlap"
+msgstr "Abspielen / Überlappen"
+
+#: freestream/catalog.py:64
+msgid "Play / Stop"
+msgstr "Abspielen / Stopp"
+
+#: freestream/catalog.py:64
+msgid "Play / Restart"
+msgstr "Abspielen / Neustart"
+
+#: freestream/catalog.py:65
+msgid "Loop / Stop"
+msgstr "Schleife / Stopp"
+
+#: freestream/catalog.py:66
+msgid "Toggle mute"
+msgstr "Stummschalten umschalten"
+
+#: freestream/catalog.py:67 freestream/catalog.py:295
+msgid "Set volume"
+msgstr "Lautstärke setzen"
+
+#: freestream/catalog.py:69 freestream/editor.py:2378 freestream/editor.py:2385
+msgid "Key combination"
+msgstr "Tastenkombination"
+
+#: freestream/catalog.py:70
+msgid "Rotate left"
+msgstr "Linksdrehung"
+
+#: freestream/catalog.py:70
+msgid "Rotate right"
+msgstr "Rechtsdrehung"
+
+#: freestream/catalog.py:71 freestream/catalog.py:157
+msgid "Press"
+msgstr "Drücken"
+
+#: freestream/catalog.py:71
+msgid "Touch"
+msgstr "Berühren"
+
+#: freestream/catalog.py:75 freestream/catalog.py:79 freestream/catalog.py:83 freestream/catalog.py:89
+msgid "System"
+msgstr "System"
+
+#: freestream/catalog.py:83 freestream/catalog.py:207 freestream/catalog.py:85 freestream/iconlib.py:77
+msgid "Text"
+msgstr "Text"
+
+#: freestream/catalog.py:89 freestream/editor.py:691 freestream/iconlib.py:71
+msgid "Open"
+msgstr "Öffnen"
+
+#: freestream/catalog.py:92
+msgid "Open Application"
+msgstr "Programm öffnen"
+
+#: freestream/catalog.py:100
+msgid "Close Application"
+msgstr "Programm schließen"
+
+#: freestream/catalog.py:116
+msgid "Mouse Wheel"
+msgstr "Mausrad"
+
+#: freestream/catalog.py:121
+msgid "Create Folder"
+msgstr "Ordner"
+
+#: freestream/catalog.py:121 freestream/catalog.py:123 freestream/catalog.py:125 freestream/catalog.py:126
+msgid "Navigation"
+msgstr "Navigation"
+
+#: freestream/catalog.py:123
+msgid "Parent Folder"
+msgstr "Übergeordneter Ordner"
+
+#: freestream/catalog.py:125
+msgid "Next Page"
+msgstr "Nächste Seite"
+
+#: freestream/catalog.py:126
+msgid "Previous Page"
+msgstr "Vorherige Seite"
+
+#: freestream/catalog.py:127
+msgid "Go to Page"
+msgstr "Gehe zu Seite"
+
+#: freestream/catalog.py:129
+msgid "Page Indicator"
+msgstr "Seitenanzeige"
+
+#: freestream/catalog.py:130
+msgid "Switch Profile"
+msgstr "Profil wechseln"
+
+#: freestream/catalog.py:137 freestream/iconlib.py:42
+msgid "Time"
+msgstr "Uhrzeit"
+
+#: freestream/catalog.py:148
+msgid "Random Action"
+msgstr "Zufällige Aktion"
+
+#: freestream/catalog.py:150
+msgid "Delay"
+msgstr "Verzögerung"
+
+#: freestream/catalog.py:163
+msgid "Play Audio"
+msgstr "Audio abspielen"
+
+#: freestream/catalog.py:167
+msgid "Stop Audio"
+msgstr "Audio stoppen"
+
+#: freestream/catalog.py:169
+msgid "Output Device"
+msgstr "Ausgabegerät"
+
+#: freestream/catalog.py:169 freestream/catalog.py:176 freestream/editor.py:38 freestream/iconlib.py:41
+msgid "Audio"
+msgstr "Audio"
+
+#: freestream/catalog.py:176
+msgid "Input Device"
+msgstr "Eingabegerät"
+
+#: freestream/catalog.py:184 freestream/iconlib.py:55 freestream/mixer.py:61
+msgid "Music"
+msgstr "Musik"
+
+#: freestream/catalog.py:184 freestream/iconlib.py:74 freestream/mixer.py:62
+msgid "Browser"
+msgstr "Browser"
+
+#: freestream/catalog.py:184 freestream/mixer.py:63
+msgid "Voice Chat"
+msgstr "Voice Chat"
+
+#: freestream/catalog.py:185 freestream/iconlib.py:73 freestream/mixer.py:64
+msgid "Game"
+msgstr "Spiel"
+
+#: freestream/catalog.py:185 freestream/iconlib.py:56 freestream/waveui.py:183 freestream/waveui.py:656
+msgid "Effects"
+msgstr "Effekte"
+
+#: freestream/catalog.py:188 freestream/mixer.py:75 freestream/waveui.py:666
+msgid "Personal Mix"
+msgstr "Persönlicher Mix"
+
+#: freestream/catalog.py:188 freestream/mixer.py:77 freestream/waveui.py:668
+msgid "Stream Mix"
+msgstr "Stream-Mix"
+
+#: freestream/catalog.py:207
+msgid "Channel tile"
+msgstr "Kanal-Kachel"
+
+#: freestream/catalog.py:207
+msgid "Fader, upper half"
+msgstr "Fader, obere Hälfte"
+
+#: freestream/catalog.py:208
+msgid "Fader, lower half"
+msgstr "Fader, untere Hälfte"
+
+#: freestream/catalog.py:209
+msgid "toggle"
+msgstr "umschalten"
+
+#: freestream/catalog.py:209
+msgid "start"
+msgstr "starten"
+
+#: freestream/catalog.py:209
+msgid "stop"
+msgstr "stoppen"
+
+#: freestream/catalog.py:227 freestream/catalog.py:228 freestream/catalog.py:312 freestream/hasskeys.py:458
+msgid "Scene"
+msgstr "Szene"
+
+#: freestream/catalog.py:230 freestream/iconlib.py:58
+msgid "Record"
+msgstr "Aufnahme"
+
+#: freestream/catalog.py:234
+msgid "Source On/Off"
+msgstr "Quelle ein/aus"
+
+#: freestream/catalog.py:236
+msgid "Audio Input"
+msgstr "Audio-Eingang"
+
+#: freestream/catalog.py:241
+msgid "Replay Buffer"
+msgstr "Replay-Puffer"
+
+#: freestream/catalog.py:244
+msgid "Virtual Camera"
+msgstr "Virtuelle Kamera"
+
+#: freestream/catalog.py:245
+msgid "Studio Mode"
+msgstr "Studio-Modus"
+
+#: freestream/catalog.py:246
+msgid "Run Transition"
+msgstr "Übergang ausführen"
+
+#: freestream/catalog.py:251
+msgid "Media Player"
+msgstr "Medien-Player"
+
+#: freestream/catalog.py:251 freestream/editor.py:39 freestream/editor.py:83
+msgid "Spotify & Media"
+msgstr "Spotify & Medien"
+
+#: freestream/catalog.py:269
+msgid "Toggle Entity"
+msgstr "Entität schalten"
+
+#: freestream/catalog.py:275
+msgid "Call Service"
+msgstr "Dienst aufrufen"
+
+#: freestream/catalog.py:281
+msgid "Scene / Script"
+msgstr "Szene / Skript"
+
+#: freestream/catalog.py:284
+msgid "Show State"
+msgstr "Zustand anzeigen"
+
+#: freestream/catalog.py:291
+msgid "Mixer Channel"
+msgstr "Mixer-Kanal"
+
+#: freestream/catalog.py:300
+msgid "Choose Mix"
+msgstr "Mix wählen"
+
+#: freestream/catalog.py:304
+msgid "Channel Pages"
+msgstr "Kanal-Seiten"
+
+#: freestream/catalog.py:308
+msgid "Personal Mix Output"
+msgstr "Ausgang Persönlicher Mix"
+
+#: freestream/catalog.py:311
+msgid "Mixer Scene"
+msgstr "Mixer-Szene"
+
+#: freestream/catalog.py:315
+msgid "Wave Microphone"
+msgstr "Wave-Mikrofon"
+
+#: freestream/catalog.py:326
+msgid "Blue"
+msgstr "Blau"
+
+#: freestream/catalog.py:326
+msgid "Green"
+msgstr "Grün"
+
+#: freestream/catalog.py:326
+msgid "Orange"
+msgstr "Orange"
+
+#: freestream/catalog.py:326
+msgid "Red"
+msgstr "Rot"
+
+#: freestream/catalog.py:327
+msgid "Purple"
+msgstr "Lila"
+
+#: freestream/catalog.py:327
+msgid "Turquoise"
+msgstr "Türkis"
+
+#: freestream/catalog.py:327
+msgid "White"
+msgstr "Weiß"
+
+#: freestream/catalog.py:334 freestream/iconlib.py:67
+msgid "Clock"
+msgstr "Uhr"
+
+#: freestream/catalog.py:346 freestream/livekeys.py:604 freestream/livekeys.py:541
+msgid "Countdown"
+msgstr "Countdown"
+
+#: freestream/catalog.py:358 freestream/iconlib.py:68 freestream/livekeys.py:701
+msgid "Stopwatch"
+msgstr "Stoppuhr"
+
+#: freestream/catalog.py:362
+msgid "CPU Load"
+msgstr "CPU-Last"
+
+#: freestream/catalog.py:364 freestream/iconlib.py:66
+msgid "Memory"
+msgstr "RAM"
+
+#: freestream/catalog.py:366 freestream/iconlib.py:69
+msgid "Temperature"
+msgstr "Temperatur"
+
+#: freestream/catalog.py:372 freestream/iconlib.py:67
+msgid "Network"
+msgstr "Netzwerk"
+
+#: freestream/catalog.py:377 freestream/catalog.py:380 freestream/iconlib.py:67
+msgid "Battery"
+msgstr "Akku"
+
+#: freestream/catalog.py:382
+msgid "Disk Space"
+msgstr "Speicherplatz"
+
+#: freestream/catalog.py:504
+msgctxt "key name"
+msgid "Ctrl"
+msgstr "Strg"
+
+#: freestream/catalog.py:504
+msgctxt "key name"
+msgid "Shift"
+msgstr "Umschalt"
+
+#: freestream/catalog.py:514
+msgctxt "key name"
+msgid "Backspace"
+msgstr "Rücktaste"
+
+#: freestream/catalog.py:515
+msgctxt "key name"
+msgid "Space"
+msgstr "Leertaste"
+
+#: freestream/catalog.py:516
+msgctxt "key name"
+msgid "PgUp"
+msgstr "Bild↑"
+
+#: freestream/catalog.py:516
+msgctxt "key name"
+msgid "PgDn"
+msgstr "Bild↓"
+
+#: freestream/catalog.py:517
+msgctxt "key name"
+msgid "End"
+msgstr "Ende"
+
+#: freestream/catalog.py:517
+msgctxt "key name"
+msgid "Home"
+msgstr "Pos1"
+
+#: freestream/catalog.py:518
+msgctxt "key name"
+msgid "Left"
+msgstr "Links"
+
+#: freestream/catalog.py:518
+msgctxt "key name"
+msgid "Up"
+msgstr "Hoch"
+
+#: freestream/catalog.py:519
+msgctxt "key name"
+msgid "Right"
+msgstr "Rechts"
+
+#: freestream/catalog.py:519
+msgctxt "key name"
+msgid "Down"
+msgstr "Runter"
+
+#: freestream/catalog.py:520
+msgctxt "key name"
+msgid "Print"
+msgstr "Druck"
+
+#: freestream/catalog.py:520
+msgctxt "key name"
+msgid "Ins"
+msgstr "Einfg"
+
+#: freestream/catalog.py:521
+msgctxt "key name"
+msgid "Del"
+msgstr "Entf"
+
+#: freestream/catalog.py:523
+msgctxt "key name"
+msgid "Mute"
+msgstr "Stumm"
+
+#: freestream/catalog.py:523
+msgctxt "key name"
+msgid "Volume Down"
+msgstr "Leiser"
+
+#: freestream/catalog.py:524
+msgctxt "key name"
+msgid "Volume Up"
+msgstr "Lauter"
+
+#: freestream/catalog.py:524
+msgctxt "key name"
+msgid "Next Track"
+msgstr "Nächster Titel"
+
+#: freestream/catalog.py:525
+msgctxt "key name"
+msgid "Previous Track"
+msgstr "Vorheriger Titel"
+
+#: freestream/catalog.py:525
+msgctxt "key name"
+msgid "Stop"
+msgstr "Stopp"
+
+#: freestream/catalog.py:544 freestream/catalog.py:295
+msgid "volume down"
+msgstr "leiser"
+
+#: freestream/catalog.py:544 freestream/catalog.py:294
+msgid "volume up"
+msgstr "lauter"
+
+#: freestream/catalog.py:78
+msgid "Sends a key combination"
+msgstr "Sendet eine Tastenkombination"
+
+#: freestream/catalog.py:82
+msgid "Switches between two key combinations on each press"
+msgstr "Wechselt bei jedem Druck zwischen zwei Tastenkombinationen"
+
+#: freestream/catalog.py:88
+msgid "Pastes a text"
+msgstr "Fügt einen Text ein"
+
+#: freestream/catalog.py:91
+msgid "Opens a file, folder or web address"
+msgstr "Öffnet eine Datei, einen Ordner oder eine Adresse"
+
+#: freestream/catalog.py:99
+msgid "Launches a program"
+msgstr "Startet ein Programm"
+
+#: freestream/catalog.py:103
+msgid "Quits a program"
+msgstr "Beendet ein Programm"
+
+#: freestream/catalog.py:108
+msgid "Opens a website"
+msgstr "Öffnet eine Website"
+
+#: freestream/catalog.py:111
+msgid "Controls playback and volume"
+msgstr "Wiedergabe steuern und Lautstärke"
+
+#: freestream/catalog.py:115
+msgid "Countdown; long press resets"
+msgstr "Countdown; langes Drücken setzt zurück"
+
+#: freestream/catalog.py:119
+msgid "Scrolls with the dial"
+msgstr "Scrollt mit dem Dial"
+
+#: freestream/catalog.py:122
+msgid "Sub-page with its own keys"
+msgstr "Unterseite mit eigenen Tasten"
+
+#: freestream/catalog.py:124
+msgid "Goes back out of a folder"
+msgstr "Zurück aus einem Ordner"
+
+#: freestream/catalog.py:136
+msgid "Turns the display off"
+msgstr "Schaltet das Display aus"
+
+#: freestream/catalog.py:144
+msgid "Several actions in sequence"
+msgstr "Mehrere Aktionen nacheinander"
+
+#: freestream/catalog.py:147
+msgid "Alternates between two sequences"
+msgstr "Abwechselnd zwei Abläufe"
+
+#: freestream/catalog.py:152
+msgid "Only inside a Multi Action"
+msgstr "Nur innerhalb einer Multi Action"
+
+#: freestream/catalog.py:155
+msgid "Different actions for tap, double tap and hold"
+msgstr "Unterschiedliche Aktionen für Tippen, Doppeltippen, Halten"
+
+#: freestream/catalog.py:229
+msgid "Switches the scene (dial: cycles through scenes)"
+msgstr "Wechselt die Szene (Dial: durch Szenen blättern)"
+
+#: freestream/catalog.py:240
+msgid "Key: mute · Dial: volume"
+msgstr "Taste: stumm schalten · Dial: Lautstärke"
+
+#: freestream/catalog.py:247
+msgid "Preview → Program in Studio Mode"
+msgstr "Vorschau → Programm im Studio-Modus"
+
+#: freestream/catalog.py:259
+msgid "Controls Spotify or any MPRIS player"
+msgstr "Steuert Spotify oder jeden MPRIS-Player"
+
+#: freestream/catalog.py:267
+msgid "Needs your own Discord app (see README)"
+msgstr "Braucht eine eigene Discord-App (siehe README)"
+
+#: freestream/catalog.py:274
+msgid "Switches a light, switch, fan, cover … (dial: brightness / temperature)"
+msgstr "Schaltet Lampe, Schalter, Ventilator, Rollladen … (Dial: Helligkeit / Temperatur)"
+
+#: freestream/catalog.py:280
+msgid "Calls any Home Assistant service"
+msgstr "Ruft einen beliebigen Home-Assistant-Dienst auf"
+
+#: freestream/catalog.py:283
+msgid "Activates a scene or runs a script"
+msgstr "Aktiviert eine Szene oder startet ein Skript"
+
+#: freestream/catalog.py:289
+msgid "Shows a sensor value with its unit, updated live"
+msgstr "Zeigt einen Sensorwert mit Einheit, live aktualisiert"
+
+#: freestream/catalog.py:299
+msgid "Wave Link replacement: channel volume per mix"
+msgstr "Wave-Link-Ersatz: Kanal-Lautstärke je Mix"
+
+#: freestream/catalog.py:303
+msgid "Chooses which mix the channel keys with “Chosen with the Mix key” control"
+msgstr "Wählt, welchen Mix die Kanaltasten mit „Mit der Mix-Taste gewählt“ steuern"
+
+#: freestream/catalog.py:307
+msgid "Shows which channels this page controls; press to turn the page"
+msgstr "Zeigt, welche Kanäle diese Seite steuert; drücken blättert weiter"
+
+#: freestream/catalog.py:310
+msgid "Switches the Personal Mix between headphones and speakers"
+msgstr "Schaltet den Persönlichen Mix zwischen Kopfhörern und Lautsprechern um"
+
+#: freestream/catalog.py:313
+msgid "Applies a mixer scene saved in FreeWave and shows when it is active"
+msgstr "Wendet eine in FreeWave gespeicherte Mixer-Szene an und zeigt, wann sie aktiv ist"
+
+#: freestream/catalog.py:323
+msgid "Gain, mute, Low Cut, Clipguard, LEDs (dial: gain)"
+msgstr "Gain, Stumm, Low Cut, Clipguard, LEDs (Dial: Gain)"
+
+#: freestream/catalog.py:345
+msgid "Shows the time and date, optionally in another time zone"
+msgstr "Zeigt Uhrzeit und Datum, wahlweise in einer anderen Zeitzone"
+
+#: freestream/catalog.py:357
+msgid "Press: start/pause · long press: reset · dial: change duration"
+msgstr "Drücken: Start/Pause · lang drücken: zurücksetzen · Dial: Dauer ändern"
+
+#: freestream/catalog.py:360
+msgid "Press: start/stop · long press: reset"
+msgstr "Drücken: Start/Stopp · lang drücken: zurücksetzen"
+
+#: freestream/catalog.py:363
+msgid "Processor load in percent"
+msgstr "Prozessorlast in Prozent"
+
+#: freestream/catalog.py:365
+msgid "Used RAM in percent"
+msgstr "Belegter Arbeitsspeicher in Prozent"
+
+#: freestream/catalog.py:371
+msgid "Temperature from the hardware sensors"
+msgstr "Temperatur der Hardware-Sensoren"
+
+#: freestream/catalog.py:376
+msgid "Download and upload rate"
+msgstr "Download- und Upload-Rate"
+
+#: freestream/catalog.py:381
+msgid "Charge level and charging state"
+msgstr "Ladestand und Ladezustand"
+
+#: freestream/catalog.py:386
+msgid "Used space of a drive"
+msgstr "Belegter Platz eines Laufwerks"
+
+#: freestream/catalog.py:647
+msgid "No key specified"
+msgstr "Keine Taste angegeben"
+
+#: freestream/catalog.py:204
+msgid "Chosen with the Mix key"
+msgstr "Mit der Mix-Taste gewählt"
+
+#: freestream/catalog.py:222
+msgid "(no scenes saved in FreeWave yet)"
+msgstr "(noch keine Szenen in FreeWave gespeichert)"
+
+#: freestream/catalog.py:81 freestream/catalog.py:146
+msgid "State 1"
+msgstr "Zustand 1"
+
+#: freestream/catalog.py:81 freestream/catalog.py:146
+msgid "State 2"
+msgstr "Zustand 2"
+
+#: freestream/catalog.py:86
+msgid "Send Enter afterwards"
+msgstr "Danach Enter senden"
+
+#: freestream/catalog.py:87
+msgid "Type instead of pasting"
+msgstr "Tippen statt Einfügen"
+
+#: freestream/catalog.py:90
+msgid "File, folder or URL"
+msgstr "Datei, Ordner oder URL"
+
+#: freestream/catalog.py:94
+msgid "Program / command"
+msgstr "Programm / Befehl"
+
+#: freestream/catalog.py:95
+msgid "Arguments"
+msgstr "Argumente"
+
+#: freestream/catalog.py:96
+msgid "Bring a running program to the front"
+msgstr "Laufendes Programm in den Vordergrund holen"
+
+#: freestream/catalog.py:97
+msgid "Long press"
+msgstr "Langes Drücken"
+
+#: freestream/catalog.py:102 freestream/freedecksettings.py:320 freestream/settingsui.py:69
+msgid "Program"
+msgstr "Programm"
+
+#: freestream/catalog.py:102
+msgid "Process name"
+msgstr "Prozessname"
+
+#: freestream/catalog.py:106 freestream/connectionsui.py:166 freestream/connectionsui.py:267 freestream/hassui.py:79
+msgid "Address"
+msgstr "Adresse"
+
+#: freestream/catalog.py:107
+msgid "Browser (empty = default)"
+msgstr "Browser (leer = Standard)"
+
+#: freestream/catalog.py:110 freestream/catalog.py:134 freestream/catalog.py:231 freestream/catalog.py:233
+msgid "Function"
+msgstr "Funktion"
+
+#: freestream/catalog.py:113
+msgid "Duration (seconds)"
+msgstr "Dauer (Sekunden)"
+
+#: freestream/catalog.py:114
+msgid "Alarm sound (optional)"
+msgstr "Alarmton (optional)"
+
+#: freestream/catalog.py:118
+msgid "Scroll horizontally"
+msgstr "Horizontal scrollen"
+
+#: freestream/catalog.py:118
+msgid "Invert"
+msgstr "Umkehren"
+
+#: freestream/catalog.py:128
+msgid "Page"
+msgstr "Seite"
+
+#: freestream/catalog.py:131 freestream/editor.py:989 freestream/freedecksettings.py:190
+msgid "Profile"
+msgstr "Profil"
+
+#: freestream/catalog.py:139 freestream/catalog.py:342
+msgid "24-hour format"
+msgstr "24-Stunden-Format"
+
+#: freestream/catalog.py:140 freestream/editor.py:1877 freestream/settingsui.py:90 freestream/theme.py:1360
+msgid "Appearance"
+msgstr "Darstellung"
+
+#: freestream/catalog.py:143
+msgid "Steps"
+msgstr "Schritte"
+
+#: freestream/catalog.py:149
+msgid "Selection"
+msgstr "Auswahl"
+
+#: freestream/catalog.py:151
+msgid "Wait time (ms)"
+msgstr "Wartezeit (ms)"
+
+#: freestream/catalog.py:154
+msgid "Tap"
+msgstr "Tippen"
+
+#: freestream/catalog.py:154
+msgid "Double tap"
+msgstr "Doppeltippen"
+
+#: freestream/catalog.py:154
+msgid "Hold"
+msgstr "Halten"
+
+#: freestream/catalog.py:157
+msgid "Turn left"
+msgstr "Links drehen"
+
+#: freestream/catalog.py:157
+msgid "Turn right"
+msgstr "Rechts drehen"
+
+#: freestream/catalog.py:159
+msgid "Actions"
+msgstr "Aktionen"
+
+#: freestream/catalog.py:161
+msgid "Dial actions"
+msgstr "Dial-Aktionen"
+
+#: freestream/catalog.py:165
+msgid "Audio file"
+msgstr "Audiodatei"
+
+#: freestream/catalog.py:165
+msgid "Mode"
+msgstr "Modus"
+
+#: freestream/catalog.py:166 freestream/catalog.py:354
+msgid "Volume (%)"
+msgstr "Lautstärke (%)"
+
+#: freestream/catalog.py:171 freestream/catalog.py:178 freestream/catalog.py:294
+msgid "Key"
+msgstr "Taste"
+
+#: freestream/catalog.py:172 freestream/catalog.py:179 freestream/catalog.py:296
+msgid "Step size (%)"
+msgstr "Schrittweite (%)"
+
+#: freestream/catalog.py:173 freestream/catalog.py:180
+msgid "Device (empty = default)"
+msgstr "Gerät (leer = Standard)"
+
+#: freestream/catalog.py:174
+msgid "Only this program (optional)"
+msgstr "Nur dieses Programm (optional)"
+
+#: freestream/catalog.py:203 freestream/wavedialogs.py:821
+msgid "All mixes"
+msgstr "Alle Mixe"
+
+#: freestream/catalog.py:235 freestream/native.py:178
+msgid "Source"
+msgstr "Quelle"
+
+#: freestream/catalog.py:235
+msgid "Scene (empty = current)"
+msgstr "Szene (leer = aktuelle)"
+
+#: freestream/catalog.py:238
+msgid "Audio input"
+msgstr "Audio-Eingang"
+
+#: freestream/catalog.py:239
+msgid "Step per dial notch (dB)"
+msgstr "Schritt je Dial-Raste (dB)"
+
+#: freestream/catalog.py:249
+msgid "Source (empty = program)"
+msgstr "Quelle (leer = Programm)"
+
+#: freestream/catalog.py:266
+msgid "Channel ID (channel only)"
+msgstr "Kanal-ID (nur Kanal)"
+
+#: freestream/catalog.py:271 freestream/catalog.py:286
+msgid "Entity"
+msgstr "Entität"
+
+#: freestream/catalog.py:272
+msgid "Show brightness / position"
+msgstr "Helligkeit / Position zeigen"
+
+#: freestream/catalog.py:273
+msgid "Dial step size (%)"
+msgstr "Schrittweite am Dial (%)"
+
+#: freestream/catalog.py:277
+msgid "Service"
+msgstr "Dienst"
+
+#: freestream/catalog.py:278
+msgid "Entity (optional)"
+msgstr "Entität (optional)"
+
+#: freestream/catalog.py:279
+msgid "Service data (JSON, optional)"
+msgstr "Dienstdaten (JSON, optional)"
+
+#: freestream/catalog.py:282
+msgid "Scene or script"
+msgstr "Szene oder Skript"
+
+#: freestream/catalog.py:287
+msgid "Attribute (empty = state)"
+msgstr "Attribut (leer = Zustand)"
+
+#: freestream/catalog.py:288
+msgid "Decimal places (−1 = automatic)"
+msgstr "Nachkommastellen (−1 = automatisch)"
+
+#: freestream/catalog.py:293 freestream/native.py:407
+msgid "Channel"
+msgstr "Kanal"
+
+#: freestream/catalog.py:297
+msgid "Volume for “set” (%)"
+msgstr "Lautstärke für „setzen“ (%)"
+
+#: freestream/catalog.py:298
+msgid "Look"
+msgstr "Aussehen"
+
+#: freestream/catalog.py:305
+msgid "First channel"
+msgstr "Erster Kanal"
+
+#: freestream/catalog.py:306
+msgid "Last channel"
+msgstr "Letzter Kanal"
+
+#: freestream/catalog.py:309
+msgid "Device (empty = next)"
+msgstr "Gerät (leer = nächstes)"
+
+#: freestream/catalog.py:322
+msgid "Gain step size (%)"
+msgstr "Schrittweite Gain (%)"
+
+#: freestream/catalog.py:337
+msgid "Show"
+msgstr "Anzeigen"
+
+#: freestream/catalog.py:339
+msgid "Date format"
+msgstr "Datumsformat"
+
+#: freestream/catalog.py:342
+msgid "Show seconds"
+msgstr "Sekunden anzeigen"
+
+#: freestream/catalog.py:343
+msgid "Time zone"
+msgstr "Zeitzone"
+
+#: freestream/catalog.py:349
+msgid "Duration"
+msgstr "Dauer"
+
+#: freestream/catalog.py:350 freestream/catalog.py:359
+msgid "Label"
+msgstr "Beschriftung"
+
+#: freestream/catalog.py:351
+msgid "Sound at the end"
+msgstr "Ton am Ende"
+
+#: freestream/catalog.py:352
+msgid "Notification at the end"
+msgstr "Benachrichtigung am Ende"
+
+#: freestream/catalog.py:353
+msgid "Alarm sound"
+msgstr "Alarmton"
+
+#: freestream/catalog.py:355
+msgid "Repeat sound"
+msgstr "Ton wiederholen"
+
+#: freestream/catalog.py:356
+msgid "Dial step (seconds)"
+msgstr "Dial-Schritt (Sekunden)"
+
+#: freestream/catalog.py:368
+msgid "Unit"
+msgstr "Einheit"
+
+#: freestream/catalog.py:369
+msgid "Sensor"
+msgstr "Sensor"
+
+#: freestream/catalog.py:374
+msgid "Network interface"
+msgstr "Netzwerkschnittstelle"
+
+#: freestream/catalog.py:94
+msgid "e.g. firefox or flatpak run …"
+msgstr "z. B. firefox oder flatpak run …"
+
+#: freestream/catalog.py:228
+msgid "Name as in OBS"
+msgstr "Name wie in OBS"
+
+#: freestream/catalog.py:238
+msgid "e.g. Mic/Aux"
+msgstr "z. B. Mic/Aux"
+
+#: freestream/catalog.py:253
+msgid "spotify, vlc, firefox … (empty = active)"
+msgstr "spotify, vlc, firefox … (leer = aktiver)"
+
+#: freestream/catalog.py:277
+msgid "e.g. light.turn_on"
+msgstr "z. B. light.turn_on"
+
+#: freestream/catalog.py:343
+msgid "e.g. Europe/Berlin (empty = local)"
+msgstr "z. B. Europe/Berlin (leer = Ortszeit)"
+
+#: freestream/catalog.py:349
+msgid "e.g. 5:00, 90s or 1h30m"
+msgstr "z. B. 5:00, 90s oder 1h30m"
+
+#: freestream/catalog.py:353
+msgid "empty = default sound"
+msgstr "leer = Standardton"
+
+#: freestream/catalog.py:369
+msgid "e.g. coretemp or k10temp (empty = automatic)"
+msgstr "z. B. coretemp oder k10temp (leer = automatisch)"
+
+#: freestream/catalog.py:374
+msgid "e.g. wlan0 (empty = all)"
+msgstr "z. B. wlan0 (leer = alle)"
+
+#: freestream/catalog.py:380
+msgid "e.g. BAT1 (empty = first)"
+msgstr "z. B. BAT1 (leer = erster)"
+
+#: freestream/catalog.py:385
+msgid "e.g. / or /home"
+msgstr "z. B. / oder /home"
+
+#: freestream/catalog.py:635
+#, python-brace-format
+msgid "Unknown modifier key: {key}"
+msgstr "Unbekannte Sondertaste: {key}"
+
+#: freestream/catalog.py:98
+msgid "nothing"
+msgstr "nichts"
+
+#: freestream/catalog.py:98
+msgid "Quit program"
+msgstr "Programm beenden"
+
+#: freestream/catalog.py:140
+msgid "dark"
+msgstr "dunkel"
+
+#: freestream/catalog.py:140
+msgid "light"
+msgstr "hell"
+
+#: freestream/catalog.py:203
+#, python-brace-format
+msgid "{name} only"
+msgstr "nur {name}"
+
+#: freestream/catalog.py:242
+msgid "Save replay"
+msgstr "Replay speichern"
+
+#: freestream/catalog.py:243
+msgid "Buffer on/off"
+msgstr "Puffer ein/aus"
+
+#: freestream/catalog.py:255
+msgid "Play/Pause"
+msgstr "Wiedergabe/Pause"
+
+#: freestream/catalog.py:256
+msgid "Now playing"
+msgstr "Aktueller Titel"
+
+#: freestream/catalog.py:257 freestream/iconlib.py:57
+msgid "Shuffle"
+msgstr "Zufallswiedergabe"
+
+#: freestream/catalog.py:257 freestream/iconlib.py:57
+msgid "Repeat"
+msgstr "Wiederholen"
+
+#: freestream/catalog.py:263 freestream/waveui.py:1612
+msgid "Mute microphone"
+msgstr "Mikrofon stumm"
+
+#: freestream/catalog.py:263
+msgid "Deafen"
+msgstr "Ton aus"
+
+#: freestream/catalog.py:264
+msgid "Join voice channel"
+msgstr "Sprachkanal betreten"
+
+#: freestream/catalog.py:265
+msgid "Open text channel"
+msgstr "Textkanal öffnen"
+
+#: freestream/catalog.py:265
+msgid "Leave voice channel"
+msgstr "Sprachkanal verlassen"
+
+#: freestream/catalog.py:294 freestream/catalog.py:317
+msgid "toggle mute"
+msgstr "stumm umschalten"
+
+#: freestream/catalog.py:318
+msgid "Low Cut on/off"
+msgstr "Low Cut ein/aus"
+
+#: freestream/catalog.py:319
+msgid "Clipguard on/off"
+msgstr "Clipguard ein/aus"
+
+#: freestream/catalog.py:320
+msgid "LEDs on/off (Wave:3)"
+msgstr "LEDs ein/aus (Wave:3)"
+
+#: freestream/catalog.py:321
+msgid "Invert LEDs (Wave:3)"
+msgstr "LEDs umkehren (Wave:3)"
+
+#: freestream/catalog.py:337
+msgid "Time and date"
+msgstr "Uhrzeit und Datum"
+
+#: freestream/catalog.py:337
+msgid "Time only"
+msgstr "Nur Uhrzeit"
+
+#: freestream/catalog.py:338
+msgid "Date only"
+msgstr "Nur Datum"
+
+#: freestream/catalog.py:340
+msgid "Weekday and date"
+msgstr "Wochentag und Datum"
+
+#: freestream/catalog.py:231
+msgid "toggle pause"
+msgstr "Pause umschalten"
+
+#: freestream/catalog.py:302
+msgid "Next mix (cycle)"
+msgstr "Nächster Mix (der Reihe nach)"
+
+#: freestream/catalog.py:645
+#, python-brace-format
+msgid "Unknown key: {key}"
+msgstr "Unbekannte Taste: {key}"
+
+#: freestream/catalog.py:302 freestream/editor.py:1669 freestream/wavedialogs.py:496
+msgid "All"
+msgstr "Alle"
+
+#: freestream/config.py:53
+#, python-brace-format
+msgid "Invalid configuration, using defaults: {error}"
+msgstr "Konfiguration fehlerhaft, nutze Standardwerte: {error}"
+
+#: freestream/connectionsui.py:36
+msgid "OBS is not answering"
+msgstr "OBS antwortet nicht"
+
+#: freestream/connectionsui.py:145
+msgid "Turn on the WebSocket server in OBS: Tools → WebSocket Server Settings → Enable WebSocket server. Copy the password from “Show Connect Info”."
+msgstr "Schalte in OBS den WebSocket-Server ein: Werkzeuge → WebSocket-Server-Einstellungen → WebSocket-Server aktivieren. Das Passwort steht unter „Verbindungsinformationen anzeigen“."
+
+#: freestream/connectionsui.py:167
+msgid "Port"
+msgstr "Port"
+
+#: freestream/connectionsui.py:168
+msgid "Password"
+msgstr "Passwort"
+
+#: freestream/connectionsui.py:171 freestream/connectionsui.py:276 freestream/hassui.py:101
+msgid "Test connection"
+msgstr "Verbindung testen"
+
+#: freestream/connectionsui.py:182 freestream/connectionsui.py:294 freestream/hassui.py:118
+msgid "Connecting …"
+msgstr "Verbinde …"
+
+#: freestream/connectionsui.py:196
+msgid "Discord only lets apps control the microphone and sound with your own Discord app. Create one in the Discord Developer Portal, add the redirect “http://localhost” under OAuth2 and copy its Client ID and Client Secret."
+msgstr "Discord lässt Mikrofon und Ton nur über eine eigene Discord-App steuern. Lege sie im Discord Developer Portal an, trage unter OAuth2 die Weiterleitung „http://localhost“ ein und kopiere Client ID und Client Secret."
+
+#: freestream/connectionsui.py:214
+msgid "Client ID"
+msgstr "Client ID"
+
+#: freestream/connectionsui.py:215
+msgid "Client Secret"
+msgstr "Client Secret"
+
+#: freestream/connectionsui.py:219 freestream/hassui.py:277 freestream/hassui.py:187
+msgid "Connect …"
+msgstr "Verbinden …"
+
+#: freestream/connectionsui.py:231
+msgid "Connecting – please confirm the request in Discord …"
+msgstr "Verbinde – bitte die Anfrage in Discord bestätigen …"
+
+#: freestream/connectionsui.py:250 freestream/hassui.py:76
+msgid "Enter the address of your Home Assistant and a long-lived access token. Create the token in Home Assistant under your profile → Security → Long-lived access tokens."
+msgstr "Gib die Adresse deines Home Assistant und einen langlebigen Zugangstoken ein. Den Token erstellst du in Home Assistant unter deinem Profil → Sicherheit → Langlebige Zugangstoken."
+
+#: freestream/connectionsui.py:268 freestream/hassui.py:84
+msgid "Access token"
+msgstr "Zugangstoken"
+
+#: freestream/connectionsui.py:308 freestream/connectionsui.py:59
+msgid "Windows profiles"
+msgstr "Windows-Profile"
+
+#: freestream/connectionsui.py:308
+msgid "Profiles from Windows start Windows programs and use Windows paths. Tell FreeDeck what to use on Linux instead."
+msgstr "Profile aus Windows starten Windows-Programme und nutzen Windows-Pfade. Hier legst du fest, was FreeDeck unter Linux stattdessen nimmt."
+
+#: freestream/connectionsui.py:311
+msgid "Keyboard layout"
+msgstr "Tastaturlayout"
+
+#: freestream/connectionsui.py:313
+msgid "German"
+msgstr "Deutsch"
+
+#: freestream/connectionsui.py:313
+msgid "English (US)"
+msgstr "Englisch (US)"
+
+#: freestream/connectionsui.py:324
+msgid "Programs"
+msgstr "Programme"
+
+#: freestream/connectionsui.py:324
+msgid "Windows program (e.g. obs64.exe)"
+msgstr "Windows-Programm (z. B. obs64.exe)"
+
+#: freestream/connectionsui.py:325
+msgid "Linux command"
+msgstr "Linux-Befehl"
+
+#: freestream/connectionsui.py:326
+msgid "Folders"
+msgstr "Ordner"
+
+#: freestream/connectionsui.py:326
+msgid "Windows path (e.g. C:/Users/Alex/Music)"
+msgstr "Windows-Pfad (z. B. C:/Users/Alex/Music)"
+
+#: freestream/connectionsui.py:327
+msgid "Linux path"
+msgstr "Linux-Pfad"
+
+#: freestream/connectionsui.py:72 freestream/hasskeys.py:184
+msgid "Set up"
+msgstr "Einrichten"
+
+#: freestream/connectionsui.py:72
+msgid "Not set up"
+msgstr "Nicht eingerichtet"
+
+#: freestream/connectionsui.py:228
+msgid "Please enter the Client ID and the Client Secret."
+msgstr "Bitte Client ID und Client Secret eingeben."
+
+#: freestream/connectionsui.py:291 freestream/hassui.py:116 freestream/hassui.py:134
+msgid "Please enter the address and the access token."
+msgstr "Bitte gib Adresse und Zugangstoken ein."
+
+#: freestream/connectionsui.py:48
+msgid "Services"
+msgstr "Dienste"
+
+#: freestream/connectionsui.py:180
+msgid "The port must be a number."
+msgstr "Der Port muss eine Zahl sein."
+
+#: freestream/connectionsui.py:188
+msgid "Connected to OBS."
+msgstr "Mit OBS verbunden."
+
+#: freestream/connectionsui.py:221
+msgid "Developer Portal"
+msgstr "Developer Portal"
+
+#: freestream/connectionsui.py:243
+msgid "Connected to Discord."
+msgstr "Mit Discord verbunden."
+
+#: freestream/connectionsui.py:273 freestream/hassui.py:95
+msgid "Accept self-signed certificates (HTTPS)"
+msgstr "Selbstsignierte Zertifikate akzeptieren (HTTPS)"
+
+#: freestream/connectionsui.py:385 freestream/editor.py:2247 freestream/wavedialogs.py:555
+msgid "Add"
+msgstr "Hinzufügen"
+
+#: freestream/connectionsui.py:314
+#, python-brace-format
+msgid "Automatic ({layout})"
+msgstr "Automatisch ({layout})"
+
+#: freestream/connectionsui.py:71
+msgid "Automatic"
+msgstr "Automatisch"
+
+#: freestream/connectionsui.py:71
+#, python-brace-format
+msgid "{n} mapping"
+msgid_plural "{n} mappings"
+msgstr[0] "{n} Zuordnung"
+msgstr[1] "{n} Zuordnungen"
+
+#: freestream/daemon.py:79
+msgid "Reloading profiles and configuration"
+msgstr "Lade Profile und Konfiguration neu"
+
+#: freestream/daemon.py:138 freestream/daemon.py:139
+msgid "FreeDeck is already running"
+msgstr "FreeDeck läuft bereits"
+
+#: freestream/daemon.py:162
+#, python-brace-format
+msgid "FreeDeck is running – {count} profile loaded"
+msgid_plural "FreeDeck is running – {count} profiles loaded"
+msgstr[0] "FreeDeck läuft – {count} Profile geladen"
+msgstr[1] "FreeDeck läuft – {count} Profile geladen"
+
+#: freestream/daemon.py:41
+#, python-brace-format
+msgid "USB access failed: {error} (is libhidapi installed?)"
+msgstr "USB-Zugriff fehlgeschlagen: {error} (ist libhidapi installiert?)"
+
+#: freestream/daemon.py:72
+#, python-brace-format
+msgid "Device {serial} disconnected"
+msgstr "Gerät {serial} getrennt"
+
+#: freestream/daemon.py:157
+#, python-brace-format
+msgid "Plugin host not available: {error}"
+msgstr "Plugin-Host nicht verfügbar: {error}"
+
+#: freestream/daemon.py:58
+#, python-brace-format
+msgid "Device {device} not usable: {error} (is the udev rule installed?)"
+msgstr "Gerät {device} nicht nutzbar: {error} (udev-Regel installiert?)"
+
+#: freestream/daemon.py:185
+#, python-brace-format
+msgid "Service {name}: {error}"
+msgstr "Dienst {name}: {error}"
+
+#: freestream/deckexport.py:191 freestream/deckexport.py:145 freestream/deckexport.py:177
+msgid "This device has too few keys for volume controls."
+msgstr "Dieses Gerät hat zu wenige Tasten für Lautstärkeregler."
+
+#: freestream/deckexport.py:185
+msgid "Dials: turn to change the volume, press to mute. The keys above show each channel and mute it."
+msgstr "Drehregler: drehen ändert die Lautstärke, drücken schaltet stumm. Die Tasten darüber zeigen die Kanäle und schalten sie stumm."
+
+#: freestream/deckexport.py:187
+msgid "Per channel a tile (press to mute) and a fader over two keys: press the upper key for louder, the lower one for quieter."
+msgstr "Je Kanal eine Kachel (drücken = stumm) und ein Fader über zwei Tasten: obere Taste lauter, untere leiser."
+
+#: freestream/deckexport.py:190
+msgid "Per channel a fader over two keys: press the upper key for louder, the lower one for quieter."
+msgstr "Je Kanal ein Fader über zwei Tasten: obere Taste lauter, untere leiser."
+
+#: freestream/deckexport.py:143
+msgid "Choose at least one channel."
+msgstr "Wähle mindestens einen Kanal."
+
+#: freestream/deckexport.py:197
+msgid "Unknown device."
+msgstr "Unbekanntes Gerät."
+
+#: freestream/decksetup.py:22 freestream/wavesetup.py:27
+msgid "Welcome"
+msgstr "Willkommen"
+
+#: freestream/decksetup.py:22 freestream/wavedialogs.py:251
+msgid "Device"
+msgstr "Gerät"
+
+#: freestream/decksetup.py:22 freestream/editor.py:653 freestream/settingsui.py:50
+msgid "Profiles"
+msgstr "Profile"
+
+#: freestream/decksetup.py:54
+msgid "Set up FreeDeck"
+msgstr "FreeDeck einrichten"
+
+#: freestream/decksetup.py:81 freestream/decksetup.py:102 freestream/iconlib.py:57 freestream/wavesetup.py:139
+msgid "Next"
+msgstr "Weiter"
+
+#: freestream/decksetup.py:85 freestream/wavesetup.py:143
+msgid "Set up later"
+msgstr "Später einrichten"
+
+#: freestream/decksetup.py:174
+msgid "Your device"
+msgstr "Dein Gerät"
+
+#: freestream/decksetup.py:174
+msgid "Plug in your deck. FreeDeck detects it by itself; without a device you can choose the model for your first profile."
+msgstr "Schließe dein Deck an. FreeDeck erkennt es von selbst; ohne Gerät kannst du das Modell für dein erstes Profil wählen."
+
+#: freestream/decksetup.py:231
+msgid "Your profiles"
+msgstr "Deine Profile"
+
+#: freestream/decksetup.py:231
+msgid "On Windows, copy the folder %APPDATA%\\Elgato\\StreamDeck\\ProfilesV3 to a USB stick – or export single profiles in the Elgato app."
+msgstr "Kopiere unter Windows den Ordner %APPDATA%\\Elgato\\StreamDeck\\ProfilesV3 auf einen USB-Stick – oder exportiere einzelne Profile in der Elgato-App."
+
+#: freestream/decksetup.py:271
+msgid "Searching Downloads, desktop and USB sticks …"
+msgstr "Suche in Downloads, auf dem Schreibtisch und auf USB-Sticks …"
+
+#: freestream/decksetup.py:282
+msgid "Take over from the Elgato app"
+msgstr "Aus der Elgato-App übernehmen"
+
+#: freestream/decksetup.py:288
+msgid "Start with an empty profile"
+msgstr "Mit einem leeren Profil beginnen"
+
+#: freestream/decksetup.py:63 freestream/decksetup.py:324
+msgid "My profile"
+msgstr "Mein Profil"
+
+#: freestream/decksetup.py:276
+msgid "Nothing found in Downloads, on the desktop or on USB sticks. Choose the files yourself."
+msgstr "In Downloads, auf dem Schreibtisch und auf USB-Sticks nichts gefunden. Wähle die Dateien selbst."
+
+#: freestream/decksetup.py:298 freestream/editor.py:970
+msgid "Import profiles"
+msgstr "Profile importieren"
+
+#: freestream/decksetup.py:338 freestream/freedecksettings.py:627
+msgid "Keys"
+msgstr "Tasten"
+
+#: freestream/decksetup.py:338
+msgid "Drag an action from the list on the right onto a key – or double-click it. Right-click a key for copy, paste and delete."
+msgstr "Ziehe eine Aktion aus der Liste rechts auf eine Taste – oder doppelklicke sie. Rechtsklick auf eine Taste: kopieren, einfügen, löschen."
+
+#: freestream/decksetup.py:340
+msgid "Icons"
+msgstr "Icons"
+
+#: freestream/decksetup.py:340
+msgid "“Icons …” below the key preview opens over 100 icons drawn for FreeDeck."
+msgstr "„Icons …“ unter der Tastenvorschau öffnet über 100 für FreeDeck gezeichnete Symbole."
+
+#: freestream/decksetup.py:341 freestream/settingsui.py:51
+msgid "Connections"
+msgstr "Verbindungen"
+
+#: freestream/decksetup.py:341
+msgid "OBS, Discord and Home Assistant are set up under Settings → Connections."
+msgstr "OBS, Discord und Home Assistant richtest du unter Einstellungen → Verbindungen ein."
+
+#: freestream/decksetup.py:102 freestream/wavesetup.py:165
+msgid "Finish"
+msgstr "Fertig"
+
+#: freestream/decksetup.py:158
+msgid "Welcome to FreeDeck"
+msgstr "Willkommen bei FreeDeck"
+
+#: freestream/decksetup.py:159
+msgid "In two steps your deck is ready: FreeDeck finds your device and takes over your profiles from the Elgato app – or you start with an empty profile."
+msgstr "In zwei Schritten ist dein Deck bereit: FreeDeck findet dein Gerät und übernimmt deine Profile aus der Elgato-App – oder du beginnst mit einem leeren Profil."
+
+#: freestream/decksetup.py:278
+#, python-brace-format
+msgid "{n} file chosen."
+msgid_plural "{n} files chosen."
+msgstr[0] "{n} Datei gewählt."
+msgstr[1] "{n} Dateien gewählt."
+
+#: freestream/decksetup.py:289
+#, python-brace-format
+msgid "For the {model} – you fill it by dragging actions onto the keys."
+msgstr "Für das {model} – du füllst es, indem du Aktionen auf die Tasten ziehst."
+
+#: freestream/decksetup.py:332 freestream/wavesetup.py:362
+msgid "All set!"
+msgstr "Fertig eingerichtet!"
+
+#: freestream/decksetup.py:102 freestream/wavesetup.py:165
+msgid "Let's go"
+msgstr "Los geht's"
+
+#: freestream/decksetup.py:170 freestream/editor.py:491 freestream/freedecksettings.py:125 freestream/freedecksettings.py:103
+msgid "Connected"
+msgstr "Verbunden"
+
+#: freestream/decksetup.py:273
+#, python-brace-format
+msgid "Found {n} profile file – it will be imported."
+msgid_plural "Found {n} profile files – they will be imported."
+msgstr[0] "{n} Profildatei gefunden – sie wird übernommen."
+msgstr[1] "{n} Profildateien gefunden – sie werden übernommen."
+
+#: freestream/decksetup.py:281
+msgid "Choose files …"
+msgstr "Dateien wählen …"
+
+#: freestream/decksetup.py:299 freestream/editor.py:971
+msgid "Profiles (Elgato format)"
+msgstr "Profile (Elgato-Format)"
+
+#: freestream/decksetup.py:312
+msgid "Choose the profile files first – or start with an empty profile."
+msgstr "Wähle zuerst die Profildateien – oder beginne mit einem leeren Profil."
+
+#: freestream/decksetup.py:167
+#, python-brace-format
+msgid "Connected · serial no. {serial}"
+msgstr "Angeschlossen · Seriennr. {serial}"
+
+#: freestream/decksetup.py:202
+msgid "No device found yet"
+msgstr "Noch kein Gerät gefunden"
+
+#: freestream/decksetup.py:203
+msgid "Waiting for your deck … or choose the model:"
+msgstr "Warte auf dein Deck … oder wähle das Modell:"
+
+#: freestream/decksetup.py:321
+msgid "No profiles found in these files."
+msgstr "In diesen Dateien wurden keine Profile gefunden."
+
+#: freestream/decksetup.py:334
+#, python-brace-format
+msgid "{n} profile is ready."
+msgid_plural "{n} profiles are ready."
+msgstr[0] "{n} Profil ist bereit."
+msgstr[1] "{n} Profile sind bereit."
+
+#: freestream/desktop.py:65
+msgid "Quit"
+msgstr "Beenden"
+
+#: freestream/desktop.py:62
+#, python-brace-format
+msgid "No tray icon (pystray not available: {error})"
+msgstr "Kein Taskleisten-Symbol (pystray nicht verfügbar: {error})"
+
+#: freestream/desktop.py:70
+#, python-brace-format
+msgid "Tray icon not possible: {error}"
+msgstr "Taskleisten-Symbol nicht möglich: {error}"
+
+#: freestream/discord.py:122
+msgid "Connection to Discord lost"
+msgstr "Verbindung zu Discord getrennt"
+
+#: freestream/discord.py:183
+msgid "Connected to Discord"
+msgstr "Mit Discord verbunden"
+
+#: freestream/discord.py:208
+msgid "Client Secret missing – enter it under Settings → Connections → Discord"
+msgstr "Client Secret fehlt – unter Einstellungen → Verbindungen → Discord eintragen"
+
+#: freestream/discord.py:80
+msgid "Discord closed the connection"
+msgstr "Discord hat die Verbindung geschlossen"
+
+#: freestream/discord.py:144
+msgid "Discord error"
+msgstr "Discord-Fehler"
+
+#: freestream/discord.py:153
+msgid "Discord app missing: enter Client ID and Client Secret under Settings → Connections → Discord"
+msgstr "Discord-App fehlt: Client ID und Client Secret unter Einstellungen → Verbindungen → Discord eintragen"
+
+#: freestream/discord.py:157
+msgid "Discord is not running (no IPC socket found)"
+msgstr "Discord läuft nicht (kein IPC-Socket gefunden)"
+
+#: freestream/discord.py:139
+#, python-brace-format
+msgid "No response from Discord ({command})"
+msgstr "Keine Antwort von Discord ({command})"
+
+#: freestream/discord.py:174
+msgid "Discord refused the connection"
+msgstr "Discord hat die Verbindung abgelehnt"
+
+#: freestream/discord.py:168
+#, python-brace-format
+msgid "Discord not reachable: {error}"
+msgstr "Discord nicht erreichbar: {error}"
+
+#: freestream/discord.py:218
+#, python-brace-format
+msgid "Discord login failed: {error}"
+msgstr "Discord-Anmeldung fehlgeschlagen: {error}"
+
+#: freestream/discord.py:182
+#, python-brace-format
+msgid "Voice status: {error}"
+msgstr "Voice-Status: {error}"
+
+#: freestream/discord.py:194
+#, python-brace-format
+msgid "Saved Discord access is invalid ({error}) – logging in again"
+msgstr "Gespeicherter Discord-Zugang ungültig ({error}) – neue Anmeldung"
+
+#: freestream/editdoc.py:161
+msgid "Profiles in format v1 (Elgato app 4.x) cannot be edited"
+msgstr "Profile im Format v1 (Elgato-App 4.x) können nicht bearbeitet werden"
+
+#: freestream/editdoc.py:292
+msgid "The last page cannot be deleted"
+msgstr "Die letzte Seite kann nicht gelöscht werden"
+
+#: freestream/editdoc.py:737 freestream/editor.py:2454 freestream/editor.py:2457 freestream/editor.py:2485
+msgid "New profile"
+msgstr "Neues Profil"
+
+#: freestream/editdoc.py:146
+#, python-brace-format
+msgid "Not a profile: {path}"
+msgstr "Kein Profil: {path}"
+
+#: freestream/editdoc.py:543 freestream/editdoc.py:482
+#, python-brace-format
+msgid "Image not readable: {error}"
+msgstr "Bild nicht lesbar: {error}"
+
+#: freestream/editor.py:99 freestream/freedecksettings.py:632
+msgid "top"
+msgstr "oben"
+
+#: freestream/editor.py:99 freestream/freedecksettings.py:632
+msgid "middle"
+msgstr "Mitte"
+
+#: freestream/editor.py:99 freestream/freedecksettings.py:632
+msgid "bottom"
+msgstr "unten"
+
+#: freestream/editor.py:100
+msgid "Regular"
+msgstr "Normal"
+
+#: freestream/editor.py:100
+msgid "Bold"
+msgstr "Fett"
+
+#: freestream/editor.py:100
+msgid "Italic"
+msgstr "Kursiv"
+
+#: freestream/editor.py:100
+msgid "Bold italic"
+msgstr "Fett kursiv"
+
+#: freestream/editor.py:259 freestream/editor.py:1719
+msgid "dials only"
+msgstr "nur Dials"
+
+#: freestream/editor.py:650 freestream/settingsui.py:49
+msgid "Devices"
+msgstr "Geräte"
+
+#: freestream/editor.py:658 freestream/editor.py:1669 freestream/pluginui.py:100 freestream/pluginui.py:106
+msgid "Plugins"
+msgstr "Plugins"
+
+#: freestream/editor.py:660 freestream/freedecksettings.py:73 freestream/iconlib.py:62 freestream/settingsui.py:43
+msgid "Settings"
+msgstr "Einstellungen"
+
+#: freestream/editor.py:676 freestream/iconlib.py:73
+msgid "Export"
+msgstr "Exportieren"
+
+#: freestream/editor.py:678 freestream/editor.py:980 freestream/iconlib.py:73
+msgid "Import"
+msgstr "Import"
+
+#: freestream/editor.py:692
+msgid "Rename…"
+msgstr "Umbenennen…"
+
+#: freestream/editor.py:693
+msgid "Duplicate"
+msgstr "Duplizieren"
+
+#: freestream/editor.py:694
+msgid "Export…"
+msgstr "Exportieren…"
+
+#: freestream/editor.py:696 freestream/editor.py:952
+msgid "Delete profile"
+msgstr "Profil löschen"
+
+#: freestream/editor.py:928
+msgid "Duplicate profile"
+msgstr "Profil duplizieren"
+
+#: freestream/editor.py:928
+msgid "Name of the copy:"
+msgstr "Name der Kopie:"
+
+#: freestream/editor.py:941
+msgid "Rename profile"
+msgstr "Profil umbenennen"
+
+#: freestream/editor.py:941
+msgid "New name:"
+msgstr "Neuer Name:"
+
+#: freestream/editor.py:1006
+msgid "Saving…"
+msgstr "Ändere …"
+
+#: freestream/editor.py:1075
+msgid "Settings page opened – changes are applied automatically"
+msgstr "Einstellungsseite geöffnet – Änderungen werden automatisch übernommen"
+
+#: freestream/editor.py:1142
+msgid "Move left"
+msgstr "Nach links verschieben"
+
+#: freestream/editor.py:1143
+msgid "Move right"
+msgstr "Nach rechts verschieben"
+
+#: freestream/editor.py:1145
+msgid "Add page"
+msgstr "Seite hinzufügen"
+
+#: freestream/editor.py:1146 freestream/editor.py:1164
+msgid "Delete page"
+msgstr "Seite löschen"
+
+#: freestream/editor.py:1602
+msgid "Cut"
+msgstr "Ausschneiden"
+
+#: freestream/editor.py:1603 freestream/iconlib.py:65
+msgid "Copy"
+msgstr "Kopieren"
+
+#: freestream/editor.py:1604 freestream/editor.py:1831
+msgid "Paste"
+msgstr "Einfügen"
+
+#: freestream/editor.py:1612 freestream/editor.py:1925 freestream/iconlib.py:65
+msgid "Delete"
+msgstr "Löschen"
+
+#: freestream/editor.py:2005 freestream/freedecksettings.py:733 freestream/native.py:311
+msgid "Title"
+msgstr "Titel"
+
+#: freestream/editor.py:2013 freestream/freedecksettings.py:636
+msgid "Font"
+msgstr "Schrift"
+
+#: freestream/editor.py:2024 freestream/editor.py:2123 freestream/editor.py:2110
+msgid "Icon"
+msgstr "Icon"
+
+#: freestream/editor.py:2035
+msgid "Default"
+msgstr "Standard"
+
+#: freestream/editor.py:2050 freestream/freedecksettings.py:631 freestream/freedecksettings.py:666
+msgid "Show title"
+msgstr "Titel zeigen"
+
+#: freestream/editor.py:2062 freestream/editor.py:2091 freestream/freedecksettings.py:714
+msgid "Title color"
+msgstr "Titelfarbe"
+
+#: freestream/editor.py:2212
+msgid "INCLUDED ACTIONS"
+msgstr "ENTHALTENE AKTIONEN"
+
+#: freestream/editor.py:2378
+msgid "e.g. Ctrl+Shift+T, Alt+F4, Super+E, F13:"
+msgstr "z. B. Strg+Umschalt+T, Alt+F4, Super+E, F13:"
+
+#: freestream/editor.py:2421
+msgid "Settings (JSON)"
+msgstr "Einstellungen (JSON)"
+
+#: freestream/editor.py:2460 freestream/wavedialogs.py:88 freestream/wavedialogs.py:234 freestream/wavedialogs.py:682
+msgid "Name"
+msgstr "Name"
+
+#: freestream/editor.py:83 freestream/iconlib.py:41
+msgid "Media"
+msgstr "Medien"
+
+#: freestream/editor.py:579
+msgid "FreeDeck keeps running"
+msgstr "FreeDeck läuft weiter"
+
+#: freestream/editor.py:579
+msgid "FreeDeck stays active. Open it again via its icon in the tray."
+msgstr "FreeDeck bleibt aktiv. Öffne es wieder über sein Symbol in der Taskleiste."
+
+#: freestream/editor.py:719 freestream/editor.py:483 freestream/hass.py:94 freestream/models.py:92
+msgid "unknown"
+msgstr "unbekannt"
+
+#: freestream/editor.py:759
+msgid "Search actions"
+msgstr "Aktionen suchen"
+
+#: freestream/editor.py:775
+msgid "Drag onto a key or double-click"
+msgstr "Auf eine Taste ziehen oder doppelklicken"
+
+#: freestream/editor.py:990
+msgid "Export profile"
+msgstr "Profil exportieren"
+
+#: freestream/editor.py:1119
+msgid "↩ Back"
+msgstr "↩ Zurück"
+
+#: freestream/editor.py:1181
+msgid "Folder not found"
+msgstr "Ordner nicht gefunden"
+
+#: freestream/editor.py:1239
+msgid "Drag actions onto keys · right-click for more"
+msgstr "Aktionen auf Tasten ziehen · Rechtsklick für mehr"
+
+#: freestream/editor.py:1262
+msgid "No display"
+msgstr "Kein Display"
+
+#: freestream/editor.py:1406
+msgid "Dial"
+msgstr "Regler"
+
+#: freestream/editor.py:1557
+msgid "There is no free space on the target page"
+msgstr "Auf der Zielseite ist kein Platz frei"
+
+#: freestream/editor.py:1599 freestream/editor.py:1891
+msgid "Open folder"
+msgstr "Ordner öffnen"
+
+#: freestream/editor.py:1602
+msgid "Ctrl+X"
+msgstr "Strg+X"
+
+#: freestream/editor.py:1603
+msgid "Ctrl+C"
+msgstr "Strg+C"
+
+#: freestream/editor.py:1604
+msgid "Ctrl+V"
+msgstr "Strg+V"
+
+#: freestream/editor.py:1612
+msgid "Del"
+msgstr "Entf"
+
+#: freestream/editor.py:1769
+msgid "No free space – select a key to replace it"
+msgstr "Kein freier Platz – Taste auswählen, um sie zu ersetzen"
+
+#: freestream/editor.py:1815
+msgid "Select a key to edit it."
+msgstr "Taste auswählen, um sie zu bearbeiten."
+
+#: freestream/editor.py:1953
+msgid "SETTINGS"
+msgstr "EINSTELLUNGEN"
+
+#: freestream/editor.py:2042
+msgid "State"
+msgstr "Zustand"
+
+#: freestream/editor.py:2115
+msgid "Choose icon"
+msgstr "Icon wählen"
+
+#: freestream/editor.py:2204
+msgid "Choose file"
+msgstr "Datei wählen"
+
+#: freestream/editor.py:2457
+msgid "For the connected device"
+msgstr "Für das angeschlossene Gerät"
+
+#: freestream/editor.py:2458
+msgid "No device connected – the profile is for the model used last"
+msgstr "Kein Gerät angeschlossen – das Profil ist für das zuletzt benutzte Modell"
+
+#: freestream/editor.py:2463 freestream/wavedialogs.py:786
+msgid "DEVICE – DETECTED AUTOMATICALLY"
+msgstr "GERÄT – AUTOMATISCH ERKANNT"
+
+#: freestream/editor.py:2463 freestream/wavedialogs.py:800
+msgid "DEVICE"
+msgstr "GERÄT"
+
+#: freestream/editor.py:484
+msgid "Layout of this profile"
+msgstr "Aufbau dieses Profils"
+
+#: freestream/editor.py:860
+msgid "Open profile"
+msgstr "Profil öffnen"
+
+#: freestream/editor.py:874
+#, python-brace-format
+msgid "{name} opened – changes are saved automatically"
+msgstr "{name} geöffnet – Änderungen werden automatisch gespeichert"
+
+#: freestream/editor.py:982
+#, python-brace-format
+msgid "{n} profile imported"
+msgid_plural "{n} profiles imported"
+msgstr[0] "{n} Profil importiert"
+msgstr[1] "{n} Profile importiert"
+
+#: freestream/editor.py:1014
+msgid "saved"
+msgstr "gespeichert"
+
+#: freestream/editor.py:1017 freestream/hassui.py:99 freestream/iconlib.py:65 freestream/wavedialogs.py:688
+msgid "Save"
+msgstr "Speichern"
+
+#: freestream/editor.py:1061
+msgid "Settings page"
+msgstr "Einstellungsseite"
+
+#: freestream/editor.py:1061
+msgid "FreeDeck must be running for this (menu: “FreeDeck” or `freedeck`), because it runs the plugins."
+msgstr "Dafür muss FreeDeck laufen (Menü: „FreeDeck“ oder `freedeck`), weil es die Plugins ausführt."
+
+#: freestream/editor.py:1164
+msgid "This page contains actions. Delete it anyway?"
+msgstr "Die Seite enthält Aktionen. Trotzdem löschen?"
+
+#: freestream/editor.py:1243
+#, python-brace-format
+msgid "Brightness {n} %"
+msgstr "Helligkeit {n} %"
+
+#: freestream/editor.py:1257
+msgid ""
+"No profiles yet.\n"
+"\n"
+"“New…” creates an empty profile,\n"
+"“Import…” takes over profiles from the Elgato app."
+msgstr ""
+"Noch keine Profile vorhanden.\n"
+"\n"
+"„Neu…“ legt ein leeres Profil an,\n"
+"„Importieren…“ übernimmt Profile der Elgato-App."
+
+#: freestream/editor.py:1562
+#, python-brace-format
+msgid "Action moved to page {n}"
+msgstr "Aktion auf Seite {n} verschoben"
+
+#: freestream/editor.py:1621
+msgid "Copied"
+msgstr "Kopiert"
+
+#: freestream/editor.py:1719
+msgid "keys and dials"
+msgstr "Tasten und Dials"
+
+#: freestream/editor.py:1720
+msgid "keys"
+msgstr "Tasten"
+
+#: freestream/editor.py:1778
+#, python-brace-format
+msgid "“{name}” only works on dials"
+msgstr "„{name}“ ist nur für Dials geeignet"
+
+#: freestream/editor.py:1779
+#, python-brace-format
+msgid "“{name}” only works on keys"
+msgstr "„{name}“ ist nur für Tasten geeignet"
+
+#: freestream/editor.py:1789
+msgid "Replace folder"
+msgstr "Ordner ersetzen"
+
+#: freestream/editor.py:1789
+msgid "The folder and its contents will be replaced. Continue?"
+msgstr "Der Ordner und sein Inhalt werden ersetzt. Fortfahren?"
+
+#: freestream/editor.py:1794
+#, python-brace-format
+msgid "{name} added"
+msgstr "{name} hinzugefügt"
+
+#: freestream/editor.py:1823
+#, python-brace-format
+msgid "Key {col},{row}"
+msgstr "Taste {col},{row}"
+
+#: freestream/editor.py:1824
+#, python-brace-format
+msgid "Dial {n}"
+msgstr "Dial {n}"
+
+#: freestream/editor.py:1948 freestream/editor.py:1924
+msgid "Settings (JSON)…"
+msgstr "Einstellungen (JSON)…"
+
+#: freestream/editor.py:2034
+msgid "Icons…"
+msgstr "Icons …"
+
+#: freestream/editor.py:2351
+msgid "Press keys…"
+msgstr "Tasten drücken …"
+
+#: freestream/editor.py:2405
+#, python-brace-format
+msgid "Edit {name}"
+msgstr "{name} bearbeiten"
+
+#: freestream/editor.py:2439 freestream/hass.py:422
+#, python-brace-format
+msgid "A JSON object { … } is expected"
+msgstr "Ein JSON-Objekt { … } wird erwartet"
+
+#: freestream/editor.py:2465 freestream/wavedialogs.py:791
+msgid "connected"
+msgstr "angeschlossen"
+
+#: freestream/editor.py:2473
+msgid "Create"
+msgstr "Anlegen"
+
+#: freestream/editor.py:2474 freestream/editor.py:2433 freestream/hassui.py:100 freestream/hassui.py:186
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: freestream/editor.py:497 freestream/freedecksettings.py:134
+msgid "No device connected"
+msgstr "Kein Gerät verbunden"
+
+#: freestream/editor.py:540
+msgid "Switching device failed: %s"
+msgstr "Gerät umschalten: %s"
+
+#: freestream/editor.py:721
+#, python-brace-format
+msgid "Page {n} of {total}"
+msgstr "Seite {n} von {total}"
+
+#: freestream/editor.py:846
+msgid "Cleanup failed: %s"
+msgstr "Aufräumen fehlgeschlagen: %s"
+
+#: freestream/editor.py:929
+#, python-brace-format
+msgid "{name} (copy)"
+msgstr "{name} (Kopie)"
+
+#: freestream/editor.py:953
+#, python-brace-format
+msgid "Permanently delete profile “{name}”?"
+msgstr "Profil „{name}“ endgültig löschen?"
+
+#: freestream/editor.py:993
+msgid "Profile (Elgato format)"
+msgstr "Profil (Elgato-Format)"
+
+#: freestream/editor.py:996
+#, python-brace-format
+msgid "Exported: {path}"
+msgstr "Exportiert: {path}"
+
+#: freestream/editor.py:1721
+#, python-brace-format
+msgid ""
+"{name}: {description} ({where}).\n"
+"Drag onto a key or double-click."
+msgstr ""
+"{name}: {description} ({where}).\n"
+"Auf eine Taste ziehen oder doppelklicken."
+
+#: freestream/editor.py:1827
+#, python-brace-format
+msgid "{where} – empty"
+msgstr "{where} – leer"
+
+#: freestream/editor.py:2073
+msgid "underline"
+msgstr "unterstrichen"
+
+#: freestream/editor.py:2223 freestream/hassui.py:185
+msgid "Choose"
+msgstr "Wählen"
+
+#: freestream/editor.py:2226 freestream/editor.py:2256
+msgid "Edit…"
+msgstr "Bearbeiten…"
+
+#: freestream/editor.py:2228
+msgid "Clear"
+msgstr "Leeren"
+
+#: freestream/editor.py:2355
+msgid "Type in…"
+msgstr "Eingeben…"
+
+#: freestream/editor.py:2423
+msgid "Raw data of the action (“Settings”) – for plugin actions and special cases."
+msgstr "Rohdaten der Aktion („Settings“) – für Plugin-Aktionen und Sonderfälle."
+
+#: freestream/editor.py:2432 freestream/wavedialogs.py:756
+msgid "Apply"
+msgstr "Übernehmen"
+
+#: freestream/editor.py:2466
+#, python-brace-format
+msgid "{cols} × {rows} keys"
+msgstr "{cols} × {rows} Tasten"
+
+#: freestream/editor.py:2468
+#, python-brace-format
+msgid "{n} dial"
+msgid_plural "{n} dials"
+msgstr[0] "{n} Drehregler"
+msgstr[1] "{n} Drehregler"
+
+#: freestream/editor.py:2516
+#, python-brace-format
+msgid "No graphical display available: {error}"
+msgstr "Keine grafische Oberfläche verfügbar: {error}"
+
+#: freestream/editor.py:1016
+#, python-brace-format
+msgid "Saving failed: {error}"
+msgstr "Speichern fehlgeschlagen: {error}"
+
+#: freestream/editor.py:1441 freestream/editor.py:1445
+#, python-brace-format
+msgid "Page {n} / {m}"
+msgstr "Seite {n} / {m}"
+
+#: freestream/editor.py:1698
+msgid "No matching actions"
+msgstr "Keine passenden Aktionen"
+
+#: freestream/editor.py:1816
+msgid "Tips: drag actions from the right onto keys · move keys by drag & drop (also onto another page) · right-click to copy/paste · double-click opens folders · Ctrl+Z undoes."
+msgstr "Tipps: Aktionen von rechts auf Tasten ziehen · Tasten per Drag & Drop verschieben (auch auf eine andere Seite) · Rechtsklick für Kopieren/Einfügen · Doppelklick öffnet Ordner · Strg+Z macht rückgängig."
+
+#: freestream/editor.py:1828
+msgid "Drag an action here from the list on the right, or double-click it there."
+msgstr "Aktion aus der Liste rechts hierher ziehen oder dort doppelklicken."
+
+#: freestream/editor.py:1877 freestream/editor.py:1916
+msgid "Action"
+msgstr "Aktion"
+
+#: freestream/editor.py:1878
+msgid "Advanced"
+msgstr "Erweitert"
+
+#: freestream/editor.py:1609
+#, python-brace-format
+msgid "Move to page {n}"
+msgstr "Auf Seite {n} verschieben"
+
+#: freestream/editor.py:1905 freestream/editor.py:1922
+msgid "Settings page…"
+msgstr "Einstellungsseite…"
+
+#: freestream/editor.py:2044
+#, python-brace-format
+msgid "State {n}"
+msgstr "Zustand {n}"
+
+#: freestream/editor.py:1909
+msgid "This action has no further settings."
+msgstr "Diese Aktion hat keine weiteren Einstellungen."
+
+#: freestream/editor.py:1931
+#, python-brace-format
+msgid "Action of the plugin “{plugin}” – cannot run on Linux (plugin not installed or only for Windows/macOS). Title, icon and settings are kept."
+msgstr "Aktion des Plugins „{plugin}“ – unter Linux nicht ausführbar (Plugin nicht installiert oder nur für Windows/macOS). Titel, Icon und Einstellungen bleiben erhalten."
+
+#: freestream/editor.py:2181 freestream/freedecksettings.py:302
+#, python-brace-format
+msgid "Page {n}"
+msgstr "Seite {n}"
+
+#: freestream/editor.py:2192
+msgid "(next profile)"
+msgstr "(nächstes Profil)"
+
+#: freestream/effects.py:47
+msgid "High-pass (low cut)"
+msgstr "Hochpass (Low Cut)"
+
+#: freestream/effects.py:48
+msgid "Removes hum and rumble below the frequency"
+msgstr "Entfernt Brummen und Trittschall unterhalb der Frequenz"
+
+#: freestream/effects.py:51
+msgid "Low-pass"
+msgstr "Tiefpass"
+
+#: freestream/effects.py:52
+msgid "Attenuates high frequencies, e.g. against hiss"
+msgstr "Dämpft hohe Frequenzen, z. B. gegen Zischen"
+
+#: freestream/effects.py:55
+msgid "Bass"
+msgstr "Bass"
+
+#: freestream/effects.py:56
+msgid "Boosts or cuts the lows"
+msgstr "Hebt oder senkt die Tiefen"
+
+#: freestream/effects.py:60
+msgid "Treble"
+msgstr "Höhen"
+
+#: freestream/effects.py:61
+msgid "Boosts or cuts the highs (presence, brilliance)"
+msgstr "Hebt oder senkt die Höhen (Präsenz, Brillanz)"
+
+#: freestream/effects.py:65
+msgid "EQ band"
+msgstr "EQ-Band"
+
+#: freestream/effects.py:66
+msgid "A single equalizer band"
+msgstr "Ein einzelnes Equalizer-Band"
+
+#: freestream/effects.py:75
+msgid "Noise suppression (RNNoise)"
+msgstr "Rauschunterdrückung (RNNoise)"
+
+#: freestream/effects.py:75
+msgid "Filters out keyboard, fans and background"
+msgstr "Filtert Tastatur, Lüfter und Hintergrund heraus"
+
+#: freestream/effects.py:76
+msgid "Noise suppression stereo (RNNoise)"
+msgstr "Rauschunterdrückung Stereo (RNNoise)"
+
+#: freestream/effects.py:76
+msgid "Filters out background noise"
+msgstr "Filtert Hintergrundgeräusche heraus"
+
+#: freestream/effects.py:77
+msgid "Noise suppression (DeepFilterNet)"
+msgstr "Rauschunterdrückung (DeepFilterNet)"
+
+#: freestream/effects.py:77 freestream/effects.py:78
+msgid "AI noise filter for voices"
+msgstr "KI-Rauschfilter für Stimmen"
+
+#: freestream/effects.py:78
+msgid "Noise suppression stereo (DeepFilterNet)"
+msgstr "Rauschunterdrückung Stereo (DeepFilterNet)"
+
+#: freestream/effects.py:79
+msgid "Compressor (SC4)"
+msgstr "Kompressor (SC4)"
+
+#: freestream/effects.py:79 freestream/effects.py:80 freestream/effects.py:192 freestream/effects.py:194
+msgid "Evens out loud and quiet passages"
+msgstr "Gleicht laute und leise Stellen aus"
+
+#: freestream/effects.py:80
+msgid "Compressor mono (SC4)"
+msgstr "Kompressor mono (SC4)"
+
+#: freestream/effects.py:81
+msgid "Noise gate"
+msgstr "Noise Gate"
+
+#: freestream/effects.py:81
+msgid "Mutes the microphone while you are not speaking"
+msgstr "Schaltet das Mikrofon in Sprechpausen stumm"
+
+#: freestream/effects.py:82
+msgid "Limiter"
+msgstr "Limiter"
+
+#: freestream/effects.py:82 freestream/effects.py:198 freestream/effects.py:199
+msgid "Prevents clipping"
+msgstr "Verhindert Übersteuern"
+
+#: freestream/effects.py:83
+msgid "Equalizer (8 bands)"
+msgstr "Equalizer (8 Bänder)"
+
+#: freestream/effects.py:83 freestream/effects.py:204
+msgid "Tone control"
+msgstr "Klangregelung"
+
+#: freestream/effects.py:84
+msgid "Reverb"
+msgstr "Hall"
+
+#: freestream/effects.py:84
+msgid "Room ambience"
+msgstr "Raumklang"
+
+#: freestream/effects.py:85
+msgid "De-esser"
+msgstr "De-Esser"
+
+#: freestream/effects.py:85 freestream/effects.py:203
+msgid "Tames harsh S sounds"
+msgstr "Dämpft scharfe S-Laute"
+
+#: freestream/effects.py:191
+msgid "Compressor (x42 darc)"
+msgstr "Kompressor (x42 darc)"
+
+#: freestream/effects.py:193
+msgid "Compressor stereo (x42 darc)"
+msgstr "Kompressor Stereo (x42 darc)"
+
+#: freestream/effects.py:195
+msgid "Equalizer (x42 fil4)"
+msgstr "Equalizer (x42 fil4)"
+
+#: freestream/effects.py:196
+msgid "Parametric EQ with high-pass and low-pass"
+msgstr "Parametrischer EQ mit Hoch- und Tiefpass"
+
+#: freestream/effects.py:197
+msgid "Equalizer stereo (x42 fil4)"
+msgstr "Equalizer Stereo (x42 fil4)"
+
+#: freestream/effects.py:197
+msgid "Parametric EQ"
+msgstr "Parametrischer EQ"
+
+#: freestream/effects.py:198
+msgid "Limiter (x42 dpl)"
+msgstr "Limiter (x42 dpl)"
+
+#: freestream/effects.py:199
+msgid "Limiter stereo (x42 dpl)"
+msgstr "Limiter Stereo (x42 dpl)"
+
+#: freestream/effects.py:200
+msgid "Noise gate (Calf)"
+msgstr "Noise Gate (Calf)"
+
+#: freestream/effects.py:200
+msgid "Mutes while you are not speaking"
+msgstr "Schaltet in Sprechpausen stumm"
+
+#: freestream/effects.py:201
+msgid "Compressor (Calf)"
+msgstr "Kompressor (Calf)"
+
+#: freestream/effects.py:203
+msgid "De-esser (Calf)"
+msgstr "De-Esser (Calf)"
+
+#: freestream/effects.py:204
+msgid "Equalizer 5 bands (Calf)"
+msgstr "Equalizer 5 Bänder (Calf)"
+
+#: freestream/effects.py:205
+msgid "Noise suppression (Noise Repellent)"
+msgstr "Rauschunterdrückung (Noise Repellent)"
+
+#: freestream/effects.py:206
+msgid "Filters out constant noise"
+msgstr "Filtert gleichmäßiges Rauschen heraus"
+
+#: freestream/effects.py:539
+msgid "LV2 needs the packages jalv and pipewire-jack (or a PipeWire with LV2 support)"
+msgstr "LV2 braucht die Pakete jalv und pipewire-jack (oder ein PipeWire mit LV2-Unterstützung)"
+
+#: freestream/effects.py:425
+msgid "No active effects"
+msgstr "Keine aktiven Effekte"
+
+#: freestream/effects.py:538
+msgid "via jalv"
+msgstr "über jalv"
+
+#: freestream/effects.py:434 freestream/effects.py:694
+#, python-brace-format
+msgid "FreeWave {name} (Effects)"
+msgstr "FreeWave {name} (Effekte)"
+
+#: freestream/effects.py:639 freestream/noise.py:297 freestream/wavemic.py:296
+msgid "pipewire not found"
+msgstr "pipewire nicht gefunden"
+
+#: freestream/effects.py:692
+msgid "LV2 effects need the packages jalv and pipewire-jack"
+msgstr "LV2-Effekte brauchen die Pakete jalv und pipewire-jack"
+
+#: freestream/effects.py:752
+msgid "Effect chain (LV2 via jalv) could not start"
+msgstr "Effektkette (LV2 über jalv) konnte nicht starten"
+
+#: freestream/effects.py:653
+msgid "Effect chain could not start (plugin missing or invalid setting)"
+msgstr "Effektkette konnte nicht starten (Plugin fehlt oder Einstellung ungültig)"
+
+#: freestream/effects.py:655
+#, python-brace-format
+msgid "Effects for {name} active ({count})"
+msgstr "Effekte für {name} aktiv ({count})"
+
+#: freestream/effects.py:758
+#, python-brace-format
+msgid "Effects for {name} active (LV2 via jalv, {count} stages)"
+msgstr "Effekte für {name} aktiv (LV2 über jalv, {count} Stufen)"
+
+#: freestream/effects.py:388
+#, python-brace-format
+msgid "Effect {plugin} not found – skipped"
+msgstr "Effekt {plugin} nicht gefunden – ausgelassen"
+
+#: freestream/effects.py:491
+#, python-brace-format
+msgid "FreeWave {name} (Effects {n})"
+msgstr "FreeWave {name} (Effekte {n})"
+
+#: freestream/effects.py:315
+#, python-brace-format
+msgid "skipped {path}: {error}"
+msgstr "übersprungen {path}: {error}"
+
+#: freestream/effects.py:769
+#, python-brace-format
+msgid "Effects for {name} not started: {error}"
+msgstr "Effekte für {name} nicht gestartet: {error}"
+
+#: freestream/effects.py:341
+#, python-brace-format
+msgid "Could not read plugins: {error}"
+msgstr "Plugins nicht lesbar: {error}"
+
+#: freestream/engine.py:90
+#, python-brace-format
+msgid "{model} ({geometry}, serial no. {serial}) ready – profile: {profile}"
+msgstr "{model} ({geometry}, Seriennr. {serial}) bereit – Profil: {profile}"
+
+#: freestream/engine.py:92
+msgctxt "profile"
+msgid "none"
+msgstr "keins"
+
+#: freestream/engine.py:217
+#, python-brace-format
+msgid "Folder {page} not found"
+msgstr "Ordner {page} nicht gefunden"
+
+#: freestream/engine.py:355
+#, python-brace-format
+msgid "Image error {action}: {error}"
+msgstr "Bildfehler {action}: {error}"
+
+#: freestream/engine.py:404
+#, python-brace-format
+msgid "Dial segment {index}: {error}"
+msgstr "Dial-Segment {index}: {error}"
+
+#: freestream/engine.py:493
+#, python-brace-format
+msgid "Error handling event {event}: {error}"
+msgstr "Fehler bei Ereignis {event}: {error}"
+
+#: freestream/engine.py:632 freestream/engine.py:639
+#, python-brace-format
+msgid "Action failed: {error}"
+msgstr "Aktion fehlgeschlagen: {error}"
+
+#: freestream/freedecksettings.py:51
+msgid "Never"
+msgstr "Nie"
+
+#: freestream/freedecksettings.py:148
+msgid "Device name"
+msgstr "Gerätename"
+
+#: freestream/freedecksettings.py:159
+msgid "Orientation"
+msgstr "Ausrichtung"
+
+#: freestream/freedecksettings.py:166
+msgid "Sleep after"
+msgstr "Ruhezustand nach"
+
+#: freestream/freedecksettings.py:183
+msgid "Model"
+msgstr "Modell"
+
+#: freestream/freedecksettings.py:185
+msgid "Serial number"
+msgstr "Seriennummer"
+
+#: freestream/freedecksettings.py:187
+msgid "Firmware"
+msgstr "Firmware"
+
+#: freestream/freedecksettings.py:334
+msgid "Use active window"
+msgstr "Aktives Fenster übernehmen"
+
+#: freestream/freedecksettings.py:648 freestream/settingsui.py:51
+msgid "Style"
+msgstr "Stil"
+
+#: freestream/freedecksettings.py:662
+msgid "Dials"
+msgstr "Dials"
+
+#: freestream/freedecksettings.py:767 freestream/freedecksettings.py:756 freestream/freedecksettings.py:673
+msgid "Apply to all keys"
+msgstr "Auf alle Tasten anwenden"
+
+#: freestream/freedecksettings.py:51
+#, python-brace-format
+msgid "{n} minute"
+msgid_plural "{n} minutes"
+msgstr[0] "{n} Minute"
+msgstr[1] "{n} Minuten"
+
+#: freestream/freedecksettings.py:322 freestream/freedecksettings.py:359
+msgid "None"
+msgstr "Keins"
+
+#: freestream/freedecksettings.py:637 freestream/freedecksettings.py:161
+msgid "Standard"
+msgstr "Standard"
+
+#: freestream/freedecksettings.py:757
+msgid "Change title font, position and colour of all keys in all profiles?"
+msgstr "Schrift, Position und Farbe der Titel aller Tasten in allen Profilen ändern?"
+
+#: freestream/freedecksettings.py:157 freestream/wavedialogs.py:752
+msgid "Active"
+msgstr "Aktiv"
+
+#: freestream/freedecksettings.py:161
+msgid "Upside down (180°)"
+msgstr "Auf dem Kopf (180°)"
+
+#: freestream/freedecksettings.py:315
+msgid "Switch automatically"
+msgstr "Automatisch wechseln"
+
+#: freestream/freedecksettings.py:316
+msgid "FreeDeck switches to this profile as soon as the chosen program is in the foreground."
+msgstr "FreeDeck schaltet zu diesem Profil, sobald das gewählte Programm im Vordergrund ist."
+
+#: freestream/freedecksettings.py:344
+msgid "This is my default profile"
+msgstr "Dies ist mein Standardprofil"
+
+#: freestream/freedecksettings.py:345
+msgid "It appears whenever the program in the foreground has no profile of its own."
+msgstr "Es erscheint immer dann, wenn das Programm im Vordergrund kein eigenes Profil hat."
+
+#: freestream/freedecksettings.py:440 freestream/pluginui.py:139
+msgid "Installed"
+msgstr "Installiert"
+
+#: freestream/freedecksettings.py:443 freestream/pluginui.py:122
+msgid "Install plugin …"
+msgstr "Plugin installieren …"
+
+#: freestream/freedecksettings.py:534 freestream/pluginui.py:205
+msgid "Log"
+msgstr "Log"
+
+#: freestream/freedecksettings.py:589 freestream/pluginui.py:254
+msgid "Remove plugin"
+msgstr "Plugin entfernen"
+
+#: freestream/freedecksettings.py:609
+msgid "Multi Action"
+msgstr "Multi-Aktion"
+
+#: freestream/freedecksettings.py:615
+msgid "Show progress on the key while it runs"
+msgstr "Fortschritt beim Ausführen auf der Taste zeigen"
+
+#: freestream/freedecksettings.py:618
+msgid "Font for all keys"
+msgstr "Schrift für alle Tasten"
+
+#: freestream/freedecksettings.py:625
+msgid "Preview"
+msgstr "Vorschau"
+
+#: freestream/freedecksettings.py:658 freestream/msgbox.py:200
+msgid "Colour"
+msgstr "Farbe"
+
+#: freestream/freedecksettings.py:674
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+#: freestream/freedecksettings.py:675
+msgid "New keys get this font automatically. “Apply to all keys” also changes the keys in all your profiles."
+msgstr "Neue Tasten bekommen diese Schrift automatisch. „Auf alle Tasten anwenden“ ändert auch die Tasten in all deinen Profilen."
+
+#: freestream/freedecksettings.py:768
+#, python-brace-format
+msgid "{n} key changed."
+msgid_plural "{n} keys changed."
+msgstr[0] "{n} Taste geändert."
+msgstr[1] "{n} Tasten geändert."
+
+#: freestream/freedecksettings.py:135
+msgid "Plug in your deck – its settings appear here."
+msgstr "Schließ dein Deck an – seine Einstellungen erscheinen dann hier."
+
+#: freestream/freedecksettings.py:379
+msgid "No other program was in the foreground."
+msgstr "Es war kein anderes Programm im Vordergrund."
+
+#: freestream/freedecksettings.py:486 freestream/pluginui.py:162
+msgid "No plugins installed yet"
+msgstr "Noch keine Plugins installiert"
+
+#: freestream/freedecksettings.py:487
+msgid "Elgato plugins from the Marketplace also run on Linux if they are built with Node.js (most new plugins)."
+msgstr "Elgato-Plugins aus dem Marketplace laufen auch unter Linux, wenn sie mit Node.js gebaut sind (die meisten neuen Plugins)."
+
+#: freestream/freedecksettings.py:532 freestream/pluginui.py:208
+msgid "Restart"
+msgstr "Neu starten"
+
+#: freestream/freedecksettings.py:381
+#, python-brace-format
+msgid "Program: {app}"
+msgstr "Programm: {app}"
+
+#: freestream/freedecksettings.py:589 freestream/pluginui.py:254
+#, python-brace-format
+msgid "Remove “{name}”? Keys with its actions stay in the profile but no longer do anything."
+msgstr "„{name}“ entfernen? Tasten mit seinen Aktionen bleiben im Profil erhalten, tun aber nichts mehr."
+
+#: freestream/freedecksettings.py:332
+#, python-brace-format
+msgid "From the imported profile: {app}"
+msgstr "Aus dem importierten Profil: {app}"
+
+#: freestream/freedecksettings.py:373
+#, python-brace-format
+msgid "Switch to the program now … {n}"
+msgstr "Wechsle jetzt zum Programm … {n}"
+
+#: freestream/freedecksettings.py:515 freestream/pluginui.py:186 freestream/updateui.py:181
+#, python-brace-format
+msgid "Version {version}"
+msgstr "Version {version}"
+
+#: freestream/hass.py:406
+msgid "Service must look like domain.service (e.g. light.turn_on)"
+msgstr "Der Dienst muss die Form domain.service haben (z. B. light.turn_on)"
+
+#: freestream/hass.py:94
+msgid "unavailable"
+msgstr "nicht verfügbar"
+
+#: freestream/hass.py:138 freestream/hass.py:156 freestream/hasskeys.py:254
+msgid "Home Assistant is not set up yet"
+msgstr "Home Assistant ist noch nicht eingerichtet"
+
+#: freestream/hass.py:335
+msgid "No service specified (e.g. light.turn_on)"
+msgstr "Kein Dienst angegeben (z. B. light.turn_on)"
+
+#: freestream/hass.py:186
+msgid "Unexpected response from Home Assistant"
+msgstr "Unerwartete Antwort von Home Assistant"
+
+#: freestream/hass.py:166
+msgid "Access denied – check the access token"
+msgstr "Zugriff verweigert – prüfe den Zugangstoken"
+
+#: freestream/hass.py:278
+#, python-brace-format
+msgid "Connected to Home Assistant ({url})"
+msgstr "Mit Home Assistant verbunden ({url})"
+
+#: freestream/hass.py:420
+#, python-brace-format
+msgid "Invalid JSON in the service data: {error}"
+msgstr "Ungültiges JSON in den Dienstdaten: {error}"
+
+#: freestream/hass.py:174
+#, python-brace-format
+msgid "Home Assistant reports error {code}: {message}"
+msgstr "Home Assistant meldet Fehler {code}: {message}"
+
+#: freestream/hass.py:178 freestream/hass.py:180
+#, python-brace-format
+msgid "Home Assistant not reachable: {error}"
+msgstr "Home Assistant nicht erreichbar: {error}"
+
+#: freestream/hass.py:270 freestream/hass.py:363 freestream/hass.py:370
+#, python-brace-format
+msgid "Home Assistant: {error}"
+msgstr "Home Assistant: {error}"
+
+#: freestream/hass.py:168
+#, python-brace-format
+msgid "Not found: {path}"
+msgstr "Nicht gefunden: {path}"
+
+#: freestream/hass.py:218
+#, python-brace-format
+msgid "Unknown entity: {entity}"
+msgstr "Unbekannte Entität: {entity}"
+
+#: freestream/hasskeys.py:186
+msgid "Token?"
+msgstr "Token?"
+
+#: freestream/hasskeys.py:188
+msgid "Offline"
+msgstr "Offline"
+
+#: freestream/hasskeys.py:190
+msgid "Unknown"
+msgstr "Unbekannt"
+
+#: freestream/hasskeys.py:458
+msgid "Script"
+msgstr "Skript"
+
+#: freestream/hasskeys.py:299
+msgid "open"
+msgstr "offen"
+
+#: freestream/hasskeys.py:299
+msgid "closed"
+msgstr "zu"
+
+#: freestream/hasskeys.py:301
+msgid "unlocked"
+msgstr "offen"
+
+#: freestream/hasskeys.py:301
+msgid "locked"
+msgstr "verriegelt"
+
+#: freestream/hasskeys.py:258
+#, python-brace-format
+msgid "{action}: no entity chosen"
+msgstr "{action}: keine Entität gewählt"
+
+#: freestream/hassui.py:75
+msgid "Connect Home Assistant"
+msgstr "Home Assistant verbinden"
+
+#: freestream/hassui.py:149 freestream/hassui.py:154
+msgid "Choose entity"
+msgstr "Entität wählen"
+
+#: freestream/hassui.py:154
+msgid "All entities of your Home Assistant. Type to search by name or ID."
+msgstr "Alle Entitäten deines Home Assistant. Tippe, um nach Name oder ID zu suchen."
+
+#: freestream/hassui.py:181 freestream/hassui.py:201
+msgid "Loading entities …"
+msgstr "Lade Entitäten …"
+
+#: freestream/hassui.py:256
+msgid "Choose …"
+msgstr "Wählen …"
+
+#: freestream/hassui.py:199
+msgid "Home Assistant is not set up yet – click “Connect …”."
+msgstr "Home Assistant ist noch nicht eingerichtet – klicke auf „Verbinden …“."
+
+#: freestream/hassui.py:275
+msgid "Home Assistant is not set up yet."
+msgstr "Home Assistant ist noch nicht eingerichtet."
+
+#: freestream/hassui.py:169
+msgid "Only suitable entities"
+msgstr "Nur passende Entitäten"
+
+#: freestream/hassui.py:273
+#, python-brace-format
+msgid "Home Assistant: {url}"
+msgstr "Home Assistant: {url}"
+
+#: freestream/iconlib.py:41
+msgid "Streaming"
+msgstr "Streaming"
+
+#: freestream/iconlib.py:42
+msgid "Smart home"
+msgstr "Smart Home"
+
+#: freestream/iconlib.py:42
+msgid "Miscellaneous"
+msgstr "Sonstiges"
+
+#: freestream/iconlib.py:46
+msgid "FreeDeck Icons (Color)"
+msgstr "FreeDeck Icons (Farbe)"
+
+#: freestream/iconlib.py:46
+msgid "FreeDeck Icons (White)"
+msgstr "FreeDeck Icons (Weiß)"
+
+#: freestream/iconlib.py:47
+msgid "FreeDeck Icons (Black)"
+msgstr "FreeDeck Icons (Schwarz)"
+
+#: freestream/iconlib.py:53
+msgid "Microphone off"
+msgstr "Mikrofon aus"
+
+#: freestream/iconlib.py:53 freestream/wave3hw.py:54 freestream/wavesetup.py:27 freestream/waveui.py:1628
+msgid "Headphones"
+msgstr "Kopfhörer"
+
+#: freestream/iconlib.py:54
+msgid "Headphones off"
+msgstr "Kopfhörer aus"
+
+#: freestream/iconlib.py:54
+msgid "Speaker"
+msgstr "Lautsprecher"
+
+#: freestream/iconlib.py:54
+msgid "Speaker off"
+msgstr "Lautsprecher aus"
+
+#: freestream/iconlib.py:55
+msgid "Wave"
+msgstr "Welle"
+
+#: freestream/iconlib.py:56
+msgid "Sound effects"
+msgstr "Soundeffekte"
+
+#: freestream/iconlib.py:56
+msgid "Play"
+msgstr "Abspielen"
+
+#: freestream/iconlib.py:56
+msgid "Pause"
+msgstr "Pause"
+
+#: freestream/iconlib.py:57
+msgid "Previous"
+msgstr "Zurück"
+
+#: freestream/iconlib.py:58
+msgid "Video"
+msgstr "Video"
+
+#: freestream/iconlib.py:58
+msgid "Camera"
+msgstr "Kamera"
+
+#: freestream/iconlib.py:58
+msgid "Image"
+msgstr "Bild"
+
+#: freestream/iconlib.py:58
+msgid "Film"
+msgstr "Film"
+
+#: freestream/iconlib.py:59
+msgid "Stream"
+msgstr "Stream"
+
+#: freestream/iconlib.py:59
+msgid "Stream off"
+msgstr "Stream aus"
+
+#: freestream/iconlib.py:59
+msgid "Live"
+msgstr "Live"
+
+#: freestream/iconlib.py:60
+msgid "Screen"
+msgstr "Bildschirm"
+
+#: freestream/iconlib.py:60
+msgid "Visible"
+msgstr "Sichtbar"
+
+#: freestream/iconlib.py:60
+msgid "Hidden"
+msgstr "Versteckt"
+
+#: freestream/iconlib.py:60
+msgid "Chat"
+msgstr "Chat"
+
+#: freestream/iconlib.py:60
+msgid "People"
+msgstr "Personen"
+
+#: freestream/iconlib.py:61
+msgid "Heart"
+msgstr "Herz"
+
+#: freestream/iconlib.py:61
+msgid "Star"
+msgstr "Stern"
+
+#: freestream/iconlib.py:61
+msgid "Notification"
+msgstr "Benachrichtigung"
+
+#: freestream/iconlib.py:61
+msgid "Computer"
+msgstr "Computer"
+
+#: freestream/iconlib.py:62
+msgid "Power"
+msgstr "Ein/Aus"
+
+#: freestream/iconlib.py:62
+msgid "Lock"
+msgstr "Sperren"
+
+#: freestream/iconlib.py:62
+msgid "Unlock"
+msgstr "Entsperren"
+
+#: freestream/iconlib.py:63
+msgid "Refresh"
+msgstr "Aktualisieren"
+
+#: freestream/iconlib.py:63
+msgid "Search"
+msgstr "Suchen"
+
+#: freestream/iconlib.py:63
+msgid "Keyboard"
+msgstr "Tastatur"
+
+#: freestream/iconlib.py:64
+msgid "Terminal"
+msgstr "Terminal"
+
+#: freestream/iconlib.py:64
+msgid "Download"
+msgstr "Herunterladen"
+
+#: freestream/iconlib.py:64
+msgid "Upload"
+msgstr "Hochladen"
+
+#: freestream/iconlib.py:64
+msgid "Link"
+msgstr "Link"
+
+#: freestream/iconlib.py:65 freestream/waveui.py:1300
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: freestream/iconlib.py:65
+msgid "Wi-Fi"
+msgstr "WLAN"
+
+#: freestream/iconlib.py:66
+msgid "Bluetooth"
+msgstr "Bluetooth"
+
+#: freestream/iconlib.py:66
+msgid "Processor"
+msgstr "Prozessor"
+
+#: freestream/iconlib.py:66
+msgid "Disk"
+msgstr "Festplatte"
+
+#: freestream/iconlib.py:67
+msgid "Hourglass"
+msgstr "Sanduhr"
+
+#: freestream/iconlib.py:68
+msgid "Calendar"
+msgstr "Kalender"
+
+#: freestream/iconlib.py:68
+msgid "Day"
+msgstr "Tag"
+
+#: freestream/iconlib.py:68
+msgid "Night"
+msgstr "Nacht"
+
+#: freestream/iconlib.py:69
+msgid "Home"
+msgstr "Zuhause"
+
+#: freestream/iconlib.py:69
+msgctxt "icon"
+msgid "Light"
+msgstr "Licht"
+
+#: freestream/iconlib.py:69
+msgid "Socket"
+msgstr "Steckdose"
+
+#: freestream/iconlib.py:70
+msgid "Fan"
+msgstr "Lüfter"
+
+#: freestream/iconlib.py:70
+msgid "Door"
+msgstr "Tür"
+
+#: freestream/iconlib.py:70
+msgid "Up"
+msgstr "Hoch"
+
+#: freestream/iconlib.py:70
+msgid "Down"
+msgstr "Runter"
+
+#: freestream/iconlib.py:70
+msgid "Left"
+msgstr "Links"
+
+#: freestream/iconlib.py:71
+msgid "Right"
+msgstr "Rechts"
+
+#: freestream/iconlib.py:71
+msgid "Grid"
+msgstr "Raster"
+
+#: freestream/iconlib.py:71
+msgid "Layers"
+msgstr "Ebenen"
+
+#: freestream/iconlib.py:71
+msgid "Deck"
+msgstr "Deck"
+
+#: freestream/iconlib.py:72
+msgid "Plus"
+msgstr "Plus"
+
+#: freestream/iconlib.py:72
+msgid "Minus"
+msgstr "Minus"
+
+#: freestream/iconlib.py:72 freestream/pluginui.py:144 freestream/settingsui.py:134 freestream/wavedialogs.py:505
+msgid "Close"
+msgstr "Schließen"
+
+#: freestream/iconlib.py:72
+msgid "More"
+msgstr "Mehr"
+
+#: freestream/iconlib.py:73
+msgid "Undo"
+msgstr "Rückgängig"
+
+#: freestream/iconlib.py:73
+msgid "Redo"
+msgstr "Wiederholen"
+
+#: freestream/iconlib.py:74
+msgid "Web"
+msgstr "Web"
+
+#: freestream/iconlib.py:74
+msgid "Mail"
+msgstr "Mail"
+
+#: freestream/iconlib.py:74
+msgid "Phone"
+msgstr "Telefon"
+
+#: freestream/iconlib.py:75
+msgid "Coffee"
+msgstr "Kaffee"
+
+#: freestream/iconlib.py:75
+msgid "Rocket"
+msgstr "Rakete"
+
+#: freestream/iconlib.py:75
+msgid "Trophy"
+msgstr "Pokal"
+
+#: freestream/iconlib.py:75
+msgid "Gift"
+msgstr "Geschenk"
+
+#: freestream/iconlib.py:76
+msgid "Flag"
+msgstr "Flagge"
+
+#: freestream/iconlib.py:76
+msgid "Location"
+msgstr "Ort"
+
+#: freestream/iconlib.py:76
+msgid "Smiley"
+msgstr "Smiley"
+
+#: freestream/iconlib.py:76
+msgid "Thumbs up"
+msgstr "Daumen hoch"
+
+#: freestream/iconlib.py:77
+msgid "Magic"
+msgstr "Zauber"
+
+#: freestream/iconlib.py:77
+msgid "Plugin"
+msgstr "Plugin"
+
+#: freestream/iconlibui.py:22
+msgid "Icon library"
+msgstr "Icon-Bibliothek"
+
+#: freestream/iconlibui.py:40
+msgid "Search icons …"
+msgstr "In Icons suchen …"
+
+#: freestream/iconlibui.py:51
+msgid "Own image …"
+msgstr "Eigenes Bild …"
+
+#: freestream/iconlibui.py:81
+msgid "No icons found"
+msgstr "Keine Icons gefunden"
+
+#: freestream/keyboard.py:209
+#, python-brace-format
+msgid "tap {codes} (uinput not available)"
+msgstr "tap {codes} (uinput nicht verfügbar)"
+
+#: freestream/keyboard.py:196
+#, python-brace-format
+msgid "uinput not available ({error}) – hotkeys disabled. Run the installer or add the user to the 'input' group."
+msgstr "uinput nicht verfügbar ({error}) – Hotkeys deaktiviert. Installer ausführen oder Benutzer zur Gruppe 'input' hinzufügen."
+
+#: freestream/livekeys.py:299
+msgctxt "weekday"
+msgid "Mon"
+msgstr "Mo"
+
+#: freestream/livekeys.py:299
+msgctxt "weekday"
+msgid "Tue"
+msgstr "Di"
+
+#: freestream/livekeys.py:299
+msgctxt "weekday"
+msgid "Wed"
+msgstr "Mi"
+
+#: freestream/livekeys.py:300
+msgctxt "weekday"
+msgid "Thu"
+msgstr "Do"
+
+#: freestream/livekeys.py:300
+msgctxt "weekday"
+msgid "Fri"
+msgstr "Fr"
+
+#: freestream/livekeys.py:300
+msgctxt "weekday"
+msgid "Sat"
+msgstr "Sa"
+
+#: freestream/livekeys.py:301
+msgctxt "weekday"
+msgid "Sun"
+msgstr "So"
+
+#: freestream/livekeys.py:773
+msgid "not available"
+msgstr "nicht verfügbar"
+
+#: freestream/livekeys.py:762
+msgctxt "short"
+msgid "Network"
+msgstr "Netz"
+
+#: freestream/livekeys.py:766
+msgctxt "short"
+msgid "Temp"
+msgstr "Temp"
+
+#: freestream/livekeys.py:767
+msgctxt "short"
+msgid "Battery"
+msgstr "Akku"
+
+#: freestream/livekeys.py:542
+#, python-brace-format
+msgid "The countdown of {duration} has finished."
+msgstr "Der Countdown über {duration} ist abgelaufen."
+
+#: freestream/livekeys.py:808
+msgctxt "battery"
+msgid "charging"
+msgstr "lädt"
+
+#: freestream/livekeys.py:810
+msgctxt "battery"
+msgid "full"
+msgstr "voll"
+
+#: freestream/livekeys.py:815
+msgctxt "battery"
+msgid "plugged in"
+msgstr "am Netz"
+
+#: freestream/livekeys.py:812
+#, python-brace-format
+msgid "{time} left"
+msgstr "noch {time}"
+
+#: freestream/livekeys.py:823
+#, python-brace-format
+msgid "{size} free"
+msgstr "{size} frei"
+
+#: freestream/mixer.py:65
+msgid "SFX"
+msgstr "Effekte"
+
+#: freestream/mixer.py:641 freestream/wavedialogs.py:255 freestream/waveui.py:2171
+msgid "FreeWave Stream Mix"
+msgstr "FreeWave Stream-Mix"
+
+#: freestream/mixer.py:271 freestream/mixer.py:308 freestream/mixer.py:405 freestream/mixer.py:422
+msgid "Please enter a name"
+msgstr "Bitte einen Namen eingeben"
+
+#: freestream/mixer.py:275 freestream/wavedialogs.py:162
+msgid "Please choose an input device"
+msgstr "Bitte ein Eingangsgerät wählen"
+
+#: freestream/mixer.py:325
+msgid "At least one channel for apps must remain"
+msgstr "Mindestens ein Kanal für Programme muss bleiben"
+
+#: freestream/mixer.py:399 freestream/wavedialogs.py:304
+msgid "Choose at least one output"
+msgstr "Bitte mindestens einen Ausgang wählen"
+
+#: freestream/mixer.py:449
+msgid "The Personal Mix and the Stream Mix cannot be deleted"
+msgstr "Den Persönlichen Mix und den Stream-Mix kann man nicht löschen"
+
+#: freestream/mixer.py:521
+msgid "pactl is missing (package pulseaudio-utils) – PipeWire with pipewire-pulse is required"
+msgstr "pactl fehlt (Paket pulseaudio-utils) – PipeWire mit pipewire-pulse wird benötigt"
+
+#: freestream/mixer.py:580
+#, python-brace-format
+msgid "FreeWave {name} → {mix}"
+msgstr "FreeWave {name} → {mix}"
+
+#: freestream/mixer.py:1207 freestream/wavedialogs.py:249 freestream/waveui.py:714
+msgid "No output device found"
+msgstr "Kein Ausgabegerät gefunden"
+
+#: freestream/mixer.py:555
+#, python-brace-format
+msgid "Audio mixer set up: {count} channels, monitor → {output}"
+msgstr "Audio-Mixer eingerichtet: {count} Kanäle, Monitor → {output}"
+
+#: freestream/mixer.py:1057
+#, python-brace-format
+msgid "FreeWave listen: {mix}"
+msgstr "FreeWave abhören: {mix}"
+
+#: freestream/mixer.py:273
+#, python-brace-format
+msgid "Unknown kind: {kind}"
+msgstr "Unbekannte Art: {kind}"
+
+#: freestream/mixer.py:306 freestream/mixer.py:323 freestream/mixer.py:745 freestream/mixer.py:963
+#, python-brace-format
+msgid "Channel {id} not found"
+msgstr "Kanal {id} nicht gefunden"
+
+#: freestream/mixer.py:420 freestream/mixer.py:447 freestream/mixer.py:1036
+#, python-brace-format
+msgid "Mix {id} not found"
+msgstr "Mix {id} nicht gefunden"
+
+#: freestream/mixer.py:460 freestream/mixer.py:933 freestream/mixer.py:940
+#, python-brace-format
+msgid "Channel {id}/{mix} not found"
+msgstr "Kanal {id}/{mix} nicht gefunden"
+
+#: freestream/mixer.py:969
+#, python-brace-format
+msgid "Channel {id} has no input"
+msgstr "Kanal {id} hat keinen Eingang"
+
+#: freestream/mixer.py:1108
+#, python-brace-format
+msgid "Scene “{name}” not found"
+msgstr "Szene „{name}“ nicht gefunden"
+
+#: freestream/mixer.py:1171
+#, python-brace-format
+msgid "A scene named “{name}” already exists"
+msgstr "Eine Szene mit dem Namen „{name}“ gibt es schon"
+
+#: freestream/mixer.py:1287 freestream/mixer.py:1297
+#, python-brace-format
+msgid "Unknown channel: {id}"
+msgstr "Unbekannter Kanal: {id}"
+
+#: freestream/mixer.py:101
+msgid "pactl error"
+msgstr "pactl-Fehler"
+
+#: freestream/mixer.py:910
+#, python-brace-format
+msgid "Channel {id} is in no mix"
+msgstr "Kanal {id} ist in keinem Mix"
+
+#: freestream/mixer.py:919
+#, python-brace-format
+msgid "Channel {id}/{mix} not found – is the mixer set up? (freewave mixer setup)"
+msgstr "Kanal {id}/{mix} nicht gefunden – Mixer eingerichtet? (freewave mixer setup)"
+
+#: freestream/mixer.py:1041
+#, python-brace-format
+msgid "“{name}” plays directly on a device – listen to it there"
+msgstr "„{name}“ spielt direkt auf einem Gerät – dort abhören"
+
+#: freestream/mixer.py:1218
+#, python-brace-format
+msgid "Output device “{device}” not found"
+msgstr "Ausgabegerät „{device}“ nicht gefunden"
+
+#: freestream/mixer.py:544
+#, python-brace-format
+msgid "Default output not set to FreeWave {name}: {error}"
+msgstr "Standardausgabe nicht auf FreeWave {name} gesetzt: {error}"
+
+#: freestream/mixer.py:1280
+#, python-brace-format
+msgid "Stream {index}"
+msgstr "Stream {index}"
+
+#: freestream/mixer.py:1262
+#, python-brace-format
+msgid "Moving {stream} failed: {error}"
+msgstr "Verschieben von {stream} fehlgeschlagen: {error}"
+
+#: freestream/mixkeys.py:157 freestream/wavesetup.py:27 freestream/waveui.py:1682
+msgid "Channels"
+msgstr "Kanäle"
+
+#: freestream/mixkeys.py:80 freestream/native.py:545 freestream/native.py:726
+msgid "Mixer off"
+msgstr "Mixer aus"
+
+#: freestream/mixkeys.py:25 freestream/native.py:488 freestream/native.py:610
+msgctxt "mix"
+msgid "All"
+msgstr "Alle"
+
+#: freestream/mixkeys.py:25 freestream/wavedialogs.py:822
+msgid "Personal"
+msgstr "Persönlich"
+
+#: freestream/msgbox.py:138
+msgid "Pick a colour or type a hex value."
+msgstr "Farbe wählen oder Hex-Wert eingeben."
+
+#: freestream/msgbox.py:83
+msgid "Yes"
+msgstr "Ja"
+
+#: freestream/msgbox.py:83
+msgid "No"
+msgstr "Nein"
+
+#: freestream/msgbox.py:89 freestream/msgbox.py:95 freestream/msgbox.py:102 freestream/msgbox.py:156
+msgid "OK"
+msgstr "OK"
+
+#: freestream/native.py:719 freestream/native.py:716
+msgctxt "key label"
+msgid "Scene"
+msgstr "Szene"
+
+#: freestream/native.py:536
+msgctxt "key label"
+msgid "Output"
+msgstr "Ausgang"
+
+#: freestream/native.py:724
+msgid "not found"
+msgstr "nicht gefunden"
+
+#: freestream/native.py:727
+msgctxt "state"
+msgid "active"
+msgstr "aktiv"
+
+#: freestream/native.py:806 freestream/native.py:800
+msgid "no Wave"
+msgstr "kein Wave"
+
+#: freestream/native.py:163
+msgctxt "state"
+msgid "paused"
+msgstr "pausiert"
+
+#: freestream/native.py:195
+msgid "OBS not connected – enable the WebSocket server in OBS"
+msgstr "OBS nicht verbunden – WebSocket-Server in OBS aktivieren"
+
+#: freestream/native.py:334
+msgid "playerctl is missing (package playerctl)"
+msgstr "playerctl fehlt (Paket playerctl)"
+
+#: freestream/native.py:164
+msgctxt "state"
+msgid "running"
+msgstr "läuft"
+
+#: freestream/native.py:179
+msgid "Snapshot"
+msgstr "Foto"
+
+#: freestream/native.py:179
+msgid "Transition"
+msgstr "Übergang"
+
+#: freestream/native.py:406 freestream/native.py:792
+msgctxt "key label"
+msgid "Mic"
+msgstr "Mikro"
+
+#: freestream/native.py:406
+msgctxt "key label"
+msgid "Sound"
+msgstr "Ton"
+
+#: freestream/native.py:407
+msgid "Hang up"
+msgstr "Auflegen"
+
+#: freestream/native.py:800
+msgid "Wave:3 only"
+msgstr "nur Wave:3"
+
+#: freestream/noise.py:95
+msgid "No noise suppression available. Install the package noise-suppression-for-voice (RNNoise) or libspa-0.2-modules and libpipewire-0.3-modules (PipeWire WebRTC)."
+msgstr "Keine Rauschunterdrückung verfügbar. Installiere das Paket noise-suppression-for-voice (RNNoise) oder libspa-0.2-modules und libpipewire-0.3-modules (PipeWire WebRTC)."
+
+#: freestream/noise.py:131 freestream/noise.py:164
+msgid "FreeWave Microphone (noise suppression)"
+msgstr "FreeWave Mikrofon (Rauschunterdrückung)"
+
+#: freestream/noise.py:165
+msgid "FreeWave noise suppression (reference)"
+msgstr "FreeWave Rauschunterdrückung (Referenz)"
+
+#: freestream/noise.py:57
+msgid "PipeWire WebRTC"
+msgstr "PipeWire WebRTC"
+
+#: freestream/noise.py:319
+#, python-brace-format
+msgid "Noise suppression active ({backend})"
+msgstr "Rauschunterdrückung aktiv ({backend})"
+
+#: freestream/noise.py:232
+#, python-brace-format
+msgid "Unknown method: {name}"
+msgstr "Unbekanntes Verfahren: {name}"
+
+#: freestream/noise.py:316
+#, python-brace-format
+msgid "Noise suppression could not start ({backend})"
+msgstr "Rauschunterdrückung konnte nicht starten ({backend})"
+
+#: freestream/noise.py:330
+#, python-brace-format
+msgid "Noise suppression not started: {error}"
+msgstr "Rauschunterdrückung nicht gestartet: {error}"
+
+#: freestream/obs.py:74
+msgid "Unexpected response from OBS"
+msgstr "Unerwartete Antwort von OBS"
+
+#: freestream/obs.py:85
+msgid "Login to OBS failed (check the password)"
+msgstr "Anmeldung bei OBS fehlgeschlagen (Passwort prüfen)"
+
+#: freestream/obs.py:80
+msgid "OBS requires a password – enter it under Settings → Connections → OBS Studio"
+msgstr "OBS verlangt ein Passwort – unter Einstellungen → Verbindungen → OBS Studio eintragen"
+
+#: freestream/obs.py:88
+#, python-brace-format
+msgid "Connected to OBS ({host}:{port})"
+msgstr "Mit OBS verbunden ({host}:{port})"
+
+#: freestream/obs.py:98
+msgid "Connection to OBS lost"
+msgstr "Verbindung zu OBS getrennt"
+
+#: freestream/obs.py:181
+msgid "OBS is not connected"
+msgstr "OBS ist nicht verbunden"
+
+#: freestream/obs.py:196
+#, python-brace-format
+msgid "No response from OBS to {request}"
+msgstr "Keine Antwort von OBS auf {request}"
+
+#: freestream/obs.py:180
+#, python-brace-format
+msgid "OBS is not connected ({error})"
+msgstr "OBS ist nicht verbunden ({error})"
+
+#: freestream/obs.py:63
+#, python-brace-format
+msgid "OBS not connected: {error}"
+msgstr "OBS nicht verbunden: {error}"
+
+#: freestream/obs.py:133
+#, python-brace-format
+msgid "Error {code}"
+msgstr "Fehler {code}"
+
+#: freestream/plugins.py:86
+msgid "built for Windows/macOS only"
+msgstr "nur für Windows/macOS gebaut"
+
+#: freestream/plugins.py:83
+msgid "HTML plugin (runs only in the Elgato app)"
+msgstr "HTML-Plugin (läuft nur in der Elgato-App)"
+
+#: freestream/plugins.py:683
+msgid "Page not found"
+msgstr "Seite nicht gefunden"
+
+#: freestream/plugins.py:691
+msgid "No action in this slot"
+msgstr "Keine Aktion auf diesem Platz"
+
+#: freestream/plugins.py:244
+msgid "Node.js not found (install the “nodejs” package or set node_path)"
+msgstr "Node.js nicht gefunden (Paket „nodejs“ installieren oder node_path setzen)"
+
+#: freestream/plugins.py:266
+#, python-brace-format
+msgid "Plugin started: {name} {version}"
+msgstr "Plugin gestartet: {name} {version}"
+
+#: freestream/plugins.py:276
+#, python-brace-format
+msgid "Plugin {name} exited (code {code})"
+msgstr "Plugin {name} beendet (Code {code})"
+
+#: freestream/plugins.py:525
+#, python-brace-format
+msgid "Plugin connected: {name}"
+msgstr "Plugin verbunden: {name}"
+
+#: freestream/plugins.py:739 freestream/ws.py:191
+msgid "Not found"
+msgstr "Nicht gefunden"
+
+#: freestream/plugins.py:505
+#, python-brace-format
+msgid "WebSocket connection from foreign origin rejected: {origin}"
+msgstr "WebSocket-Verbindung von fremder Herkunft abgelehnt: {origin}"
+
+#: freestream/plugins.py:522
+#, python-brace-format
+msgid "Unknown plugin tried to register: {uuid}"
+msgstr "Unbekanntes Plugin meldet sich an: {uuid}"
+
+#: freestream/plugins.py:711
+msgid "Access denied"
+msgstr "Zugriff verweigert"
+
+#: freestream/plugins.py:217
+#, python-brace-format
+msgid "SVG cannot be rendered: {error}"
+msgstr "SVG nicht darstellbar: {error}"
+
+#: freestream/plugins.py:262
+#, python-brace-format
+msgid "Plugin {name} cannot be started: {error}"
+msgstr "Plugin {name} nicht startbar: {error}"
+
+#: freestream/plugins.py:719
+msgid "This plugin has no settings page"
+msgstr "Dieses Plugin hat keine Einstellungsseite"
+
+#: freestream/plugins.py:726
+msgid "Plugin not installed"
+msgstr "Plugin nicht installiert"
+
+#: freestream/plugins.py:730
+msgid "File not found"
+msgstr "Datei nicht gefunden"
+
+#: freestream/plugins.py:134
+#, python-brace-format
+msgid "Plugin {name} not readable: {error}"
+msgstr "Plugin {name} nicht lesbar: {error}"
+
+#: freestream/plugins.py:343
+#, python-brace-format
+msgid "Plugin {name} will not be started: {reason}"
+msgstr "Plugin {name} wird nicht gestartet: {reason}"
+
+#: freestream/plugins.py:544
+#, python-brace-format
+msgid "Plugin {name}: command {command} failed: {error}"
+msgstr "Plugin {name}: Befehl {command} fehlgeschlagen: {error}"
+
+#: freestream/plugins.py:622
+#, python-brace-format
+msgid "Settings not saved: {error}"
+msgstr "Einstellungen nicht gespeichert: {error}"
+
+#: freestream/plugins.py:790
+#, python-brace-format
+msgid "Settings page {name}: {error}"
+msgstr "Einstellungsseite {name}: {error}"
+
+#: freestream/plugins.py:820
+#, python-brace-format
+msgid "[{name} settings] {message}"
+msgstr "[{name} Einstellungen] {message}"
+
+#: freestream/plugins.py:610
+#, python-brace-format
+msgid "Plugin {name}: unknown command {command}"
+msgstr "Plugin {name}: unbekannter Befehl {command}"
+
+#: freestream/pluginui.py:49
+msgid "running"
+msgstr "läuft"
+
+#: freestream/pluginui.py:39
+msgid "ready"
+msgstr "bereit"
+
+#: freestream/pluginui.py:41
+msgid "Node.js missing (package nodejs)"
+msgstr "Node.js fehlt (Paket nodejs)"
+
+#: freestream/pluginui.py:44
+msgid "launching …"
+msgstr "wird gestartet …"
+
+#: freestream/pluginui.py:46
+msgid "exited – see log"
+msgstr "beendet – siehe Log"
+
+#: freestream/pluginui.py:48
+msgid "starting …"
+msgstr "startet …"
+
+#: freestream/pluginui.py:84
+msgid "Install plugin"
+msgstr "Plugin installieren"
+
+#: freestream/pluginui.py:116
+msgid "Elgato plugins from the Marketplace also run on Linux if they are built with Node.js (most new plugins). Download the “….streamDeckPlugin” file and install it here – or just put it in your Downloads folder, FreeDeck picks it up by itself."
+msgstr "Elgato-Plugins aus dem Marketplace laufen auch unter Linux, wenn sie mit Node.js gebaut sind (die meisten neuen Plugins). Lade die Datei „….streamDeckPlugin“ herunter und installiere sie hier – oder lege sie einfach in den Download-Ordner, FreeDeck übernimmt sie dann von selbst."
+
+#: freestream/pluginui.py:128
+msgid "Node.js found – plugins can run"
+msgstr "Node.js gefunden – Plugins können laufen"
+
+#: freestream/pluginui.py:129
+msgid "Node.js missing – please install the “nodejs” package, otherwise most plugins will not start"
+msgstr "Node.js fehlt – bitte das Paket „nodejs“ installieren, sonst starten die meisten Plugins nicht"
+
+#: freestream/pluginui.py:85
+msgid "Plugin (Elgato format)"
+msgstr "Plugin (Elgato-Format)"
+
+#: freestream/pluginui.py:123
+msgid "Open Marketplace"
+msgstr "Marketplace öffnen"
+
+#: freestream/pluginui.py:125
+msgid "Plugin folder"
+msgstr "Plugin-Ordner"
+
+#: freestream/pluginui.py:127
+#, python-brace-format
+msgid "Node.js {version} – plugins can run"
+msgstr "Node.js {version} – Plugins können laufen"
+
+#: freestream/pluginui.py:163
+msgid "OBS, Spotify, Discord and Wave Link don't need a plugin – FreeDeck can do that by itself."
+msgstr "OBS, Spotify, Discord und Wave Link brauchen kein Plugin – das kann FreeDeck schon selbst."
+
+#: freestream/pluginui.py:94
+#, python-brace-format
+msgid "“{name}” installed"
+msgstr "„{name}“ installiert"
+
+#: freestream/pluginui.py:95
+#, python-brace-format
+msgid "“{name}” installed – does not run on Linux ({reason})"
+msgstr "„{name}“ installiert – läuft nicht unter Linux ({reason})"
+
+#: freestream/profiles.py:362
+#, python-brace-format
+msgid "Unsafe path in archive: {path}"
+msgstr "Unsicherer Pfad im Archiv: {path}"
+
+#: freestream/profiles.py:245
+#, python-brace-format
+msgid "Profile {name} not readable: {error}"
+msgstr "Profil {name} nicht lesbar: {error}"
+
+#: freestream/render.py:367
+msgctxt "overlay"
+msgid "Error"
+msgstr "Fehler"
+
+#: freestream/render.py:372
+msgctxt "overlay"
+msgid "Done"
+msgstr "Erledigt"
+
+#: freestream/render.py:378
+msgctxt "no profile"
+msgid "No profile"
+msgstr "Kein Profil"
+
+#: freestream/render.py:378
+msgid "choose in FreeDeck"
+msgstr "in FreeDeck wählen"
+
+#: freestream/render.py:352
+#, python-brace-format
+msgid "Step {n} / {m}"
+msgstr "Schritt {n} / {m}"
+
+#: freestream/render.py:107
+#, python-brace-format
+msgid "Cannot load image {path}: {error}"
+msgstr "Bild nicht ladbar {path}: {error}"
+
+#: freestream/selftest.py:205
+msgid "FreeDeck hardware self-test"
+msgstr "FreeDeck Hardware-Selbsttest"
+
+#: freestream/selftest.py:35
+msgid "left"
+msgstr "links"
+
+#: freestream/selftest.py:35
+msgid "right"
+msgstr "rechts"
+
+#: freestream/selftest.py:35 freestream/selftest.py:142
+msgid "press"
+msgstr "drücken"
+
+#: freestream/selftest.py:154
+msgid "no display"
+msgstr "kein Display"
+
+#: freestream/selftest.py:223
+msgid "No device found."
+msgstr "Kein Gerät gefunden."
+
+#: freestream/selftest.py:148
+msgid "Self-test"
+msgstr "Selbsttest"
+
+#: freestream/selftest.py:148
+msgid "Tap the touch keys"
+msgstr "Touch-Tasten antippen"
+
+#: freestream/selftest.py:151
+#, python-brace-format
+msgid "shown (please check: numbers 1…{count} in reading order)"
+msgstr "angezeigt (bitte prüfen: Nummern 1…{count} in Leserichtung)"
+
+#: freestream/selftest.py:161
+#, python-brace-format
+msgid "missing: {keys}"
+msgstr "fehlen: {keys}"
+
+#: freestream/selftest.py:177
+msgid "Step 3: tap each field of the touch strip and swipe once …"
+msgstr "Schritt 3: jedes Feld des Touchstreifens antippen und einmal wischen …"
+
+#: freestream/selftest.py:195
+msgid "Step 4: tap both touch keys (left/right below the display) …"
+msgstr "Schritt 4: beide Touch-Tasten (links/rechts unter dem Display) antippen …"
+
+#: freestream/selftest.py:157
+#, python-brace-format
+msgid "Step 1: press all {count} keys one after another …"
+msgstr "Schritt 1: alle {count} Tasten nacheinander drücken …"
+
+#: freestream/selftest.py:159
+#, python-brace-format
+msgid "{done}/{total} keys detected"
+msgstr "{done}/{total} Tasten erkannt"
+
+#: freestream/selftest.py:186
+#, python-brace-format
+msgid "{done}/{total} fields, swipe: {answer}"
+msgstr "{done}/{total} Felder, Wischen: {answer}"
+
+#: freestream/selftest.py:191
+#, python-brace-format
+msgid "{done}/{total} fields, swipe {status}"
+msgstr "{done}/{total} Felder, Wischen {status}"
+
+#: freestream/selftest.py:166
+#, python-brace-format
+msgid "Step 2: turn each of the {count} dials left and right and press it …"
+msgstr "Schritt 2: jeden der {count} Dials links und rechts drehen und drücken …"
+
+#: freestream/selftest.py:180
+msgid "tap"
+msgstr "antippen"
+
+#: freestream/selftest.py:192
+msgid "missing"
+msgstr "fehlt"
+
+#: freestream/selftest.py:197
+#, python-brace-format
+msgid "{done}/{total} touch keys"
+msgstr "{done}/{total} Touch-Tasten"
+
+#: freestream/selftest.py:243
+#, python-brace-format
+msgid "✔ PASSED – report: {path}"
+msgstr "✔ BESTANDEN – Bericht: {path}"
+
+#: freestream/selftest.py:243
+#, python-brace-format
+msgid "✘ INCOMPLETE – report: {path}"
+msgstr "✘ NICHT VOLLSTÄNDIG – Bericht: {path}"
+
+#: freestream/selftest.py:172
+#, python-brace-format
+msgid "Dial {number} missing {actions}"
+msgstr "Dial {number} fehlt {actions}"
+
+#: freestream/selftest.py:180
+#, python-brace-format
+msgid "Field {number}"
+msgstr "Feld {number}"
+
+#: freestream/settingsui.py:77
+msgid "Include beta versions"
+msgstr "Beta-Versionen einbeziehen"
+
+#: freestream/settingsui.py:83
+msgid "Start automatically when you log in"
+msgstr "Bei der Anmeldung automatisch starten"
+
+#: freestream/settingsui.py:117
+msgid "Help"
+msgstr "Hilfe"
+
+#: freestream/settingsui.py:123
+msgid "Create support report…"
+msgstr "Support-Bericht erstellen …"
+
+#: freestream/settingsui.py:209
+msgid "Backup"
+msgstr "Sicherung"
+
+#: freestream/settingsui.py:222
+msgid "Create backup…"
+msgstr "Sicherung erstellen…"
+
+#: freestream/settingsui.py:224
+msgid "Restore…"
+msgstr "Wiederherstellen…"
+
+#: freestream/settingsui.py:293
+msgid "Creating backup…"
+msgstr "Sicherung wird erstellt…"
+
+#: freestream/settingsui.py:310
+msgid "Your current profiles and settings will be replaced. A safety copy of them is saved first. FreeDeck and FreeWave restart afterwards. Continue?"
+msgstr "Deine aktuellen Profile und Einstellungen werden ersetzt. Vorher wird eine Sicherheitskopie davon gespeichert. FreeDeck und FreeWave starten danach neu. Fortfahren?"
+
+#: freestream/settingsui.py:343
+msgid "Restoring backup…"
+msgstr "Sicherung wird wiederhergestellt…"
+
+#: freestream/settingsui.py:359
+msgid "Creating the support report…"
+msgstr "Support-Bericht wird erstellt …"
+
+#: freestream/settingsui.py:377
+msgid "Support report"
+msgstr "Support-Bericht"
+
+#: freestream/settingsui.py:65
+msgid "These settings apply to FreeDeck and FreeWave."
+msgstr "Diese Einstellungen gelten für FreeDeck und FreeWave."
+
+#: freestream/settingsui.py:78
+msgid "Beta versions bring new features earlier but may contain more bugs."
+msgstr "Beta-Versionen bringen neue Funktionen früher, können aber mehr Fehler enthalten."
+
+#: freestream/settingsui.py:97 freestream/theme.py:586
+msgid "System language"
+msgstr "Systemsprache"
+
+#: freestream/settingsui.py:107 freestream/waveui.py:655 freestream/waveui.py:729 freestream/waveui.py:746
+msgid "Mixer"
+msgstr "Mixer"
+
+#: freestream/settingsui.py:279
+msgid "Create backup"
+msgstr "Sicherung erstellen"
+
+#: freestream/settingsui.py:299 freestream/settingsui.py:313 freestream/settingsui.py:338 freestream/settingsui.py:308
+msgid "Restore backup"
+msgstr "Sicherung wiederherstellen"
+
+#: freestream/settingsui.py:73
+msgid "Check now"
+msgstr "Jetzt suchen"
+
+#: freestream/settingsui.py:75 freestream/updateui.py:242
+#, python-brace-format
+msgid "Check for updates every time {app} starts"
+msgstr "Bei jedem Start von {app} nach Updates suchen"
+
+#: freestream/settingsui.py:86
+msgid "Install an earlier version…"
+msgstr "Ältere Version installieren …"
+
+#: freestream/settingsui.py:93
+msgid "Auto follows the light or dark setting of your desktop."
+msgstr "Auto folgt der hellen oder dunklen Einstellung deines Desktops."
+
+#: freestream/settingsui.py:95 freestream/theme.py:607
+msgid "Language"
+msgstr "Sprache"
+
+#: freestream/settingsui.py:118
+msgid "Something not working? Create a support report and attach it to a GitHub issue. Passwords and tokens are removed from it."
+msgstr "Funktioniert etwas nicht? Erstelle einen Support-Bericht und häng ihn an ein GitHub-Issue an. Passwörter und Tokens werden daraus entfernt."
+
+#: freestream/settingsui.py:126
+msgid "Report a problem on GitHub"
+msgstr "Problem auf GitHub melden"
+
+#: freestream/settingsui.py:210
+msgid "Save all profiles, images, plugins and settings of FreeDeck and FreeWave to one file, or restore them from such a file."
+msgstr "Speichere alle Profile, Bilder, Plugins und Einstellungen von FreeDeck und FreeWave in einer Datei oder stelle sie aus so einer Datei wieder her."
+
+#: freestream/settingsui.py:219
+msgid "Include installed plugins"
+msgstr "Installierte Plugins einschließen"
+
+#: freestream/settingsui.py:353
+msgid "Save support report"
+msgstr "Support-Bericht speichern"
+
+#: freestream/settingsui.py:377
+#, python-brace-format
+msgid ""
+"The support report was saved to {path}.\n"
+"\n"
+"Attach this file to a GitHub issue. Open the folder now?"
+msgstr ""
+"Der Support-Bericht wurde unter {path} gespeichert.\n"
+"\n"
+"Häng diese Datei an ein GitHub-Issue an. Ordner jetzt öffnen?"
+
+#: freestream/settingsui.py:49
+msgid "General"
+msgstr "Allgemein"
+
+#: freestream/settingsui.py:84
+#, python-brace-format
+msgid "{app} then runs in the background and is ready as soon as your desktop appears."
+msgstr "{app} läuft dann im Hintergrund und ist bereit, sobald dein Desktop erscheint."
+
+#: freestream/settingsui.py:280 freestream/settingsui.py:300
+msgid "FreeStream backup"
+msgstr "FreeStream-Sicherung"
+
+#: freestream/settingsui.py:72
+#, python-brace-format
+msgid "Installed version: {version}"
+msgstr "Installierte Version: {version}"
+
+#: freestream/settingsui.py:108
+msgid "Remove mixer: the FreeWave channels and mixes disappear, apps play directly on your device again. Your settings are kept."
+msgstr "Mixer entfernen: Die FreeWave-Kanäle und -Mixe verschwinden, Programme spielen wieder direkt auf deinem Gerät. Deine Einstellungen bleiben erhalten."
+
+#: freestream/settingsui.py:110
+msgid "The mixer is off. Set it up to give every app its own channel."
+msgstr "Der Mixer ist aus. Richte ihn ein, damit jedes Programm einen eigenen Kanal bekommt."
+
+#: freestream/settingsui.py:112
+msgid "Remove mixer"
+msgstr "Mixer entfernen"
+
+#: freestream/settingsui.py:112 freestream/waveui.py:736 freestream/waveui.py:805 freestream/waveui.py:809
+msgid "Set up mixer"
+msgstr "Mixer einrichten"
+
+#: freestream/settingsui.py:355
+msgid "Text file"
+msgstr "Textdatei"
+
+#: freestream/settingsui.py:338
+#, python-brace-format
+msgid "Backup restored. {app} restarts now."
+msgstr "Sicherung wiederhergestellt. {app} startet jetzt neu."
+
+#: freestream/shortcuts.py:296
+msgid "Your desktop does not support setting shortcuts automatically. Add this command as a custom shortcut in your desktop's keyboard settings:"
+msgstr "Bei deinem Desktop kann FreeWave Tastenkürzel nicht selbst eintragen. Lege diesen Befehl in den Tastatur-Einstellungen deines Desktops als eigenes Tastenkürzel an:"
+
+#: freestream/shortcuts.py:132 freestream/shortcuts.py:292
+#, python-brace-format
+msgid "Invalid key combination: {keys}"
+msgstr "Ungültige Tastenkombination: {keys}"
+
+#: freestream/shortcuts.py:425
+#, python-brace-format
+msgid "The key combination {keys} is already used by “{command}”."
+msgstr "Die Tastenkombination {keys} ist schon mit „{command}“ belegt."
+
+#: freestream/shortcuts.py:313
+msgid "KDE Plasma applies the shortcut after you log in again."
+msgstr "KDE Plasma übernimmt das Tastenkürzel nach dem nächsten Anmelden."
+
+#: freestream/system.py:221
+#, python-brace-format
+msgid "Target not found: {path}"
+msgstr "Ziel nicht gefunden: {path}"
+
+#: freestream/system.py:416
+msgid "No audio player found (install mpv, ffplay or pipewire-bin)"
+msgstr "Kein Audioplayer gefunden (mpv, ffplay oder pipewire-bin installieren)"
+
+#: freestream/system.py:312
+msgid "No clipboard available (install wl-clipboard or xclip)"
+msgstr "Keine Zwischenablage verfügbar (wl-clipboard oder xclip installieren)"
+
+#: freestream/system.py:71
+#, python-brace-format
+msgid "Failed to start {cmd}: {error}"
+msgstr "Start fehlgeschlagen {cmd}: {error}"
+
+#: freestream/system.py:208
+#, python-brace-format
+msgid "Windows path without mapping: {path} (add it under Settings → Connections → Windows profiles)"
+msgstr "Windows-Pfad ohne Zuordnung: {path} (unter Einstellungen → Verbindungen → Windows-Profile eintragen)"
+
+#: freestream/system.py:421
+#, python-brace-format
+msgid "Audio playback failed: {error}"
+msgstr "Audio-Wiedergabe fehlgeschlagen: {error}"
+
+#: freestream/theme.py:605
+#, python-brace-format
+msgid "{app} will be shown in {language} after a restart. Restart now?"
+msgstr "{app} erscheint nach einem Neustart auf {language}. Jetzt neu starten?"
+
+#: freestream/theme.py:1364
+msgid "Light"
+msgstr "Hell"
+
+#: freestream/theme.py:1364
+msgid "Dark"
+msgstr "Dunkel"
+
+#: freestream/theme.py:1365
+msgid "Auto"
+msgstr "Auto"
+
+#: freestream/theme.py:1360
+#, python-brace-format
+msgid "{app} switches to the new look after a restart. Restart now?"
+msgstr "{app} wechselt nach einem Neustart zum neuen Aussehen. Jetzt neu starten?"
+
+#: freestream/updateui.py:49
+msgid "FreeStream was updated"
+msgstr "FreeStream wurde aktualisiert"
+
+#: freestream/updateui.py:74 freestream/updateui.py:89 freestream/updateui.py:92
+msgid "Updates"
+msgstr "Updates"
+
+#: freestream/updateui.py:137 freestream/updateui.py:141 freestream/updateui.py:204
+msgid "Install an earlier version"
+msgstr "Ältere Version installieren"
+
+#: freestream/updateui.py:142
+msgid "Go back to an older release if the current version causes problems."
+msgstr "Geh zu einer älteren Version zurück, wenn die aktuelle Probleme macht."
+
+#: freestream/updateui.py:150
+msgid "Loading the list of versions…"
+msgstr "Liste der Versionen wird geladen …"
+
+#: freestream/updateui.py:157
+msgid "Continue"
+msgstr "Weiter"
+
+#: freestream/updateui.py:204
+msgid "Update available"
+msgstr "Update verfügbar"
+
+#: freestream/updateui.py:252
+msgid "Install update"
+msgstr "Update installieren"
+
+#: freestream/updateui.py:257
+msgid "Skip this version"
+msgstr "Diese Version überspringen"
+
+#: freestream/updateui.py:176
+msgid "Choose the version to install:"
+msgstr "Wähle die Version, die installiert werden soll:"
+
+#: freestream/updateui.py:255
+msgid "Later"
+msgstr "Später"
+
+#: freestream/updateui.py:368
+msgid "The installation was cancelled. Nothing was changed."
+msgstr "Die Installation wurde abgebrochen. Es wurde nichts geändert."
+
+#: freestream/updateui.py:49
+#, python-brace-format
+msgid "Version {version} is installed."
+msgstr "Version {version} ist installiert."
+
+#: freestream/updateui.py:74
+#, python-brace-format
+msgid "Automatic updates work for the installed .deb packages only. This copy of {app} was started from the source code."
+msgstr "Automatische Updates gibt es nur für die installierten .deb-Pakete. Dieses {app} wurde aus dem Quellcode gestartet."
+
+#: freestream/updateui.py:145
+msgid "Before you go back"
+msgstr "Bevor du zurückgehst"
+
+#: freestream/updateui.py:146
+msgid "Older versions may not read settings or profiles that a newer version saved. Automatic update checks will offer the newest version again – choose “Skip this version” to stay on the older one."
+msgstr "Ältere Versionen können Einstellungen oder Profile, die eine neuere Version gespeichert hat, eventuell nicht lesen. Die automatische Update-Suche bietet die neueste Version wieder an – wähle „Diese Version überspringen“, um bei der älteren zu bleiben."
+
+#: freestream/updateui.py:174
+msgid "No earlier versions are available."
+msgstr "Es gibt keine älteren Versionen."
+
+#: freestream/updateui.py:180
+msgid "Beta"
+msgstr "Beta"
+
+#: freestream/updateui.py:251
+#, python-brace-format
+msgid "Install version {version}"
+msgstr "Version {version} installieren"
+
+#: freestream/updateui.py:311
+#, python-brace-format
+msgid "Downloading FreeStream {version}…"
+msgstr "FreeStream {version} wird heruntergeladen…"
+
+#: freestream/updateui.py:334
+#, python-brace-format
+msgid "Installing… Enter your password when asked. {app} restarts by itself afterwards."
+msgstr "Wird installiert… Gib dein Passwort ein, wenn danach gefragt wird. {app} startet danach von selbst neu."
+
+#: freestream/updateui.py:371
+#, python-brace-format
+msgid "The installation failed: {error}"
+msgstr "Die Installation ist fehlgeschlagen: {error}"
+
+#: freestream/updateui.py:89
+#, python-brace-format
+msgid "Could not check for updates: {error}"
+msgstr "Suche nach Updates nicht möglich: {error}"
+
+#: freestream/updateui.py:178
+#, python-brace-format
+msgid "Published {date}"
+msgstr "Veröffentlicht am {date}"
+
+#: freestream/updateui.py:214
+#, python-brace-format
+msgid "FreeStream {version} will replace version {current}. Your settings and profiles stay, but an older version may not understand everything a newer one saved."
+msgstr "FreeStream {version} ersetzt Version {current}. Deine Einstellungen und Profile bleiben erhalten, aber eine ältere Version versteht eventuell nicht alles, was eine neuere gespeichert hat."
+
+#: freestream/updateui.py:218
+#, python-brace-format
+msgid "FreeStream {version} is ready to install. You are using version {current}."
+msgstr "FreeStream {version} ist bereit zur Installation. Du verwendest Version {current}."
+
+#: freestream/updateui.py:233
+msgid "Show release on GitHub"
+msgstr "Release auf GitHub ansehen"
+
+#: freestream/updateui.py:328
+#, python-brace-format
+msgid "The download is damaged ({file}). Nothing was installed."
+msgstr "Der Download ist beschädigt ({file}). Es wurde nichts installiert."
+
+#: freestream/updateui.py:330
+#, python-brace-format
+msgid "Download failed: {error}"
+msgstr "Download fehlgeschlagen: {error}"
+
+#: freestream/updateui.py:347
+#, python-brace-format
+msgid "Automatic installation is not possible here (pkexec is missing). The packages are in {folder} – install them with a double-click."
+msgstr "Automatisch installieren geht hier nicht (pkexec fehlt). Die Pakete liegen in {folder} – per Doppelklick installieren."
+
+#: freestream/updateui.py:360
+#, python-brace-format
+msgid "Version {version} installed. {app} restarts now."
+msgstr "Version {version} installiert. {app} startet jetzt neu."
+
+#: freestream/updateui.py:362
+#, python-brace-format
+msgid "Update installed. {app} restarts now."
+msgstr "Update installiert. {app} startet jetzt neu."
+
+#: freestream/updateui.py:92
+#, python-brace-format
+msgid "You are using the latest version ({version})."
+msgstr "Du verwendest die neueste Version ({version})."
+
+#: freestream/updateui.py:169
+#, python-brace-format
+msgid "Could not load the list of versions: {error}"
+msgstr "Die Liste der Versionen konnte nicht geladen werden: {error}"
+
+#: freestream/updateui.py:339
+#, python-brace-format
+msgid "Could not start the installation: {error}"
+msgstr "Installation konnte nicht gestartet werden: {error}"
+
+#: freestream/wave3hw.py:54 freestream/wavedialogs.py:255 freestream/wavedialogs.py:264 freestream/waveui.py:653
+msgid "Mix"
+msgstr "Mix"
+
+#: freestream/wave3hw.py:107
+msgid "libusb could not be initialized"
+msgstr "libusb konnte nicht initialisiert werden"
+
+#: freestream/wave3hw.py:127
+msgid "Wave:3 not found or no access (udev rule, log in again)"
+msgstr "Wave:3 nicht gefunden oder kein Zugriff (udev-Regel, neu anmelden)"
+
+#: freestream/wave3hw.py:95
+msgid "libusb-1.0 is missing (package libusb-1.0-0)"
+msgstr "libusb-1.0 fehlt (Paket libusb-1.0-0)"
+
+#: freestream/wave3hw.py:169
+#, python-brace-format
+msgid "unexpected block length {length}"
+msgstr "unerwartete Blocklänge {length}"
+
+#: freestream/wave3hw.py:178
+#, python-brace-format
+msgid "Unknown setting: {name}"
+msgstr "Unbekannte Einstellung: {name}"
+
+#: freestream/wave3hw.py:180
+#, python-brace-format
+msgid "{name} needs firmware API 5.3 (device: {version})"
+msgstr "{name} braucht Firmware-API 5.3 (Gerät: {version})"
+
+#: freestream/wave3hw.py:140
+#, python-brace-format
+msgid "USB error {code}"
+msgstr "USB-Fehler {code}"
+
+#: freestream/wave3hw.py:194
+#, python-brace-format
+msgid "Device unexpectedly changed byte {bytes} – change reverted"
+msgstr "Gerät hat unerwartet Byte {bytes} verändert – Änderung zurückgenommen"
+
+#: freestream/wave3hw.py:139
+msgid "no access to the Wave:3 (udev rule, log in again)"
+msgstr "kein Zugriff auf das Wave:3 (udev-Regel, neu anmelden)"
+
+#: freestream/wave3hw.py:140
+msgid "Wave:3 disconnected"
+msgstr "Wave:3 getrennt"
+
+#: freestream/wavedialogs.py:104
+msgid "INPUT DEVICE"
+msgstr "EINGANGSGERÄT"
+
+#: freestream/wavedialogs.py:112
+msgid "ICON"
+msgstr "SYMBOL"
+
+#: freestream/wavedialogs.py:115
+msgid "COLOR"
+msgstr "FARBE"
+
+#: freestream/wavedialogs.py:229
+msgid "Where this mix goes and what it looks like"
+msgstr "Wohin dieser Mix geht und wie er aussieht"
+
+#: freestream/wavedialogs.py:237
+msgid "ICON AND COLOR"
+msgstr "SYMBOL UND FARBE"
+
+#: freestream/wavedialogs.py:243
+msgid "OUTPUTS – THE MIX GOES TO ALL TICKED ONES"
+msgstr "AUSGÄNGE – DER MIX GEHT AN ALLE ANGEHAKTEN"
+
+#: freestream/wavedialogs.py:261
+msgid "Without a ticked device the Personal Mix plays on the device chosen under “Listen”."
+msgstr "Ohne angehaktes Gerät spielt der Persönliche Mix auf dem Gerät, das unter „Abhören“ gewählt ist."
+
+#: freestream/wavedialogs.py:318
+msgid "on"
+msgstr "an"
+
+#: freestream/wavedialogs.py:318
+msgid "off"
+msgstr "aus"
+
+#: freestream/wavedialogs.py:336
+msgid "Audio flows through the effects from top to bottom. Just like the plugins in Wave Link."
+msgstr "Der Ton läuft von oben nach unten durch die Effekte. Wie die Plugins in Wave Link."
+
+#: freestream/wavedialogs.py:467 freestream/wavedialogs.py:478 freestream/wavedialogs.py:342
+msgid "Add effect"
+msgstr "Effekt hinzufügen"
+
+#: freestream/wavedialogs.py:587
+msgid "Set"
+msgstr "Festlegen"
+
+#: freestream/wavedialogs.py:655 freestream/wavedialogs.py:759 freestream/waveui.py:1611
+msgid "Keyboard shortcut"
+msgstr "Tastenkürzel"
+
+#: freestream/wavedialogs.py:656
+msgid "Set up the shortcut in your desktop"
+msgstr "Tastenkürzel im Desktop einrichten"
+
+#: freestream/wavedialogs.py:676
+msgid "Rename scene"
+msgstr "Szene umbenennen"
+
+#: freestream/wavedialogs.py:676
+msgid "Save scene"
+msgstr "Szene speichern"
+
+#: freestream/wavedialogs.py:712 freestream/wavedialogs.py:715
+msgid "Mixer scenes"
+msgstr "Mixer-Szenen"
+
+#: freestream/wavedialogs.py:715
+msgid "A scene remembers the volume and mute state of every channel. Apply it with one click, a keyboard shortcut or a FreeDeck key."
+msgstr "Eine Szene merkt sich Lautstärke und Stummschaltung jedes Kanals. Du wendest sie mit einem Klick, einem Tastenkürzel oder einer FreeDeck-Taste an."
+
+#: freestream/wavedialogs.py:769 freestream/wavedialogs.py:773 freestream/waveui.py:735
+msgid "Export to FreeDeck"
+msgstr "Nach FreeDeck exportieren"
+
+#: freestream/wavedialogs.py:774
+msgid "Creates a FreeDeck profile “FreeWave” with volume controls for the chosen channels. It is updated by itself when you add or delete channels."
+msgstr "Legt ein FreeDeck-Profil „FreeWave“ mit Lautstärkereglern für die gewählten Kanäle an. Es passt sich von selbst an, wenn du Kanäle hinzufügst oder löschst."
+
+#: freestream/wavedialogs.py:778 freestream/wavedialogs.py:876
+msgid "Create profile"
+msgstr "Profil anlegen"
+
+#: freestream/wavedialogs.py:809
+msgid "CHANNELS"
+msgstr "KANÄLE"
+
+#: freestream/wavedialogs.py:74 freestream/wavedialogs.py:80
+msgid "Edit channel"
+msgstr "Kanal bearbeiten"
+
+#: freestream/wavedialogs.py:74
+msgid "New channel"
+msgstr "Neuer Kanal"
+
+#: freestream/wavedialogs.py:80
+msgid "Create new channel"
+msgstr "Neuen Kanal anlegen"
+
+#: freestream/wavedialogs.py:81
+msgid "Afterwards, put apps into the channel in the mixer under “Apps”."
+msgstr "Programme legst du danach im Mixer unter „Programme“ in den Kanal."
+
+#: freestream/wavedialogs.py:82
+msgid "Changes are applied to the mixer right away."
+msgstr "Änderungen werden sofort im Mixer übernommen."
+
+#: freestream/wavedialogs.py:96
+msgid "TYPE"
+msgstr "ART"
+
+#: freestream/wavedialogs.py:106
+msgid "No input device found"
+msgstr "Kein Eingangsgerät gefunden"
+
+#: freestream/wavedialogs.py:221 freestream/wavedialogs.py:228
+msgid "Edit mix"
+msgstr "Mix bearbeiten"
+
+#: freestream/wavedialogs.py:221
+msgid "New mix"
+msgstr "Neuer Mix"
+
+#: freestream/wavedialogs.py:228
+msgid "Create new mix"
+msgstr "Neuen Mix anlegen"
+
+#: freestream/wavedialogs.py:257
+msgid "always on – OBS records the Stream Mix from here"
+msgstr "immer an – OBS nimmt den Stream-Mix hier auf"
+
+#: freestream/wavedialogs.py:258
+msgid "for apps like Discord or OBS"
+msgstr "für Programme wie Discord oder OBS"
+
+#: freestream/wavedialogs.py:472
+#, python-brace-format
+msgid "Found {builtin} built-in filters, {ladspa} LADSPA and {lv2} LV2 plugins. More plugins: packages swh-plugins, tap-plugins, x42-plugins, lsp-plugins-lv2, calf-plugins."
+msgstr "{builtin} eingebaute Filter, {ladspa} LADSPA- und {lv2} LV2-Plugins gefunden. Mehr Plugins: Pakete swh-plugins, tap-plugins, x42-plugins, lsp-plugins-lv2, calf-plugins."
+
+#: freestream/wavedialogs.py:475
+msgid "For LV2 plugins, install the package lilv-utils."
+msgstr "Für LV2-Plugins das Paket lilv-utils installieren."
+
+#: freestream/wavedialogs.py:496
+msgid "Built-in"
+msgstr "Eingebaut"
+
+#: freestream/wavedialogs.py:640
+msgid "Press keys …"
+msgstr "Tasten drücken …"
+
+#: freestream/wavedialogs.py:679
+msgid "Saves the volume and mute state of every channel in both mixes."
+msgstr "Speichert Lautstärke und Stummschaltung jedes Kanals in beiden Mixen."
+
+#: freestream/wavedialogs.py:256
+#, python-brace-format
+msgid "Virtual source “{name}”"
+msgstr "Virtuelle Quelle „{name}“"
+
+#: freestream/wavedialogs.py:263
+#, python-brace-format
+msgid "Tip: in Discord choose “Monitor of FreeWave {name}” as microphone."
+msgstr "Tipp: In Discord „Monitor of FreeWave {name}“ als Mikrofon wählen."
+
+#: freestream/wavedialogs.py:329
+#, python-brace-format
+msgid "Effects – {name}"
+msgstr "Effekte – {name}"
+
+#: freestream/wavedialogs.py:335
+#, python-brace-format
+msgid "Effects for “{name}”"
+msgstr "Effekte für „{name}“"
+
+#: freestream/wavedialogs.py:644
+msgid "Not set"
+msgstr "Nicht festgelegt"
+
+#: freestream/wavedialogs.py:663
+msgid "Copy command"
+msgstr "Befehl kopieren"
+
+#: freestream/wavedialogs.py:722
+msgid "Save current mix"
+msgstr "Aktuellen Mix speichern"
+
+#: freestream/wavedialogs.py:835
+msgid "in use"
+msgstr "in Benutzung"
+
+#: freestream/wavedialogs.py:876
+msgid "Update profile"
+msgstr "Profil aktualisieren"
+
+#: freestream/wavedialogs.py:97 freestream/wavesetup.py:374 freestream/waveui.py:656 freestream/waveui.py:762
+msgid "Apps"
+msgstr "Programme"
+
+#: freestream/wavedialogs.py:97
+msgid "Input device"
+msgstr "Eingangsgerät"
+
+#: freestream/wavedialogs.py:123 freestream/waveui.py:864
+msgid "Create channel"
+msgstr "Kanal anlegen"
+
+#: freestream/wavedialogs.py:127 freestream/waveui.py:1349
+msgid "Delete channel"
+msgstr "Kanal löschen"
+
+#: freestream/wavedialogs.py:143
+msgid "A separate channel for apps – e.g. “Podcast” or “Second game”."
+msgstr "Ein eigener Kanal für Programme – z. B. „Podcast“ oder „Zweites Spiel“."
+
+#: freestream/wavedialogs.py:145
+msgid "Bring a device straight into the mix – e.g. a second microphone, line-in or a capture card."
+msgstr "Ein Gerät direkt in den Mix holen – z. B. ein zweites Mikrofon, Line-In oder eine Capture-Karte."
+
+#: freestream/wavedialogs.py:270 freestream/waveui.py:687
+msgid "Create mix"
+msgstr "Mix anlegen"
+
+#: freestream/wavedialogs.py:274 freestream/waveui.py:705 freestream/waveui.py:1195
+msgid "Delete mix"
+msgstr "Mix löschen"
+
+#: freestream/wavedialogs.py:357 freestream/waveui.py:1298
+msgid "No effects yet"
+msgstr "Noch keine Effekte"
+
+#: freestream/wavedialogs.py:358
+msgid "Use “Add effect” to put e.g. noise suppression, a noise gate, a compressor or an equalizer on this channel."
+msgstr "Mit „Effekt hinzufügen“ z. B. Rauschunterdrückung, Noise Gate, Kompressor oder Equalizer auf diesen Kanal legen."
+
+#: freestream/wavedialogs.py:534
+msgid "No effect matches your search."
+msgstr "Kein Effekt passt zu deiner Suche."
+
+#: freestream/wavedialogs.py:736
+msgid "No scenes yet. Set up the mixer the way you like it and save it as a scene."
+msgstr "Noch keine Szenen. Stell den Mixer so ein, wie du ihn magst, und speichere ihn als Szene."
+
+#: freestream/wavedialogs.py:801
+msgid "No device connected – choose the model:"
+msgstr "Kein Gerät angeschlossen – Modell wählen:"
+
+#: freestream/wavedialogs.py:380
+msgid "Plugin not found – is it installed?"
+msgstr "Plugin nicht gefunden – installiert?"
+
+#: freestream/wavedialogs.py:528
+msgid "… more – narrow down your search"
+msgstr "… weitere – Suche eingrenzen"
+
+#: freestream/wavedialogs.py:797
+msgid "Several are connected: click the one the profile is for."
+msgstr "Mehrere angeschlossen: anklicken, für welches das Profil sein soll."
+
+#: freestream/wavedialogs.py:821
+msgid "Choose on deck"
+msgstr "Auf dem Deck wählen"
+
+#: freestream/wavedialogs.py:869
+#, python-brace-format
+msgid "The channels need {count} pages; keys to turn the page are added."
+msgstr "Die Kanäle brauchen {count} Seiten; Tasten zum Blättern kommen dazu."
+
+#: freestream/wavedialogs.py:871
+#, python-brace-format
+msgid "The existing profile “{name}” is replaced."
+msgstr "Das vorhandene Profil „{name}“ wird ersetzt."
+
+#: freestream/wavedialogs.py:791
+msgid "profile exists"
+msgstr "Profil vorhanden"
+
+#: freestream/wavedialogs.py:752
+#, python-brace-format
+msgid "{count} channel"
+msgid_plural "{count} channels"
+msgstr[0] "{count} Kanal"
+msgstr[1] "{count} Kanäle"
+
+#: freestream/wavehost.py:200
+msgid "FreeWave is running without a window – restarting with a window"
+msgstr "FreeWave läuft ohne Fenster – starte neu mit Fenster"
+
+#: freestream/wavehost.py:149
+msgid "Restarting noise suppression"
+msgstr "Rauschunterdrückung wird neu gestartet"
+
+#: freestream/wavehost.py:212
+#, python-brace-format
+msgid "No graphical interface ({error}) – FreeWave is running as a service"
+msgstr "Keine grafische Oberfläche ({error}) – FreeWave läuft als Dienst"
+
+#: freestream/wavehost.py:88
+#, python-brace-format
+msgid "Mixer: {error}"
+msgstr "Mixer: {error}"
+
+#: freestream/wavehost.py:93 freestream/wavehost.py:121 freestream/wavehost.py:110
+#, python-brace-format
+msgid "Wave microphone: {error}"
+msgstr "Wave-Mikrofon: {error}"
+
+#: freestream/wavehost.py:154
+#, python-brace-format
+msgid "Effects: {error}"
+msgstr "Effekte: {error}"
+
+#: freestream/wavehost.py:89
+#, python-brace-format
+msgid "Mixer not set up: {error}"
+msgstr "Mixer nicht eingerichtet: {error}"
+
+#: freestream/wavehost.py:145
+#, python-brace-format
+msgid "Restarting effects for {name}"
+msgstr "Effekte für {name} werden neu gestartet"
+
+#: freestream/wavemic.py:71
+msgid "Neither low cut nor Clipguard is active"
+msgstr "Weder Low Cut noch Clipguard aktiv"
+
+#: freestream/wavemic.py:263
+msgid "LED control is only available for the Elgato Wave:3"
+msgstr "LED-Steuerung gibt es nur für das Elgato Wave:3"
+
+#: freestream/wavemic.py:286
+msgid "Clipguard needs the LADSPA limiter (package swh-plugins) – skipped"
+msgstr "Clipguard braucht den LADSPA-Limiter (Paket swh-plugins) – wird ausgelassen"
+
+#: freestream/wavemic.py:292
+msgid "Wave microphone not connected – the filter starts when it is plugged in"
+msgstr "Wave-Mikrofon nicht angeschlossen – Filter startet beim Einstecken"
+
+#: freestream/wavemic.py:72
+msgid "FreeWave Microphone"
+msgstr "FreeWave Mikrofon"
+
+#: freestream/wavemic.py:182
+msgid "Only possible with an Elgato Wave:3"
+msgstr "Nur mit Elgato Wave:3 möglich"
+
+#: freestream/wavemic.py:302
+#, python-brace-format
+msgid "Wave filter active (low cut: {lowcut}, Clipguard: {clipguard})"
+msgstr "Wave-Filter aktiv (Low Cut: {lowcut}, Clipguard: {clipguard})"
+
+#: freestream/wavemic.py:181
+#, python-brace-format
+msgid "Only possible with an Elgato Wave:3 ({error})"
+msgstr "Nur mit Elgato Wave:3 möglich ({error})"
+
+#: freestream/wavesetup.py:27
+msgid "Sound"
+msgstr "Klang"
+
+#: freestream/wavesetup.py:105
+msgid "Set up FreeWave"
+msgstr "FreeWave einrichten"
+
+#: freestream/wavesetup.py:257
+msgid "Which microphone do you use?"
+msgstr "Welches Mikrofon benutzt du?"
+
+#: freestream/wavesetup.py:258
+msgid "The microphone goes into your Stream Mix. Say something – the bar below shows whether it is coming through."
+msgstr "Das Mikrofon geht in deinen Stream-Mix. Sprich etwas – der Balken unten zeigt, ob es ankommt."
+
+#: freestream/wavesetup.py:265
+msgid "LEVEL"
+msgstr "PEGEL"
+
+#: freestream/wavesetup.py:273
+msgid "What do you listen on?"
+msgstr "Worüber hörst du?"
+
+#: freestream/wavesetup.py:274
+msgid "This is where your Personal Mix goes – everything you want to hear yourself. Use the test tone to check that it is the right device."
+msgstr "Hierhin geht dein Persönlicher Mix – alles, was du selbst hören willst. Prüfe mit dem Testton, ob es das richtige Gerät ist."
+
+#: freestream/wavesetup.py:281
+msgid "Your microphone's sound"
+msgstr "Klang deines Mikrofons"
+
+#: freestream/wavesetup.py:306
+msgid "Removes hum and footfall noise"
+msgstr "Entfernt Brummen und Trittschall"
+
+#: freestream/wavesetup.py:307 freestream/waveui.py:1604
+msgid "Prevents clipping when you suddenly get loud"
+msgstr "Verhindert Übersteuern, wenn du plötzlich laut wirst"
+
+#: freestream/wavesetup.py:317
+msgid "RECOMMENDED EFFECTS"
+msgstr "EMPFOHLENE EFFEKTE"
+
+#: freestream/wavesetup.py:329 freestream/waveui.py:1793 freestream/waveui.py:1982
+msgid "Noise suppression"
+msgstr "Rauschunterdrückung"
+
+#: freestream/wavesetup.py:341
+msgid "Which channels do you want?"
+msgstr "Welche Kanäle möchtest du?"
+
+#: freestream/wavesetup.py:342
+msgid "Every app goes into a channel with its own controls for headphones and stream. You can create your own channels (e.g. for a capture card) later with “Add channel”."
+msgstr "Jedes Programm landet in einem Kanal mit eigenem Regler für Kopfhörer und Stream. Eigene Kanäle (z. B. für eine Capture-Karte) legst du später mit „Kanal hinzufügen“ an."
+
+#: freestream/wavesetup.py:363 freestream/waveui.py:825
+msgid "Setting up mixer …"
+msgstr "Mixer wird eingerichtet …"
+
+#: freestream/wavesetup.py:282
+msgid "Your Wave:3 applies Low Cut and Clipguard directly in the microphone. You can also turn on recommended effects – just like the plugins in Wave Link."
+msgstr "Dein Wave:3 filtert Low Cut und Clipguard direkt im Mikrofon. Dazu kannst du empfohlene Effekte einschalten – genau wie die Plugins in Wave Link."
+
+#: freestream/wavesetup.py:285
+msgid "Low Cut and Clipguard run as filters in FreeWave. You can also turn on recommended effects – just like the plugins in Wave Link."
+msgstr "Low Cut und Clipguard laufen als Filter in FreeWave. Dazu kannst du empfohlene Effekte einschalten – genau wie die Plugins in Wave Link."
+
+#: freestream/wavesetup.py:331
+msgid "Noise Gate"
+msgstr "Noise Gate"
+
+#: freestream/wavesetup.py:331
+msgid "Mutes the microphone while you pause speaking"
+msgstr "Schaltet das Mikrofon in Sprechpausen stumm"
+
+#: freestream/wavesetup.py:332
+msgid "Compressor"
+msgstr "Kompressor"
+
+#: freestream/wavesetup.py:369
+msgid "Add the audio input “Monitor of FreeWave Stream Mix” – it contains everything your audience should hear."
+msgstr "Audio-Eingang „Monitor of FreeWave Stream-Mix“ hinzufügen – darin ist alles, was dein Publikum hören soll."
+
+#: freestream/wavesetup.py:374
+msgid "New apps automatically go into the matching channel; you can move them to another channel in the mixer under “Apps”."
+msgstr "Neue Programme landen automatisch im passenden Kanal; im Mixer unter „Programme“ kannst du sie umsortieren."
+
+#: freestream/wavesetup.py:251
+msgid "Welcome to FreeWave"
+msgstr "Willkommen bei FreeWave"
+
+#: freestream/wavesetup.py:252
+msgid "In a few steps you set up your microphone, your headphones and the mixer – just like the first start of Elgato Wave Link. You can change everything later at any time."
+msgstr "In wenigen Schritten richtest du dein Mikrofon, deinen Kopfhörer und den Mixer ein – wie beim ersten Start von Elgato Wave Link. Du kannst alles später jederzeit ändern."
+
+#: freestream/wavesetup.py:277
+msgid "Play test tone"
+msgstr "Testton abspielen"
+
+#: freestream/wavesetup.py:324
+#, python-brace-format
+msgid "Filters out keyboard, fans and background noise ({backend})"
+msgstr "Filtert Tastatur, Lüfter und Hintergrundgeräusche heraus ({backend})"
+
+#: freestream/wavesetup.py:372
+msgid "Select “FreeWave Microphone (Effects)” as the microphone."
+msgstr "Als Mikrofon „FreeWave Mikrofon (Effekte)“ wählen."
+
+#: freestream/wavesetup.py:373
+msgid "Select your own microphone – or the Stream Mix if others should hear everything."
+msgstr "Als Mikrofon dein Mikrofon wählen – oder den Stream-Mix, wenn andere alles hören sollen."
+
+#: freestream/wavesetup.py:207
+msgid "No device found – is PipeWire (pipewire-pulse) running?"
+msgstr "Kein Gerät gefunden – ist PipeWire (pipewire-pulse) gestartet?"
+
+#: freestream/wavesetup.py:337
+#, python-brace-format
+msgid "{text} – package “{package}” is missing"
+msgstr "{text} – Paket „{package}“ fehlt"
+
+#: freestream/wavesetup.py:397
+msgid "Level meter not available (parec from pulseaudio-utils is missing)"
+msgstr "Pegelanzeige nicht möglich (parec aus pulseaudio-utils fehlt)"
+
+#: freestream/wavesetup.py:469
+msgid "Mixer and microphone are ready."
+msgstr "Mixer und Mikrofon sind bereit."
+
+#: freestream/waveui.py:41
+msgid "– not in mixer –"
+msgstr "– nicht im Mixer –"
+
+#: freestream/waveui.py:321
+msgid "Add channel to mix"
+msgstr "Kanal zum Mix hinzufügen"
+
+#: freestream/waveui.py:648 freestream/waveui.py:647
+msgid "Looking for microphone …"
+msgstr "Mikrofon wird gesucht …"
+
+#: freestream/waveui.py:663
+msgid "Mixes"
+msgstr "Mixe"
+
+#: freestream/waveui.py:700
+msgid "Edit …"
+msgstr "Bearbeiten …"
+
+#: freestream/waveui.py:733 freestream/waveui.py:228
+msgid "Add channel"
+msgstr "Kanal hinzufügen"
+
+#: freestream/waveui.py:734 freestream/waveui.py:2221
+msgid "Scenes"
+msgstr "Szenen"
+
+#: freestream/waveui.py:846
+msgid "no output"
+msgstr "kein Ausgang"
+
+#: freestream/waveui.py:1372
+msgid "Save current mix as scene …"
+msgstr "Aktuellen Mix als Szene speichern …"
+
+#: freestream/waveui.py:1373
+msgid "Manage scenes …"
+msgstr "Szenen verwalten …"
+
+#: freestream/waveui.py:1499
+msgid "FreeWave: mute microphone"
+msgstr "FreeWave: Mikrofon stummschalten"
+
+#: freestream/waveui.py:1506
+msgid "Loading effects …"
+msgstr "Effekte werden geladen …"
+
+#: freestream/waveui.py:1598
+msgid "Filters out low hum and footfall noise"
+msgstr "Filtert tiefes Brummen und Trittschall heraus"
+
+#: freestream/waveui.py:1612
+msgid "Works in every app, also on Wayland – it is added to your desktop's keyboard shortcuts."
+msgstr "Funktioniert in jedem Programm, auch unter Wayland – es wird bei den Tastenkürzeln deines Desktops eingetragen."
+
+#: freestream/waveui.py:1637
+msgid "Monitoring"
+msgstr "Mithören"
+
+#: freestream/waveui.py:1637
+msgid "Balance of mic ↔ PC audio in your headphones"
+msgstr "Verhältnis Mikrofon ↔ PC-Ton im Kopfhörer"
+
+#: freestream/waveui.py:1650
+msgid "LEDs off"
+msgstr "LEDs aus"
+
+#: freestream/waveui.py:1653
+msgid "Flip LEDs"
+msgstr "LEDs umkehren"
+
+#: freestream/waveui.py:1653
+msgid "If the microphone is mounted upside down on a boom arm"
+msgstr "Wenn das Mikrofon hängend am Arm montiert ist"
+
+#: freestream/waveui.py:1793
+msgid "Filters out keyboard, fans and background noise"
+msgstr "Filtert Tastatur, Lüfter und Hintergrundgeräusche heraus"
+
+#: freestream/waveui.py:1800
+msgid "Strength"
+msgstr "Stärke"
+
+#: freestream/waveui.py:1801
+msgid "Higher values mute everything that does not clearly sound like a voice"
+msgstr "Höhere Werte schalten alles stumm, was nicht eindeutig nach Stimme klingt"
+
+#: freestream/waveui.py:565
+msgid "FreeWave is still running"
+msgstr "FreeWave läuft weiter"
+
+#: freestream/waveui.py:566
+msgid "Mixer and microphone stay active. Open it again from the “FreeWave” menu."
+msgstr "Mixer und Mikrofon bleiben aktiv. Öffnen über das Menü „FreeWave“."
+
+#: freestream/waveui.py:825
+msgid "Removing mixer …"
+msgstr "Mixer wird entfernt …"
+
+#: freestream/waveui.py:1449
+msgid "Delete scene"
+msgstr "Szene löschen"
+
+#: freestream/waveui.py:1465
+#, python-brace-format
+msgid "FreeWave: apply scene “{name}”"
+msgstr "FreeWave: Szene „{name}“ anwenden"
+
+#: freestream/waveui.py:1777
+msgid "Switched off"
+msgstr "Ausgeschaltet"
+
+#: freestream/waveui.py:2235 freestream/waveui.py:2253
+msgid "No Wave microphone"
+msgstr "Kein Wave-Mikrofon"
+
+#: freestream/waveui.py:2255
+msgid "All settings are stored directly in the microphone."
+msgstr "Alle Einstellungen werden direkt im Mikrofon gespeichert."
+
+#: freestream/waveui.py:2262
+msgid "Connect a microphone – the settings are applied as soon as it is detected."
+msgstr "Mikrofon anschließen – die Einstellungen werden übernommen, sobald es erkannt wird."
+
+#: freestream/waveui.py:498
+msgid "Open FreeWave"
+msgstr "FreeWave öffnen"
+
+#: freestream/waveui.py:662
+msgid "Setup wizard"
+msgstr "Einrichtungsassistent"
+
+#: freestream/waveui.py:702
+msgid "Stop listening"
+msgstr "Abhören beenden"
+
+#: freestream/waveui.py:702 freestream/waveui.py:857
+msgid "Listen"
+msgstr "Abhören"
+
+#: freestream/waveui.py:753
+msgid "The mixer is off – set it up to give every app its own channel."
+msgstr "Der Mixer ist aus – richte ihn ein, damit jedes Programm einen eigenen Kanal bekommt."
+
+#: freestream/waveui.py:806
+msgid "Just like in Elgato Wave Link, every app gets a channel – with its own volume for your headphones (Personal Mix), your stream (Stream Mix) and any mix you create."
+msgstr "Wie bei Elgato Wave Link bekommt jedes Programm einen Kanal – mit eigener Lautstärke für deine Kopfhörer (Persönlicher Mix), deinen Stream (Stream-Mix) und jeden Mix, den du anlegst."
+
+#: freestream/waveui.py:845
+msgid "virtual"
+msgstr "virtuell"
+
+#: freestream/waveui.py:1069
+#, python-brace-format
+msgid "Remove from “{mix}”"
+msgstr "Aus „{mix}“ nehmen"
+
+#: freestream/waveui.py:1274 freestream/waveui.py:2308
+msgid "Set up the mixer to add effects to channels."
+msgstr "Richte den Mixer ein, um Kanälen Effekte hinzuzufügen."
+
+#: freestream/waveui.py:1296
+msgid "All effects are switched off."
+msgstr "Alle Effekte sind ausgeschaltet."
+
+#: freestream/waveui.py:1597
+msgid "Filters"
+msgstr "Filter"
+
+#: freestream/waveui.py:1648
+msgid "Mic"
+msgstr "Mikro"
+
+#: freestream/waveui.py:1658
+msgid "More settings with the Elgato Wave:3"
+msgstr "Mehr Einstellungen mit dem Elgato Wave:3"
+
+#: freestream/waveui.py:1659
+msgid "Headphone volume, monitoring and the LEDs can be adjusted directly on the Wave:3. For Wave:1, Wave Neo and Wave XLR the protocol for this is not documented."
+msgstr "Kopfhörer-Lautstärke, Mithören und die LEDs lassen sich direkt am Wave:3 einstellen. Bei Wave:1, Wave Neo und Wave XLR ist das Protokoll dafür nicht dokumentiert."
+
+#: freestream/waveui.py:1676
+msgid "Auto-ducking"
+msgstr "Auto-Ducking"
+
+#: freestream/waveui.py:1679
+msgid "Turns the selected channels down in both mixes while you speak and brings them back exactly afterwards."
+msgstr "Macht die gewählten Kanäle in beiden Mixen leiser, solange du sprichst, und stellt sie danach exakt wieder her."
+
+#: freestream/waveui.py:1686
+msgid "Lower by"
+msgstr "Absenken um"
+
+#: freestream/waveui.py:1692
+msgid "Sensitivity"
+msgstr "Empfindlichkeit"
+
+#: freestream/waveui.py:1779
+msgid "Works as soon as the mixer is set up."
+msgstr "Wirkt, sobald der Mixer eingerichtet ist."
+
+#: freestream/waveui.py:2170
+#, python-brace-format
+msgid "In OBS add {source}"
+msgstr "In OBS hinzufügen: {source}"
+
+#: freestream/waveui.py:2173
+msgid "Other virtual mixes: “Monitor of FreeWave <name>”"
+msgstr "Weitere virtuelle Mixe: „Monitor of FreeWave <Name>“"
+
+#: freestream/waveui.py:2239
+msgid "No Wave microphone connected"
+msgstr "Kein Wave-Mikrofon angeschlossen"
+
+#: freestream/waveui.py:2258
+msgid "Low Cut and Clipguard run as PipeWire filters. In Discord/OBS, select the microphone “FreeWave Microphone”."
+msgstr "Low Cut und Clipguard laufen als PipeWire-Filter. In Discord/OBS das Mikrofon „FreeWave Mikrofon“ wählen."
+
+#: freestream/waveui.py:760
+msgid "Effect chains per channel – changes are live."
+msgstr "Effektketten je Kanal – Änderungen wirken sofort."
+
+#: freestream/waveui.py:763
+msgid "Click an app to move it to another channel"
+msgstr "Klicke auf ein Programm, um es in einen anderen Kanal zu verschieben"
+
+#: freestream/waveui.py:830
+msgid "Mixer set up"
+msgstr "Mixer eingerichtet"
+
+#: freestream/waveui.py:841
+#, python-brace-format
+msgid "{n} output"
+msgid_plural "{n} outputs"
+msgstr[0] "{n} Ausgang"
+msgstr[1] "{n} Ausgänge"
+
+#: freestream/waveui.py:1117
+msgid "Channel added to the mix"
+msgstr "Kanal in den Mix aufgenommen"
+
+#: freestream/waveui.py:1117
+msgid "Channel removed from the mix"
+msgstr "Kanal aus dem Mix genommen"
+
+#: freestream/waveui.py:1195
+#, python-brace-format
+msgid "Really delete mix “{name}”?"
+msgstr "Mix „{name}“ wirklich löschen?"
+
+#: freestream/waveui.py:1350
+#, python-brace-format
+msgid "Really delete channel “{name}”?"
+msgstr "Kanal „{name}“ wirklich löschen?"
+
+#: freestream/waveui.py:1404 freestream/waveui.py:1389
+#, python-brace-format
+msgid "Profile “{name}” updated."
+msgstr "Profil „{name}“ aktualisiert."
+
+#: freestream/waveui.py:1450
+#, python-brace-format
+msgid "Really delete scene “{name}”?"
+msgstr "Szene „{name}“ wirklich löschen?"
+
+#: freestream/waveui.py:1646 freestream/waveui.py:2296
+#, python-brace-format
+msgid "{value:.0f} % mic"
+msgstr "{value:.0f} % Mikro"
+
+#: freestream/waveui.py:1781
+msgid "You are speaking – channels are lowered."
+msgstr "Du sprichst – Kanäle sind abgesenkt."
+
+#: freestream/waveui.py:1783
+msgid "Listening – speak to see the level reach the marker."
+msgstr "Hört zu – sprich, damit der Pegel die Markierung erreicht."
+
+#: freestream/waveui.py:1820
+msgid "Noise suppression on"
+msgstr "Rauschunterdrückung an"
+
+#: freestream/waveui.py:1820
+msgid "Noise suppression off"
+msgstr "Rauschunterdrückung aus"
+
+#: freestream/waveui.py:1840
+#, python-brace-format
+msgid "Off – method: {backend}"
+msgstr "Aus – Verfahren: {backend}"
+
+#: freestream/waveui.py:2175
+msgid "Click an empty cell to add the channel to the mix; the ✕ on the corner of a cell removes it."
+msgstr "Klick auf eine leere Zelle nimmt den Kanal in den Mix auf; das ✕ auf der Ecke einer Zelle nimmt ihn heraus."
+
+#: freestream/waveui.py:2200
+msgid "Mixer is off"
+msgstr "Mixer ist aus"
+
+#: freestream/waveui.py:750
+#, python-brace-format
+msgid "{count} channels · {mixes} mixes · everything is live"
+msgstr "{count} Kanäle · {mixes} Mixe · alles live"
+
+#: freestream/waveui.py:1156
+#, python-brace-format
+msgid "Personal Mix → {output}"
+msgstr "Persönlicher Mix → {output}"
+
+#: freestream/waveui.py:1202
+#, python-brace-format
+msgid "Mix “{name}” deleted"
+msgstr "Mix „{name}“ gelöscht"
+
+#: freestream/waveui.py:1263
+msgid "No app is playing audio right now."
+msgstr "Gerade spielt kein Programm Ton ab."
+
+#: freestream/waveui.py:1357
+#, python-brace-format
+msgid "Channel “{name}” deleted"
+msgstr "Kanal „{name}“ gelöscht"
+
+#: freestream/waveui.py:1388
+#, python-brace-format
+msgid "Profile “{name}” created – choose it in FreeDeck for your device."
+msgstr "Profil „{name}“ angelegt – wähle es in FreeDeck für dein Gerät."
+
+#: freestream/waveui.py:1494
+msgid "Shortcut removed"
+msgstr "Tastenkürzel entfernt"
+
+#: freestream/waveui.py:1545
+#, python-brace-format
+msgid "{app} → channel “{channel}” (remembered)"
+msgstr "{app} → Kanal „{channel}“ (wird gemerkt)"
+
+#: freestream/waveui.py:1842
+#, python-brace-format
+msgid "Active: {backend}. The microphone channel in the mixer uses the filtered signal; in Discord/OBS you can also select “FreeWave Microphone (noise suppression)”."
+msgstr "Aktiv: {backend}. Der Mikrofon-Kanal im Mixer nutzt das gefilterte Signal; in Discord/OBS kannst du auch „FreeWave Mikrofon (Rauschunterdrückung)“ auswählen."
+
+#: freestream/waveui.py:2170
+#, python-brace-format
+msgid "Monitor of {device}"
+msgstr "Monitor of {device}"
+
+#: freestream/waveui.py:2245
+#, python-brace-format
+msgid "Gain {value} %"
+msgstr "Gain {value} %"
+
+#: freestream/waveui.py:2260
+msgid "Clipguard needs the package swh-plugins."
+msgstr "Clipguard braucht das Paket swh-plugins."
+
+#: freestream/waveui.py:1187
+#, python-brace-format
+msgid "Mix “{name}” created"
+msgstr "Mix „{name}“ angelegt"
+
+#: freestream/waveui.py:1187
+#, python-brace-format
+msgid "Mix “{name}” saved"
+msgstr "Mix „{name}“ gespeichert"
+
+#: freestream/waveui.py:1341
+#, python-brace-format
+msgid "Channel “{name}” created"
+msgstr "Kanal „{name}“ angelegt"
+
+#: freestream/waveui.py:1341
+#, python-brace-format
+msgid "Channel “{name}” saved"
+msgstr "Kanal „{name}“ gespeichert"
+
+#: freestream/waveui.py:1489
+#, python-brace-format
+msgid "Shortcut {keys} set"
+msgstr "Tastenkürzel {keys} festgelegt"
+
+#: freestream/waveui.py:1846
+#, python-brace-format
+msgid "Starts as soon as the mixer is set up ({backend})."
+msgstr "Startet, sobald der Mixer eingerichtet ist ({backend})."
+
+#: freestream/waveui.py:1848
+#, python-brace-format
+msgid "Could not start ({backend})."
+msgstr "Konnte nicht starten ({backend})."
+
+#: freestream/waveui.py:1884
+#, python-brace-format
+msgid "{name} on"
+msgstr "{name} an"
+
+#: freestream/waveui.py:1884
+#, python-brace-format
+msgid "{name} off"
+msgstr "{name} aus"
+
+#: freestream/waveui.py:2162
+msgid "listening"
+msgstr "wird abgehört"
+
+#: freestream/waveui.py:2238
+#, python-brace-format
+msgid "{name} · muted"
+msgstr "{name} · stumm"
+
+#: freestream/waveui.py:2256
+#, python-brace-format
+msgid "Firmware API {api}."
+msgstr "Firmware-API {api}."
+
+#: freestream/ws.py:31
+msgid "Connection closed during handshake"
+msgstr "Verbindung beim Handshake geschlossen"
+
+#: freestream/ws.py:34
+msgid "Handshake too large"
+msgstr "Handshake zu groß"
+
+#: freestream/ws.py:110
+msgid "Connection closed"
+msgstr "Verbindung geschlossen"
+
+#: freestream/ws.py:132
+msgid "Closed by the peer"
+msgstr "vom Gegenüber geschlossen"
+
+#: freestream/ws.py:224
+#, python-brace-format
+msgid "Handshake rejected: {status}"
+msgstr "Handshake abgelehnt: {status}"

@@ -1,10 +1,10 @@
-"""Linewave-Kanäle als Profil „Linewave“ auf das Stream Deck; Lautstärke max. 100 %; Kopfzeile ohne Flackern."""
+"""FreeWave-Kanäle als Profil „FreeWave“ auf das Stream Deck; Lautstärke max. 100 %; Kopfzeile ohne Flackern."""
 import json
 
 import pytest
 
-from streamlin import deckexport, editdoc, paths
-from streamlin.models import Geometry
+from freestream import deckexport, editdoc, paths
+from freestream.models import Geometry
 
 CHANS = ["system", "music", "browser", "voice", "game", "sfx"]
 PLUS, MK2, MINI, PEDAL = "20GBD9901", "20GBA9901", "20GAI9901", "20GBF9901"
@@ -16,8 +16,8 @@ def store(tmp_path, monkeypatch):
     root.mkdir()
     monkeypatch.setattr(paths, "PROFILES_DIR", root)
     monkeypatch.setattr(paths, "STATE_FILE", tmp_path / "state.json")
-    monkeypatch.setattr(paths, "PID_FILE", tmp_path / "streamlin.pid")  # kein echtes LinDeck anstoßen
-    from streamlin import models
+    monkeypatch.setattr(paths, "PID_FILE", tmp_path / "freestream.pid")  # kein echtes FreeDeck anstoßen
+    from freestream import models
     monkeypatch.setattr(models, "USB_ROOT", str(tmp_path / "usb"))  # keine echten Geräte
     return root
 
@@ -87,10 +87,10 @@ def test_plan_layouts():
 def test_export_creates_own_profile(store):
     editdoc.create_profile("Gaming", MK2, store)
     name, pages, created = deckexport.export(PLUS, CHANS, mix="stream")
-    assert (name, pages, created) == ("Linewave", 2, True)
-    root = _profile(store, "Linewave")
+    assert (name, pages, created) == ("FreeWave", 2, True)
+    root = _profile(store, "FreeWave")
     p1, p2 = _pages(root)
-    assert p1[0] == "Linewave 1"
+    assert p1[0] == "FreeWave 1"
     assert p1[1][("dial", 0)] == ("com.lindeck.mixer.channel", "system", "mute", "stream", 2)
     assert p1[1][("key", 3, 0)] == ("com.lindeck.mixer.channel", "voice", "mute", "stream", 5)
     assert p2[1][("key", 3, 1)][0] == "com.lindeck.mixer.pages"
@@ -100,28 +100,28 @@ def test_export_creates_own_profile(store):
     meta = json.loads((root / "lindeck-meta.json").read_text())
     assert meta["linewave"] == {"channels": CHANS, "all": True, "mix": "stream", "mixes": ["monitor", "stream"]}
     # zweites Mal: dasselbe Profil wird ersetzt, kein zweites
-    assert deckexport.export(PLUS, CHANS[:2]) == ("Linewave", 1, False)
+    assert deckexport.export(PLUS, CHANS[:2]) == ("FreeWave", 1, False)
     assert len(list(store.iterdir())) == 2 and len(_pages(root)) == 1
     # anderes Modell mit gleichem Namen: eigener Name
-    assert deckexport.export(MK2, CHANS[:2])[0] == "Linewave (LinDeck MK.2)"
+    assert deckexport.export(MK2, CHANS[:2])[0] == "FreeWave (FreeDeck MK.2)"
     with pytest.raises(deckexport.ExportError):
         deckexport.export(PEDAL, CHANS)
 
 
-def test_export_pushes_to_running_lindeck(store, monkeypatch):
+def test_export_pushes_to_running_freedeck(store, monkeypatch):
     import signal
     import subprocess
     import sys
     sent = []
     monkeypatch.setattr(deckexport.os, "kill", lambda pid, sig: sent.append((pid, sig)))
-    assert deckexport.export(MK2, CHANS[:1])[0] == "Linewave" and sent == []  # LinDeck läuft nicht
-    fake = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)", "lindeck"])
+    assert deckexport.export(MK2, CHANS[:1])[0] == "FreeWave" and sent == []  # FreeDeck läuft nicht
+    fake = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)", "freedeck"])
     try:
         paths.PID_FILE.write_text(str(fake.pid))
         deckexport.export(MK2, CHANS[:2])
         assert sent == [(fake.pid, signal.SIGHUP)]
         paths.PID_FILE.write_text(str(deckexport.os.getpid()))  # nie sich selbst
-        assert not deckexport.notify_lindeck()
+        assert not deckexport.notify_freedeck()
     finally:
         monkeypatch.undo()  # os.kill wieder echt, sonst wird der Hilfsprozess nicht beendet
         fake.kill()
@@ -131,7 +131,7 @@ def test_export_pushes_to_running_lindeck(store, monkeypatch):
 def test_app_refreshes_profile_list_on_push():
     import threading
 
-    from streamlin import app
+    from freestream import app
     calls = []
 
     class Root:
@@ -154,10 +154,10 @@ def test_devices_in_use_first(store):
     gaming = editdoc.create_profile("Gaming", MK2, store)
     (store.parent / "state.json").write_text(json.dumps({"SERIAL": {"profile": gaming.name[:-10]}}))
     devs = deckexport.devices()
-    assert devs[0] == {"model": MK2, "name": "LinDeck MK.2", "connected": False, "in_use": True, "profile": ""}
+    assert devs[0] == {"model": MK2, "name": "FreeDeck MK.2", "connected": False, "in_use": True, "profile": ""}
     assert {d["model"] for d in devs} >= {PLUS, MINI}
     deckexport.export(MK2, CHANS[:1])
-    assert deckexport.devices()[0]["profile"] == "Linewave"
+    assert deckexport.devices()[0]["profile"] == "FreeWave"
 
 
 def test_sync_follows_channels(store):
@@ -165,20 +165,20 @@ def test_sync_follows_channels(store):
     deckexport.export(PLUS, ["music"], all_channels=False)
     assert deckexport.sync(["system", "music"]) == []  # nichts geändert
     changed = deckexport.sync(["system", "music", "podcast"])
-    assert changed == ["Linewave"]  # nur das Profil mit „alle Kanäle“
-    root = _profile(store, "Linewave")
+    assert changed == ["FreeWave"]  # nur das Profil mit „alle Kanäle“
+    root = _profile(store, "FreeWave")
     slots = _pages(root)[0][1]
     assert slots[("key", 2, 0)][1:4] == ("podcast", "mute", "selected")
     assert slots[("key", 2, 2)][1:3] == ("podcast", "down")
-    assert deckexport.sync(["system"]) == ["Linewave"]  # gelöschte Kanäle verschwinden
-    plus = _profile(store, "Linewave (LinDeck +)")
+    assert deckexport.sync(["system"]) == ["FreeWave"]  # gelöschte Kanäle verschwinden
+    plus = _profile(store, "FreeWave (FreeDeck +)")
     assert deckexport.sync(["system"]) == []
     assert json.loads((plus / "lindeck-meta.json").read_text())["linewave"]["channels"] == ["music"]
 
 
 def test_editor_notices_change(store):
     deckexport.export(MK2, CHANS[:1])
-    root = _profile(store, "Linewave")
+    root = _profile(store, "FreeWave")
     doc = editdoc.ProfileDoc(root)
     assert not doc.disk_changed()
     deckexport.export(MK2, CHANS[:3])
@@ -186,7 +186,7 @@ def test_editor_notices_change(store):
 
 
 def test_volume_keys_show_direction():
-    from streamlin import native
+    from freestream import native
 
     class Fake(native.MixerAction):
         def __init__(self, action, slot):
@@ -201,7 +201,7 @@ def test_volume_keys_show_direction():
 
 
 def test_volume_never_above_100():
-    from streamlin import mixer
+    from freestream import mixer
     written = []
 
     class M(mixer.Mixer):
@@ -241,7 +241,7 @@ def root():
 
 
 def test_button_redraws_only_on_change(root):
-    from streamlin.theme import Button
+    from freestream.theme import Button
     b = Button(root, "Szenen")
     calls = []
     b._draw = lambda: calls.append(1)
@@ -253,7 +253,7 @@ def test_button_redraws_only_on_change(root):
 
 
 def test_export_dialog(root, store):
-    from streamlin.wavedialogs import DeckExportDialog
+    from freestream.wavedialogs import DeckExportDialog
     gaming = editdoc.create_profile("Gaming", PLUS, store)
     (store.parent / "state.json").write_text(json.dumps({"S": {"profile": gaming.name[:-10]}}))
     done = []
@@ -263,11 +263,11 @@ def test_export_dialog(root, store):
     dlg._toggle("browser")
     dlg._set_mix("monitor")
     dlg._create()
-    assert done == [("Linewave", True)]
-    slots = _pages(_profile(store, "Linewave"))[0][1]
+    assert done == [("FreeWave", True)]
+    slots = _pages(_profile(store, "FreeWave"))[0][1]
     mixers = {k: v for k, v in slots.items() if v[0] == "com.lindeck.mixer.channel"}
     assert {v[1] for v in mixers.values()} == {"system", "music"} and {v[3] for v in mixers.values()} == {"monitor"}
-    meta = json.loads((_profile(store, "Linewave") / "lindeck-meta.json").read_text())
+    meta = json.loads((_profile(store, "FreeWave") / "lindeck-meta.json").read_text())
     assert meta["linewave"]["all"] is False
     dlg = DeckExportDialog(root, chans)
     assert dlg.create_btn.text == "Profil aktualisieren"
@@ -275,7 +275,7 @@ def test_export_dialog(root, store):
 
 
 def test_key_looks_and_mix_select():
-    from streamlin import mixkeys, native
+    from freestream import mixkeys, native
     for img in (mixkeys.tile((72, 72), "music", "#1fa463", 40, False, "both"),
                 mixkeys.tile((72, 72), "mic", "#e5484d", 40, True, "stream"),
                 mixkeys.tile((72, 72), "music", "#1fa463", None, False, "both"),
@@ -321,7 +321,7 @@ def test_key_looks_and_mix_select():
 
 
 def test_connected_decks_come_first_and_new_ones_get_a_profile(store, tmp_path):
-    from streamlin import models
+    from freestream import models
     assert models.connected_models() == []
     _plug(tmp_path, 0x008F, 0x0084)  # Stream Deck XL V2 und Stream Deck +
     (tmp_path / "usb" / "2-1").mkdir()
@@ -334,15 +334,15 @@ def test_connected_decks_come_first_and_new_ones_get_a_profile(store, tmp_path):
     assert deckexport.adopt_new_devices() == []
     name, _p, _n = deckexport.export("20GAT9902", ["system", "music"], mix="selected")
     # das zweite angeschlossene Gerät bekommt automatisch ein Profil mit denselben Kanälen
-    assert deckexport.adopt_new_devices() == ["Linewave (LinDeck +)"]
-    plus = _profile(store, "Linewave (LinDeck +)")
+    assert deckexport.adopt_new_devices() == ["FreeWave (FreeDeck +)"]
+    plus = _profile(store, "FreeWave (FreeDeck +)")
     meta = json.loads((plus / deckexport.META).read_text())["linewave"]
     assert meta["channels"] == ["system", "music"] and meta["mix"] == "selected"
     assert deckexport.adopt_new_devices() == []  # nur einmal
 
 
 def test_export_dialog_uses_connected_deck(root, store, tmp_path):
-    from streamlin.wavedialogs import DeckExportDialog
+    from freestream.wavedialogs import DeckExportDialog
     _plug(tmp_path, 0x006C, 0x0084)
     chans = [("system", "System"), ("music", "Musik")]
     dlg = DeckExportDialog(root, chans)

@@ -4,7 +4,7 @@ import os
 import pytest
 
 import test_editor
-from streamlin import iconlib
+from freestream import iconlib
 
 store, doc, app = test_editor.store, test_editor.doc, test_editor.app  # Fixtures
 
@@ -35,7 +35,7 @@ def test_search_uses_translated_names():
 def test_library_window():
     import time
     import tkinter as tk
-    from streamlin.iconlibui import IconLibrary
+    from freestream.iconlibui import IconLibrary
     root = tk.Tk()
     try:
         picked = []
@@ -65,7 +65,7 @@ def test_library_window():
 
 
 def test_pick_sets_key_image(app):
-    from streamlin import editor
+    from freestream import editor
     import tkinter as tk
     page = app.page_uuid
     data = app.doc.get(page, ("key", 0, 0))

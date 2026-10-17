@@ -1,12 +1,12 @@
 """Tests check the German texts (they were written against the German UI)."""
 import os
 
-os.environ.setdefault("STREAMLIN_LANG", "de")
+os.environ.setdefault("FREESTREAM_LANG", "de")
 
 # Tests never contact GitHub for updates
-os.environ.setdefault("STREAMLIN_NO_UPDATE_CHECK", "1")
-os.environ.setdefault("STREAMLIN_NO_SETUP", "1")  # Einrichtungsassistent nur in test_decksetup
-os.environ.setdefault("STREAMLIN_SECRETS", "file")  # Schlüsselbund nur in test_vault (mit Attrappe)
+os.environ.setdefault("FREESTREAM_NO_UPDATE_CHECK", "1")
+os.environ.setdefault("FREESTREAM_NO_SETUP", "1")  # Einrichtungsassistent nur in test_decksetup
+os.environ.setdefault("FREESTREAM_SECRETS", "file")  # Schlüsselbund nur in test_vault (mit Attrappe)
 
 import gc  # noqa: E402
 
@@ -19,10 +19,10 @@ def _collect_tk_images():
 
     Sonst räumt der Garbage Collector Tk-Bilder eines schon geschlossenen Fensters irgendwann
     in einem Hintergrund-Thread des nächsten Tests auf – der Tk-Aufruf aus dem falschen Thread
-    blockiert dann diesen Thread (z. B. den Arbeits-Thread von Linewave) für immer.
+    blockiert dann diesen Thread (z. B. den Arbeits-Thread von FreeWave) für immer.
     """
     yield
-    from streamlin import system  # Ereignis-Threads von Linewave (PulseWatch) nicht in den nächsten Test mitnehmen
+    from freestream import system  # Ereignis-Threads von FreeWave (PulseWatch) nicht in den nächsten Test mitnehmen
     for w in list(system.PulseWatch.instances):
         w.stop()
     gc.collect()

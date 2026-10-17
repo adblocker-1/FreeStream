@@ -14,7 +14,7 @@ pactl = test_waveapp.pactl
 
 
 def _mixer(env, data=None):
-    from streamlin.mixer import Mixer
+    from freestream.mixer import Mixer
     cfg = _config(env, data or {"mixer": {"enabled": True}})
     mx = Mixer(cfg)
     mx.setup()
@@ -60,15 +60,15 @@ def test_scenes_save_apply_rename_delete(env, pactl):
 
 
 def test_scene_cli(env, pactl, capsys):
-    from streamlin import __main__ as M
-    from streamlin.mixer import Mixer
+    from freestream import __main__ as M
+    from freestream.mixer import Mixer
     _mixer(env)
     assert M.main(["mixer", "scene", "list"]) == 0
     assert M.main(["mixer", "set", "music", "both", "30"]) == 0
     assert M.main(["mixer", "scene", "save", "Podcast", "Abend"]) == 0
     assert M.main(["mixer", "set", "music", "both", "80"]) == 0
     assert M.main(["mixer", "scene", "apply", "podcast abend"]) == 0
-    from streamlin.config import Config
+    from freestream.config import Config
     assert Mixer(Config()).get("music", "stream")[0] == 30
     capsys.readouterr()
     assert M.main(["mixer", "scene", "list"]) == 0
@@ -77,11 +77,11 @@ def test_scene_cli(env, pactl, capsys):
     assert M.main(["mixer", "scene", "delete", "Talk"]) == 0
     assert M.main(["mixer", "scene", "apply", "Talk"]) == 1
     assert M.main(["mixer", "scene", "bogus"]) == 1
-    # linewave mixer … landet beim selben Befehl
+    # freewave mixer … landet beim selben Befehl
     seen = []
     orig = M.main
     try:
-        M.main = lambda argv=None, prog="lindeck": seen.append(argv) or 0
+        M.main = lambda argv=None, prog="freedeck": seen.append(argv) or 0
         M.wave_main(["mixer", "scene", "apply", "Talk"])
         M.wave_main(["mic", "mute", "toggle"])
     finally:
@@ -90,8 +90,8 @@ def test_scene_cli(env, pactl, capsys):
 
 
 def test_mic_mute_cli_modes(env, pactl, monkeypatch):
-    from streamlin import __main__ as M
-    from streamlin import wave3hw
+    from freestream import __main__ as M
+    from freestream import wave3hw
     from test_integrations import FakeWave3
     dev = FakeWave3()
     monkeypatch.setattr(wave3hw, "USBTransport", lambda: dev)
@@ -106,11 +106,11 @@ def test_mic_mute_cli_modes(env, pactl, monkeypatch):
 
 
 def test_scene_key_action(env, pactl, monkeypatch):
-    from streamlin import catalog, native
+    from freestream import catalog, native
     mx, cfg = _mixer(env)
     mx.save_scene("Gaming")
     t = catalog.BY_UUID["com.lindeck.mixer.scene"]
-    assert t.category == "Linewave"
+    assert t.category == "FreeWave"
     assert t.fields[0].options() == [("gaming", "Gaming")]
     cls = native.lookup("com.lindeck.mixer.scene")
     assert cls is native.MixerSceneAction
@@ -133,7 +133,7 @@ def test_scene_key_action(env, pactl, monkeypatch):
 
 # ============================================================ Auto-Ducking
 def test_envelope_attack_hold_release():
-    from streamlin.ducking import Envelope
+    from freestream.ducking import Envelope
     env_ = Envelope(threshold_db=-30, attack=0.1, hold=0.5, release=0.4)
     assert env_.step(None, 0.04) == 0
     assert env_.step(-40, 0.04) == 0  # unter der Schwelle
@@ -155,7 +155,7 @@ class Clock:
 
 
 def _ducker(env, pactl, level, channels=("music",), **extra):
-    from streamlin.ducking import Ducker
+    from freestream.ducking import Ducker
     duck = {"enabled": True, "channels": list(channels), "amount_db": 12, "threshold_db": -30,
             "attack_ms": 100, "hold_ms": 200, "release_ms": 200}
     duck.update(extra)
@@ -172,7 +172,7 @@ def _run(d, clock, seconds, step=0.04):
 
 
 def test_ducker_lowers_and_restores_exactly(env, pactl):
-    from streamlin import ducking
+    from freestream import ducking
     level = [0.0]
     d, mx, clock = _ducker(env, pactl, level)
     mx.set_volume("music", "monitor", 80)
@@ -186,7 +186,7 @@ def test_ducker_lowers_and_restores_exactly(env, pactl):
     raw = mx.raw_levels()
     assert raw["music_monitor"][0] == round(80 * f) and raw["music_stream"][0] == round(63 * f)
     assert raw["game_monitor"][0] == 90  # nicht gewählt
-    # Fenster/LinDeck sehen den Wert des Nutzers
+    # Fenster/FreeDeck sehen den Wert des Nutzers
     assert mx.get("music", "monitor") == (80, False) and mx.levels()["music_stream"] == (63, False)
     assert json.loads((env / "state" / "ducking.json").read_text())["bases"]["music_monitor"] == 80
     level[0] = 0.0
@@ -200,8 +200,8 @@ def test_ducker_lowers_and_restores_exactly(env, pactl):
 
 
 def test_ducker_follows_user_faders(env, pactl):
-    from streamlin import ducking
-    from streamlin.mixer import Mixer
+    from freestream import ducking
+    from freestream.mixer import Mixer
     level = [0.9]
     d, mx, clock = _ducker(env, pactl, level)
     mx.set_volume("music", "both", 80)
@@ -211,7 +211,7 @@ def test_ducker_follows_user_faders(env, pactl):
     mx.set_volume("music", "monitor", 50)
     assert mx.raw_levels()["music_monitor"][0] == round(50 * f)
     assert mx.get("music", "monitor")[0] == 50
-    # LinDeck-Taste (anderer Prozess, über ducking.json): +10
+    # FreeDeck-Taste (anderer Prozess, über ducking.json): +10
     other = Mixer(mx.cfg)
     other.change_volume("music", "stream", 10)
     assert mx.raw_levels()["music_stream"][0] == round(90 * f)
@@ -250,14 +250,14 @@ def test_ducker_off_and_channel_change_restore(env, pactl):
     _run(d, clock, 0.3)
     assert mx.raw_levels()["music_monitor"][0] < 100
     d._write_file(force=True)
-    from streamlin.ducking import Ducker
+    from freestream.ducking import Ducker
     d2 = Ducker(mx, mx.cfg, level=lambda: 0.0, clock=clock)
     d2._recover()
     assert mx.raw_levels()["music_monitor"][0] == 100
 
 
 def test_host_runs_ducker(env, pactl):
-    from streamlin.wavehost import WaveHost
+    from freestream.wavehost import WaveHost
     host = WaveHost(_config(env, {"mixer": {"enabled": True}}))
     assert host.mixer.ducker is host.ducker
     host.ducker._level_fn = lambda: 0.0
@@ -271,7 +271,7 @@ def test_host_runs_ducker(env, pactl):
 
 # ========================================================== Tastenkürzel
 def test_shortcut_conversion():
-    from streamlin import shortcuts as S
+    from freestream import shortcuts as S
     assert S.normalize("ctrl+alt+m") == "Ctrl+Alt+M"
     assert S.normalize("<Control><Super>F9") == "Ctrl+Super+F9"
     assert S.normalize("m") == "" and S.normalize("Pause") == "Pause" and S.normalize("Hyper+m") == ""
@@ -289,7 +289,7 @@ def test_shortcut_conversion():
     assert S.desktop({"XDG_CURRENT_DESKTOP": "XFCE"}) == "xfce"
     assert S.desktop({"XDG_CURRENT_DESKTOP": "MATE"}) == "mate"
     assert S.desktop({"XDG_CURRENT_DESKTOP": "Hyprland"}) == ""
-    assert S._desktop_exec("/usr/bin/linewave mixer scene apply 'a b'") == '/usr/bin/linewave mixer scene apply "a b"'
+    assert S._desktop_exec("/usr/bin/freewave mixer scene apply 'a b'") == '/usr/bin/freewave mixer scene apply "a b"'
 
 
 class FakeGSettings:
@@ -329,7 +329,7 @@ class FakeGSettings:
 
 @pytest.fixture
 def fake_desktop(env, monkeypatch):
-    from streamlin import shortcuts
+    from freestream import shortcuts
     fake = FakeGSettings()
     monkeypatch.setattr(shortcuts.subprocess, "run", fake)
     monkeypatch.setattr(shortcuts.shutil, "which", lambda name: f"/usr/bin/{name}")
@@ -337,14 +337,14 @@ def fake_desktop(env, monkeypatch):
 
 
 def test_shortcuts_gnome(fake_desktop):
-    from streamlin import shortcuts as S
+    from freestream import shortcuts as S
     env_ = {"XDG_CURRENT_DESKTOP": "ubuntu:GNOME"}
     other = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
     fake_desktop.store[(S.GNOME_SCHEMA, "custom-keybindings")] = f"['{other}']"
-    cmd = "/usr/bin/linewave mic mute toggle"
-    r = S.register("linewave-mic-mute", "Linewave: Mikro", cmd, "ctrl+alt+m", env=env_)
+    cmd = "/usr/bin/freewave mic mute toggle"
+    r = S.register("linewave-mic-mute", "FreeWave: Mikro", cmd, "ctrl+alt+m", env=env_)
     assert r["desktop"] == "gnome" and r["binding"] == "Ctrl+Alt+M"
-    S.register("linewave-mic-mute", "Linewave: Mikro", cmd, "Ctrl+Alt+M", env=env_)  # wiederholbar
+    S.register("linewave-mic-mute", "FreeWave: Mikro", cmd, "Ctrl+Alt+M", env=env_)  # wiederholbar
     ours = S.GNOME_BASE + "streamlin-linewave-mic-mute/"
     lst = S._parse_strv(fake_desktop.store[(S.GNOME_SCHEMA, "custom-keybindings")])
     assert lst == [other, ours]
@@ -353,7 +353,7 @@ def test_shortcuts_gnome(fake_desktop):
     assert S._parse_str(fake_desktop.store[(rel, "command")]) == cmd
     assert S.get("linewave-mic-mute") == "Ctrl+Alt+M"
     # Befehl mit Anführungszeichen (Szenenname) bleibt intakt
-    S.register("linewave-scene-x", "Szene „Rock'n'Roll“", "linewave mixer scene apply 'x y'", "Super+1", env=env_)
+    S.register("linewave-scene-x", "Szene „Rock'n'Roll“", "freewave mixer scene apply 'x y'", "Super+1", env=env_)
     rel2 = f"{S.GNOME_SCHEMA}.custom-keybinding:{S.GNOME_BASE}streamlin-linewave-scene-x/"
     assert S._parse_str(fake_desktop.store[(rel2, "name")]) == "Szene „Rock'n'Roll“"
     assert S.unregister("linewave-mic-mute", env=env_) is True
@@ -364,11 +364,11 @@ def test_shortcuts_gnome(fake_desktop):
 
 
 def test_shortcuts_cinnamon_and_mate(fake_desktop):
-    from streamlin import shortcuts as S
+    from freestream import shortcuts as S
     env_ = {"XDG_CURRENT_DESKTOP": "X-Cinnamon"}
     fake_desktop.store[(S.CINNAMON_SCHEMA, "custom-list")] = "['__dummy__', 'custom0']"
-    S.register("linewave-mic-mute", "Mic", "linewave mic mute toggle", "Super+M", env=env_)
-    S.register("linewave-mic-mute", "Mic", "linewave mic mute toggle", "Super+M", env=env_)
+    S.register("linewave-mic-mute", "Mic", "freewave mic mute toggle", "Super+M", env=env_)
+    S.register("linewave-mic-mute", "Mic", "freewave mic mute toggle", "Super+M", env=env_)
     assert S._parse_strv(fake_desktop.store[(S.CINNAMON_SCHEMA, "custom-list")]) == [
         "__dummy__", "custom0", "streamlin-linewave-mic-mute"]
     rel = f"{S.CINNAMON_SCHEMA}.custom-keybinding:{S.CINNAMON_BASE}streamlin-linewave-mic-mute/"
@@ -376,7 +376,7 @@ def test_shortcuts_cinnamon_and_mate(fake_desktop):
     S.unregister("linewave-mic-mute", env=env_)
     assert S._parse_strv(fake_desktop.store[(S.CINNAMON_SCHEMA, "custom-list")]) == ["__dummy__", "custom0"]
     env_ = {"XDG_CURRENT_DESKTOP": "MATE"}
-    S.register("linewave-mic-mute", "Mic", "linewave mic mute toggle", "Ctrl+F9", env=env_)
+    S.register("linewave-mic-mute", "Mic", "freewave mic mute toggle", "Ctrl+F9", env=env_)
     rel = f"{S.MATE_SCHEMA}:{S.MATE_BASE}streamlin-linewave-mic-mute/"
     assert fake_desktop.store[(rel, "binding")] == "'<Control>F9'"
     S.unregister("linewave-mic-mute", env=env_)
@@ -384,18 +384,18 @@ def test_shortcuts_cinnamon_and_mate(fake_desktop):
 
 
 def test_shortcuts_xfce_only_touches_own_entries(fake_desktop):
-    from streamlin import shortcuts as S
+    from freestream import shortcuts as S
     env_ = {"XDG_CURRENT_DESKTOP": "XFCE"}
     fake_desktop.store["/commands/custom/<Primary><Alt>t"] = "exo-open --launch TerminalEmulator"
     with pytest.raises(RuntimeError, match="TerminalEmulator"):
-        S.register("linewave-mic-mute", "Mic", "linewave mic mute toggle", "Ctrl+Alt+T", env=env_)
-    S.register("linewave-mic-mute", "Mic", "linewave mic mute toggle", "Ctrl+Alt+M", env=env_)
-    S.register("linewave-mic-mute", "Mic", "linewave mic mute toggle", "Ctrl+Alt+M", env=env_)
-    assert fake_desktop.store["/commands/custom/<Primary><Alt>m"] == "linewave mic mute toggle"
+        S.register("linewave-mic-mute", "Mic", "freewave mic mute toggle", "Ctrl+Alt+T", env=env_)
+    S.register("linewave-mic-mute", "Mic", "freewave mic mute toggle", "Ctrl+Alt+M", env=env_)
+    S.register("linewave-mic-mute", "Mic", "freewave mic mute toggle", "Ctrl+Alt+M", env=env_)
+    assert fake_desktop.store["/commands/custom/<Primary><Alt>m"] == "freewave mic mute toggle"
     # Taste ändern: alter Eintrag weg
-    S.register("linewave-mic-mute", "Mic", "linewave mic mute toggle", "Super+M", env=env_)
+    S.register("linewave-mic-mute", "Mic", "freewave mic mute toggle", "Super+M", env=env_)
     assert "/commands/custom/<Primary><Alt>m" not in fake_desktop.store
-    assert fake_desktop.store["/commands/custom/<Super>m"] == "linewave mic mute toggle"
+    assert fake_desktop.store["/commands/custom/<Super>m"] == "freewave mic mute toggle"
     # Nutzer hat die Taste inzwischen anders belegt: nicht anfassen
     fake_desktop.store["/commands/custom/<Super>m"] = "firefox"
     S.unregister("linewave-mic-mute", env=env_)
@@ -404,36 +404,36 @@ def test_shortcuts_xfce_only_touches_own_entries(fake_desktop):
 
 
 def test_shortcuts_kde(env, tmp_path):
-    from streamlin import shortcuts as S
+    from freestream import shortcuts as S
     home = tmp_path / "home"
     rc = home / ".config" / "kglobalshortcutsrc"
     rc.parent.mkdir(parents=True)
     rc.write_text("[kwin]\nExpose=Ctrl+F9,Ctrl+F9,Toggle\n\n[services][org.kde.konsole.desktop]\n_launch=Ctrl+Alt+T\n")
     env_ = {"XDG_CURRENT_DESKTOP": "KDE", "KDE_SESSION_VERSION": "6", "HOME": str(home)}
-    r = S.register("linewave-mic-mute", "Mic", "/usr/bin/linewave mic mute toggle", "Super+Ctrl+M", env=env_)
+    r = S.register("linewave-mic-mute", "Mic", "/usr/bin/freewave mic mute toggle", "Super+Ctrl+M", env=env_)
     assert r["note"]
-    S.register("linewave-mic-mute", "Mic", "/usr/bin/linewave mic mute toggle", "Super+Ctrl+M", env=env_)
+    S.register("linewave-mic-mute", "Mic", "/usr/bin/freewave mic mute toggle", "Super+Ctrl+M", env=env_)
     text = rc.read_text()
     assert text.count("[services][streamlin-linewave-mic-mute.desktop]") == 1
     assert "_launch=Meta+Ctrl+M" in text and "[kwin]" in text and "konsole" in text
     desk = home / ".local/share/applications/streamlin-linewave-mic-mute.desktop"
-    assert "Exec=/usr/bin/linewave mic mute toggle" in desk.read_text()
+    assert "Exec=/usr/bin/freewave mic mute toggle" in desk.read_text()
     S.unregister("linewave-mic-mute", env=env_)
-    assert not desk.exists() and "streamlin" not in rc.read_text() and "konsole" in rc.read_text()
+    assert not desk.exists() and "freestream" not in rc.read_text() and "konsole" in rc.read_text()
     # Plasma 5: eigene Gruppe mit Anzeigename
     env_["KDE_SESSION_VERSION"] = "5"
-    S.register("linewave-mic-mute", "Mic", "linewave mic mute toggle", "Ctrl+Alt+M", env=env_)
+    S.register("linewave-mic-mute", "Mic", "freewave mic mute toggle", "Ctrl+Alt+M", env=env_)
     assert "[streamlin-linewave-mic-mute.desktop]\n_k_friendly_name=Mic\n_launch=Ctrl+Alt+M,none,Mic" in rc.read_text()
     S.unregister("linewave-mic-mute", env=env_)
-    assert "streamlin" not in rc.read_text()
+    assert "freestream" not in rc.read_text()
 
 
 def test_shortcuts_unknown_desktop(env):
-    from streamlin import shortcuts as S
+    from freestream import shortcuts as S
     with pytest.raises(S.Unsupported) as e:
-        S.register("linewave-mic-mute", "Mic", "linewave mic mute toggle", "Ctrl+Alt+M",
+        S.register("linewave-mic-mute", "Mic", "freewave mic mute toggle", "Ctrl+Alt+M",
                    env={"XDG_CURRENT_DESKTOP": "Hyprland"})
-    assert e.value.command == "linewave mic mute toggle"
+    assert e.value.command == "freewave mic mute toggle"
     with pytest.raises(RuntimeError):
         S.register("linewave-mic-mute", "Mic", "x", "m", env={"XDG_CURRENT_DESKTOP": "GNOME"})
 
@@ -442,9 +442,9 @@ def test_shortcuts_unknown_desktop(env):
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
 def test_window_scenes_ducking_shortcut(env, pactl, monkeypatch):
     import tkinter as tk
-    from streamlin import shortcuts
-    from streamlin.wavehost import WaveHost
-    from streamlin.waveui import WaveWindow
+    from freestream import shortcuts
+    from freestream.wavehost import WaveHost
+    from freestream.waveui import WaveWindow
     fake = FakeGSettings()
     monkeypatch.setattr(shortcuts.subprocess, "run", fake)
     monkeypatch.setattr(shortcuts.shutil, "which", lambda name: f"/usr/bin/{name}")

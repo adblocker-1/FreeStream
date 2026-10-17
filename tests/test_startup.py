@@ -1,4 +1,4 @@
-"""Echter Programmstart: LinDeck und Linewave starten und laufen weiter (kein Absturz beim Start)."""
+"""Echter Programmstart: FreeDeck und FreeWave starten und laufen weiter (kein Absturz beim Start)."""
 import os
 import signal
 import subprocess
@@ -11,15 +11,15 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 
 
-@pytest.mark.parametrize("args", [[], ["run"], ["linewave"]], ids=["lindeck", "lindeck-run", "linewave"])
+@pytest.mark.parametrize("args", [[], ["run"], ["linewave"]], ids=["freedeck", "freedeck-run", "freewave"])
 def test_program_starts_and_keeps_running(tmp_path, args):
     if not os.environ.get("DISPLAY"):
         pytest.skip("kein Display")
     env = dict(os.environ, HOME=str(tmp_path), XDG_CONFIG_HOME=str(tmp_path / "cfg"),
                XDG_DATA_HOME=str(tmp_path / "data"), XDG_STATE_HOME=str(tmp_path / "state"),
-               XDG_CACHE_HOME=str(tmp_path / "cache"), STREAMLIN_NO_UPDATE_CHECK="1",
+               XDG_CACHE_HOME=str(tmp_path / "cache"), FREESTREAM_NO_UPDATE_CHECK="1",
                PYTHONPATH=str(ROOT))
-    proc = subprocess.Popen([sys.executable, "-m", "streamlin", *args], cwd=tmp_path, env=env,
+    proc = subprocess.Popen([sys.executable, "-m", "freestream", *args], cwd=tmp_path, env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
     try:
         time.sleep(6)

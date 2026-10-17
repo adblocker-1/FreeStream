@@ -10,9 +10,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from streamlin import actions as A
-from streamlin import catalog as C
-from streamlin import hass, hasskeys, native
+from freestream import actions as A
+from freestream import catalog as C
+from freestream import hass, hasskeys, native
 
 TOKEN = "geheimer-token-123"
 
@@ -110,7 +110,7 @@ def fake():
 
 @pytest.fixture(autouse=True)
 def xdg(tmp_path, monkeypatch):
-    from streamlin import paths
+    from freestream import paths
     monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path / "config")
     monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "config" / "config.json")
     monkeypatch.setattr(paths, "DATA_DIR", tmp_path / "data")
@@ -318,8 +318,8 @@ def test_format_state():
 
 
 def test_config_file_private(xdg):
-    from streamlin.config import Config
-    from streamlin import paths
+    from freestream.config import Config
+    from freestream import paths
     cfg = Config()
     cfg.save()
     hass.save_settings(cfg, "homeassistant.local:8123/", TOKEN)
@@ -330,8 +330,8 @@ def test_config_file_private(xdg):
 
 
 def test_cli(fake, xdg, capsys):
-    from streamlin.__main__ import main
-    from streamlin.config import Config
+    from freestream.__main__ import main
+    from freestream.config import Config
     assert main(["homeassistant", "test"]) == 1
     cfg = Config()
     hass.save_settings(cfg, fake.url, TOKEN)
@@ -351,7 +351,7 @@ def tkroot():
     tk = pytest.importorskip("tkinter")
     if not os.environ.get("DISPLAY"):
         pytest.skip("kein Display (xvfb-run verwenden)")
-    from streamlin import theme
+    from freestream import theme
     root = tk.Tk()
     theme.apply(root)
     yield root
@@ -369,7 +369,7 @@ def pump(root, cond, timeout=8):
 
 
 def test_connection_dialog(fake, tkroot, xdg):
-    from streamlin import hassui, paths
+    from freestream import hassui, paths
     saved = []
     dlg = hassui.ConnectionDialog(tkroot, None, on_saved=lambda: saved.append(1))
     dlg.url.set(fake.url)
@@ -387,8 +387,8 @@ def test_connection_dialog(fake, tkroot, xdg):
 
 
 def test_entity_picker(fake, tkroot, xdg):
-    from streamlin import hassui
-    from streamlin.config import Config
+    from freestream import hassui
+    from freestream.config import Config
     hass.save_settings(Config(), fake.url, TOKEN)
     picked = []
     dlg = hassui.EntityPicker(tkroot, None, ["light", "switch"], on_pick=picked.append)

@@ -5,7 +5,7 @@ import stat
 
 import pytest
 
-from streamlin import paths, vault
+from freestream import paths, vault
 
 FAKE = """#!/bin/sh
 # Attrappe für secret-tool: speichert in $VAULT_DIR/<key>
@@ -34,14 +34,14 @@ def fake_vault(tmp_path, monkeypatch):
     monkeypatch.setenv("PATH", f"{bin_dir}:{os.environ.get('PATH', '')}")
     monkeypatch.setenv("VAULT_DIR", str(store))
     monkeypatch.setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/dev/null")
-    monkeypatch.setenv("STREAMLIN_SECRETS", "")
+    monkeypatch.setenv("FREESTREAM_SECRETS", "")
     monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path / "cfg")
     monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "cfg" / "config.json")
     return store
 
 
 def test_secrets_move_to_keyring(fake_vault):
-    from streamlin.config import Config
+    from freestream.config import Config
     assert vault.available()
     cfg = Config()
     cfg.data["obs"] = {"host": "10.0.0.2", "port": 4455, "password": "geheim"}
@@ -64,7 +64,7 @@ def test_secrets_move_to_keyring(fake_vault):
 
 
 def test_old_file_secret_migrates(fake_vault):
-    from streamlin.config import Config
+    from freestream.config import Config
     paths.CONFIG_FILE.parent.mkdir(parents=True)
     paths.CONFIG_FILE.write_text(json.dumps({"discord": {"client_id": "1", "client_secret": "s3"}}))
     cfg = Config()
@@ -75,8 +75,8 @@ def test_old_file_secret_migrates(fake_vault):
 
 
 def test_without_keyring_file_is_private(tmp_path, monkeypatch):
-    from streamlin.config import Config
-    monkeypatch.setenv("STREAMLIN_SECRETS", "file")
+    from freestream.config import Config
+    monkeypatch.setenv("FREESTREAM_SECRETS", "file")
     monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path / "cfg")
     monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "cfg" / "config.json")
     cfg = Config()
@@ -87,14 +87,14 @@ def test_without_keyring_file_is_private(tmp_path, monkeypatch):
 
 
 def test_unreadable_keyring_keeps_note(fake_vault, monkeypatch):
-    from streamlin.config import Config
+    from freestream.config import Config
     cfg = Config()
     cfg.data["obs"] = {"password": "pw"}
     cfg.save()
-    monkeypatch.setenv("STREAMLIN_SECRETS", "file")  # z. B. Schlüsselbund gesperrt
+    monkeypatch.setenv("FREESTREAM_SECRETS", "file")  # z. B. Schlüsselbund gesperrt
     other = Config()
     assert not other.data["obs"].get("password")
     other.data["brightness"] = 50
     other.save()
-    monkeypatch.setenv("STREAMLIN_SECRETS", "")
+    monkeypatch.setenv("FREESTREAM_SECRETS", "")
     assert Config().data["obs"]["password"] == "pw"

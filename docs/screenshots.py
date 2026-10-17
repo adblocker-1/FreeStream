@@ -17,8 +17,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
-os.environ.setdefault("LINDECK_LANG", "en")
-os.environ.setdefault("STREAMLIN_APPEARANCE", "dark")  # Bilder der Anleitung immer im dunklen Design
+os.environ.setdefault("FREEDECK_LANG", "en")
+os.environ.setdefault("FREESTREAM_APPEARANCE", "dark")  # Bilder der Anleitung immer im dunklen Design
 OUT = ROOT / "docs" / "images"
 sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -100,12 +100,12 @@ def icon(path, color, glyph):
     return path
 
 
-# ------------------------------------------------------------- LinDeck
-def shot_lindeck(tmp):
+# ------------------------------------------------------------- FreeDeck
+def shot_freedeck(tmp):
     import tkinter as tk
-    from streamlin import catalog as C
-    from streamlin import editdoc as E
-    from streamlin import editor
+    from freestream import catalog as C
+    from freestream import editdoc as E
+    from freestream import editor
     store = tmp / "profiles"
     store.mkdir()
     doc = E.ProfileDoc(E.create_profile("Streaming", "20GBD9901", store))  # Stream Deck +
@@ -153,10 +153,10 @@ def shot_lindeck(tmp):
         d.save()
         others[name] = d.id
 
-    from streamlin import paths
-    from streamlin.config import Config
-    from streamlin.models import Geometry
-    from streamlin.profiles import ProfileStore
+    from freestream import paths
+    from freestream.config import Config
+    from freestream.models import Geometry
+    from freestream.profiles import ProfileStore
     from test_app import FakeCtrl
     paths.CONFIG_DIR, paths.CONFIG_FILE = tmp / "config", tmp / "config" / "config.json"
     profiles = ProfileStore(store)
@@ -189,13 +189,13 @@ def shot_lindeck(tmp):
         store = profiles
         plugin_host = None
     Daemon.cfg = cfg
-    root = tk.Tk(className="lindeck")
+    root = tk.Tk(className="freedeck")
     root.geometry("1280x800")
     app = editor.EditorApp(root, store_root=store, daemon=Daemon())
     pump(root, 1.5)
     app.select(("key", 0, 0))
     pump(root, 1.5)
-    grab(root, "lindeck-window.png")
+    grab(root, "freedeck-window.png")
     shot_icons(root)
     shot_background(tmp, root, app, doc)
     shot_plugins(tmp, root, Daemon)
@@ -211,15 +211,15 @@ def shot_lindeck(tmp):
         grab(dlg, name)
     dlg.show_tab("plugins")
     pump(root, 1.5)
-    grab(dlg, "lindeck-plugins.png")
+    grab(dlg, "freedeck-plugins.png")
     dlg.destroy()
-    from streamlin.decksetup import DeckSetup
+    from freestream.decksetup import DeckSetup
     setup = DeckSetup(app)
     setup.found = [Path("/media/alex/USB/ProfilesV3")] * 6
     setup.step = 2
     setup.render()
     pump(root, 1.0)
-    grab(setup, "lindeck-setup.png")
+    grab(setup, "freedeck-setup.png")
     setup.destroy()
     app.close()
     try:
@@ -251,8 +251,8 @@ def wallpaper(w, h):
 def shot_background(tmp, root, app, _doc):
     """Zweite Seite mit Hintergrundbild über alle Tasten und eigenem Touchstreifen."""
     doc = app.doc
-    from streamlin.bgui import BackgroundDialog
-    from streamlin.theme import glyph
+    from freestream.bgui import BackgroundDialog
+    from freestream.theme import glyph
     wp = tmp / "abendhimmel.jpg"
     wallpaper(1600, 900).save(wp, quality=92)
     strip = tmp / "streifen.png"
@@ -274,10 +274,10 @@ def shot_background(tmp, root, app, _doc):
     app.goto_page(pid)
     app.select(("key", 2, 0))
     pump(root, 1.5)
-    grab(root, "lindeck-background.png")
+    grab(root, "freedeck-background.png")
     dlg = BackgroundDialog(root, app, pid)
     pump(root, 1)
-    grab(dlg, "lindeck-background-dialog.png")
+    grab(dlg, "freedeck-background-dialog.png")
     dlg.destroy()
     app.goto_page(doc.page_ids[0])
     pump(root, 0.5)
@@ -285,17 +285,17 @@ def shot_background(tmp, root, app, _doc):
 
 def shot_icons(root):
     """Icon-Bibliothek: Suche nach „music“ in allen drei Paketen."""
-    from streamlin.iconlibui import IconLibrary
+    from freestream.iconlibui import IconLibrary
     dlg = IconLibrary(root, on_pick=lambda n, s: None, on_file=lambda: None)
     dlg.geometry("460x600")
     pump(root, 1.5)
-    grab(dlg, "lindeck-icons.png")
+    grab(dlg, "freedeck-icons.png")
     dlg.destroy()
 
 
 def shot_plugins(tmp, root, daemon):
     """Demo-Plugins (selbst erzeugt); fotografiert wird Einstellungen › Plugins."""
-    from streamlin import paths
+    from freestream import paths
     paths.PLUGINS_DIR = tmp / "plugins"
     demos = [("de.example.timer", "Pomodoro-Timer", "Shows a timer on the key and rings when it is up.",
               "bin/plugin.js", (255, 107, 90), "rec"),
@@ -327,11 +327,11 @@ def shot_plugins(tmp, root, daemon):
     daemon.plugin_host = Host()
 
 
-# ------------------------------------------------------------ Linewave
-def shot_linewave(tmp):
+# ------------------------------------------------------------ FreeWave
+def shot_freewave(tmp):
     import tkinter as tk
     import test_waveapp as TW
-    from streamlin import effects, mixer, paths, system, wave3hw
+    from freestream import effects, mixer, paths, system, wave3hw
     for n, s in (("STATE_DIR", "state"), ("CONFIG_DIR", "config"), ("CONFIG_FILE", "config/config.json"),
                  ("DATA_DIR", "data")):
         setattr(paths, n, tmp / s)
@@ -372,8 +372,8 @@ def shot_linewave(tmp):
     effects.Effects.start = lambda self, c, src: self.node_name(c["id"])  # keine echten Filterprozesse
     wave3hw.present = lambda: True
     wave3hw.USBTransport = lambda: TW.FakeWave3()
-    from streamlin.wavehost import WaveHost
-    from streamlin.waveui import WaveWindow
+    from freestream.wavehost import WaveHost
+    from freestream.waveui import WaveWindow
     host = WaveHost()
     host.start()
     host.tick()
@@ -388,24 +388,24 @@ def shot_linewave(tmp):
     def fake_level(device):  # feste Pegel statt parec, damit das Bild immer gleich aussieht
         key = next((k for k in demo if k in device), "")
         return types.SimpleNamespace(level=demo.get(key, .5) if "Wave" in device or key else .6, stop=lambda: None)
-    root = tk.Tk(className="linewave")
+    root = tk.Tk(className="freewave")
     win = WaveWindow(root, host, tray=False, level_factory=fake_level)
     pump(root, 3)
     for strip in win.strips.values():  # ✕ nur beim Überfahren – der Mauszeiger von Xvfb steht mitten im Bild
         for part in strip.values():
             if isinstance(part, dict) and part.get("remove") is not None:
                 part["remove"].place_forget()
-    grab(root, "linewave-mixer.png")
+    grab(root, "freewave-mixer.png")
     win.show_view("mic")
     pump(root, 1)
-    grab(root, "linewave-microphone.png")
+    grab(root, "freewave-microphone.png")
     win.show_view("mixer")
 
-    from streamlin import wavesetup
+    from freestream import wavesetup
     data = wavesetup.collect(host)
     data["catalog"] = effects.catalog()
     wiz = wavesetup.SetupWizard(win, data)
-    for step, name in ((1, "linewave-setup-microphone.png"), (3, "linewave-setup-sound.png")):
+    for step, name in ((1, "freewave-setup-microphone.png"), (3, "freewave-setup-sound.png")):
         wiz.step = step
         wiz.render()
         if step == 1 and wiz.meter is not None:
@@ -415,7 +415,7 @@ def shot_linewave(tmp):
         grab(wiz, name)
     wiz.destroy()
 
-    from streamlin.wavedialogs import ChannelDialog, EffectsDialog
+    from freestream.wavedialogs import ChannelDialog, EffectsDialog
     dlg = ChannelDialog(root, host.mixer.inputs(), on_save=lambda v: None)
     dlg.name.set("Console")
     dlg.kind_seg.set("input")
@@ -425,7 +425,7 @@ def shot_linewave(tmp):
     dlg.color.set("#ff8a3d")
     dlg.icon.set_color("#ff8a3d")
     pump(root, 1)
-    grab(dlg, "linewave-channel.png")
+    grab(dlg, "freewave-channel.png")
     dlg.destroy()
 
     cat = effects.catalog()
@@ -436,7 +436,7 @@ def shot_linewave(tmp):
     dlg = EffectsDialog(root, mic, chain, cat, on_change=None, on_control=None)
     dlg.geometry("620x760")
     pump(root, 1.5)
-    grab(dlg, "linewave-effects.png")
+    grab(dlg, "freewave-effects.png")
     dlg.destroy()
 
     root.destroy()
@@ -452,7 +452,7 @@ def diagram():
     im = Image.new("RGB", (W, H), bg)
     d = ImageDraw.Draw(im)
     f_head, f_box, f_small = font(26), font(19), font(15, bold=False)
-    d.text((W // 2, 34), "How Linewave works", font=f_head, fill=fg, anchor="mm")
+    d.text((W // 2, 34), "How FreeWave works", font=f_head, fill=fg, anchor="mm")
 
     def box(x, y, w, h, title, sub="", color=(46, 48, 54)):
         d.rounded_rectangle((x, y, x + w, y + h), radius=12, fill=color)
@@ -472,7 +472,7 @@ def diagram():
         d.rounded_rectangle((x, top, x + 10, y + 44), radius=4, fill=color)
 
     d.text((120, 84), "Programs", font=f_small, fill=muted, anchor="mm")
-    d.text((470, 84), "Channels in Linewave (2 sliders each)", font=f_small, fill=muted, anchor="mm")
+    d.text((470, 84), "Channels in FreeWave (2 sliders each)", font=f_small, fill=muted, anchor="mm")
     d.text((990, 84), "Outputs", font=f_small, fill=muted, anchor="mm")
     apps = [("Spotify", "Music", .7, .35), ("Firefox", "Browser", .55, .0),
             ("Discord", "Voice Chat", .9, .0), ("Game", "Game", .8, .6),
@@ -487,7 +487,7 @@ def diagram():
         arrow((210, y + 32), (318, y + 32), (120, 122, 130))
         d.rounded_rectangle((320, y, 640, y + 64), radius=12, fill=tuple(int(c * 0.42) for c in col))
         d.rounded_rectangle((320, y, 328, y + 64), radius=4, fill=col)
-        d.text((345, y + 32), f"Linewave {ch}", font=f_box, fill=fg, anchor="lm")
+        d.text((345, y + 32), f"FreeWave {ch}", font=f_box, fill=fg, anchor="lm")
         slider(586, y + 10, m, blue)
         slider(608, y + 10, st, purple)
         d.line((640, y + 22, bus_m, y + 22), fill=blue, width=3)
@@ -501,8 +501,8 @@ def diagram():
     d.text((598, 560), "blue = Personal slider (what you hear)      purple = Stream slider (what your audience hears)",
            font=f_small, fill=muted, anchor="mm")
     OUT.mkdir(parents=True, exist_ok=True)
-    im.save(OUT / "linewave-flow.png", optimize=True)
-    print("geschrieben:", (OUT / "linewave-flow.png").relative_to(ROOT))
+    im.save(OUT / "freewave-flow.png", optimize=True)
+    print("geschrieben:", (OUT / "freewave-flow.png").relative_to(ROOT))
 
 
 if __name__ == "__main__":
@@ -510,7 +510,7 @@ if __name__ == "__main__":
     only = sys.argv[1:]
     if not only or "diagram" in only:
         diagram()
-    if not only or "lindeck" in only:
-        shot_lindeck(tmp)
-    if not only or "linewave" in only:
-        shot_linewave(tmp)
+    if not only or "freedeck" in only:
+        shot_freedeck(tmp)
+    if not only or "freewave" in only:
+        shot_freewave(tmp)

@@ -1,7 +1,7 @@
 """Geräte im laufenden Betrieb an- und abstecken (simulierte Geräte)."""
 import pytest
 
-from streamlin import editdoc as E
+from freestream import editdoc as E
 
 
 @pytest.fixture
@@ -9,10 +9,10 @@ def daemon(tmp_path, monkeypatch):
     pytest.importorskip("StreamDeck")
     import StreamDeck.Transport.Dummy as dummy
 
-    from streamlin import paths
-    from streamlin.config import Config, State
-    from streamlin.daemon import Daemon
-    from streamlin.profiles import ProfileStore
+    from freestream import paths
+    from freestream.config import Config, State
+    from freestream.daemon import Daemon
+    from freestream.profiles import ProfileStore
     monkeypatch.setattr(dummy.Dummy.Device, "read", lambda self, length: None)  # wie echte Geräte ohne Eingabe
     monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "config.json")
     monkeypatch.setattr(paths, "STATE_FILE", tmp_path / "state.json")
