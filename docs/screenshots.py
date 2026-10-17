@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 os.environ.setdefault("LINDECK_LANG", "en")
+os.environ.setdefault("STREAMLIN_APPEARANCE", "dark")  # Bilder der Anleitung immer im dunklen Design
 OUT = ROOT / "docs" / "images"
 sys.path[:0] = [str(ROOT), str(ROOT / "tests")]
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -152,18 +153,40 @@ def shot_lindeck(tmp):
         d.save()
         others[name] = d.id
 
+    from streamlin import paths
+    from streamlin.config import Config
     from streamlin.models import Geometry
     from streamlin.profiles import ProfileStore
     from test_app import FakeCtrl
-    ctrl = FakeCtrl("DL41K1A04321", "20GBD9901", Geometry(4, 2, 4), doc.id)
-    ctrl.brightness = 70
-
+    paths.CONFIG_DIR, paths.CONFIG_FILE = tmp / "config", tmp / "config" / "config.json"
     profiles = ProfileStore(store)
 
-    class Daemon:  # angeschlossenes Stream Deck + (simuliert)
+    class Ctrl(FakeCtrl):  # angeschlossenes Stream Deck + (simuliert), mit allem für Einstellungen › Geräte
+        brightness, firmware = 70, "1.02.010"
+
+        def candidate_profiles(self):
+            return [p for p in profiles.profiles.values() if p.model == "20GBD9901"]
+
+        def set_brightness(self, v):
+            self.brightness = v
+
+        def set_enabled(self, on):
+            pass
+
+        def set_rotation(self, deg):
+            pass
+    ctrl = Ctrl("DL41K1A04321", "20GBD9901", Geometry(4, 2, 4), doc.id)
+    ctrl.profile = profiles.get(doc.id)
+    cfg = Config()
+    cfg.data.update({"devices": {"DL41K1A04321": {"name": "Desk deck", "sleep_after_minutes": 15},
+                                 "A00SA4212345": {"profile": others["Meetings"]}},  # bekannt, nicht angeschlossen
+                     "smart_profiles": {"obs": doc.id}, "default_profile": others["Gaming"]})
+
+    class Daemon:
         controllers = {"a": ctrl}
         store = profiles
-        cfg = {"devices": {"A00SA4212345": {"profile": others["Meetings"]}}}  # bekannt, nicht angeschlossen
+        plugin_host = None
+    Daemon.cfg = cfg
     root = tk.Tk(className="lindeck")
     root.geometry("1280x800")
     app = editor.EditorApp(root, store_root=store, daemon=Daemon())
@@ -171,11 +194,21 @@ def shot_lindeck(tmp):
     app.select(("key", 0, 0))
     pump(root, 1.5)
     grab(root, "lindeck-window.png")
+    shot_icons(root)
     shot_background(tmp, root, app, doc)
     shot_plugins(tmp, root, Daemon)
     dlg = app.open_settings()
-    pump(root, 1.0)
-    grab(dlg, "settings.png")
+    dlg.geometry("820x660")
+    for tab, name in (("general", "settings.png"), ("devices", "settings-devices.png"),
+                      ("profiles", "settings-profiles.png"), ("style", "settings-style.png")):
+        dlg.show_tab(tab)
+        if tab == "profiles":
+            dlg.pages["profiles"].select(doc.id)
+        pump(root, 1.0)
+        grab(dlg, name)
+    dlg.show_tab("plugins")
+    pump(root, 1.5)
+    grab(dlg, "lindeck-plugins.png")
     dlg.destroy()
     app.close()
     try:
@@ -239,10 +272,19 @@ def shot_background(tmp, root, app, _doc):
     pump(root, 0.5)
 
 
+def shot_icons(root):
+    """Icon-Bibliothek: Suche nach „music“ in allen drei Paketen."""
+    from streamlin.iconlibui import IconLibrary
+    dlg = IconLibrary(root, on_pick=lambda n, s: None, on_file=lambda: None)
+    dlg.geometry("460x600")
+    pump(root, 1.5)
+    grab(dlg, "lindeck-icons.png")
+    dlg.destroy()
+
+
 def shot_plugins(tmp, root, daemon):
-    """Plugin-Verwaltung mit zwei Demo-Plugins (selbst erzeugt)."""
+    """Demo-Plugins (selbst erzeugt); fotografiert wird Einstellungen › Plugins."""
     from streamlin import paths
-    from streamlin.pluginui import PluginManager
     paths.PLUGINS_DIR = tmp / "plugins"
     demos = [("de.example.timer", "Pomodoro-Timer", "Shows a timer on the key and rings when it is up.",
               "bin/plugin.js", (255, 107, 90), "rec"),
@@ -271,11 +313,7 @@ def shot_plugins(tmp, root, daemon):
 
         def sync(self):
             pass
-    dlg = PluginManager(root, host=Host())
-    dlg.geometry("740x600")
-    pump(root, 1.5)
-    grab(dlg, "lindeck-plugins.png")
-    dlg.destroy()
+    daemon.plugin_host = Host()
 
 
 # ------------------------------------------------------------ Linewave
@@ -342,6 +380,10 @@ def shot_linewave(tmp):
     root = tk.Tk(className="linewave")
     win = WaveWindow(root, host, tray=False, level_factory=fake_level)
     pump(root, 3)
+    for strip in win.strips.values():  # ✕ nur beim Überfahren – der Mauszeiger von Xvfb steht mitten im Bild
+        for part in strip.values():
+            if isinstance(part, dict) and part.get("remove") is not None:
+                part["remove"].place_forget()
     grab(root, "linewave-mixer.png")
     win.show_view("mic")
     pump(root, 1)
@@ -391,7 +433,7 @@ def shot_linewave(tmp):
 
 # ------------------------------------------------------------ Schaubild
 def diagram():
-    """Schaubild: Programme → Kanäle → Monitor-Mix / Stream-Mix."""
+    """Schaubild: Programme → Kanäle → Persönlicher Mix / Stream-Mix."""
     import math
     W, H = 1200, 600
     bg, fg, muted = (27, 28, 31), (232, 232, 234), (154, 156, 165)
@@ -441,11 +483,11 @@ def diagram():
         d.line((640, y + 42, bus_s, y + 42), fill=purple, width=3)
     d.line((bus_m, ys[0] + 22, bus_m, ys[-1] + 22), fill=blue, width=4)
     d.line((bus_s, ys[0] + 42, bus_s, ys[-1] + 42), fill=purple, width=4)
-    box(860, 150, 260, 110, "Monitor Mix", "Headphones / speakers", (34, 84, 150))
+    box(860, 150, 260, 110, "Personal Mix", "Headphones / speakers", (34, 84, 150))
     box(860, 360, 260, 110, "Stream Mix", "OBS / Discord", (110, 50, 140))
     arrow((bus_m, 205), (858, 205), blue, 4)
     arrow((bus_s, 415), (858, 415), purple, 4)
-    d.text((598, 560), "blue = Monitor slider (what you hear)      purple = Stream slider (what your audience hears)",
+    d.text((598, 560), "blue = Personal slider (what you hear)      purple = Stream slider (what your audience hears)",
            font=f_small, fill=muted, anchor="mm")
     OUT.mkdir(parents=True, exist_ok=True)
     im.save(OUT / "linewave-flow.png", optimize=True)

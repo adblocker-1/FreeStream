@@ -529,7 +529,7 @@ class PluginsPage(_Page):
         btns.pack(side="bottom", anchor="w")
         from .pluginui import PluginManager
         if info.runnable and self.host is not None:
-            Button(btns, _("Restart"), "refresh", command=self._restart).pack(side="left", padx=(0, 8))
+            Button(btns, _("Restart"), "undo", command=self._restart).pack(side="left", padx=(0, 8))
         log = plugins.paths.STATE_DIR / "plugins" / f"{info.uuid}.log"
         Button(btns, _("Log"), "text", command=lambda: PluginManager._open(str(log))).pack(side="left", padx=(0, 8))
         Button(btns, _("Remove"), "trash", kind="danger", command=self._remove).pack(side="left")
