@@ -23,8 +23,6 @@ PACKAGES = {
     "freedeck": COMMON + FREEDECK,
     "freewave": COMMON + FREEWAVE,
 }
-# dieselben Pakete unter den Namen vor der Umbenennung (Übergang für ältere Installationen)
-PACKAGES.update(streamlin=PACKAGES["freestream"], lindeck=PACKAGES["freedeck"], linewave=PACKAGES["freewave"])
 
 if __name__ == "__main__":
     import sys

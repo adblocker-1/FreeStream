@@ -16,6 +16,9 @@ Available in **English, German, Spanish, French and Portuguese (Brazil)**.
 > **New name:** FreeStream was called *Streamlin* until version 0.28 – FreeDeck was
 > *LinDeck* and FreeWave was *Linewave*. Updating keeps all your profiles, mixes and
 > settings; the old commands `lindeck` and `linewave` keep working.
+> Still on Streamlin 0.28 or older? Its built-in update no longer finds new versions:
+> download `freestream_<version>_all.deb` (or `freedeck_…` / `freewave_…`) once and run
+> `sudo apt install ./<file>.deb` – it replaces the old package and keeps your settings.
 
 **Contents**
 

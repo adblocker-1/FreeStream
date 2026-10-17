@@ -84,13 +84,7 @@ jobs:
           sudo apt-get remove -y freewave
           freedeck profiles
           ! freedeck mixer
-          # Umstieg vom alten Paketnamen: lindeck (alt) wird von freedeck ersetzt
-          sudo apt-get remove -y freedeck
-          sudo apt-get install -y ./dist/lindeck_*.deb
-          lindeck --version
-          freedeck --version
-          sudo apt-get install -y ./dist/freedeck_*.deb
-          ! dpkg -s lindeck 2>/dev/null | grep -q '^Status: install ok installed'
+          # alter Befehl (vor der Umbenennung) funktioniert weiter
           lindeck --version
 
       - uses: actions/upload-artifact@v6

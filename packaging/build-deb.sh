@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Baut die Pakete (Aufruf: ./packaging/build-deb.sh [Ausgabeordner] [Paket …])
 #   freestream_<version>_all.deb  – FreeDeck + FreeWave
-#   lindeck_<version>_all.deb    – nur FreeDeck (Stream Deck)
-#   linewave_<version>_all.deb   – nur FreeWave (Mixer, Wave-Mikrofon)
+#   freedeck_<version>_all.deb   – nur FreeDeck
+#   freewave_<version>_all.deb   – nur FreeWave (Mixer, Wave-Mikrofon)
 # Welche Dateien in welches Paket gehören, steht in packaging/parts.py;
 # Dateiinhalte und Installationsskripte stehen in packaging/common.sh.
 set -euo pipefail
@@ -11,9 +11,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/packaging/common.sh"
 OUT="${1:-$ROOT/dist}"
 shift || true
-# streamlin/lindeck/linewave: dasselbe Programm unter den Namen vor der Umbenennung (0.28) – damit ältere
-# Installationen das Update finden; ihr nächstes Update wechselt dann auf freestream/freedeck/freewave
-PACKAGES=("${@:-freestream freedeck freewave streamlin lindeck linewave}")
+PACKAGES=("${@:-freestream freedeck freewave}")
 read -r -a PACKAGES <<< "${PACKAGES[*]}"
 mkdir -p "$OUT"
 
@@ -74,6 +72,8 @@ build() {
         deps="$deps, $WAVE_DEPS"; recs="$recs, $WAVE_RECS"
     fi
     [ "$deck" = 1 ] || rmdir "$PKG/usr/lib/modules-load.d"
+    # Conflicts/Replaces mit den Namen vor der Umbenennung (streamlin, lindeck, linewave): wer noch ein
+    # altes Paket hat, installiert einfach das neue – es ersetzt das alte
     case "$NAME" in
         freestream)
             rel="Conflicts: freedeck, freewave, streamlin, lindeck, linewave
@@ -91,18 +91,6 @@ Suggests: freewave"
 Replaces: freestream, streamlin, linewave
 Provides: linewave
 Suggests: freedeck"
-            ;;
-        streamlin)
-            rel="Conflicts: lindeck, linewave
-Replaces: lindeck, linewave"
-            ;;
-        lindeck)
-            rel="Conflicts: streamlin
-Replaces: streamlin"
-            ;;
-        linewave)
-            rel="Conflicts: streamlin
-Replaces: streamlin"
             ;;
     esac
     describe "$NAME"

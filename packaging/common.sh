@@ -10,9 +10,9 @@ UDEV_DIR="${UDEV_DIR:-lib/udev/rules.d}"
 package_parts() {  # package_parts <Paket> -> setzt deck/wave (1/0)
     deck=0 wave=0
     case "$1" in
-        freestream|streamlin) deck=1; wave=1 ;;   # streamlin/lindeck/linewave: Namen vor der Umbenennung
-        freedeck|lindeck) deck=1 ;;
-        freewave|linewave) wave=1 ;;
+        freestream) deck=1; wave=1 ;;
+        freedeck) deck=1 ;;
+        freewave) wave=1 ;;
         *) echo "unbekanntes Paket: $1" >&2; exit 1 ;;
     esac
 }
@@ -72,7 +72,7 @@ Terminal=false
 Categories=Utility;AudioVideo;
 Keywords=Stream Deck;Elgato;Streamdeck;Macro;
 Keywords[de]=Stream Deck;Elgato;Streamdeck;Makro;
-StartupWMClass=Lindeck
+StartupWMClass=Freedeck
 StartupNotify=true
 EOF
 }
@@ -116,7 +116,7 @@ Terminal=false
 Categories=AudioVideo;Audio;Mixer;
 Keywords=Wave Link;Elgato;Wave:3;Mixer;Microphone;PipeWire;
 Keywords[de]=Wave Link;Elgato;Wave:3;Mixer;Mikrofon;PipeWire;
-StartupWMClass=FreeWave
+StartupWMClass=Freewave
 StartupNotify=true
 EOF
 }
@@ -223,16 +223,6 @@ EOF
 # describe <Paket> -> setzt DESC (erste Zeile: Kurzbeschreibung, danach mit einem Leerzeichen eingerückt)
 describe() {
     case "$1" in
-        streamlin|lindeck|linewave)
-            local new
-            new=$(case "$1" in streamlin) echo freestream ;; lindeck) echo freedeck ;; *) echo freewave ;; esac)
-            describe "$new"
-            DESC="${DESC%%$'\n'*} (formerly $1)
- This package keeps the old name so that installations from before the
- renaming find the update; the next update replaces it with the package $new.
-${DESC#*$'\n'}"
-            return
-            ;;
         freestream)
             DESC="FreeDeck and FreeWave for Linux (Elgato decks and Wave Link)
  Both programs of FreeStream in one package: \"FreeDeck\" drives every Elgato
