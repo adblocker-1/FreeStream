@@ -34,6 +34,16 @@ MODELS = {
     "20GBO9901": ("Stream Deck Studio", Geometry(16, 2, dials=2)),
 }
 
+# Virtuelles Deck (Fenster auf dem Bildschirm, Einstellungen › Geräte): eigener Code je Größe.
+# Gleiche Raster wie Mini, Neo, Original und XL – deren Profile passen also auch.
+VIRTUAL_MODELS = {
+    "FDV3X2": Geometry(3, 2),
+    "FDV4X2": Geometry(4, 2),
+    "FDV5X3": Geometry(5, 3),
+    "FDV8X4": Geometry(8, 4),
+}
+VIRTUAL_DEFAULT = "FDV4X2"
+
 # USB Product-ID (Vendor 0x0fd9) -> Elgato-Modellcode
 PID_TO_MODEL = {
     0x0060: "20GAA9901",
@@ -69,6 +79,8 @@ DECKTYPE_TO_MODEL = {
 
 
 def model_for_deck(deck) -> str:
+    if getattr(deck, "VIRTUAL", False):
+        return deck.model_code
     try:
         pid = deck.product_id()
     except Exception:
@@ -84,8 +96,14 @@ def geometry_for_deck(deck) -> Geometry:
     return Geometry(cols, rows, deck.dial_count(), getattr(deck, "TOUCH_KEY_COUNT", 0))
 
 
+def is_virtual(code: str) -> bool:
+    return (code or "") in VIRTUAL_MODELS
+
+
 def elgato_name(code: str) -> str:
     """Modellname wie bei Elgato („Stream Deck XL“) – für Plugins, die ihn so erwarten."""
+    if is_virtual(code):
+        return "Virtual Deck"
     base = (code or "").split("-")[0]
     if base.endswith("LL"):
         base = base[:-2]
@@ -94,10 +112,15 @@ def elgato_name(code: str) -> str:
 
 def model_name(code: str) -> str:
     """Modellname in FreeDeck und FreeWave: „FreeDeck XL“, „FreeDeck +“, „FreeDeck Mini MK.2“ …"""
+    if is_virtual(code):
+        g = VIRTUAL_MODELS[code]
+        return _("Virtual deck {cols} × {rows}").format(cols=g.cols, rows=g.rows)
     return elgato_name(code).replace("Stream Deck", "FreeDeck")
 
 
 def model_geometry(code: str):
+    if is_virtual(code):
+        return VIRTUAL_MODELS[code]
     base = (code or "").split("-")[0]
     if base.endswith("LL"):
         base = base[:-2]

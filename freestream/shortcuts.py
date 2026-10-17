@@ -169,6 +169,17 @@ def linewave_command(*args):
     return " ".join(shlex.quote(a) for a in argv)
 
 
+def freedeck_command(*args):
+    """Befehlszeile für FreeDeck (installiertes `freedeck` oder python -m freestream)."""
+    exe = shutil.which("freedeck")
+    if exe:
+        argv = [exe]
+    else:
+        argv = ["env", f"PYTHONPATH={Path(__file__).resolve().parent.parent}", sys.executable, "-m", "freestream"]
+    argv += [str(a) for a in args]
+    return " ".join(shlex.quote(a) for a in argv)
+
+
 def _desktop_exec(command):
     """Shell-Befehlszeile -> Exec= einer .desktop-Datei (doppelte Anführungszeichen nach der Spezifikation)."""
     out = []

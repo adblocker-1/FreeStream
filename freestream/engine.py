@@ -37,6 +37,7 @@ class DeckController:
         self.plugin_host = None
 
         self.serial = deck.get_serial_number() or deck.id()
+        self.virtual = bool(getattr(deck, "VIRTUAL", False))  # virtualdeck.VirtualDeck
         self.model = model_for_deck(deck)
         self.geometry = geometry_for_deck(deck)
         self.visual = deck.is_visual()
@@ -126,10 +127,12 @@ class DeckController:
     def _initial_profile_id(self):
         dcfg = self.cfg.device(self.serial)
         dstate = self.state_store.device(self.serial)
-        for pid in (dcfg.get("profile"), dstate.get("profile")):
-            if pid and self.store.get(pid):
-                return self.store.get(pid).id
         cands = self.store.for_model(self.model, self.geometry)
+        for pid in (dcfg.get("profile"), dstate.get("profile")):
+            p = self.store.get(pid) if pid else None
+            # virtuelles Deck: gemerktes Profil nur, wenn es zur (änderbaren) Größe passt
+            if p is not None and (not self.virtual or p in cands):
+                return p.id
         default = self.store.get(self.cfg.get("default_profile") or "")
         if default is not None and default in cands:  # Einstellungen › Profile › Standardprofil
             return default.id
@@ -342,7 +345,10 @@ class DeckController:
     def _set_key(self, k, img):
         if self.rotated:  # Taste k liegt auf dem gedrehten Gerät gegenüber
             k, img = self.key_count - 1 - k, img.rotate(180)
-        native = PILHelper.to_native_key_format(self.deck, img.convert("RGB"))
+        if self.virtual:  # virtuelles Deck: das Fenster zeigt das Bild selbst
+            native = img.convert("RGB")
+        else:
+            native = PILHelper.to_native_key_format(self.deck, img.convert("RGB"))
         with self.deck:
             self.deck.set_key_image(k, native)
 
@@ -705,7 +711,7 @@ class DeckController:
     def _tick_actions(self, now):
         dcfg = self.cfg.device(self.serial)
         mins = dcfg.get("sleep_after_minutes", self.cfg.get("sleep_after_minutes", 0)) or 0
-        if mins and now - self.last_input > mins * 60:
+        if mins and not self.virtual and now - self.last_input > mins * 60:
             self.sleep_device()
             return
         # abgelaufene Overlays entfernen

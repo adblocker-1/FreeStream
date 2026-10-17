@@ -212,6 +212,7 @@ def shot_freedeck(tmp):
     dlg.show_tab("plugins")
     pump(root, 1.5)
     grab(dlg, "freedeck-plugins.png")
+    shot_virtual(tmp, root, dlg, Daemon, keys, icons, store)
     dlg.destroy()
     from freestream.decksetup import DeckSetup
     setup = DeckSetup(app)
@@ -227,6 +228,43 @@ def shot_freedeck(tmp):
         root.destroy()
     except tk.TclError:
         pass
+
+
+def shot_virtual(tmp, root, dlg, daemon, keys, icons, store):
+    """Virtuelles Deck: Einstellungen › Geräte und das schwebende Fenster."""
+    from freestream import editdoc as E
+    from freestream import paths, virtualdeck
+    from freestream.config import State
+    from freestream.engine import DeckController
+    from freestream.virtualui import VirtualDeckWindow
+    paths.STATE_FILE = tmp / "state.json"
+    vdoc = E.ProfileDoc(E.create_profile("Streaming", "FDV4X2", store))
+    page = vdoc.page_ids[0]
+    for slot, uuid, title, color, glyph, _settings in keys:
+        vdoc.place(page, slot, "com.elgato.streamdeck.system.hotkey")
+        vdoc.set_icon(page, slot, 0, icon(icons / f"{glyph}.png", color, glyph))
+        vdoc.update_state(page, slot, 0, "Title", title)
+        vdoc.update_state(page, slot, 0, "TitleAlignment", "bottom")
+    vdoc.add_page()
+    vdoc.add_page()
+    vdoc.save()
+    daemon.store.reload()
+    virtualdeck.update(daemon.cfg, enabled=True)
+    vctrl = DeckController(virtualdeck.VirtualDeck("FDV4X2"), daemon.store, daemon.cfg, State(), None, None)
+    vctrl.deck.open()
+    vctrl.start(vdoc.id)
+    daemon.controllers["virtual:FDV4X2"] = vctrl
+    daemon.virtual_controller = vctrl
+    dlg.show_tab("devices")
+    dlg.pages["devices"].select(virtualdeck.SERIAL)
+    pump(root, 1.0)
+    grab(dlg, "settings-virtual-deck.png")
+    win = VirtualDeckWindow(root, daemon())
+    pump(root, 1.0)
+    grab(win.win, "virtual-deck.png")
+    win.close()
+    vctrl.stop()
+    del daemon.controllers["virtual:FDV4X2"]
 
 
 def wallpaper(w, h):

@@ -1684,7 +1684,7 @@ class WaveWindow:
         def done(res, err):
             if isinstance(err, shortcuts.Unsupported):
                 self.status("")
-                from .wavedialogs import ManualShortcutDialog
+                from .dialogkit import ManualShortcutDialog
                 ManualShortcutDialog(self.root, str(err), err.command)
             elif err is None:
                 if binding:
@@ -1808,7 +1808,7 @@ class WaveWindow:
         self.v["clipguard"].pack(side="right")
 
         # --- globales Tastenkürzel zum Stummschalten
-        from .wavedialogs import ShortcutField
+        from .dialogkit import ShortcutField
         tk.Frame(b, bg=COL["border"], height=1).pack(fill="x", pady=8)
         theme.section(b, _("Keyboard shortcut")).pack(fill="x", pady=(4, 0))
         row = self._row(b, _("Mute microphone"), _("Works in every app, also on Wayland – it is added to your "
