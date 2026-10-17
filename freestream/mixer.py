@@ -1294,6 +1294,32 @@ class Mixer:
                         "key": (p.get("application.process.binary") or p.get("application.name") or "").lower()})
         return out
 
+    # ------------------------------------------------------ benutzte Kanäle
+    def note_used(self, streams):
+        """Kanäle merken, in denen gerade ein Programm spielt (für den Export aufs Deck)."""
+        now = {s["channel"] for s in streams or () if s.get("channel")}
+        st = self._state()
+        seen = set(st.get("used_channels") or [])
+        if now - seen:
+            st["used_channels"] = sorted(seen | now)
+            self._save_state(st)
+
+    def used_channels(self, streams=()):
+        """Kanal-ids (Mixer-Reihenfolge), die wirklich benutzt werden: in mindestens einem Mix und
+        Mikrofon/Eingang, ein fest zugeordnetes Programm oder ein Programm, das darin spielt oder spielte.
+        Leere Programm-Kanäle (z. B. „SFX“, wenn nichts dorthin geht) gehören nicht dazu."""
+        seen = set(self._state().get("used_channels") or [])
+        seen |= {s["channel"] for s in streams or () if s.get("channel")}
+        seen |= set((self.conf.get("routes") or {}).values())  # vom Nutzer zugeordnete Programme
+        out = []
+        for c in self.all_channels():
+            cid = c["id"]
+            if not self.channel_mixes(cid):
+                continue  # in keinem Mix: kein Ton, kein Regler
+            if cid == "mic" or c.get("kind") == "input" or cid in seen:
+                out.append(cid)
+        return out
+
     def move_stream(self, index, cid, remember=""):
         """Einen Stream in einen Kanal verschieben; mit remember (Programmname) dauerhaft merken."""
         if cid not in {c["id"] for c in self.app_channels()}:
