@@ -231,7 +231,7 @@ def cmd_report(args):
                 if is_windows_path(mapped) or not os.path.exists(mapped):
                     prog = resolve_program(target, cfg.get("app_map"), s.get("app_name", ""))
                     if not prog:
-                        hints.append(_("{where}: '{app}' -> no Linux mapping (config.json app_map/path_map)")
+                        hints.append(_("{where}: '{app}' -> no Linux mapping (Settings → Connections → Windows profiles)")
                                      .format(where=where, app=s.get('app_name') or target))
         if uuid.endswith("soundboard.playaudio") and not (a.get("Resources") or {}).get("file"):
             pth = map_path(s.get("path", ""), cfg.get("path_map"))
@@ -581,7 +581,7 @@ def cmd_obs(args):
     cl = obs.client(Config())
     if not obs.wait_connected(cl, 5):
         print(_("No connection to OBS: {error}").format(error=cl.error or _("timeout")))
-        print(_("In OBS: Tools → WebSocket Server Settings → enable; password in config.json (obs.password)"))
+        print(_("In OBS: Tools → WebSocket Server Settings → enable; enter the password in LinDeck under Settings → Connections"))
         return 1
     time.sleep(0.5)
     v = cl.request("GetVersion")
@@ -615,7 +615,7 @@ def cmd_homeassistant(args):
     c = hass.settings(Config())
     if not c.get("url") or not c.get("token"):
         print(_("Home Assistant is not set up yet. In the LinDeck window: choose a Home Assistant action → "
-                "“Connect …” (or config.json → homeassistant.url / homeassistant.token)."))
+                "“Connect …” (or Settings → Connections)."))
         return 1
     try:
         info = hass.check_connection(c["url"], c["token"], c.get("verify_ssl", True) is not False)

@@ -70,11 +70,10 @@ class Daemon:
                 alive = False
             if not alive:
                 log.info(_("Device {serial} disconnected").format(serial=ctrl.serial))
+                del self.controllers[did]
                 if getattr(self, "plugin_host", None):
                     self.plugin_host.device_disconnected(ctrl)
-                ctrl.running = False
-                ctrl.events.put(("stop",))
-                del self.controllers[did]
+                ctrl.detach()
 
     def reload(self):
         log.info(_("Reloading profiles and configuration"))
@@ -185,10 +184,10 @@ class Daemon:
                     except Exception as e:  # noqa: BLE001
                         log.debug(_("Service {name}: {error}").format(name=type(svc).__name__, error=e))
             try:
-                self.smart_profiles()
+                self.smart_profiles()  # fragt das aktive Fenster ab (bei X11 zwei xprop-Aufrufe)
             except Exception as e:  # noqa: BLE001
                 log.debug("Smart Profiles: %s", e)
-            time.sleep(0.5)
+            time.sleep(1.0)
 
     def cleanup(self):
         for c in list(self.controllers.values()):

@@ -64,6 +64,7 @@ class DeckController:
         self.dial_down_at = {}
         self.overlays = {}       # id(action) -> (art, bis)
         self.anim = {}           # Tastenindex -> [frames, idx, next_time]
+        self._tick_wake = threading.Event()  # weckt den Takt (neue Animation, Ende)
         self.ctx = None
 
         self._worker = threading.Thread(target=self._loop, name=f"deck-{self.serial}", daemon=True)
@@ -92,10 +93,23 @@ class DeckController:
 
     def stop(self):
         self.running = False
+        self._tick_wake.set()
         self.events.put(("stop",))
         self._unload_actions()
         try:
             self.deck.reset()
+            self.deck.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def detach(self):
+        """Gerät wurde abgezogen: Aktionen beenden und Verbindung schließen (ohne Bilder zu senden)."""
+        self.running = False
+        self._tick_wake.set()
+        self.events.put(("stop",))
+        with self.lock:
+            self._unload_actions()
+        try:
             self.deck.close()
         except Exception:  # noqa: BLE001
             pass
@@ -351,6 +365,7 @@ class DeckController:
             img, frames = self.key_image(k, frame_idx)
             if frames and k not in self.anim:
                 self.anim[k] = [frames, 0, time.time() + frames[0][1] / 1000.0]
+                self._tick_wake.set()
             elif not frames:
                 self.anim.pop(k, None)
         try:
@@ -626,11 +641,20 @@ class DeckController:
 
     # ================================================================ Ticker
     def _tick_loop(self):
+        """Animationen (GIF) und Sekundentakt. Schläft bis zum nächsten fälligen Bild bzw. zur nächsten
+        Sekunde, statt ständig nachzusehen – ohne Animation wacht der Takt einmal pro Sekunde auf."""
         last_sec = 0
         while self.running:
-            time.sleep(0.04)
+            now = time.time()
+            due = last_sec + 1.0
+            if self.anim and not self.sleeping and self.enabled:
+                due = min([due] + [st[2] for st in list(self.anim.values())])
+            if due > now:
+                self._tick_wake.wait(min(1.0, due - now))
+                self._tick_wake.clear()
             now = time.time()
             if self.sleeping or not self.enabled:
+                last_sec = now
                 continue
             # GIF-Animationen
             for k, st in list(self.anim.items()):

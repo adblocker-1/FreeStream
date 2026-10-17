@@ -4,7 +4,7 @@ import os
 import threading
 from copy import deepcopy
 
-from . import paths
+from . import paths, vault
 from .i18n import _
 
 DEFAULTS = {
@@ -37,6 +37,8 @@ class Config:
         self._lock = threading.RLock()
         self.data = deepcopy(DEFAULTS)
         self.mtime = 0.0
+        self._stored = {}  # was zuletzt im Schlüsselbund stand: "obs.password" -> Wert
+        self._listed = set()  # laut config.json im Schlüsselbund
         self.load()
 
     def load(self) -> None:
@@ -49,7 +51,29 @@ class Config:
                     self.mtime = paths.CONFIG_FILE.stat().st_mtime
                 except (OSError, ValueError) as e:
                     print("[lindeck] " + _("Invalid configuration, using defaults: {error}").format(error=e))
+            self._load_secrets(data)
             self.data = data
+
+    def _load_secrets(self, data):
+        """Zugangsdaten aus dem Schlüsselbund dazuholen (nur die, die config.json dort vermerkt)."""
+        self._stored = {}
+        listed = data.pop("in_keyring", None)
+        self._listed = set(listed) if isinstance(listed, list) else set()
+        if not self._listed:
+            return
+        for sec, field in vault.FIELDS:
+            key = f"{sec}.{field}"
+            if key not in listed:
+                continue
+            section = data.get(sec)
+            if isinstance(section, dict) and section.get(field):
+                continue  # steht (noch) in der Datei
+            value = vault.lookup(key)
+            if value:
+                if not isinstance(section, dict):
+                    section = data[sec] = {}
+                section[field] = value
+                self._stored[key] = value
 
     def changed_on_disk(self) -> bool:
         try:
@@ -57,20 +81,50 @@ class Config:
         except OSError:
             return False
 
-    def has_secret(self) -> bool:
-        """True, wenn ein Zugangstoken (Home Assistant) in der Datei steht."""
-        ha = self.data.get("homeassistant")
-        return isinstance(ha, dict) and bool(ha.get("token"))
+    def has_secret(self, data=None) -> bool:
+        """True, wenn Zugangsdaten (Passwort, Token) in der Datei stehen."""
+        data = self.data if data is None else data
+        return any(isinstance(data.get(sec), dict) and data[sec].get(field) for sec, field in vault.FIELDS)
+
+    def _file_data(self):
+        """Was in config.json geschrieben wird: Zugangsdaten möglichst im Schlüsselbund statt in der Datei."""
+        out = deepcopy(self.data)
+        listed = []
+        use_vault = vault.available()
+        for sec, field in vault.FIELDS:
+            key = f"{sec}.{field}"
+            section = out.get(sec)
+            value = section.get(field) if isinstance(section, dict) else None
+            if not value:
+                if self._stored.pop(key, None) is not None:
+                    vault.clear(key)  # vom Benutzer entfernt
+                    self._listed.discard(key)
+                elif key in self._listed:
+                    listed.append(key)  # Schlüsselbund gerade nicht lesbar: Vermerk behalten
+                continue
+            if not use_vault:
+                continue
+            if self._stored.get(key) == value or vault.store(key, value):
+                self._stored[key] = value
+                del section[field]
+                listed.append(key)
+        if listed:
+            out["in_keyring"] = listed
+        return out
 
     def save(self) -> None:
         with self._lock:
             paths.ensure_dirs()
             f = paths.CONFIG_FILE
-            if self.has_secret():
-                # nur für den Benutzer lesbar – vor dem Schreiben, damit der Token nie offen liegt
-                os.close(os.open(f, os.O_WRONLY | os.O_CREAT, 0o600))
-                os.chmod(f, 0o600)
-            f.write_text(json.dumps(self.data, indent=2, ensure_ascii=False), encoding="utf-8")
+            out = self._file_data()
+            tmp = f.with_name(f.name + ".tmp")
+            # nur für den Benutzer lesbar, wenn noch Zugangsdaten in der Datei stehen
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600 if self.has_secret(out) else 0o644)
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps(out, indent=2, ensure_ascii=False))
+            if self.has_secret(out):
+                os.chmod(tmp, 0o600)
+            os.replace(tmp, f)
             self.mtime = f.stat().st_mtime
 
     def get(self, key, default=None):

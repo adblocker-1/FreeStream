@@ -35,11 +35,11 @@ def open_settings(master, app, restart, mixer=None, lindeck=None, tab=None):
 
 
 class SettingsDialog(Dialog):
-    TABS = ("general", "devices", "profiles", "plugins", "style")
+    TABS = ("general", "devices", "profiles", "plugins", "connections", "style")
 
     def __init__(self, master, app, restart, mixer=None, lindeck=None):
         """mixer: (eingerichtet, enable(bool)) – nur in Linewave: Mixer einrichten/entfernen.
-        lindeck: das LinDeck-Fenster (EditorApp) – dann mit den Reitern Geräte, Profile, Plugins, Stil."""
+        lindeck: das LinDeck-Fenster (EditorApp) – dann mit den Reitern Geräte, Profile, Plugins, Verbindungen, Stil."""
         super().__init__(master, _("Settings"), width=820 if lindeck is not None else 500)
         self.app, self.restart, self.lindeck = app, restart, lindeck
         self._outer = self.body
@@ -48,7 +48,8 @@ class SettingsDialog(Dialog):
             from .theme import Segmented
             self.tabs = Segmented(self._outer, [("general", _("General")), ("devices", _("Devices")),
                                                 ("profiles", _("Profiles")), ("plugins", _("Plugins")),
-                                                ("style", _("Style"))], command=self.show_tab)
+                                                ("connections", _("Connections")), ("style", _("Style"))],
+                                    command=self.show_tab)
             self.tabs.pack(anchor="w", pady=(0, 14))
             self.host = tk.Frame(self._outer, bg=COL["bg"])
             self.host.pack(fill="both", expand=True)
@@ -144,9 +145,10 @@ class SettingsDialog(Dialog):
         if self.page is not None:
             self.page.pack_forget()
         if key not in self.pages:
+            from . import connectionsui
             from . import lindecksettings as L
             cls = {"devices": L.DevicesPage, "profiles": L.ProfilesPage, "plugins": L.PluginsPage,
-                   "style": L.StylePage}[key]
+                   "connections": connectionsui.ConnectionsPage, "style": L.StylePage}[key]
             self.pages[key] = cls(self.host, self, self.lindeck)
         self.page = self.pages[key]
         self.page.pack(fill="both", expand=True)

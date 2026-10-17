@@ -7,6 +7,7 @@ damit nichts doppelt importiert wird.
 import getpass
 import logging
 import subprocess
+import time
 import zipfile
 from pathlib import Path
 
@@ -20,7 +21,20 @@ log = logging.getLogger("streamlin.autoimport")
 PROFILE_EXT = (".streamdeckprofile", ".streamdeckprofilesbackup")
 
 
+_XDG_CACHE = {}   # name -> (Zeit, Pfad): xdg-user-dir nicht bei jedem Durchlauf starten
+_ZIP_CACHE = {}   # (Pfad, mtime, Größe) -> enthält Profile
+
+
 def _xdg_dir(name, fallback):
+    hit = _XDG_CACHE.get(name)
+    if hit and time.monotonic() - hit[0] < 300:
+        return hit[1]
+    path = _xdg_dir_uncached(name, fallback)
+    _XDG_CACHE[name] = (time.monotonic(), path)
+    return path
+
+
+def _xdg_dir_uncached(name, fallback):
     try:
         out = subprocess.run(["xdg-user-dir", name], capture_output=True, text=True, timeout=2).stdout.strip()
         if out and out != str(Path.home()):
@@ -53,6 +67,19 @@ def search_dirs():
 
 
 def _zip_has_profiles(p: Path) -> bool:
+    try:
+        st = p.stat()
+    except OSError:
+        return False
+    key = (str(p), st.st_mtime, st.st_size)
+    if key not in _ZIP_CACHE:
+        if len(_ZIP_CACHE) > 500:
+            _ZIP_CACHE.clear()
+        _ZIP_CACHE[key] = _zip_scan(p)
+    return _ZIP_CACHE[key]
+
+
+def _zip_scan(p: Path) -> bool:
     try:
         with zipfile.ZipFile(p) as z:
             return any(".sdProfile/" in n or n.lower().endswith(PROFILE_EXT) for n in z.namelist()[:5000])

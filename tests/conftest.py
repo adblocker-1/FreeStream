@@ -5,6 +5,8 @@ os.environ.setdefault("STREAMLIN_LANG", "de")
 
 # Tests never contact GitHub for updates
 os.environ.setdefault("STREAMLIN_NO_UPDATE_CHECK", "1")
+os.environ.setdefault("STREAMLIN_NO_SETUP", "1")  # Einrichtungsassistent nur in test_decksetup
+os.environ.setdefault("STREAMLIN_SECRETS", "file")  # Schlüsselbund nur in test_vault (mit Attrappe)
 
 import gc  # noqa: E402
 

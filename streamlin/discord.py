@@ -150,8 +150,8 @@ class DiscordClient:
             if self.ready:
                 return
             if not self.client_id:
-                raise DiscordError(_("Discord app missing: enter client_id/client_secret in config.json "
-                                     "(instructions in the README)"))
+                raise DiscordError(_("Discord app missing: enter Client ID and Client Secret under "
+                                     "Settings → Connections → Discord"))
             cands = self.sock_paths if self.sock_paths is not None else socket_paths()
             if not cands:
                 raise DiscordError(_("Discord is not running (no IPC socket found)"))
@@ -205,7 +205,7 @@ class DiscordClient:
 
     def _token_request(self, fields):
         if not self.client_secret:
-            raise DiscordError(_("client_secret missing in config.json (discord.client_secret)"))
+            raise DiscordError(_("Client Secret missing – enter it under Settings → Connections → Discord"))
         body = urllib.parse.urlencode(dict(fields, client_id=self.client_id,
                                            client_secret=self.client_secret)).encode()
         req = urllib.request.Request(TOKEN_URL, data=body,

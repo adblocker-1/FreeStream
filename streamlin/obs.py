@@ -77,7 +77,7 @@ class OBSClient:
         auth = d.get("authentication")
         if auth:
             if not self.password:
-                raise OBSError(_("OBS requires a password (config.json → obs.password)"))
+                raise OBSError(_("OBS requires a password – enter it under Settings → Connections → OBS Studio"))
             ident["authentication"] = auth_string(self.password, auth["salt"], auth["challenge"])
         conn.send(json.dumps({"op": 1, "d": ident}))
         msg = json.loads(conn.recv())

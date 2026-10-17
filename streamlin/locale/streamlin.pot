@@ -38,7 +38,7 @@ msgstr ""
 msgid "Reloaded"
 msgstr ""
 
-#: streamlin/__main__.py:725 streamlin/settingsui.py:335
+#: streamlin/__main__.py:725 streamlin/settingsui.py:337
 msgid "Backup restored."
 msgstr ""
 
@@ -71,7 +71,7 @@ msgid "Usage: linewave mixer scene list | save <name> | apply <name> | rename <n
 msgstr ""
 
 #: streamlin/__main__.py:584
-msgid "In OBS: Tools → WebSocket Server Settings → enable; password in config.json (obs.password)"
+msgid "In OBS: Tools → WebSocket Server Settings → enable; enter the password in LinDeck under Settings → Connections"
 msgstr ""
 
 #: streamlin/__main__.py:601
@@ -79,7 +79,7 @@ msgid "Connecting to Discord – please confirm the request in Discord …"
 msgstr ""
 
 #: streamlin/__main__.py:617
-msgid "Home Assistant is not set up yet. In the LinDeck window: choose a Home Assistant action → “Connect …” (or config.json → homeassistant.url / homeassistant.token)."
+msgid "Home Assistant is not set up yet. In the LinDeck window: choose a Home Assistant action → “Connect …” (or Settings → Connections)."
 msgstr ""
 
 #: streamlin/__main__.py:761
@@ -262,7 +262,7 @@ msgstr ""
 msgid "Linewave is not running"
 msgstr ""
 
-#: streamlin/__main__.py:92 streamlin/editor.py:777 streamlin/editor.py:1069
+#: streamlin/__main__.py:92 streamlin/editor.py:821 streamlin/editor.py:1113
 #, python-brace-format
 msgid "{n} page"
 msgid_plural "{n} pages"
@@ -329,7 +329,7 @@ msgstr ""
 msgid "The LinDeck service is running and is using the device. With --stop-daemon it is stopped for the test and restarted afterwards."
 msgstr ""
 
-#: streamlin/__main__.py:693 streamlin/settingsui.py:288
+#: streamlin/__main__.py:693 streamlin/settingsui.py:290
 #, python-brace-format
 msgid "Backup saved: {path}"
 msgstr ""
@@ -338,7 +338,7 @@ msgstr ""
 msgid "Cancelled. Nothing was changed."
 msgstr ""
 
-#: streamlin/__main__.py:737 streamlin/settingsui.py:373
+#: streamlin/__main__.py:737 streamlin/settingsui.py:375
 #, python-brace-format
 msgid "Support report saved: {path}"
 msgstr ""
@@ -416,7 +416,7 @@ msgstr ""
 msgid "Connected. Microphone {mic}, sound {sound}"
 msgstr ""
 
-#: streamlin/__main__.py:724 streamlin/settingsui.py:337
+#: streamlin/__main__.py:724 streamlin/settingsui.py:339
 #, python-brace-format
 msgid "Your previous data was saved to {path}"
 msgstr ""
@@ -465,12 +465,12 @@ msgctxt "state"
 msgid "muted"
 msgstr ""
 
-#: streamlin/__main__.py:623 streamlin/hassui.py:125
+#: streamlin/__main__.py:623 streamlin/connectionsui.py:300 streamlin/hassui.py:125
 #, python-brace-format
 msgid "Connected to “{name}” (Home Assistant {version})."
 msgstr ""
 
-#: streamlin/__main__.py:735 streamlin/settingsui.py:370
+#: streamlin/__main__.py:735 streamlin/settingsui.py:372
 #, python-brace-format
 msgid "Could not create the support report: {error}"
 msgstr ""
@@ -531,7 +531,7 @@ msgstr ""
 
 #: streamlin/__main__.py:234
 #, python-brace-format
-msgid "{where}: '{app}' -> no Linux mapping (config.json app_map/path_map)"
+msgid "{where}: '{app}' -> no Linux mapping (Settings → Connections → Windows profiles)"
 msgstr ""
 
 #: streamlin/__main__.py:475
@@ -650,7 +650,7 @@ msgstr ""
 msgid "Bright +"
 msgstr ""
 
-#: streamlin/actions.py:571 streamlin/wavesetup.py:142
+#: streamlin/actions.py:571 streamlin/decksetup.py:74 streamlin/wavesetup.py:141
 msgid "Back"
 msgstr ""
 
@@ -699,7 +699,7 @@ msgstr ""
 
 #: streamlin/actions.py:473
 #, python-brace-format
-msgid "Program '{name}' not found – add it to app_map in config.json"
+msgid "Program '{name}' not found – add it under Settings → Connections → Windows profiles"
 msgstr ""
 
 #: streamlin/actions.py:682 streamlin/livekeys.py:599
@@ -753,43 +753,43 @@ msgstr ""
 msgid "Please install 'msitools': sudo apt install msitools"
 msgstr ""
 
-#: streamlin/autoimport.py:122
+#: streamlin/autoimport.py:149
 msgid "Default icons imported from the Elgato installer"
 msgstr ""
 
-#: streamlin/autoimport.py:148
+#: streamlin/autoimport.py:175
 #, python-brace-format
 msgid "Automatic import of {path} failed: {error}"
 msgstr ""
 
-#: streamlin/autoimport.py:121
+#: streamlin/autoimport.py:148
 #, python-brace-format
 msgid "Elgato icons imported from {name}"
 msgstr ""
 
-#: streamlin/autoimport.py:128
+#: streamlin/autoimport.py:155
 #, python-brace-format
 msgid "Plugin {uuid} installed"
 msgstr ""
 
-#: streamlin/autoimport.py:131
+#: streamlin/autoimport.py:158
 #, python-brace-format
 msgid "Plugin “{name}” installed – cannot run on Linux ({reason})"
 msgstr ""
 
-#: streamlin/autoimport.py:134
+#: streamlin/autoimport.py:161
 #, python-brace-format
 msgid "Plugin “{name}” installed"
 msgstr ""
 
-#: streamlin/autoimport.py:141
+#: streamlin/autoimport.py:168
 #, python-brace-format
 msgid "{n} profile imported from {path}"
 msgid_plural "{n} profiles imported from {path}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: streamlin/autoimport.py:143
+#: streamlin/autoimport.py:170
 #, python-brace-format
 msgid "{n} profile imported from “{name}”"
 msgid_plural "{n} profiles imported from “{name}”"
@@ -835,7 +835,7 @@ msgstr ""
 msgid "Settings: {state}"
 msgstr ""
 
-#: streamlin/backup.py:292 streamlin/settingsui.py:288
+#: streamlin/backup.py:292 streamlin/settingsui.py:290
 #, python-brace-format
 msgid "Size: {size}"
 msgstr ""
@@ -884,15 +884,15 @@ msgstr ""
 msgid "Could not start {program}: {error}"
 msgstr ""
 
-#: streamlin/bgui.py:14 streamlin/editor.py:2032
+#: streamlin/bgui.py:14 streamlin/editor.py:2085
 msgid "Images"
 msgstr ""
 
-#: streamlin/bgui.py:14 streamlin/editor.py:925 streamlin/editor.py:2033 streamlin/pluginui.py:85
+#: streamlin/bgui.py:14 streamlin/decksetup.py:296 streamlin/editor.py:969 streamlin/editor.py:2086
 msgid "All files"
 msgstr ""
 
-#: streamlin/bgui.py:19 streamlin/bgui.py:127 streamlin/bgui.py:167 streamlin/editor.py:1084
+#: streamlin/bgui.py:19 streamlin/bgui.py:127 streamlin/bgui.py:167 streamlin/editor.py:1128
 msgid "Background"
 msgstr ""
 
@@ -904,7 +904,7 @@ msgstr ""
 msgid "The image is spread across all keys of this page – like a desktop wallpaper. Keys with their own icon sit on top; empty keys show the image."
 msgstr ""
 
-#: streamlin/bgui.py:38 streamlin/bgui.py:73 streamlin/editor.py:2174 streamlin/lindecksettings.py:535
+#: streamlin/bgui.py:38 streamlin/bgui.py:73 streamlin/editor.py:2227 streamlin/lindecksettings.py:535
 msgid "Remove"
 msgstr ""
 
@@ -932,7 +932,7 @@ msgstr ""
 msgid "Darkens the image so titles stay easy to read."
 msgstr ""
 
-#: streamlin/bgui.py:78 streamlin/editor.py:2326 streamlin/iconlib.py:72 streamlin/wavedialogs.py:341
+#: streamlin/bgui.py:78 streamlin/decksetup.py:22 streamlin/editor.py:2379 streamlin/iconlib.py:72
 msgid "Done"
 msgstr ""
 
@@ -1059,7 +1059,7 @@ msgstr ""
 msgid "Set volume"
 msgstr ""
 
-#: streamlin/catalog.py:69 streamlin/editor.py:2294 streamlin/editor.py:2301
+#: streamlin/catalog.py:69 streamlin/editor.py:2347 streamlin/editor.py:2354
 msgid "Key combination"
 msgstr ""
 
@@ -1087,7 +1087,7 @@ msgstr ""
 msgid "Text"
 msgstr ""
 
-#: streamlin/catalog.py:89 streamlin/editor.py:645 streamlin/iconlib.py:71
+#: streamlin/catalog.py:89 streamlin/editor.py:689 streamlin/iconlib.py:71
 msgid "Open"
 msgstr ""
 
@@ -1688,7 +1688,7 @@ msgstr ""
 msgid "Long press"
 msgstr ""
 
-#: streamlin/catalog.py:102 streamlin/lindecksettings.py:320 streamlin/settingsui.py:68
+#: streamlin/catalog.py:102 streamlin/lindecksettings.py:320 streamlin/settingsui.py:69
 msgid "Program"
 msgstr ""
 
@@ -1696,7 +1696,7 @@ msgstr ""
 msgid "Process name"
 msgstr ""
 
-#: streamlin/catalog.py:106 streamlin/hassui.py:78
+#: streamlin/catalog.py:106 streamlin/connectionsui.py:166 streamlin/connectionsui.py:267 streamlin/hassui.py:78
 msgid "Address"
 msgstr ""
 
@@ -1728,7 +1728,7 @@ msgstr ""
 msgid "Page"
 msgstr ""
 
-#: streamlin/catalog.py:131 streamlin/editor.py:942 streamlin/lindecksettings.py:190
+#: streamlin/catalog.py:131 streamlin/editor.py:986 streamlin/lindecksettings.py:190
 msgid "Profile"
 msgstr ""
 
@@ -1736,7 +1736,7 @@ msgstr ""
 msgid "24-hour format"
 msgstr ""
 
-#: streamlin/catalog.py:140 streamlin/editor.py:1793 streamlin/settingsui.py:89 streamlin/theme.py:1323
+#: streamlin/catalog.py:140 streamlin/editor.py:1846 streamlin/settingsui.py:90 streamlin/theme.py:1323
 msgid "Appearance"
 msgstr ""
 
@@ -2123,24 +2123,180 @@ msgstr ""
 msgid "Unknown key: {key}"
 msgstr ""
 
-#: streamlin/catalog.py:302 streamlin/editor.py:1585 streamlin/wavedialogs.py:496
+#: streamlin/catalog.py:302 streamlin/editor.py:1638 streamlin/wavedialogs.py:496
 msgid "All"
 msgstr ""
 
-#: streamlin/config.py:51
+#: streamlin/config.py:53
 #, python-brace-format
 msgid "Invalid configuration, using defaults: {error}"
 msgstr ""
 
-#: streamlin/daemon.py:80
+#: streamlin/connectionsui.py:36
+msgid "OBS is not answering"
+msgstr ""
+
+#: streamlin/connectionsui.py:145
+msgid "Turn on the WebSocket server in OBS: Tools → WebSocket Server Settings → Enable WebSocket server. Copy the password from “Show Connect Info”."
+msgstr ""
+
+#: streamlin/connectionsui.py:167
+msgid "Port"
+msgstr ""
+
+#: streamlin/connectionsui.py:168
+msgid "Password"
+msgstr ""
+
+#: streamlin/connectionsui.py:171 streamlin/connectionsui.py:276 streamlin/hassui.py:100
+msgid "Test connection"
+msgstr ""
+
+#: streamlin/connectionsui.py:182 streamlin/connectionsui.py:294 streamlin/hassui.py:117
+msgid "Connecting …"
+msgstr ""
+
+#: streamlin/connectionsui.py:196
+msgid "Discord only lets apps control the microphone and sound with your own Discord app. Create one in the Discord Developer Portal, add the redirect “http://localhost” under OAuth2 and copy its Client ID and Client Secret."
+msgstr ""
+
+#: streamlin/connectionsui.py:214
+msgid "Client ID"
+msgstr ""
+
+#: streamlin/connectionsui.py:215
+msgid "Client Secret"
+msgstr ""
+
+#: streamlin/connectionsui.py:219 streamlin/hassui.py:276 streamlin/hassui.py:186
+msgid "Connect …"
+msgstr ""
+
+#: streamlin/connectionsui.py:231
+msgid "Connecting – please confirm the request in Discord …"
+msgstr ""
+
+#: streamlin/connectionsui.py:250 streamlin/hassui.py:75
+msgid "Enter the address of your Home Assistant and a long-lived access token. Create the token in Home Assistant under your profile → Security → Long-lived access tokens."
+msgstr ""
+
+#: streamlin/connectionsui.py:268 streamlin/hassui.py:83
+msgid "Access token"
+msgstr ""
+
+#: streamlin/connectionsui.py:308 streamlin/connectionsui.py:59
+msgid "Windows profiles"
+msgstr ""
+
+#: streamlin/connectionsui.py:308
+msgid "Profiles from Windows start Windows programs and use Windows paths. Tell LinDeck what to use on Linux instead."
+msgstr ""
+
+#: streamlin/connectionsui.py:311
+msgid "Keyboard layout"
+msgstr ""
+
+#: streamlin/connectionsui.py:313
+msgid "German"
+msgstr ""
+
+#: streamlin/connectionsui.py:313
+msgid "English (US)"
+msgstr ""
+
+#: streamlin/connectionsui.py:324
+msgid "Programs"
+msgstr ""
+
+#: streamlin/connectionsui.py:324
+msgid "Windows program (e.g. obs64.exe)"
+msgstr ""
+
+#: streamlin/connectionsui.py:325
+msgid "Linux command"
+msgstr ""
+
+#: streamlin/connectionsui.py:326
+msgid "Folders"
+msgstr ""
+
+#: streamlin/connectionsui.py:326
+msgid "Windows path (e.g. C:/Users/Alex/Music)"
+msgstr ""
+
+#: streamlin/connectionsui.py:327
+msgid "Linux path"
+msgstr ""
+
+#: streamlin/connectionsui.py:72 streamlin/hasskeys.py:184
+msgid "Set up"
+msgstr ""
+
+#: streamlin/connectionsui.py:72
+msgid "Not set up"
+msgstr ""
+
+#: streamlin/connectionsui.py:228
+msgid "Please enter the Client ID and the Client Secret."
+msgstr ""
+
+#: streamlin/connectionsui.py:291 streamlin/hassui.py:115 streamlin/hassui.py:133
+msgid "Please enter the address and the access token."
+msgstr ""
+
+#: streamlin/connectionsui.py:48
+msgid "Services"
+msgstr ""
+
+#: streamlin/connectionsui.py:180
+msgid "The port must be a number."
+msgstr ""
+
+#: streamlin/connectionsui.py:188
+msgid "Connected to OBS."
+msgstr ""
+
+#: streamlin/connectionsui.py:221
+msgid "Developer Portal"
+msgstr ""
+
+#: streamlin/connectionsui.py:243
+msgid "Connected to Discord."
+msgstr ""
+
+#: streamlin/connectionsui.py:273 streamlin/hassui.py:94
+msgid "Accept self-signed certificates (HTTPS)"
+msgstr ""
+
+#: streamlin/connectionsui.py:385 streamlin/editor.py:2216 streamlin/wavedialogs.py:555
+msgid "Add"
+msgstr ""
+
+#: streamlin/connectionsui.py:314
+#, python-brace-format
+msgid "Automatic ({layout})"
+msgstr ""
+
+#: streamlin/connectionsui.py:71
+msgid "Automatic"
+msgstr ""
+
+#: streamlin/connectionsui.py:71
+#, python-brace-format
+msgid "{n} mapping"
+msgid_plural "{n} mappings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: streamlin/daemon.py:79
 msgid "Reloading profiles and configuration"
 msgstr ""
 
-#: streamlin/daemon.py:139 streamlin/daemon.py:140
+#: streamlin/daemon.py:138 streamlin/daemon.py:139
 msgid "LinDeck is already running"
 msgstr ""
 
-#: streamlin/daemon.py:163
+#: streamlin/daemon.py:162
 #, python-brace-format
 msgid "LinDeck is running – {count} profile loaded"
 msgid_plural "LinDeck is running – {count} profiles loaded"
@@ -2157,7 +2313,7 @@ msgstr ""
 msgid "Device {serial} disconnected"
 msgstr ""
 
-#: streamlin/daemon.py:158
+#: streamlin/daemon.py:157
 #, python-brace-format
 msgid "Plugin host not available: {error}"
 msgstr ""
@@ -2167,7 +2323,7 @@ msgstr ""
 msgid "Device {device} not usable: {error} (is the udev rule installed?)"
 msgstr ""
 
-#: streamlin/daemon.py:186
+#: streamlin/daemon.py:185
 #, python-brace-format
 msgid "Service {name}: {error}"
 msgstr ""
@@ -2196,6 +2352,173 @@ msgstr ""
 msgid "Unknown device."
 msgstr ""
 
+#: streamlin/decksetup.py:22 streamlin/wavesetup.py:27
+msgid "Welcome"
+msgstr ""
+
+#: streamlin/decksetup.py:22 streamlin/wavedialogs.py:251
+msgid "Device"
+msgstr ""
+
+#: streamlin/decksetup.py:22 streamlin/editor.py:651 streamlin/settingsui.py:50
+msgid "Profiles"
+msgstr ""
+
+#: streamlin/decksetup.py:46
+msgid "Set up LinDeck"
+msgstr ""
+
+#: streamlin/decksetup.py:72 streamlin/decksetup.py:93 streamlin/iconlib.py:57 streamlin/wavesetup.py:139
+msgid "Next"
+msgstr ""
+
+#: streamlin/decksetup.py:76 streamlin/wavesetup.py:143
+msgid "Set up later"
+msgstr ""
+
+#: streamlin/decksetup.py:165
+msgid "Your device"
+msgstr ""
+
+#: streamlin/decksetup.py:165
+msgid "Plug in your deck. LinDeck detects it by itself; without a device you can choose the model for your first profile."
+msgstr ""
+
+#: streamlin/decksetup.py:229
+msgid "Your profiles"
+msgstr ""
+
+#: streamlin/decksetup.py:229
+msgid "On Windows, copy the folder %APPDATA%\\Elgato\\StreamDeck\\ProfilesV3 to a USB stick – or export single profiles in the Elgato app."
+msgstr ""
+
+#: streamlin/decksetup.py:267
+msgid "Searching Downloads, desktop and USB sticks …"
+msgstr ""
+
+#: streamlin/decksetup.py:278
+msgid "Take over from the Elgato app"
+msgstr ""
+
+#: streamlin/decksetup.py:284
+msgid "Start with an empty profile"
+msgstr ""
+
+#: streamlin/decksetup.py:55 streamlin/decksetup.py:320
+msgid "My profile"
+msgstr ""
+
+#: streamlin/decksetup.py:272
+msgid "Nothing found in Downloads, on the desktop or on USB sticks. Choose the files yourself."
+msgstr ""
+
+#: streamlin/decksetup.py:294 streamlin/editor.py:967
+msgid "Import profiles"
+msgstr ""
+
+#: streamlin/decksetup.py:334 streamlin/lindecksettings.py:627
+msgid "Keys"
+msgstr ""
+
+#: streamlin/decksetup.py:334
+msgid "Drag an action from the list on the right onto a key – or double-click it. Right-click a key for copy, paste and delete."
+msgstr ""
+
+#: streamlin/decksetup.py:336
+msgid "Icons"
+msgstr ""
+
+#: streamlin/decksetup.py:336
+msgid "“Icons …” below the key preview opens over 100 icons drawn for LinDeck."
+msgstr ""
+
+#: streamlin/decksetup.py:337 streamlin/settingsui.py:51
+msgid "Connections"
+msgstr ""
+
+#: streamlin/decksetup.py:337
+msgid "OBS, Discord and Home Assistant are set up under Settings → Connections."
+msgstr ""
+
+#: streamlin/decksetup.py:93 streamlin/wavesetup.py:165
+msgid "Finish"
+msgstr ""
+
+#: streamlin/decksetup.py:149
+msgid "Welcome to LinDeck"
+msgstr ""
+
+#: streamlin/decksetup.py:150
+msgid "In two steps your deck is ready: LinDeck finds your device and takes over your profiles from the Elgato app – or you start with an empty profile."
+msgstr ""
+
+#: streamlin/decksetup.py:274
+#, python-brace-format
+msgid "{n} file chosen."
+msgid_plural "{n} files chosen."
+msgstr[0] ""
+msgstr[1] ""
+
+#: streamlin/decksetup.py:285
+#, python-brace-format
+msgid "For the {model} – you fill it by dragging actions onto the keys."
+msgstr ""
+
+#: streamlin/decksetup.py:328 streamlin/wavesetup.py:362
+msgid "All set!"
+msgstr ""
+
+#: streamlin/decksetup.py:93 streamlin/wavesetup.py:165
+msgid "Let's go"
+msgstr ""
+
+#: streamlin/decksetup.py:161 streamlin/editor.py:489 streamlin/lindecksettings.py:125 streamlin/lindecksettings.py:103
+msgid "Connected"
+msgstr ""
+
+#: streamlin/decksetup.py:269
+#, python-brace-format
+msgid "Found {n} profile file – it will be imported."
+msgid_plural "Found {n} profile files – they will be imported."
+msgstr[0] ""
+msgstr[1] ""
+
+#: streamlin/decksetup.py:277
+msgid "Choose files …"
+msgstr ""
+
+#: streamlin/decksetup.py:295 streamlin/editor.py:968
+msgid "Profiles (Elgato format)"
+msgstr ""
+
+#: streamlin/decksetup.py:308
+msgid "Choose the profile files first – or start with an empty profile."
+msgstr ""
+
+#: streamlin/decksetup.py:158
+#, python-brace-format
+msgid "Connected · serial no. {serial}"
+msgstr ""
+
+#: streamlin/decksetup.py:193
+msgid "No device found yet"
+msgstr ""
+
+#: streamlin/decksetup.py:194
+msgid "Waiting for your deck … or choose the model:"
+msgstr ""
+
+#: streamlin/decksetup.py:317
+msgid "No profiles found in these files."
+msgstr ""
+
+#: streamlin/decksetup.py:330
+#, python-brace-format
+msgid "{n} profile is ready."
+msgid_plural "{n} profiles are ready."
+msgstr[0] ""
+msgstr[1] ""
+
 #: streamlin/desktop.py:65
 msgid "Quit"
 msgstr ""
@@ -2219,7 +2542,7 @@ msgid "Connected to Discord"
 msgstr ""
 
 #: streamlin/discord.py:208
-msgid "client_secret missing in config.json (discord.client_secret)"
+msgid "Client Secret missing – enter it under Settings → Connections → Discord"
 msgstr ""
 
 #: streamlin/discord.py:80
@@ -2231,7 +2554,7 @@ msgid "Discord error"
 msgstr ""
 
 #: streamlin/discord.py:153
-msgid "Discord app missing: enter client_id/client_secret in config.json (instructions in the README)"
+msgid "Discord app missing: enter Client ID and Client Secret under Settings → Connections → Discord"
 msgstr ""
 
 #: streamlin/discord.py:157
@@ -2275,7 +2598,7 @@ msgstr ""
 msgid "The last page cannot be deleted"
 msgstr ""
 
-#: streamlin/editdoc.py:737 streamlin/editor.py:2370 streamlin/editor.py:2373 streamlin/editor.py:2401
+#: streamlin/editdoc.py:737 streamlin/editor.py:2423 streamlin/editor.py:2426 streamlin/editor.py:2454
 msgid "New profile"
 msgstr ""
 
@@ -2317,143 +2640,139 @@ msgstr ""
 msgid "Bold italic"
 msgstr ""
 
-#: streamlin/editor.py:259 streamlin/editor.py:1635
+#: streamlin/editor.py:259 streamlin/editor.py:1688
 msgid "dials only"
 msgstr ""
 
-#: streamlin/editor.py:604 streamlin/settingsui.py:49
+#: streamlin/editor.py:648 streamlin/settingsui.py:49
 msgid "Devices"
 msgstr ""
 
-#: streamlin/editor.py:607 streamlin/settingsui.py:50
-msgid "Profiles"
-msgstr ""
-
-#: streamlin/editor.py:612 streamlin/editor.py:1585 streamlin/pluginui.py:100 streamlin/pluginui.py:106
+#: streamlin/editor.py:656 streamlin/editor.py:1638 streamlin/pluginui.py:100 streamlin/pluginui.py:106
 msgid "Plugins"
 msgstr ""
 
-#: streamlin/editor.py:614 streamlin/iconlib.py:62 streamlin/lindecksettings.py:73 streamlin/settingsui.py:43
+#: streamlin/editor.py:658 streamlin/iconlib.py:62 streamlin/lindecksettings.py:73 streamlin/settingsui.py:43
 msgid "Settings"
 msgstr ""
 
-#: streamlin/editor.py:630 streamlin/iconlib.py:73
+#: streamlin/editor.py:674 streamlin/iconlib.py:73
 msgid "Export"
 msgstr ""
 
-#: streamlin/editor.py:632 streamlin/editor.py:933 streamlin/iconlib.py:73
+#: streamlin/editor.py:676 streamlin/editor.py:977 streamlin/iconlib.py:73
 msgid "Import"
 msgstr ""
 
-#: streamlin/editor.py:646
+#: streamlin/editor.py:690
 msgid "Rename…"
 msgstr ""
 
-#: streamlin/editor.py:647
+#: streamlin/editor.py:691
 msgid "Duplicate"
 msgstr ""
 
-#: streamlin/editor.py:648
+#: streamlin/editor.py:692
 msgid "Export…"
 msgstr ""
 
-#: streamlin/editor.py:650 streamlin/editor.py:905
+#: streamlin/editor.py:694 streamlin/editor.py:949
 msgid "Delete profile"
 msgstr ""
 
-#: streamlin/editor.py:881
+#: streamlin/editor.py:925
 msgid "Duplicate profile"
 msgstr ""
 
-#: streamlin/editor.py:881
+#: streamlin/editor.py:925
 msgid "Name of the copy:"
 msgstr ""
 
-#: streamlin/editor.py:894
+#: streamlin/editor.py:938
 msgid "Rename profile"
 msgstr ""
 
-#: streamlin/editor.py:894
+#: streamlin/editor.py:938
 msgid "New name:"
 msgstr ""
 
-#: streamlin/editor.py:959
+#: streamlin/editor.py:1003
 msgid "Saving…"
 msgstr ""
 
-#: streamlin/editor.py:1028
+#: streamlin/editor.py:1072
 msgid "Settings page opened – changes are applied automatically"
 msgstr ""
 
-#: streamlin/editor.py:1094
+#: streamlin/editor.py:1138
 msgid "Move left"
 msgstr ""
 
-#: streamlin/editor.py:1095
+#: streamlin/editor.py:1139
 msgid "Move right"
 msgstr ""
 
-#: streamlin/editor.py:1097
+#: streamlin/editor.py:1141
 msgid "Add page"
 msgstr ""
 
-#: streamlin/editor.py:1098 streamlin/editor.py:1116
+#: streamlin/editor.py:1142 streamlin/editor.py:1160
 msgid "Delete page"
 msgstr ""
 
-#: streamlin/editor.py:1518
+#: streamlin/editor.py:1571
 msgid "Cut"
 msgstr ""
 
-#: streamlin/editor.py:1519 streamlin/iconlib.py:65
+#: streamlin/editor.py:1572 streamlin/iconlib.py:65
 msgid "Copy"
 msgstr ""
 
-#: streamlin/editor.py:1520 streamlin/editor.py:1747
+#: streamlin/editor.py:1573 streamlin/editor.py:1800
 msgid "Paste"
 msgstr ""
 
-#: streamlin/editor.py:1528 streamlin/editor.py:1841 streamlin/iconlib.py:65
+#: streamlin/editor.py:1581 streamlin/editor.py:1894 streamlin/iconlib.py:65
 msgid "Delete"
 msgstr ""
 
-#: streamlin/editor.py:1921 streamlin/lindecksettings.py:733 streamlin/native.py:311
+#: streamlin/editor.py:1974 streamlin/lindecksettings.py:733 streamlin/native.py:311
 msgid "Title"
 msgstr ""
 
-#: streamlin/editor.py:1929 streamlin/lindecksettings.py:636
+#: streamlin/editor.py:1982 streamlin/lindecksettings.py:636
 msgid "Font"
 msgstr ""
 
-#: streamlin/editor.py:1940 streamlin/editor.py:2039 streamlin/editor.py:2026
+#: streamlin/editor.py:1993 streamlin/editor.py:2092 streamlin/editor.py:2079
 msgid "Icon"
 msgstr ""
 
-#: streamlin/editor.py:1951
+#: streamlin/editor.py:2004
 msgid "Default"
 msgstr ""
 
-#: streamlin/editor.py:1966 streamlin/lindecksettings.py:631 streamlin/lindecksettings.py:666
+#: streamlin/editor.py:2019 streamlin/lindecksettings.py:631 streamlin/lindecksettings.py:666
 msgid "Show title"
 msgstr ""
 
-#: streamlin/editor.py:1978 streamlin/editor.py:2007 streamlin/lindecksettings.py:714
+#: streamlin/editor.py:2031 streamlin/editor.py:2060 streamlin/lindecksettings.py:714
 msgid "Title color"
 msgstr ""
 
-#: streamlin/editor.py:2128
+#: streamlin/editor.py:2181
 msgid "INCLUDED ACTIONS"
 msgstr ""
 
-#: streamlin/editor.py:2294
+#: streamlin/editor.py:2347
 msgid "e.g. Ctrl+Shift+T, Alt+F4, Super+E, F13:"
 msgstr ""
 
-#: streamlin/editor.py:2337
+#: streamlin/editor.py:2390
 msgid "Settings (JSON)"
 msgstr ""
 
-#: streamlin/editor.py:2376 streamlin/wavedialogs.py:88 streamlin/wavedialogs.py:234 streamlin/wavedialogs.py:682
+#: streamlin/editor.py:2429 streamlin/wavedialogs.py:88 streamlin/wavedialogs.py:234 streamlin/wavedialogs.py:682
 msgid "Name"
 msgstr ""
 
@@ -2461,168 +2780,160 @@ msgstr ""
 msgid "Media"
 msgstr ""
 
-#: streamlin/editor.py:445 streamlin/lindecksettings.py:125 streamlin/lindecksettings.py:103
-msgid "Connected"
-msgstr ""
-
-#: streamlin/editor.py:533
+#: streamlin/editor.py:577
 msgid "LinDeck keeps running"
 msgstr ""
 
-#: streamlin/editor.py:533
+#: streamlin/editor.py:577
 msgid "LinDeck stays active. Open it again via its icon in the tray."
 msgstr ""
 
-#: streamlin/editor.py:673 streamlin/editor.py:437 streamlin/hass.py:94 streamlin/models.py:92
+#: streamlin/editor.py:717 streamlin/editor.py:481 streamlin/hass.py:94 streamlin/models.py:92
 msgid "unknown"
 msgstr ""
 
-#: streamlin/editor.py:713
+#: streamlin/editor.py:757
 msgid "Search actions"
 msgstr ""
 
-#: streamlin/editor.py:729
+#: streamlin/editor.py:773
 msgid "Drag onto a key or double-click"
 msgstr ""
 
-#: streamlin/editor.py:923
-msgid "Import profiles"
-msgstr ""
-
-#: streamlin/editor.py:943
+#: streamlin/editor.py:987
 msgid "Export profile"
 msgstr ""
 
-#: streamlin/editor.py:1071
+#: streamlin/editor.py:1115
 msgid "↩ Back"
 msgstr ""
 
-#: streamlin/editor.py:1133
+#: streamlin/editor.py:1177
 msgid "Folder not found"
 msgstr ""
 
-#: streamlin/editor.py:1180
+#: streamlin/editor.py:1224
 msgid "Drag actions onto keys · right-click for more"
 msgstr ""
 
-#: streamlin/editor.py:1202
+#: streamlin/editor.py:1246
 msgid "No display"
 msgstr ""
 
-#: streamlin/editor.py:1329
+#: streamlin/editor.py:1373
 msgid "Dial"
 msgstr ""
 
-#: streamlin/editor.py:1473
+#: streamlin/editor.py:1526
 msgid "There is no free space on the target page"
 msgstr ""
 
-#: streamlin/editor.py:1515 streamlin/editor.py:1807
+#: streamlin/editor.py:1568 streamlin/editor.py:1860
 msgid "Open folder"
 msgstr ""
 
-#: streamlin/editor.py:1518
+#: streamlin/editor.py:1571
 msgid "Ctrl+X"
 msgstr ""
 
-#: streamlin/editor.py:1519
+#: streamlin/editor.py:1572
 msgid "Ctrl+C"
 msgstr ""
 
-#: streamlin/editor.py:1520
+#: streamlin/editor.py:1573
 msgid "Ctrl+V"
 msgstr ""
 
-#: streamlin/editor.py:1528
+#: streamlin/editor.py:1581
 msgid "Del"
 msgstr ""
 
-#: streamlin/editor.py:1685
+#: streamlin/editor.py:1738
 msgid "No free space – select a key to replace it"
 msgstr ""
 
-#: streamlin/editor.py:1731
+#: streamlin/editor.py:1784
 msgid "Select a key to edit it."
 msgstr ""
 
-#: streamlin/editor.py:1869
+#: streamlin/editor.py:1922
 msgid "SETTINGS"
 msgstr ""
 
-#: streamlin/editor.py:1958
+#: streamlin/editor.py:2011
 msgid "State"
 msgstr ""
 
-#: streamlin/editor.py:2031
+#: streamlin/editor.py:2084
 msgid "Choose icon"
 msgstr ""
 
-#: streamlin/editor.py:2120
+#: streamlin/editor.py:2173
 msgid "Choose file"
 msgstr ""
 
-#: streamlin/editor.py:2373
+#: streamlin/editor.py:2426
 msgid "For the connected device"
 msgstr ""
 
-#: streamlin/editor.py:2374
+#: streamlin/editor.py:2427
 msgid "No device connected – the profile is for the model used last"
 msgstr ""
 
-#: streamlin/editor.py:2379 streamlin/wavedialogs.py:786
+#: streamlin/editor.py:2432 streamlin/wavedialogs.py:786
 msgid "DEVICE – DETECTED AUTOMATICALLY"
 msgstr ""
 
-#: streamlin/editor.py:2379 streamlin/wavedialogs.py:800
+#: streamlin/editor.py:2432 streamlin/wavedialogs.py:800
 msgid "DEVICE"
 msgstr ""
 
-#: streamlin/editor.py:438
+#: streamlin/editor.py:482
 msgid "Layout of this profile"
 msgstr ""
 
-#: streamlin/editor.py:814
+#: streamlin/editor.py:858
 msgid "Open profile"
 msgstr ""
 
-#: streamlin/editor.py:827
+#: streamlin/editor.py:871
 #, python-brace-format
 msgid "{name} opened – changes are saved automatically"
 msgstr ""
 
-#: streamlin/editor.py:935
+#: streamlin/editor.py:979
 #, python-brace-format
 msgid "{n} profile imported"
 msgid_plural "{n} profiles imported"
 msgstr[0] ""
 msgstr[1] ""
 
-#: streamlin/editor.py:967
+#: streamlin/editor.py:1011
 msgid "saved"
 msgstr ""
 
-#: streamlin/editor.py:970 streamlin/hassui.py:98 streamlin/iconlib.py:65 streamlin/wavedialogs.py:688
+#: streamlin/editor.py:1014 streamlin/hassui.py:98 streamlin/iconlib.py:65 streamlin/wavedialogs.py:688
 msgid "Save"
 msgstr ""
 
-#: streamlin/editor.py:1014
+#: streamlin/editor.py:1058
 msgid "Settings page"
 msgstr ""
 
-#: streamlin/editor.py:1014
+#: streamlin/editor.py:1058
 msgid "LinDeck must be running for this (menu: “LinDeck” or `lindeck`), because it runs the plugins."
 msgstr ""
 
-#: streamlin/editor.py:1116
+#: streamlin/editor.py:1160
 msgid "This page contains actions. Delete it anyway?"
 msgstr ""
 
-#: streamlin/editor.py:1184
+#: streamlin/editor.py:1228
 #, python-brace-format
 msgid "Brightness {n} %"
 msgstr ""
 
-#: streamlin/editor.py:1197
+#: streamlin/editor.py:1241
 msgid ""
 "No profiles yet.\n"
 "\n"
@@ -2630,250 +2941,242 @@ msgid ""
 "“Import…” takes over profiles from the Elgato app."
 msgstr ""
 
-#: streamlin/editor.py:1478
+#: streamlin/editor.py:1531
 #, python-brace-format
 msgid "Action moved to page {n}"
 msgstr ""
 
-#: streamlin/editor.py:1537
+#: streamlin/editor.py:1590
 msgid "Copied"
 msgstr ""
 
-#: streamlin/editor.py:1635
+#: streamlin/editor.py:1688
 msgid "keys and dials"
 msgstr ""
 
-#: streamlin/editor.py:1636
+#: streamlin/editor.py:1689
 msgid "keys"
 msgstr ""
 
-#: streamlin/editor.py:1694
+#: streamlin/editor.py:1747
 #, python-brace-format
 msgid "“{name}” only works on dials"
 msgstr ""
 
-#: streamlin/editor.py:1695
+#: streamlin/editor.py:1748
 #, python-brace-format
 msgid "“{name}” only works on keys"
 msgstr ""
 
-#: streamlin/editor.py:1705
+#: streamlin/editor.py:1758
 msgid "Replace folder"
 msgstr ""
 
-#: streamlin/editor.py:1705
+#: streamlin/editor.py:1758
 msgid "The folder and its contents will be replaced. Continue?"
 msgstr ""
 
-#: streamlin/editor.py:1710
+#: streamlin/editor.py:1763
 #, python-brace-format
 msgid "{name} added"
 msgstr ""
 
-#: streamlin/editor.py:1739
+#: streamlin/editor.py:1792
 #, python-brace-format
 msgid "Key {col},{row}"
 msgstr ""
 
-#: streamlin/editor.py:1740
+#: streamlin/editor.py:1793
 #, python-brace-format
 msgid "Dial {n}"
 msgstr ""
 
-#: streamlin/editor.py:1864 streamlin/editor.py:1840
+#: streamlin/editor.py:1917 streamlin/editor.py:1893
 msgid "Settings (JSON)…"
 msgstr ""
 
-#: streamlin/editor.py:1950
+#: streamlin/editor.py:2003
 msgid "Icons…"
 msgstr ""
 
-#: streamlin/editor.py:2163 streamlin/wavedialogs.py:555
-msgid "Add"
-msgstr ""
-
-#: streamlin/editor.py:2267
+#: streamlin/editor.py:2320
 msgid "Press keys…"
 msgstr ""
 
-#: streamlin/editor.py:2321
+#: streamlin/editor.py:2374
 #, python-brace-format
 msgid "Edit {name}"
 msgstr ""
 
-#: streamlin/editor.py:2355 streamlin/hass.py:422
+#: streamlin/editor.py:2408 streamlin/hass.py:422
 #, python-brace-format
 msgid "A JSON object { … } is expected"
 msgstr ""
 
-#: streamlin/editor.py:2381 streamlin/wavedialogs.py:791
+#: streamlin/editor.py:2434 streamlin/wavedialogs.py:791
 msgid "connected"
 msgstr ""
 
-#: streamlin/editor.py:2389
+#: streamlin/editor.py:2442
 msgid "Create"
 msgstr ""
 
-#: streamlin/editor.py:2390 streamlin/editor.py:2349 streamlin/hassui.py:99 streamlin/hassui.py:185
+#: streamlin/editor.py:2443 streamlin/editor.py:2402 streamlin/hassui.py:99 streamlin/hassui.py:185
 msgid "Cancel"
 msgstr ""
 
-#: streamlin/editor.py:451 streamlin/lindecksettings.py:134
+#: streamlin/editor.py:495 streamlin/lindecksettings.py:134
 msgid "No device connected"
 msgstr ""
 
-#: streamlin/editor.py:494
+#: streamlin/editor.py:538
 msgid "Switching device failed: %s"
 msgstr ""
 
-#: streamlin/editor.py:675
+#: streamlin/editor.py:719
 #, python-brace-format
 msgid "Page {n} of {total}"
 msgstr ""
 
-#: streamlin/editor.py:800
+#: streamlin/editor.py:844
 msgid "Cleanup failed: %s"
 msgstr ""
 
-#: streamlin/editor.py:882
+#: streamlin/editor.py:926
 #, python-brace-format
 msgid "{name} (copy)"
 msgstr ""
 
-#: streamlin/editor.py:906
+#: streamlin/editor.py:950
 #, python-brace-format
 msgid "Permanently delete profile “{name}”?"
 msgstr ""
 
-#: streamlin/editor.py:924
-msgid "Profiles (Elgato format)"
-msgstr ""
-
-#: streamlin/editor.py:946
+#: streamlin/editor.py:990
 msgid "Profile (Elgato format)"
 msgstr ""
 
-#: streamlin/editor.py:949
+#: streamlin/editor.py:993
 #, python-brace-format
 msgid "Exported: {path}"
 msgstr ""
 
-#: streamlin/editor.py:1637
+#: streamlin/editor.py:1690
 #, python-brace-format
 msgid ""
 "{name}: {description} ({where}).\n"
 "Drag onto a key or double-click."
 msgstr ""
 
-#: streamlin/editor.py:1743
+#: streamlin/editor.py:1796
 #, python-brace-format
 msgid "{where} – empty"
 msgstr ""
 
-#: streamlin/editor.py:1989
+#: streamlin/editor.py:2042
 msgid "underline"
 msgstr ""
 
-#: streamlin/editor.py:2139 streamlin/hassui.py:184
+#: streamlin/editor.py:2192 streamlin/hassui.py:184
 msgid "Choose"
 msgstr ""
 
-#: streamlin/editor.py:2142 streamlin/editor.py:2172
+#: streamlin/editor.py:2195 streamlin/editor.py:2225
 msgid "Edit…"
 msgstr ""
 
-#: streamlin/editor.py:2144
+#: streamlin/editor.py:2197
 msgid "Clear"
 msgstr ""
 
-#: streamlin/editor.py:2271
+#: streamlin/editor.py:2324
 msgid "Type in…"
 msgstr ""
 
-#: streamlin/editor.py:2339
+#: streamlin/editor.py:2392
 msgid "Raw data of the action (“Settings”) – for plugin actions and special cases."
 msgstr ""
 
-#: streamlin/editor.py:2348 streamlin/wavedialogs.py:756
+#: streamlin/editor.py:2401 streamlin/wavedialogs.py:756
 msgid "Apply"
 msgstr ""
 
-#: streamlin/editor.py:2382
+#: streamlin/editor.py:2435
 #, python-brace-format
 msgid "{cols} × {rows} keys"
 msgstr ""
 
-#: streamlin/editor.py:2384
+#: streamlin/editor.py:2437
 #, python-brace-format
 msgid "{n} dial"
 msgid_plural "{n} dials"
 msgstr[0] ""
 msgstr[1] ""
 
-#: streamlin/editor.py:2432
+#: streamlin/editor.py:2485
 #, python-brace-format
 msgid "No graphical display available: {error}"
 msgstr ""
 
-#: streamlin/editor.py:969
+#: streamlin/editor.py:1013
 #, python-brace-format
 msgid "Saving failed: {error}"
 msgstr ""
 
-#: streamlin/editor.py:1356 streamlin/editor.py:1360
+#: streamlin/editor.py:1409 streamlin/editor.py:1413
 #, python-brace-format
 msgid "Page {n} / {m}"
 msgstr ""
 
-#: streamlin/editor.py:1614
+#: streamlin/editor.py:1667
 msgid "No matching actions"
 msgstr ""
 
-#: streamlin/editor.py:1732
+#: streamlin/editor.py:1785
 msgid "Tips: drag actions from the right onto keys · move keys by drag & drop (also onto another page) · right-click to copy/paste · double-click opens folders · Ctrl+Z undoes."
 msgstr ""
 
-#: streamlin/editor.py:1744
+#: streamlin/editor.py:1797
 msgid "Drag an action here from the list on the right, or double-click it there."
 msgstr ""
 
-#: streamlin/editor.py:1793 streamlin/editor.py:1832
+#: streamlin/editor.py:1846 streamlin/editor.py:1885
 msgid "Action"
 msgstr ""
 
-#: streamlin/editor.py:1794
+#: streamlin/editor.py:1847
 msgid "Advanced"
 msgstr ""
 
-#: streamlin/editor.py:1525
+#: streamlin/editor.py:1578
 #, python-brace-format
 msgid "Move to page {n}"
 msgstr ""
 
-#: streamlin/editor.py:1821 streamlin/editor.py:1838
+#: streamlin/editor.py:1874 streamlin/editor.py:1891
 msgid "Settings page…"
 msgstr ""
 
-#: streamlin/editor.py:1960
+#: streamlin/editor.py:2013
 #, python-brace-format
 msgid "State {n}"
 msgstr ""
 
-#: streamlin/editor.py:1825
+#: streamlin/editor.py:1878
 msgid "This action has no further settings."
 msgstr ""
 
-#: streamlin/editor.py:1847
+#: streamlin/editor.py:1900
 #, python-brace-format
 msgid "Action of the plugin “{plugin}” – cannot run on Linux (plugin not installed or only for Windows/macOS). Title, icon and settings are kept."
 msgstr ""
 
-#: streamlin/editor.py:2097 streamlin/lindecksettings.py:302
+#: streamlin/editor.py:2150 streamlin/lindecksettings.py:302
 #, python-brace-format
 msgid "Page {n}"
 msgstr ""
 
-#: streamlin/editor.py:2108
+#: streamlin/editor.py:2161
 msgid "(next profile)"
 msgstr ""
 
@@ -3125,37 +3428,37 @@ msgstr ""
 msgid "Could not read plugins: {error}"
 msgstr ""
 
-#: streamlin/engine.py:89
+#: streamlin/engine.py:90
 #, python-brace-format
 msgid "{model} ({geometry}, serial no. {serial}) ready – profile: {profile}"
 msgstr ""
 
-#: streamlin/engine.py:91
+#: streamlin/engine.py:92
 msgctxt "profile"
 msgid "none"
 msgstr ""
 
-#: streamlin/engine.py:203
+#: streamlin/engine.py:217
 #, python-brace-format
 msgid "Folder {page} not found"
 msgstr ""
 
-#: streamlin/engine.py:341
+#: streamlin/engine.py:355
 #, python-brace-format
 msgid "Image error {action}: {error}"
 msgstr ""
 
-#: streamlin/engine.py:389
+#: streamlin/engine.py:404
 #, python-brace-format
 msgid "Dial segment {index}: {error}"
 msgstr ""
 
-#: streamlin/engine.py:478
+#: streamlin/engine.py:493
 #, python-brace-format
 msgid "Error handling event {event}: {error}"
 msgstr ""
 
-#: streamlin/engine.py:617 streamlin/engine.py:624
+#: streamlin/engine.py:632 streamlin/engine.py:639
 #, python-brace-format
 msgid "Action failed: {error}"
 msgstr ""
@@ -3219,10 +3522,6 @@ msgstr ""
 msgid "Unknown entity: {entity}"
 msgstr ""
 
-#: streamlin/hasskeys.py:184
-msgid "Set up"
-msgstr ""
-
 #: streamlin/hasskeys.py:186
 msgid "Token?"
 msgstr ""
@@ -3264,22 +3563,6 @@ msgstr ""
 msgid "Connect Home Assistant"
 msgstr ""
 
-#: streamlin/hassui.py:75
-msgid "Enter the address of your Home Assistant and a long-lived access token. Create the token in Home Assistant under your profile → Security → Long-lived access tokens."
-msgstr ""
-
-#: streamlin/hassui.py:83
-msgid "Access token"
-msgstr ""
-
-#: streamlin/hassui.py:100
-msgid "Test connection"
-msgstr ""
-
-#: streamlin/hassui.py:117
-msgid "Connecting …"
-msgstr ""
-
 #: streamlin/hassui.py:148 streamlin/hassui.py:153
 msgid "Choose entity"
 msgstr ""
@@ -3294,18 +3577,6 @@ msgstr ""
 
 #: streamlin/hassui.py:255
 msgid "Choose …"
-msgstr ""
-
-#: streamlin/hassui.py:115 streamlin/hassui.py:133
-msgid "Please enter the address and the access token."
-msgstr ""
-
-#: streamlin/hassui.py:276 streamlin/hassui.py:186
-msgid "Connect …"
-msgstr ""
-
-#: streamlin/hassui.py:94
-msgid "Accept self-signed certificates (HTTPS)"
 msgstr ""
 
 #: streamlin/hassui.py:198
@@ -3353,7 +3624,7 @@ msgstr ""
 msgid "Microphone off"
 msgstr ""
 
-#: streamlin/iconlib.py:53 streamlin/wave3hw.py:54 streamlin/wavesetup.py:28 streamlin/waveui.py:1622
+#: streamlin/iconlib.py:53 streamlin/wave3hw.py:54 streamlin/wavesetup.py:27 streamlin/waveui.py:1622
 msgid "Headphones"
 msgstr ""
 
@@ -3387,10 +3658,6 @@ msgstr ""
 
 #: streamlin/iconlib.py:57
 msgid "Previous"
-msgstr ""
-
-#: streamlin/iconlib.py:57 streamlin/wavesetup.py:140 streamlin/wavesetup.py:193
-msgid "Next"
 msgstr ""
 
 #: streamlin/iconlib.py:58
@@ -3590,7 +3857,7 @@ msgstr ""
 msgid "Minus"
 msgstr ""
 
-#: streamlin/iconlib.py:72 streamlin/pluginui.py:144 streamlin/settingsui.py:133 streamlin/wavedialogs.py:505
+#: streamlin/iconlib.py:72 streamlin/pluginui.py:144 streamlin/settingsui.py:134 streamlin/wavedialogs.py:505
 msgid "Close"
 msgstr ""
 
@@ -3714,10 +3981,6 @@ msgstr ""
 
 #: streamlin/lindecksettings.py:334
 msgid "Use active window"
-msgstr ""
-
-#: streamlin/lindecksettings.py:627
-msgid "Keys"
 msgstr ""
 
 #: streamlin/lindecksettings.py:648 streamlin/settingsui.py:51
@@ -4085,7 +4348,7 @@ msgstr ""
 msgid "Moving {stream} failed: {error}"
 msgstr ""
 
-#: streamlin/mixkeys.py:157 streamlin/wavesetup.py:28 streamlin/waveui.py:1676
+#: streamlin/mixkeys.py:157 streamlin/wavesetup.py:27 streamlin/waveui.py:1676
 msgid "Channels"
 msgstr ""
 
@@ -4230,7 +4493,7 @@ msgid "Login to OBS failed (check the password)"
 msgstr ""
 
 #: streamlin/obs.py:80
-msgid "OBS requires a password (config.json → obs.password)"
+msgid "OBS requires a password – enter it under Settings → Connections → OBS Studio"
 msgstr ""
 
 #: streamlin/obs.py:88
@@ -4594,120 +4857,120 @@ msgstr ""
 msgid "Field {number}"
 msgstr ""
 
-#: streamlin/settingsui.py:76
+#: streamlin/settingsui.py:77
 msgid "Include beta versions"
 msgstr ""
 
-#: streamlin/settingsui.py:82
+#: streamlin/settingsui.py:83
 msgid "Start automatically when you log in"
 msgstr ""
 
-#: streamlin/settingsui.py:116
+#: streamlin/settingsui.py:117
 msgid "Help"
 msgstr ""
 
-#: streamlin/settingsui.py:122
+#: streamlin/settingsui.py:123
 msgid "Create support report…"
 msgstr ""
 
-#: streamlin/settingsui.py:207
+#: streamlin/settingsui.py:209
 msgid "Backup"
 msgstr ""
 
-#: streamlin/settingsui.py:220
+#: streamlin/settingsui.py:222
 msgid "Create backup…"
 msgstr ""
 
-#: streamlin/settingsui.py:222
+#: streamlin/settingsui.py:224
 msgid "Restore…"
 msgstr ""
 
-#: streamlin/settingsui.py:291
+#: streamlin/settingsui.py:293
 msgid "Creating backup…"
 msgstr ""
 
-#: streamlin/settingsui.py:308
+#: streamlin/settingsui.py:310
 msgid "Your current profiles and settings will be replaced. A safety copy of them is saved first. LinDeck and Linewave restart afterwards. Continue?"
 msgstr ""
 
-#: streamlin/settingsui.py:341
+#: streamlin/settingsui.py:343
 msgid "Restoring backup…"
 msgstr ""
 
-#: streamlin/settingsui.py:357
+#: streamlin/settingsui.py:359
 msgid "Creating the support report…"
 msgstr ""
 
-#: streamlin/settingsui.py:375
+#: streamlin/settingsui.py:377
 msgid "Support report"
 msgstr ""
 
-#: streamlin/settingsui.py:64
+#: streamlin/settingsui.py:65
 msgid "These settings apply to LinDeck and Linewave."
 msgstr ""
 
-#: streamlin/settingsui.py:77
+#: streamlin/settingsui.py:78
 msgid "Beta versions bring new features earlier but may contain more bugs."
 msgstr ""
 
-#: streamlin/settingsui.py:96 streamlin/theme.py:549
+#: streamlin/settingsui.py:97 streamlin/theme.py:549
 msgid "System language"
 msgstr ""
 
-#: streamlin/settingsui.py:106 streamlin/waveui.py:653 streamlin/waveui.py:727 streamlin/waveui.py:744
+#: streamlin/settingsui.py:107 streamlin/waveui.py:653 streamlin/waveui.py:727 streamlin/waveui.py:744
 msgid "Mixer"
 msgstr ""
 
-#: streamlin/settingsui.py:277
+#: streamlin/settingsui.py:279
 msgid "Create backup"
 msgstr ""
 
-#: streamlin/settingsui.py:297 streamlin/settingsui.py:311 streamlin/settingsui.py:336 streamlin/settingsui.py:306
+#: streamlin/settingsui.py:299 streamlin/settingsui.py:313 streamlin/settingsui.py:338 streamlin/settingsui.py:308
 msgid "Restore backup"
 msgstr ""
 
-#: streamlin/settingsui.py:72
+#: streamlin/settingsui.py:73
 msgid "Check now"
 msgstr ""
 
-#: streamlin/settingsui.py:74 streamlin/updateui.py:242
+#: streamlin/settingsui.py:75 streamlin/updateui.py:242
 #, python-brace-format
 msgid "Check for updates every time {app} starts"
 msgstr ""
 
-#: streamlin/settingsui.py:85
+#: streamlin/settingsui.py:86
 msgid "Install an earlier version…"
 msgstr ""
 
-#: streamlin/settingsui.py:92
+#: streamlin/settingsui.py:93
 msgid "Auto follows the light or dark setting of your desktop."
 msgstr ""
 
-#: streamlin/settingsui.py:94 streamlin/theme.py:570
+#: streamlin/settingsui.py:95 streamlin/theme.py:570
 msgid "Language"
 msgstr ""
 
-#: streamlin/settingsui.py:117
+#: streamlin/settingsui.py:118
 msgid "Something not working? Create a support report and attach it to a GitHub issue. Passwords and tokens are removed from it."
 msgstr ""
 
-#: streamlin/settingsui.py:125
+#: streamlin/settingsui.py:126
 msgid "Report a problem on GitHub"
 msgstr ""
 
-#: streamlin/settingsui.py:208
+#: streamlin/settingsui.py:210
 msgid "Save all profiles, images, plugins and settings of LinDeck and Linewave to one file, or restore them from such a file."
 msgstr ""
 
-#: streamlin/settingsui.py:217
+#: streamlin/settingsui.py:219
 msgid "Include installed plugins"
 msgstr ""
 
-#: streamlin/settingsui.py:351
+#: streamlin/settingsui.py:353
 msgid "Save support report"
 msgstr ""
 
-#: streamlin/settingsui.py:375
+#: streamlin/settingsui.py:377
 #, python-brace-format
 msgid ""
 "The support report was saved to {path}.\n"
@@ -4719,41 +4982,41 @@ msgstr ""
 msgid "General"
 msgstr ""
 
-#: streamlin/settingsui.py:83
+#: streamlin/settingsui.py:84
 #, python-brace-format
 msgid "{app} then runs in the background and is ready as soon as your desktop appears."
 msgstr ""
 
-#: streamlin/settingsui.py:278 streamlin/settingsui.py:298
+#: streamlin/settingsui.py:280 streamlin/settingsui.py:300
 msgid "Streamlin backup"
 msgstr ""
 
-#: streamlin/settingsui.py:71
+#: streamlin/settingsui.py:72
 #, python-brace-format
 msgid "Installed version: {version}"
 msgstr ""
 
-#: streamlin/settingsui.py:107
+#: streamlin/settingsui.py:108
 msgid "Remove mixer: the Linewave channels and mixes disappear, apps play directly on your device again. Your settings are kept."
 msgstr ""
 
-#: streamlin/settingsui.py:109
+#: streamlin/settingsui.py:110
 msgid "The mixer is off. Set it up to give every app its own channel."
 msgstr ""
 
-#: streamlin/settingsui.py:111
+#: streamlin/settingsui.py:112
 msgid "Remove mixer"
 msgstr ""
 
-#: streamlin/settingsui.py:111 streamlin/waveui.py:734 streamlin/waveui.py:803 streamlin/waveui.py:807
+#: streamlin/settingsui.py:112 streamlin/waveui.py:734 streamlin/waveui.py:803 streamlin/waveui.py:807
 msgid "Set up mixer"
 msgstr ""
 
-#: streamlin/settingsui.py:353
+#: streamlin/settingsui.py:355
 msgid "Text file"
 msgstr ""
 
-#: streamlin/settingsui.py:336
+#: streamlin/settingsui.py:338
 #, python-brace-format
 msgid "Backup restored. {app} restarts now."
 msgstr ""
@@ -4796,7 +5059,7 @@ msgstr ""
 
 #: streamlin/system.py:207
 #, python-brace-format
-msgid "Windows path without mapping: {path} (add it to path_map/app_map in config.json)"
+msgid "Windows path without mapping: {path} (add it under Settings → Connections → Windows profiles)"
 msgstr ""
 
 #: streamlin/system.py:420
@@ -5230,7 +5493,7 @@ msgstr ""
 msgid "Update profile"
 msgstr ""
 
-#: streamlin/wavedialogs.py:97 streamlin/wavesetup.py:402 streamlin/waveui.py:654 streamlin/waveui.py:760
+#: streamlin/wavedialogs.py:97 streamlin/wavesetup.py:374 streamlin/waveui.py:654 streamlin/waveui.py:760
 msgid "Apps"
 msgstr ""
 
@@ -5252,10 +5515,6 @@ msgstr ""
 
 #: streamlin/wavedialogs.py:145
 msgid "Bring a device straight into the mix – e.g. a second microphone, line-in or a capture card."
-msgstr ""
-
-#: streamlin/wavedialogs.py:251
-msgid "Device"
 msgstr ""
 
 #: streamlin/wavedialogs.py:270 streamlin/waveui.py:685
@@ -5395,153 +5654,133 @@ msgstr ""
 msgid "Only possible with an Elgato Wave:3 ({error})"
 msgstr ""
 
-#: streamlin/wavesetup.py:28
-msgid "Welcome"
-msgstr ""
-
-#: streamlin/wavesetup.py:28
+#: streamlin/wavesetup.py:27
 msgid "Sound"
 msgstr ""
 
-#: streamlin/wavesetup.py:106
+#: streamlin/wavesetup.py:105
 msgid "Set up Linewave"
 msgstr ""
 
-#: streamlin/wavesetup.py:144
-msgid "Set up later"
-msgstr ""
-
-#: streamlin/wavesetup.py:285
+#: streamlin/wavesetup.py:257
 msgid "Which microphone do you use?"
 msgstr ""
 
-#: streamlin/wavesetup.py:286
+#: streamlin/wavesetup.py:258
 msgid "The microphone goes into your Stream Mix. Say something – the bar below shows whether it is coming through."
 msgstr ""
 
-#: streamlin/wavesetup.py:293
+#: streamlin/wavesetup.py:265
 msgid "LEVEL"
 msgstr ""
 
-#: streamlin/wavesetup.py:301
+#: streamlin/wavesetup.py:273
 msgid "What do you listen on?"
 msgstr ""
 
-#: streamlin/wavesetup.py:302
+#: streamlin/wavesetup.py:274
 msgid "This is where your Personal Mix goes – everything you want to hear yourself. Use the test tone to check that it is the right device."
 msgstr ""
 
-#: streamlin/wavesetup.py:309
+#: streamlin/wavesetup.py:281
 msgid "Your microphone's sound"
 msgstr ""
 
-#: streamlin/wavesetup.py:334
+#: streamlin/wavesetup.py:306
 msgid "Removes hum and footfall noise"
 msgstr ""
 
-#: streamlin/wavesetup.py:335 streamlin/waveui.py:1598
+#: streamlin/wavesetup.py:307 streamlin/waveui.py:1598
 msgid "Prevents clipping when you suddenly get loud"
 msgstr ""
 
-#: streamlin/wavesetup.py:345
+#: streamlin/wavesetup.py:317
 msgid "RECOMMENDED EFFECTS"
 msgstr ""
 
-#: streamlin/wavesetup.py:357 streamlin/waveui.py:1787 streamlin/waveui.py:1967
+#: streamlin/wavesetup.py:329 streamlin/waveui.py:1787 streamlin/waveui.py:1967
 msgid "Noise suppression"
 msgstr ""
 
-#: streamlin/wavesetup.py:369
+#: streamlin/wavesetup.py:341
 msgid "Which channels do you want?"
 msgstr ""
 
-#: streamlin/wavesetup.py:370
+#: streamlin/wavesetup.py:342
 msgid "Every app goes into a channel with its own controls for headphones and stream. You can create your own channels (e.g. for a capture card) later with “Add channel”."
 msgstr ""
 
-#: streamlin/wavesetup.py:391 streamlin/waveui.py:823
+#: streamlin/wavesetup.py:363 streamlin/waveui.py:823
 msgid "Setting up mixer …"
 msgstr ""
 
-#: streamlin/wavesetup.py:310
+#: streamlin/wavesetup.py:282
 msgid "Your Wave:3 applies Low Cut and Clipguard directly in the microphone. You can also turn on recommended effects – just like the plugins in Wave Link."
 msgstr ""
 
-#: streamlin/wavesetup.py:313
+#: streamlin/wavesetup.py:285
 msgid "Low Cut and Clipguard run as filters in Linewave. You can also turn on recommended effects – just like the plugins in Wave Link."
 msgstr ""
 
-#: streamlin/wavesetup.py:359
+#: streamlin/wavesetup.py:331
 msgid "Noise Gate"
 msgstr ""
 
-#: streamlin/wavesetup.py:359
+#: streamlin/wavesetup.py:331
 msgid "Mutes the microphone while you pause speaking"
 msgstr ""
 
-#: streamlin/wavesetup.py:360
+#: streamlin/wavesetup.py:332
 msgid "Compressor"
 msgstr ""
 
-#: streamlin/wavesetup.py:397
+#: streamlin/wavesetup.py:369
 msgid "Add the audio input “Monitor of Linewave Stream Mix” – it contains everything your audience should hear."
 msgstr ""
 
-#: streamlin/wavesetup.py:402
+#: streamlin/wavesetup.py:374
 msgid "New apps automatically go into the matching channel; you can move them to another channel in the mixer under “Apps”."
 msgstr ""
 
-#: streamlin/wavesetup.py:193
-msgid "Finish"
-msgstr ""
-
-#: streamlin/wavesetup.py:279
+#: streamlin/wavesetup.py:251
 msgid "Welcome to Linewave"
 msgstr ""
 
-#: streamlin/wavesetup.py:280
+#: streamlin/wavesetup.py:252
 msgid "In a few steps you set up your microphone, your headphones and the mixer – just like the first start of Elgato Wave Link. You can change everything later at any time."
 msgstr ""
 
-#: streamlin/wavesetup.py:305
+#: streamlin/wavesetup.py:277
 msgid "Play test tone"
 msgstr ""
 
-#: streamlin/wavesetup.py:352
+#: streamlin/wavesetup.py:324
 #, python-brace-format
 msgid "Filters out keyboard, fans and background noise ({backend})"
 msgstr ""
 
-#: streamlin/wavesetup.py:390
-msgid "All set!"
-msgstr ""
-
-#: streamlin/wavesetup.py:400
+#: streamlin/wavesetup.py:372
 msgid "Select “Linewave Microphone (Effects)” as the microphone."
 msgstr ""
 
-#: streamlin/wavesetup.py:401
+#: streamlin/wavesetup.py:373
 msgid "Select your own microphone – or the Stream Mix if others should hear everything."
 msgstr ""
 
-#: streamlin/wavesetup.py:193
-msgid "Let's go"
-msgstr ""
-
-#: streamlin/wavesetup.py:235
+#: streamlin/wavesetup.py:207
 msgid "No device found – is PipeWire (pipewire-pulse) running?"
 msgstr ""
 
-#: streamlin/wavesetup.py:365
+#: streamlin/wavesetup.py:337
 #, python-brace-format
 msgid "{text} – package “{package}” is missing"
 msgstr ""
 
-#: streamlin/wavesetup.py:425
+#: streamlin/wavesetup.py:397
 msgid "Level meter not available (parec from pulseaudio-utils is missing)"
 msgstr ""
 
-#: streamlin/wavesetup.py:497
+#: streamlin/wavesetup.py:469
 msgid "Mixer and microphone are ready."
 msgstr ""
 
