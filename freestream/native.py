@@ -610,10 +610,31 @@ class MixerAction(NativeAction):
             self.run(self._toggle_mute)
 
     # Nach dem Schreiben ist der neue Zustand bekannt: gleich so zeichnen, statt PipeWire erneut zu fragen
-    def _known(self, vol=None, mute=None):
+    def _known(self, vol=None, mute=None, share=True):
         old_vol, old_mute = getattr(self, "_lv", (None, False))
         self._lv = (old_vol if vol is None else vol, old_mute if mute is None else mute)
         self._lv_at = time.time()
+        if share:
+            self._share()
+
+    def _siblings(self):
+        """Andere Tasten/Dials desselben Kanals und Mixes (Kachel, obere/untere Fader-Taste)."""
+        ctrl = getattr(self.ctx, "ctrl", None) if self.ctx else None
+        acts = list((getattr(ctrl, "keys", None) or {}).values()) + list((getattr(ctrl, "dials", None) or {}).values())
+        cid, mix = self.channel, self.mix
+        return [a for a in acts if a is not self and isinstance(a, MixerAction) and a.func != "output"
+                and a.channel == cid and a.mix == mix]
+
+    def _share(self):
+        """Den neuen Stand gleich auch auf den anderen Tasten dieses Kanals zeigen – sonst ziehen sie
+        erst mit dem Sekundentakt nach und zeigen kurz etwas anderes als die gedrückte Taste."""
+        try:
+            for a in self._siblings():
+                if getattr(a, "_lv", None) != self._lv:
+                    a._lv, a._lv_at = self._lv, self._lv_at
+                    a.redraw()
+        except Exception as e:  # noqa: BLE001 - nur Anzeige
+            log.debug("share level: %s", e)
 
     def _fresh_level(self):
         """Zuletzt gelesener Stand (Lautstärke, stumm), wenn er noch frisch ist, sonst None."""

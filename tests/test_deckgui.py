@@ -303,3 +303,30 @@ def test_stale_loopback_index_is_read_again(monkeypatch):
     calls.clear()
     assert mx.set_mute("music", "monitor", False, recent=True) is False
     assert [c[1] for c in calls] == ["list", "set-sink-input-mute"]  # einmal frisch gelesen, dann geschrieben
+
+
+def test_other_keys_of_the_channel_follow_at_once(monkeypatch):
+    from freestream import native
+    from freestream.config import Config
+    mx, calls = _fake_pactl(monkeypatch, muted=())
+    ctx = types.SimpleNamespace(cfg=Config(), ctrl=None)
+
+    def key(action, display):
+        a = native.MixerAction({"UUID": "com.lindeck.mixer.channel",
+                                "Settings": {"channel": "music", "mix": "monitor", "action": action,
+                                             "display": display, "step": 5}}, None, ctx)
+        a.drawn = []
+        a.redraw = lambda a=a: a.drawn.append(a._level())
+        return a
+    tile, up, down = key("mute", "tile"), key("up", "fader_top"), key("down", "fader_bottom")
+    other = native.MixerAction({"UUID": "com.lindeck.mixer.channel",
+                                "Settings": {"channel": "game", "mix": "monitor", "action": "mute"}}, None, ctx)
+    other.redraw = lambda: (_ for _ in ()).throw(AssertionError("anderer Kanal"))
+    ctx.ctrl = types.SimpleNamespace(keys={0: tile, 1: up, 2: down, 3: other}, dials={})
+    for a in (tile, up, down):
+        a.tick()
+    up.key_down()
+    assert tile._level() == (65, False) and down._level() == (65, False)
+    assert tile.drawn and tile.drawn[0] == (65, False)  # sofort, nicht erst im Sekundentakt
+    tile.key_down()  # stumm
+    assert up._level() == (65, True) and down._level() == (65, True)
