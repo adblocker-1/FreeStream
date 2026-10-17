@@ -107,10 +107,45 @@ class DeckController:
         self.events.put(("stop",))
         self._unload_actions()
         try:
-            self.deck.reset()
+            if not self.show_idle_image():
+                self.deck.reset()  # zeigt das Elgato-Logo
             self.deck.close()
         except Exception:  # noqa: BLE001
             pass
+
+    def idle_image_path(self):
+        """Bild für „FreeDeck läuft nicht“ (Einstellungen › Geräte) oder None."""
+        from pathlib import Path
+        p = self.cfg.device(self.serial).get("idle_image") if self.cfg is not None else None
+        return Path(p) if p and Path(p).is_file() else None
+
+    def show_idle_image(self):
+        """Beim Beenden: das gewählte Bild über alle Tasten (und den Touchstreifen) legen, statt das Gerät
+        zurückzusetzen. Das Deck behält es, solange es Strom hat. Gibt True zurück, wenn es gezeigt wird."""
+        path = self.idle_image_path()
+        if path is None or self.virtual or not self.visual:
+            return False
+        tiles = render.background_tiles(path, self.geometry.cols, self.geometry.rows, self.key_size)
+        if not tiles:
+            return False
+        cols = self.geometry.cols
+        for k in range(self.key_count):
+            r, c = divmod(k, cols)
+            tile = tiles.get((c, r))
+            if tile is not None:
+                self._set_key(k, tile)
+        if self.touch and self.ts_size[0]:
+            from PIL import ImageOps
+            with Image.open(path) as src:
+                img = ImageOps.fit(ImageOps.exif_transpose(src).convert("RGB"), self.ts_size, Image.LANCZOS)
+            if self.rotated:
+                img = img.rotate(180)
+            native = PILHelper.to_native_touchscreen_format(self.deck, img)
+            with self.deck:
+                self.deck.set_touchscreen_image(native, 0, 0, self.ts_size[0], self.ts_size[1])
+        with self.deck:
+            self.deck.set_brightness(self.brightness if self.enabled else 0)  # auch aus dem Ruhezustand heraus
+        return True
 
     def detach(self):
         """Gerät wurde abgezogen: Aktionen beenden und Verbindung schließen (ohne Bilder zu senden)."""

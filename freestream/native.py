@@ -541,8 +541,10 @@ class MixerAction(NativeAction):
         self.title_override = ""
         label = self.mix_label()
         if self.display == "tile":
-            return [(mixkeys.tile(size, icon, color, vol, mute, self.mix, label=label), 0)]
-        return [(mixkeys.fader(size, self.display[6:], icon, color, vol, mute, self.mix, label=label), 0)]
+            return [(mixkeys.tile(size, icon, color, vol, mute, self.mix, label=label,
+                                  bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
+        return [(mixkeys.fader(size, self.display[6:], icon, color, vol, mute, self.mix, label=label,
+                               bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
 
     @property
     def key_action(self):
@@ -758,9 +760,11 @@ class MixSelectAction(NativeAction):
         self.title_override = ""
         if self.target == "cycle":
             _mid, name, icon = self._info(self._current())
-            return [(mixkeys.mix_key(size, self._current(), True, sub="Mix", name=name, icon=icon), 0)]
+            return [(mixkeys.mix_key(size, self._current(), True, sub="Mix", name=name, icon=icon,
+                                     bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
         _mid, name, icon = self._info(self.target)
-        return [(mixkeys.mix_key(size, self.target, self._current() == self.target, name=name, icon=icon), 0)]
+        return [(mixkeys.mix_key(size, self.target, self._current() == self.target, name=name, icon=icon,
+                                 bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
 
     def key_down(self):
         if self.target == "cycle":
@@ -801,7 +805,8 @@ class MixerPagesAction(NativeAction):
         from . import mixkeys
         self.title_override = ""
         first = int(self.settings.get("first") or 1)
-        return [(mixkeys.pages_key(size, first, int(self.settings.get("last") or first)), 0)]
+        return [(mixkeys.pages_key(size, first, int(self.settings.get("last") or first),
+                                   bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
 
     def key_down(self):
         if self.ctx and self.ctx.ctrl:

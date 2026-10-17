@@ -71,13 +71,25 @@ def _fitting(d, text, f, width, size):
     return f
 
 
-def _canvas(w, h):
-    im = Image.new("RGBA", (w * SS, h * SS), BG + (255,))
+def _canvas(w, h, bg_alpha=255):
+    im = Image.new("RGBA", (w * SS, h * SS), BG + (bg_alpha,))
     return im, ImageDraw.Draw(im)
 
 
 def _done(im, w, h):
-    return im.resize((w, h), Image.LANCZOS)
+    out = im.resize((w, h), Image.LANCZOS)
+    out.info["own_opacity"] = True  # Hintergrund-Deckkraft ist schon eingerechnet (render.compose_key)
+    return out
+
+
+def bg_alpha(state):
+    """Deckkraft des Tasten-Hintergrunds aus der Einstellung „Deckkraft“ (IconOpacity, 0–100 %): bei
+    FreeWave-Tasten wird nur der dunkle Hintergrund durchsichtig – Symbol, Regler und Text bleiben."""
+    try:
+        pct = int((state or {}).get("IconOpacity", 100))
+    except (TypeError, ValueError):
+        pct = 100
+    return round(255 * max(0, min(100, pct)) / 100)
 
 
 def _paste_glyph(im, name, size, color, center):
@@ -91,10 +103,10 @@ def _dim(c, t=0.3):
 
 
 @_cached
-def tile(size, icon, color, vol, muted, mix, label=None):
+def tile(size, icon, color, vol, muted, mix, label=None, bg_alpha=255):
     """Kanal-Kachel: abgerundetes Quadrat mit Symbol, darunter „Alle 80%“ bzw. „stumm“."""
     w, h = size
-    im, d = _canvas(w, h)
+    im, d = _canvas(w, h, bg_alpha)
     W, H = w * SS, h * SS
     side = H * 0.5
     x0, y0 = (W - side) / 2, H * 0.1
@@ -120,11 +132,11 @@ def tile(size, icon, color, vol, muted, mix, label=None):
 
 
 @_cached
-def fader(size, half, icon, color, vol, muted, mix, label=None):
+def fader(size, half, icon, color, vol, muted, mix, label=None, bg_alpha=255):
     """Hälfte („top“ oder „bottom“) eines Faders, der über zwei übereinanderliegende Tasten geht."""
     w, h = size
     W, H = w * SS, h * SS
-    im = Image.new("RGBA", (W, 2 * H), BG + (255,))
+    im = Image.new("RGBA", (W, 2 * H), BG + (bg_alpha,))
     d = ImageDraw.Draw(im)
     col = _rgb(color)
     top, bottom = H * 0.14, 2 * H - H * 0.4
@@ -161,10 +173,10 @@ def fader(size, half, icon, color, vol, muted, mix, label=None):
 
 
 @_cached
-def mix_key(size, mix, selected, sub="", name=None, icon=None):
+def mix_key(size, mix, selected, sub="", name=None, icon=None, bg_alpha=255):
     """Mix-Wahl: Symbol und Name; der gewählte Mix ist grün umrandet."""
     w, h = size
-    im, d = _canvas(w, h)
+    im, d = _canvas(w, h, bg_alpha)
     W, H = w * SS, h * SS
     if selected:
         b = W * 0.05
@@ -181,10 +193,10 @@ def mix_key(size, mix, selected, sub="", name=None, icon=None):
 
 
 @_cached
-def pages_key(size, first, last):
+def pages_key(size, first, last, bg_alpha=255):
     """„Kanäle 1–7“ – zeigt, welche Kanäle diese Seite steuert; Drücken blättert weiter."""
     w, h = size
-    im, d = _canvas(w, h)
+    im, d = _canvas(w, h, bg_alpha)
     W, H = w * SS, h * SS
     d.text((W / 2, H * 0.4), _("Channels"), font=render.font(int(H * 0.17), "bold"), fill=GREEN, anchor="mm")
     span = f"{first}–{last}" if last != first else str(first)

@@ -21,6 +21,8 @@ import os
 import shutil
 import signal
 
+from PIL import Image, ImageOps
+
 from . import paths
 from .editdoc import EditError, ProfileDoc, create_profile, init_profile
 from .i18n import _
@@ -274,11 +276,60 @@ def _fill(root, model, channels, mix, mixes=DEFAULT_MIXES):
     return len(layout)
 
 
-def export(model, channels, mix="selected", all_channels=True, store_root=None, mixes=None):
+KEEP = object()            # export(): Aussehen wie beim letzten Export
+BG_FILE = "freewave-background.png"  # Hintergrundbild, liegt neben „Profiles“ (überlebt das Neu-Belegen)
+
+
+def look(model, store_root=None):
+    """Aussehen des FreeWave-Profils dieses Modells: {"opacity", "background" (Pfad oder None), "dim"}."""
+    p = managed_profile(_base(model), store_root)
+    lk = (_meta(p.root).get("look") or {}) if p is not None else {}
+    bg = p.root / BG_FILE if p is not None and lk.get("background") else None
+    return {"opacity": int(lk.get("opacity", 100)), "background": bg if bg and bg.exists() else None,
+            "dim": int(lk.get("dim", 30))}
+
+
+def _keep_background(root, meta):
+    """Hintergrund, den der Nutzer in FreeDeck auf die erste Seite gelegt hat, vor dem Neu-Belegen sichern."""
+    lk = meta.setdefault("look", {})
+    if lk.get("background") is not None:
+        return
+    try:
+        doc = ProfileDoc(root)
+        path, dim = doc.background(doc.page_ids[0]) if doc.page_ids else (None, 0)
+    except Exception:  # noqa: BLE001
+        return
+    if path is not None:
+        shutil.copyfile(path, root / BG_FILE)
+        lk.update(background=BG_FILE, dim=dim)
+
+
+def _apply_look(root, lk):
+    """Deckkraft der Tasten und Hintergrundbild auf alle Seiten des frisch belegten Profils legen."""
+    opacity = max(0, min(100, int(lk.get("opacity", 100))))
+    bg = root / BG_FILE if lk.get("background") else None
+    if opacity >= 100 and (bg is None or not bg.exists()):
+        return
+    doc = ProfileDoc(root)
+    for page in doc.page_ids:
+        if bg is not None and bg.exists():
+            doc.set_background(page, bg, dim=int(lk.get("dim", 30)))
+        if opacity < 100:
+            pg = doc.page(page)
+            for slot, data in list(pg.items()):
+                for i in range(max(1, len(data.get("States") or []))):
+                    doc.update_state(page, slot, i, "IconOpacity", opacity, action=data)
+    doc.save()
+
+
+def export(model, channels, mix="selected", all_channels=True, store_root=None, mixes=None,
+           opacity=None, background=KEEP, dim=None):
     """FreeWave-Profil für dieses Modell anlegen oder neu belegen.
 
     channels: Kanal-ids in Reihenfolge. all_channels: später neue Kanäle automatisch dazunehmen.
     mixes: Mix-ids für die Mix-Tasten (Standard: aus der FreeWave-Konfiguration).
+    opacity: Deckkraft der Tasten in % (0 = durchsichtig, das Hintergrundbild scheint durch; None = wie zuletzt).
+    background: Bilddatei für alle Seiten, None = keins, KEEP = wie zuletzt (auch ein in FreeDeck gesetztes).
     Gibt (Profilname, Seitenzahl, neu angelegt) zurück."""
     mixes = list(linewave_mixes() if mixes is None else mixes)
     if mix not in MIXES and mix not in mixes:
@@ -290,6 +341,8 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None, 
     if existing is not None:
         root, name, created = existing.root, existing.name, False
         meta = _meta(root)
+        if background is KEEP:
+            _keep_background(root, meta)
         shutil.rmtree(root / "Profiles", ignore_errors=True)
         init_profile(root, name, existing.model or model)
     else:
@@ -298,8 +351,26 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None, 
         if name in taken:
             name = f"{PROFILE_NAME} ({model_name(model)})"
         root, created, meta = create_profile(name, model, store_root), True, {}
+    lk = meta.setdefault("look", {})
+    if opacity is not None:
+        lk["opacity"] = max(0, min(100, int(opacity)))
+    if dim is not None:
+        lk["dim"] = int(dim)
+    if background is None:
+        lk["background"] = None
+        (root / BG_FILE).unlink(missing_ok=True)
+    elif background is not KEEP:
+        try:
+            with Image.open(background) as im:
+                im = ImageOps.exif_transpose(im).convert("RGB")
+                im.thumbnail((1600, 1600), Image.LANCZOS)
+                im.save(root / BG_FILE)
+        except (OSError, ValueError) as e:
+            raise ExportError(_("Image not readable: {error}").format(error=e)) from e
+        lk["background"] = BG_FILE
     try:
         pages = _fill(root, model, list(channels), mix, mixes)
+        _apply_look(root, lk)
     except EditError as e:
         raise ExportError(str(e)) from e
     meta["linewave"] = {"channels": list(channels), "all": bool(all_channels), "mix": mix, "mixes": mixes,
