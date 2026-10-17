@@ -14,7 +14,7 @@ FREEDECK = ["app.py", "daemon.py", "engine.py", "actions.py", "catalog.py", "edi
            "profiles.py", "render.py", "keyboard.py", "models.py", "plugins.py", "pluginui.py", "ws.py", "obs.py",
            "discord.py", "native.py", "hass.py", "hasskeys.py", "hassui.py", "autoimport.py", "assets.py", "bgui.py",
            "selftest.py", "livekeys.py", "sysinfo.py", "deckexport.py", "mixkeys.py", "iconlib.py", "iconlibui.py",
-           "freedecksettings.py", "connectionsui.py", "decksetup.py"]
+           "freedecksettings.py", "connectionsui.py", "decksetup.py", "virtualdeck.py", "virtualui.py"]
 FREEWAVE = ["freewave.py", "wavehost.py", "waveui.py", "wavedialogs.py", "wavesetup.py", "mixer.py", "effects.py",
             "levels.py", "wavemic.py", "wave3hw.py", "noise.py", "ducking.py"]
 

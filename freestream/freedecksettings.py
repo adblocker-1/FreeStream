@@ -10,11 +10,11 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 
 from . import msgbox as messagebox
-from . import plugins, system
-from .dialogkit import ScrollArea, entry
+from . import plugins, system, virtualdeck
+from .dialogkit import ScrollArea, ShortcutField, entry
 from .i18n import _, ngettext
-from .models import model_name
-from .theme import COL, Button, Card, Fader, Icons, Segmented, Switch, icon_tile, label, section
+from .models import VIRTUAL_MODELS, model_name
+from .theme import COL, Button, Card, Fader, Icons, Segmented, Switch, font, icon_tile, label, rounded_rect, section
 
 SLEEP_CHOICES = [0, 1, 5, 10, 15, 30, 60]
 KEY_STYLE_DEFAULT = {"ShowTitle": True, "TitleAlignment": "bottom", "FontFamily": "", "FontSize": 12,
@@ -85,10 +85,11 @@ class _Page(tk.Frame):
             _fill(card)
         return card.body
 
-    def row(self, master, text, pady=8):
+    def row(self, master, text, pady=8, width=18, top=False):
         r = tk.Frame(master, bg=COL["panel"])
         r.pack(fill="x", pady=(0, pady))
-        label(r, text, 10, color=COL["muted"], width=18, anchor="e").pack(side="left", padx=(0, 14))
+        label(r, text, 10, color=COL["muted"], width=width, anchor="ne" if top else "e").pack(
+            side="left", padx=(0, 14), anchor="n" if top else "center", pady=(12, 0) if top else 0)
         return r
 
 
@@ -102,22 +103,29 @@ class DevicesPage(_Page):
         _fill(left)
         section(left.body, _("Connected")).pack(anchor="w", pady=(0, 8))
         self.listbox = tk.Frame(left.body, bg=COL["panel"])
-        self.listbox.pack(fill="both", expand=True)
+        self.listbox.pack(fill="x")
+        section(left.body, _("Virtual")).pack(anchor="w", pady=(14, 8))
+        self.vbox = tk.Frame(left.body, bg=COL["panel"])
+        self.vbox.pack(fill="x")
         self.right = tk.Frame(self, bg=COL["bg"])
         self.right.pack(side="left", fill="both", expand=True)
         self.render()
 
     def controllers(self):
-        return sorted(self.freedeck._controllers(), key=lambda c: (model_name(c.model), c.serial))
+        """Angeschlossene Geräte (ohne das virtuelle Deck)."""
+        return sorted((c for c in self.freedeck._controllers() if not getattr(c, "virtual", False)),
+                      key=lambda c: (model_name(c.model), c.serial))
+
+    def virtual_controller(self):
+        return next((c for c in self.freedeck._controllers() if getattr(c, "virtual", False)), None)
 
     def render(self):
-        for w in self.listbox.winfo_children():
-            w.destroy()
-        for w in self.right.winfo_children():
-            w.destroy()
+        for box in (self.listbox, self.vbox, self.right):
+            for w in box.winfo_children():
+                w.destroy()
         ctrls = self.controllers()
-        if ctrls and self.serial not in [c.serial for c in ctrls]:
-            self.serial = ctrls[0].serial
+        if self.serial != virtualdeck.SERIAL and self.serial not in [c.serial for c in ctrls]:
+            self.serial = ctrls[0].serial if ctrls else virtualdeck.SERIAL
         img = icon_tile(self, "deck", 32, COL["device"], radius=0.24, fg="#c9cfda")
         from .theme import InfoCard
         self.cards = {}
@@ -128,13 +136,26 @@ class DevicesPage(_Page):
             card.pack(fill="x", pady=(0, 6))
             self.cards[c.serial] = card
         if not ctrls:
-            body = self.panel(self.right, fill="both", expand=True)
-            tk.Label(body, image=icon_tile(body, "deck", 44, COL["raised"], fg=COL["muted"]),
-                     bg=COL["panel"]).pack(pady=(40, 10))
-            label(body, _("No device connected"), 12, "bold").pack()
-            label(body, _("Plug in your deck – its settings appear here."), 9, color=COL["muted"]).pack(pady=(4, 0))
-            return
-        self.build_form(next(c for c in ctrls if c.serial == self.serial))
+            InfoCard(self.listbox, _("No device connected"), _("Plug in your deck – its settings appear here."),
+                     image=icon_tile(self, "deck", 32, COL["raised"], radius=0.24, fg=COL["muted"]),
+                     dim=True).pack(fill="x", pady=(0, 6))
+        s = virtualdeck.settings(self.cfg)
+        self.vcard = InfoCard(self.vbox, _("Virtual deck"), self._virtual_status(s),
+                              image=icon_tile(self, "grid", 32, COL["accent"], radius=0.24),
+                              dot=COL["ok"] if s["enabled"] else None,
+                              command=lambda: self.select(virtualdeck.SERIAL))
+        self.vcard.selected = self.serial == virtualdeck.SERIAL
+        self.vcard.pack(fill="x", pady=(0, 6))
+        if self.serial == virtualdeck.SERIAL:
+            self.build_virtual_form()
+        else:
+            self.build_form(next(c for c in ctrls if c.serial == self.serial))
+
+    @staticmethod
+    def _virtual_status(s):
+        if not s["enabled"]:
+            return _("Off")
+        return _("On · Window") if s["mode"] == "window" else _("On · Screen edge")
 
     def select(self, serial):
         self.serial = serial
@@ -196,6 +217,141 @@ class DevicesPage(_Page):
         self.profile.bind("<<ComboboxSelected>>", lambda e: self._set_profile())
         self.profile.pack(side="left")
 
+    # ----------------------------------------------------------- virtuelles Deck
+    def build_virtual_form(self):
+        """Virtuelles Deck: an/aus, Darstellung (Fenster oder Randleiste), Größe, Kürzel, Profil."""
+        s = virtualdeck.settings(self.cfg)
+        area = ScrollArea(self.panel(self.right, fill="both", expand=True), bg=COL["panel"])
+        area.pack(fill="both", expand=True)
+        body = area.inner
+        w = 14
+        r = self.row(body, _("Virtual deck"), width=w)
+        self.v_on = Switch(r, command=lambda: self._v_set(enabled=self.v_on.get(), visible=True))
+        self.v_on.set(s["enabled"])
+        self.v_on.pack(side="left")
+        label(r, _("On – usable without a connected device"), 9).pack(side="left", padx=(10, 0))
+        r = self.row(body, _("Display"), pady=14, width=w, top=True)
+        self.v_modes = {}
+        for mode, title, sub in (("window", _("Floating window"), _("move it anywhere, stays on top")),
+                                 ("edge", _("Edge bar"), _("slides in, mouse to the edge brings it"))):
+            card = ModeCard(r, mode, title, sub, command=lambda m=mode: self._v_set(mode=m))
+            card.pack(side="left", padx=(0, 8))
+            self.v_modes[mode] = card
+        r = self.row(body, _("Size"), width=w)
+        self.v_codes = list(VIRTUAL_MODELS)
+        self.v_size = ttk.Combobox(r, state="readonly", width=24, values=[
+            _("{cols} × {rows} keys").format(cols=g.cols, rows=g.rows) for g in VIRTUAL_MODELS.values()])
+        self.v_size.current(self.v_codes.index(s["model"]))
+        self.v_size.bind("<<ComboboxSelected>>", lambda e: self._v_set(model=self.v_codes[self.v_size.current()]))
+        self.v_size.pack(side="left")
+        r = self.row(body, _("Always on top"), width=w)
+        self.v_top = Switch(r, command=lambda: self._v_set(topmost=self.v_top.get()))
+        self.v_top.set(s["topmost"])
+        self.v_top.pack(side="left")
+        r = self.row(body, _("Screen edge"), width=w)
+        self.v_edge = ttk.Combobox(r, state="readonly", width=24, values=[_("Right"), _("Left")])
+        self.v_edge.current(1 if s["edge"] == "left" else 0)
+        self.v_edge.bind("<<ComboboxSelected>>",
+                         lambda e: self._v_set(edge="left" if self.v_edge.current() == 1 else "right"))
+        self.v_edge.pack(side="left")
+        self._hint(body, _("only for the edge bar"), w)
+        r = self.row(body, _("Show/hide"), width=w)
+        self.v_key = ShortcutField(r, s["shortcut"], on_set=self._v_shortcut,
+                                   on_remove=lambda: self._v_shortcut(""), width=140)
+        self.v_key.pack(side="left")
+        self._hint(body, _("shortcut, works everywhere"), w)
+        r = self.row(body, _("Profile"), width=w)
+        self.v_profile = ttk.Combobox(r, state="readonly", width=24)
+        self.v_profile.bind("<<ComboboxSelected>>", lambda e: self._v_profile())
+        self.v_profile.pack(side="left")
+        self._hint(body, _("You assign the keys like on a real deck: choose “Virtual deck” on the left of the "
+                           "FreeDeck window and drag actions onto it."), w, color=COL["muted"], pady=(10, 0))
+        self._v_refresh()
+
+    @staticmethod
+    def _hint(body, text, width, color=None, pady=(0, 8)):
+        """Kleine graue Zeile unter einem Feld (eingerückt wie die Felder)."""
+        f = tk.Frame(body, bg=COL["panel"])
+        f.pack(fill="x", pady=pady)
+        label(f, "", 10, width=width).pack(side="left", padx=(0, 14))
+        label(f, text, 8, color=color or COL["faint"], wraplength=330, justify="left").pack(side="left")
+
+    def _v_refresh(self):
+        """Felder ein-/ausgrauen und die Profilliste des laufenden virtuellen Decks zeigen."""
+        s = virtualdeck.settings(self.cfg)
+        on = s["enabled"]
+        for mode, card in self.v_modes.items():
+            card.set(selected=mode == s["mode"], enabled=on)
+        self.v_size.configure(state="readonly" if on else "disabled")
+        self.v_top.set_enabled(on and s["mode"] == "window")
+        self.v_edge.configure(state="readonly" if on and s["mode"] == "edge" else "disabled")
+        ctrl = self.virtual_controller()
+        cands = ctrl.candidate_profiles() if ctrl is not None else []
+        self.v_profile_ids = [p.id for p in cands]
+        self.v_profile.configure(values=[p.name for p in cands], state="readonly" if ctrl is not None else "disabled")
+        if ctrl is not None and ctrl.profile and ctrl.profile.id in self.v_profile_ids:
+            self.v_profile.current(self.v_profile_ids.index(ctrl.profile.id))
+        else:
+            self.v_profile.set("")
+        if getattr(self, "vcard", None) is not None:
+            self.vcard.set(subtitle=self._virtual_status(s), dot=COL["ok"] if on else "")
+
+    def _v_set(self, **changes):
+        virtualdeck.update(self.cfg, **changes)
+        self.save_now()
+        daemon = getattr(self.freedeck, "daemon", None)
+        if hasattr(daemon, "sync_virtual") and ("enabled" in changes or "model" in changes):
+            try:
+                daemon.sync_virtual()  # gleich anlegen/ändern statt erst im nächsten Takt
+            except Exception as e:  # noqa: BLE001
+                messagebox.showerror(_("Virtual deck"), str(e), parent=self)
+            self.freedeck._device_key = None
+            try:
+                self.freedeck.refresh_devices()
+            except Exception:  # noqa: BLE001
+                pass
+        self._v_refresh()
+
+    def _v_profile(self):
+        ctrl = self.virtual_controller()
+        if ctrl is None or not self.v_profile_ids:
+            return
+        pid = self.v_profile_ids[self.v_profile.current()]
+        self.cfg.device(ctrl.serial)["profile"] = pid
+        self.save_now()
+        threading.Thread(target=ctrl.load_profile, args=(pid,), daemon=True).start()
+
+    def _v_shortcut(self, binding):
+        """Globales Tastenkürzel zum Ein-/Ausblenden beim Desktop eintragen (wie die Szenen in FreeWave)."""
+        from . import shortcuts
+        virtualdeck.update(self.cfg, shortcut=binding)
+        self.save_now()
+        result = {}
+
+        def work():
+            try:
+                if binding:
+                    shortcuts.register(virtualdeck.SHORTCUT_ID, _("FreeDeck: show/hide virtual deck"),
+                                       shortcuts.freedeck_command("virtual-deck"), binding)
+                else:
+                    shortcuts.unregister(virtualdeck.SHORTCUT_ID)
+            except Exception as e:  # noqa: BLE001
+                result["error"] = e
+            result["done"] = True
+
+        def check():
+            if not result.get("done"):
+                self.after(100, check)
+                return
+            err = result.get("error")
+            if isinstance(err, shortcuts.Unsupported):
+                from .dialogkit import ManualShortcutDialog
+                ManualShortcutDialog(self, str(err), err.command)
+            elif err is not None:
+                messagebox.showerror(_("Keyboard shortcut"), str(err), parent=self)
+        threading.Thread(target=work, daemon=True).start()
+        self.after(100, check)
+
     # ----------------------------------------------------------- Änderungen
     def _dcfg(self):
         return self.cfg.device(self.ctrl.serial)
@@ -242,6 +398,66 @@ class DevicesPage(_Page):
         self._dcfg()["profile"] = pid
         self.save_now()
         threading.Thread(target=self.ctrl.load_profile, args=(pid,), daemon=True).start()
+
+
+class ModeCard(tk.Canvas):
+    """Darstellung des virtuellen Decks zur Wahl: kleine Vorschau, Auswahlpunkt, Titel, Unterzeile."""
+
+    W, H = 166, 138
+
+    def __init__(self, master, mode, title, sub, command=None):
+        super().__init__(master, width=self.W, height=self.H, bg=COL["panel"], highlightthickness=0, bd=0,
+                         cursor="hand2")
+        self.mode, self.title, self.sub, self.command = mode, title, sub, command
+        self.selected, self.enabled = False, True
+        self.f_title, self.f_sub = font(self, 9, "bold"), font(self, 8)
+        self.bind("<Button-1>", lambda e: self.enabled and self.command and self.command())
+        self._draw()
+
+    def set(self, selected=None, enabled=None):
+        if selected is not None:
+            self.selected = selected
+        if enabled is not None:
+            self.enabled = enabled
+            self.configure(cursor="hand2" if enabled else "")
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        W, H = self.W, self.H
+        sel = self.selected and self.enabled
+        rounded_rect(self, 1, 1, W - 2, H - 2, 12, fill=COL["accent_soft"] if sel else COL["panel2"],
+                     outline=COL["accent"] if sel else COL["border"], width=2 if sel else 1)
+        # Vorschau: Bildschirm mit Deck
+        x0, y0, x1, y1 = 10, 10, W - 10, 62
+        rounded_rect(self, x0, y0, x1, y1, 6, fill=COL["raised"], outline="")
+        colors = ["#3b82f6", "#ef4444", "#a855f7", "#ef4444", "#3b82f6", "#ec4899", "#a855f7", "#64748b"]
+        if not self.enabled:
+            colors = [COL["faint"]] * 8
+        t, g = 11, 3
+        if self.mode == "window":
+            dx, dy = x1 - 4 * t - 3 * g - 18, y1 - 2 * t - g - 10
+            self.create_rectangle(dx - 6, dy - 6, dx + 4 * t + 3 * g + 6, dy + 2 * t + g + 6, fill="#16181e",
+                                  outline="")
+            for i, c in enumerate(colors):
+                cx, cy = dx + (i % 4) * (t + g), dy + (i // 4) * (t + g)
+                rounded_rect(self, cx, cy, cx + t, cy + t, 3, fill=c, outline="")
+        else:
+            t, g = 9, 2
+            dx, dy = x1 - 2 * t - g - 5, y0 + 4
+            self.create_rectangle(dx - 5, dy - 3, x1, dy + 4 * t + 3 * g + 3, fill="#16181e", outline="")
+            for i, c in enumerate(colors):
+                cx, cy = dx + (i % 2) * (t + g), dy + (i // 2) * (t + g)
+                rounded_rect(self, cx, cy, cx + t, cy + t, 3, fill=c, outline="")
+        # Auswahlpunkt und Text
+        cy = 80
+        self.create_oval(10, cy - 6, 22, cy + 6, outline=COL["accent"] if sel else COL["muted"], width=2)
+        if sel:
+            self.create_oval(13, cy - 3, 19, cy + 3, fill=COL["accent"], outline="")
+        fg = COL["fg"] if self.enabled else COL["faint"]
+        self.create_text(28, cy, anchor="w", text=self.title, font=self.f_title, fill=fg)
+        self.create_text(12, cy + 14, anchor="nw", text=self.sub, font=self.f_sub, width=W - 22,
+                         fill=COL["muted"] if self.enabled else COL["faint"])
 
 
 # ===================================================================== Profile

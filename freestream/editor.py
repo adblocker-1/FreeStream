@@ -544,7 +544,8 @@ class EditorApp:
         from .freedecksettings import config_of, device_title
         cfg = config_of(self)
         for c in ctrls:
-            card = theme.InfoCard(self.devbox, device_title(cfg, c), _("Connected"), image=on_img, dot=COL["ok"],
+            card = theme.InfoCard(self.devbox, device_title(cfg, c), _("Virtual") if getattr(c, "virtual", False)
+                                  else _("Connected"), image=on_img, dot=COL["ok"],
                                   command=lambda s=c.serial: self.select_device(s))
             card.selected = c.serial == self.device
             card.pack(fill="x", pady=(0, 8))

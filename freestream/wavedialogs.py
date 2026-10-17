@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import effects
-from .dialogkit import ScrollArea, entry, field, footer, header
+from .dialogkit import ScrollArea, ShortcutField, entry, field, footer, header
 from .i18n import _, ngettext
 from .theme import COL, Button, Card, Chip, Dialog, Fader, Icons, SoftSegmented, Switch, font, icon_tile, \
     label, rounded_rect
@@ -559,113 +559,6 @@ class PluginPicker(Dialog):
     def _pick(self, p):
         self.destroy()
         self.on_pick(p)
-
-
-# ================================================================ Tastenkürzel
-class ShortcutField(tk.Frame):
-    """Tastenkürzel festlegen: Feld zeigt die Tasten, „Festlegen“ nimmt sie auf, „Entfernen“ löscht sie.
-
-    on_set(binding) / on_remove() werden nach der Eingabe aufgerufen.
-    """
-
-    def __init__(self, master, binding="", on_set=None, on_remove=None, width=170):
-        from . import shortcuts
-        self._sc = shortcuts
-        bg = master.cget("bg")
-        super().__init__(master, bg=bg)
-        self.binding, self.on_set, self.on_remove = binding or "", on_set, on_remove
-        self.capturing, self.w, self.h = False, width, 32
-        self.icons = Icons(self)
-        self.f = font(self, 10, "bold")
-        self.fs = font(self, 9)
-        self.cv = tk.Canvas(self, width=width, height=self.h, bg=bg, highlightthickness=0, bd=0, cursor="hand2",
-                            takefocus=1)
-        self.cv.pack(side="left")
-        self.cv.bind("<Button-1>", lambda e: self.capture())
-        self.cv.bind("<KeyPress>", self._key)
-        self.cv.bind("<FocusOut>", lambda e: self._cancel())
-        self.set_btn = Button(self, _("Set"), command=self.capture)
-        self.set_btn.pack(side="left", padx=(8, 0))
-        self.rm_btn = Button(self, _("Remove"), kind="ghost", command=self._remove)
-        self.rm_btn.pack(side="left", padx=(4, 0))
-        self._draw()
-
-    def set(self, binding):
-        self.binding = binding or ""
-        self.capturing = False
-        self._draw()
-
-    def capture(self):
-        self.capturing = True
-        self.cv.focus_set()
-        self._draw()
-
-    def _cancel(self):
-        if self.capturing:
-            self.capturing = False
-            self._draw()
-
-    def _key(self, e):
-        if not self.capturing:
-            return None
-        if e.keysym == "Escape":
-            self._cancel()
-            return "break"
-        b = self._sc.from_tk(e.keysym, e.state)
-        if not b:
-            return "break"  # nur Modifier gedrückt oder Taste ohne Modifier
-        self.capturing = False
-        self.binding = b
-        self._draw()
-        if self.on_set:
-            self.on_set(b)
-        return "break"
-
-    def _remove(self):
-        if not self.binding:
-            return
-        self.binding = ""
-        self.capturing = False
-        self._draw()
-        if self.on_remove:
-            self.on_remove()
-
-    def _draw(self):
-        cv = self.cv
-        cv.delete("all")
-        w, h = self.w, self.h
-        rounded_rect(cv, 0, 0, w - 1, h - 1, 9, fill=COL["panel2"],
-                     outline=COL["accent"] if self.capturing else COL["border"])
-        if self.capturing:
-            text, fg, fnt = _("Press keys …"), COL["accent"], self.fs
-        elif self.binding:
-            text, fg, fnt = self._sc.label(self.binding), COL["fg"], self.f
-        else:
-            text, fg, fnt = _("Not set"), COL["faint"], self.fs
-        cv.create_image(16, h / 2, image=self.icons.get("keyboard", 15, COL["accent"] if self.capturing
-                                                         else COL["muted"]))
-        cv.create_text(32, h / 2, text=text, anchor="w", font=fnt, fill=fg)
-        self.rm_btn.configure_text(enabled=bool(self.binding))
-
-
-class ManualShortcutDialog(Dialog):
-    """Unbekannter Desktop: Befehl zum Kopieren, damit du ihn selbst als Tastenkürzel einträgst."""
-
-    def __init__(self, master, message, command):
-        super().__init__(master, _("Keyboard shortcut"), width=560)
-        header(self.body, _("Set up the shortcut in your desktop"), message, icon="keyboard", wrap=480)
-        self.var = tk.StringVar(self, value=command)
-        ent = entry(self.body, self.var, size=10)
-        ent.box.pack(fill="x")
-        ent.configure(state="readonly", readonlybackground=COL["panel2"])
-        footer(self)
-        Button(self.buttons, _("Close"), kind="primary", command=self.destroy).pack(side="right")
-        Button(self.buttons, _("Copy command"), command=self._copy).pack(side="left")
-        self.show()
-
-    def _copy(self):
-        self.clipboard_clear()
-        self.clipboard_append(self.var.get())
 
 
 # ================================================================ Mixer-Szenen

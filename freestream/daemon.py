@@ -10,12 +10,15 @@ from .config import Config, State
 from .engine import DeckController
 from .i18n import _, ngettext
 from .keyboard import VirtualInput
+from .models import model_name
 from .profiles import ProfileStore
 
 log = logging.getLogger("freestream.daemon")
 
 
 class Daemon:
+    _virtual_lock = threading.RLock()  # Einstellungen-Fenster und Dienst-Takt legen das virtuelle Deck an
+
     def __init__(self, transport=None):
         paths.ensure_dirs()
         desktop.adopt_session_env()
@@ -61,8 +64,11 @@ class Daemon:
                     deck.close()
                 except Exception:  # noqa: BLE001
                     pass
+        self.sync_virtual()
         for did in list(self.controllers):
-            ctrl = self.controllers[did]
+            ctrl = self.controllers.get(did)
+            if ctrl is None or ctrl.virtual:
+                continue
             alive = did in seen
             try:
                 alive = alive and ctrl.deck.connected()
@@ -75,11 +81,51 @@ class Daemon:
                     self.plugin_host.device_disconnected(ctrl)
                 ctrl.detach()
 
+    def sync_virtual(self):
+        """Virtuelles Deck nach den Einstellungen anlegen, in der Größe ändern oder entfernen.
+
+        Läuft im Dienst-Takt (scan) und sofort nach einer Änderung in den Einstellungen."""
+        from . import virtualdeck
+        with self._virtual_lock:
+            s = virtualdeck.settings(self.cfg)
+            did = "virtual:" + s["model"] if s["enabled"] else None
+            for old in [k for k, c in list(self.controllers.items()) if c.virtual and k != did]:
+                ctrl = self.controllers.pop(old)
+                if getattr(self, "plugin_host", None):
+                    self.plugin_host.device_disconnected(ctrl)
+                ctrl.stop()
+            if did is None or did in self.controllers:
+                return did
+            deck = virtualdeck.VirtualDeck(s["model"])
+            deck.open()
+            ctrl = DeckController(deck, self.store, self.cfg, self.state, self.vin, self.sound)
+            ctrl.plugin_host = getattr(self, "plugin_host", None)
+            if not self.store.for_model(ctrl.model, ctrl.geometry):
+                self._virtual_profile(ctrl)
+            ctrl.start()
+            self.controllers[did] = ctrl
+            if ctrl.plugin_host:
+                ctrl.plugin_host.device_connected(ctrl)
+            return did
+
+    def _virtual_profile(self, ctrl):
+        """Leeres Profil „Virtuelles Deck“ für eine Größe, zu der es noch keins gibt."""
+        from .editdoc import create_profile
+        try:
+            create_profile(model_name(ctrl.model), ctrl.model, self.store.root)
+            self.store.reload()
+        except Exception as e:  # noqa: BLE001
+            log.warning(_("Could not create a profile for the virtual deck: {error}").format(error=e))
+
+    @property
+    def virtual_controller(self):
+        return next((c for c in list(self.controllers.values()) if c.virtual), None)
+
     def reload(self):
         log.info(_("Reloading profiles and configuration"))
         self.cfg.load()
         self.store.reload()
-        for ctrl in self.controllers.values():
+        for ctrl in list(self.controllers.values()):  # das virtuelle Deck kommt auch aus dem Fenster-Thread
             pid = ctrl.profile.id if ctrl.profile else None
             if not pid or not self.store.get(pid):
                 pid = ctrl._initial_profile_id()
@@ -103,7 +149,7 @@ class Daemon:
             return
         self._last_window = win
         target = mapping.get(win) or auto.get(win) or next((v for k, v in auto.items() if k and k in win), None)
-        for ctrl in self.controllers.values():
+        for ctrl in list(self.controllers.values()):
             if target and ctrl.profile and ctrl.profile.id != target:
                 p = self.store.get(target)
                 if p and (p in ctrl.candidate_profiles()):

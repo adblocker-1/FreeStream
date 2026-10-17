@@ -25,7 +25,7 @@ Available in **English, German, Spanish, French and Portuguese (Brazil)**.
 - [Installation](#installation)
 - [FreeDeck](#freedeck): [first start](#first-start) · [the window](#the-window) ·
   [icons and backgrounds](#icons-and-backgrounds) · [actions](#actions) ·
-  [plugins and connections](#plugins-and-connections) · [settings](#freedeck-settings) ·
+  [plugins and connections](#plugins-and-connections) · [virtual deck](#virtual-deck) · [settings](#freedeck-settings) ·
   [troubleshooting](#freedeck-troubleshooting)
 - [FreeWave](#freewave): [first start](#first-start-1) · [the mixer](#the-mixer) ·
   [apps and channels](#apps-and-channels) · [more features](#more-features) ·
@@ -157,6 +157,28 @@ connection test:
 
 ![Connections](docs/images/settings-connections.png)
 
+## Virtual deck
+
+No deck at hand, or want more keys? FreeDeck shows a **virtual deck** on your screen –
+it works like a real one: profiles, pages, folders, every action and plugin.
+Turn it on under **Settings → Devices → Virtual deck** and choose how it looks:
+
+| | |
+|---|---|
+| **Floating window** | move it anywhere by its title bar; **always on top** if you like; profile and pages at the bottom |
+| **Edge bar** | docked at the right or left screen edge; slides away when the mouse leaves and comes back when you move the mouse to the edge |
+
+Also there: the **size** (3 × 2, 4 × 2, 5 × 3 or 8 × 4 keys), a **keyboard shortcut** to show
+and hide it from anywhere (e.g. Super + D – or run `freedeck virtual-deck`) and the profile.
+Assign keys like on a real deck: choose **Virtual deck** in the sidebar of the FreeDeck window
+and drag actions onto it. Clicking a key doesn't take the focus away, so hotkeys go to the
+program you are working in. Sizes that match a real deck (Mini, Neo, Original, XL) can use
+its profiles too.
+
+| | |
+|---|---|
+| ![Virtual deck as a floating window](docs/images/virtual-deck.png) | ![Virtual deck settings](docs/images/settings-virtual-deck.png) |
+
 <a id="freedeck-settings"></a>
 ## Settings
 
@@ -165,7 +187,7 @@ connection test:
 | Tab | |
 |---|---|
 | **General** | version and updates, start when you log in, light/dark, language, help and backup |
-| **Devices** | per deck: name, on/off, **orientation** (upside down 180°), **sleep after**, brightness, serial number, firmware, profile |
+| **Devices** | per deck: name, on/off, **orientation** (upside down 180°), **sleep after**, brightness, serial number, firmware, profile – and the [virtual deck](#virtual-deck) |
 | **Profiles** | switch profiles **automatically** by the program in the foreground, and the **default profile** |
 | **Plugins** | installed plugins with status, log, restart and remove |
 | **Connections** | OBS, Discord, Home Assistant – and **Windows profiles**: keyboard layout and which Linux program or folder replaces a Windows one |

@@ -668,6 +668,17 @@ def cmd_reload(args):
     print(_("Reloaded"))
 
 
+def cmd_virtual_deck(args):
+    """Virtuelles Deck der laufenden FreeDeck-App ein-/ausblenden (Tastenkürzel aus den Einstellungen)."""
+    from .app import _app_info, running_instance
+    pid = running_instance()
+    if not pid or not _app_info().get("gui"):
+        print(_("FreeDeck is not running"))
+        return 1
+    os.kill(pid, signal.SIGUSR2)
+    return 0
+
+
 def _signal_daemon():
     try:
         pid = int(paths.PID_FILE.read_text())
@@ -864,6 +875,10 @@ def main(argv=None, prog="freedeck"):
     s.add_argument("--stop-daemon", action="store_true", help=_("stop the running service for the test"))
     s.add_argument("--transport", default=None, help=argparse.SUPPRESS)
     s.set_defaults(fn=cmd_selftest)
+
+    s = sub.add_parser("virtual-deck", help=_("show or hide the virtual deck"))
+    s.add_argument("action", nargs="?", default="toggle", choices=["toggle"])
+    s.set_defaults(fn=cmd_virtual_deck)
 
     s = sub.add_parser("reload", help=_("reload the running service"))
     s.set_defaults(fn=cmd_reload)

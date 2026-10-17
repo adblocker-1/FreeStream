@@ -96,6 +96,8 @@ class App:
             root.iconphoto(True, self._icon)
         except Exception:  # noqa: BLE001
             pass
+        from .virtualui import VirtualDeckWindow
+        self.virtual = VirtualDeckWindow(root, daemon, self.editor)  # Einstellungen › Geräte › Virtuelles Deck
         self.tray = Tray(self.request_show, self.request_quit) if tray else None
         if hidden:
             root.withdraw()
@@ -170,6 +172,7 @@ def main(hidden=False, profile=None, transport=None, tray=True):
     if root is None:
         _write_app_info(False)
         signal.signal(signal.SIGUSR1, lambda *a: None)
+        signal.signal(signal.SIGUSR2, lambda *a: None)
         daemon.run()
         return 0
 
@@ -181,6 +184,7 @@ def main(hidden=False, profile=None, transport=None, tray=True):
     from . import updateui
     root.after(3000, lambda: updateui.start(root, "FreeDeck", app.editor._restart))
     signal.signal(signal.SIGUSR1, lambda *a: app.request_show())
+    signal.signal(signal.SIGUSR2, lambda *a: app.virtual.request_toggle())  # freedeck virtual-deck (Tastenkürzel)
     signal.signal(signal.SIGTERM, lambda *a: app.request_quit())
     signal.signal(signal.SIGINT, lambda *a: app.request_quit())
 
