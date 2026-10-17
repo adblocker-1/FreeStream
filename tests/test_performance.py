@@ -111,3 +111,41 @@ def test_select_moves_only_the_ring(tmp_path):
         assert len(app.canvas.find_withtag("sel")) == 1
     finally:
         root.destroy()
+
+
+def test_pulse_watch_gives_up_when_pactl_exits_at_once(tmp_path, monkeypatch):
+    fake = tmp_path / "pactl"
+    fake.write_text("#!/bin/sh\nexit 1\n")
+    fake.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ['PATH']}")
+    monkeypatch.setattr(system.PulseWatch, "GIVE_UP", 2)
+    w = system.PulseWatch().start()
+    end = time.time() + 6
+    while w._running and time.time() < end:
+        time.sleep(0.1)
+    assert not w._running and not w.available  # aufgegeben: Linewave fragt wieder regelmäßig nach
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X")
+def test_gc_runs_in_main_thread_while_window_lives():
+    import gc
+    import tkinter as tk
+
+    from streamlin import theme
+    root = tk.Tk()
+    theme.gc_in_main_thread(root)
+    assert not gc.isenabled()  # kein Aufräumen in Arbeits-Threads (Tk-Objekte dort freigeben hängt)
+    end = time.time() + 1.5
+    before = gc.get_count()[0]
+    junk = []
+    for _i in range(2000):
+        a = []
+        a.append(a)  # Kreisbezug: nur die Speicherbereinigung räumt ihn weg
+        junk.append(a)
+    del junk, a
+    while time.time() < end:
+        root.update()
+        time.sleep(0.02)
+    assert gc.get_count()[0] < before + 2000  # im Tk-Thread aufgeräumt
+    root.destroy()
+    assert gc.isenabled()

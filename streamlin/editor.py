@@ -363,6 +363,7 @@ def _flow(frame, widgets, width, gap=6, vgap=6):
 class EditorApp:
     def __init__(self, root: tk.Tk, store_root=None, profile=None, daemon=None, on_quit=None):
         self.root = root
+        theme.gc_in_main_thread(root)  # Tk-Objekte nie in Geräte-/Arbeits-Threads aufräumen (sonst hängen sie)
         self.daemon = daemon        # laufender Dienst im selben Programm (App-Modus)
         self.on_quit = on_quit
         self.device = None          # Seriennummer des gewählten Stream Decks

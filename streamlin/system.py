@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import threading
+import weakref
 from pathlib import Path, PureWindowsPath
 
 from .i18n import _
@@ -476,8 +477,11 @@ class PulseWatch:
     Läuft pactl nicht (oder bricht ab), ist available False – dann fragt man wie bisher regelmäßig.
     """
     KINDS = ("sink", "source", "sink-input", "module", "server", "card")
+    GIVE_UP = 5  # so oft hintereinander sofort beendet: aufgeben (dann wird wie früher regelmäßig gefragt)
+    instances = weakref.WeakSet()
 
     def __init__(self):
+        PulseWatch.instances.add(self)
         self.version = 0
         self.new_streams = 0
         self.available = False
@@ -512,7 +516,7 @@ class PulseWatch:
 
     def _loop(self):
         import time
-        delay = 1.0
+        delay, quick = 1.0, 0
         while self._running:
             started = time.monotonic()
             try:
@@ -538,8 +542,15 @@ class PulseWatch:
                 self._cond.notify_all()
             if not self._running:
                 break
-            delay = 1.0 if time.monotonic() - started > 30 else min(30.0, delay * 2)
-            time.sleep(delay)
+            lasted = time.monotonic() - started
+            quick = 0 if lasted > 5 else quick + 1
+            if quick >= self.GIVE_UP:
+                log.debug("pactl subscribe endet immer sofort – Linewave fragt wieder regelmäßig nach")
+                self._running = False
+                break
+            delay = 1.0 if lasted > 30 else min(30.0, delay * 2)
+            with self._cond:  # wartet, bis stop() weckt
+                self._cond.wait(delay)
 
     def _event(self, line):
         # Event 'new' on sink-input #123

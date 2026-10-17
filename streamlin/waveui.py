@@ -452,6 +452,7 @@ class Worker:
 class WaveWindow:
     def __init__(self, root, host, hidden=False, tray=True, level_factory=None):
         self.root, self.host = root, host
+        theme.gc_in_main_thread(root)  # Tk-Objekte nie in Arbeits-Threads aufräumen (sonst hängen sie)
         self.mixer, self.mic = host.mixer, host.mic
         self.worker = Worker()
         self.levels = levels.LevelMonitor(factory=level_factory)
@@ -1172,7 +1173,7 @@ class WaveWindow:
                   on_delete=(lambda: self._delete_mix(m)) if m else None)
 
     def _save_mix(self, m, v):
-        self._table_force = True  # gleich abgleichen, auch während einer Zuordnung
+        self._force_table()  # gleich abgleichen, auch während einer Zuordnung
 
         def work():
             if m is None:
@@ -1185,6 +1186,7 @@ class WaveWindow:
             if err is None:
                 self.status((_("Mix “{name}” created") if m is None else _("Mix “{name}” saved"))
                             .format(name=res["name"]))
+            self._force_table()  # jetzt ist die Änderung da: die nächste Abfrage muss abgleichen
             self.refresh()
         self.worker.submit(work, done)
 
@@ -1193,11 +1195,12 @@ class WaveWindow:
         if not messagebox.askyesno(_("Delete mix"), _("Really delete mix “{name}”?").format(name=m["name"]),
                                    parent=self.root):
             return
-        self._table_force = True
+        self._force_table()
 
         def done(_res, err):
             if err is None:
                 self.status(_("Mix “{name}” deleted").format(name=m["name"]))
+            self._force_table()  # jetzt ist die Änderung da: die nächste Abfrage muss abgleichen
             self.refresh()
         self.worker.submit(lambda: self.mixer.remove_mix(m["id"]), done)
 
@@ -1319,7 +1322,7 @@ class WaveWindow:
         self.worker.submit(self.mixer.inputs, opened)
 
     def _save_channel(self, ch, v):
-        self._table_force = True  # gleich abgleichen, auch während einer Zuordnung
+        self._force_table()  # gleich abgleichen, auch während einer Zuordnung
 
         def work():
             if ch is None:
@@ -1337,6 +1340,7 @@ class WaveWindow:
             if err is None:
                 self.status((_("Channel “{name}” created") if ch is None else _("Channel “{name}” saved"))
                             .format(name=res["name"]))
+            self._force_table()  # jetzt ist die Änderung da: die nächste Abfrage muss abgleichen
             self.refresh()
         self.worker.submit(work, done)
 
@@ -1346,11 +1350,12 @@ class WaveWindow:
                                    _("Really delete channel “{name}”?").format(name=ch["name"]),
                                    parent=self.root):
             return
-        self._table_force = True
+        self._force_table()
 
         def done(res, err):
             if err is None:
                 self.status(_("Channel “{name}” deleted").format(name=ch["name"]))
+            self._force_table()  # jetzt ist die Änderung da: die nächste Abfrage muss abgleichen
             self.refresh()
         self.worker.submit(lambda: self.mixer.remove_channel(ch["id"]), done)
 
@@ -2036,17 +2041,24 @@ class WaveWindow:
             return True
         return age > REFRESH_IDLE_MS / 1000
 
+    def _force_table(self):
+        """Die nächste Aktualisierung soll die Mixer-Tabelle abgleichen, auch während einer Zuordnung."""
+        self._table_force = True
+        self._force_seq = getattr(self, "_force_seq", 0) + 1
+
     def refresh(self):
         if self._refreshing:
             self._refresh_again = True  # läuft schon: danach gleich noch einmal (Zustand könnte veraltet sein)
             return
         self._refreshing = True
         self._refresh_again = False
+        seq = getattr(self, "_force_seq", 0)  # welche Abgleich-Anforderungen diese Abfrage schon sieht
 
         def done(st, err):
             self._refreshing = False
             self._last_refresh = time.time()
             if err is None and st is not None:
+                self._collect_seq = seq
                 self.apply_state(st)
             if self._refresh_again:
                 self.refresh()
@@ -2076,9 +2088,14 @@ class WaveWindow:
             # _strip_ids None = Neuaufbau verlangt (z. B. neuer Mix); sonst nicht, solange eine Zuordnung läuft
             # _strip_ids None = ganz neu aufbauen; sonst nur Geändertes abgleichen (nicht während einer
             # Zuordnung, außer ein neuer/geänderter Mix oder Kanal verlangt es)
+            # Abgleich verlangt (neuer/gelöschter Mix oder Kanal) – zählt nur, wenn diese Abfrage nach der
+            # Anforderung begann; eine ältere (mit dem Stand von vorher) darf ihn nicht verbrauchen
             force = getattr(self, "_table_force", False)
+            fresh = getattr(self, "_collect_seq", 0) >= getattr(self, "_force_seq", 0)
             if ids != self._strip_ids and (self._strip_ids is None or force or not self._held("member")):
-                old, self._table_force = self._strip_ids, False
+                old = self._strip_ids
+                if fresh:
+                    self._table_force = False
                 try:
                     synced = old is not None and self._sync_table(st["channels"], mixes, old, ids)
                 except Exception:  # noqa: BLE001 – lieber ganz neu aufbauen als halb stehen bleiben
