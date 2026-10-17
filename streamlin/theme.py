@@ -15,6 +15,7 @@ Bausteine:
   Switch               Schalter an/aus
   Segmented            Umschalter für Ansichten (Reiter)
 """
+import gc
 import json
 import math
 import os
@@ -51,6 +52,42 @@ PALETTES = {
     },
 }
 MODES = ("auto", "light", "dark")
+
+
+GC_YOUNG_MS = 1000     # junge Objekte (Generation 0/1) aufräumen
+GC_FULL_EVERY = 30     # jede 30. Runde alles
+
+
+def gc_in_main_thread(root):
+    """Speicher nur noch im Tk-Hauptthread aufräumen, solange das Fenster lebt.
+
+    Pythons automatische Speicherbereinigung läuft in dem Thread, der gerade Speicher anlegt – auch in
+    Arbeits-Threads. Gibt sie dort ein Tk-Bild (PhotoImage) oder eine Tk-Variable eines Fensters frei,
+    blockiert der Tk-Aufruf aus dem falschen Thread für immer und der Thread hängt. Darum: automatisch
+    aus, stattdessen regelmäßig im Tk-Thread; beim Schließen des Fensters wieder automatisch.
+    """
+    if getattr(root, "_gc_main", False):
+        return
+    root._gc_main = True
+    gc.disable()
+    rounds = [0]
+
+    def tick():
+        try:
+            if not root.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        rounds[0] += 1
+        gc.collect(2 if rounds[0] % GC_FULL_EVERY == 0 else 1)
+        root.after(GC_YOUNG_MS, tick)
+
+    def destroyed(e):
+        if e.widget is root:
+            gc.collect()
+            gc.enable()
+    root.bind("<Destroy>", destroyed, add="+")
+    root.after(GC_YOUNG_MS, tick)
 
 
 def configured_appearance():

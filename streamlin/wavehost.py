@@ -24,7 +24,7 @@ import signal
 import threading
 import time
 
-from . import desktop, ducking, wavemic
+from . import desktop, ducking, system, wavemic
 from .i18n import _
 from .mixer import Mixer
 
@@ -67,12 +67,17 @@ class WaveHost:
         self.running = True
         self.error = ""
         self._reload = threading.Event()
+        # Änderungen in PipeWire (neue Streams usw.) kommen als Ereignis statt durch ständiges Nachfragen
+        self.pulse = system.PulseWatch()
+        self._streams_seen = -1
+        self._route_at = 0.0
 
     @property
     def mixer_enabled(self):
         return bool((self.cfg.get("mixer") or {}).get("enabled"))
 
     def start(self):
+        self.pulse.start()
         if self.mixer_enabled:
             try:
                 if not self.mixer.is_active():
@@ -92,6 +97,10 @@ class WaveHost:
         self._reload.set()
 
     def tick(self):
+        with system.pactl_snapshot():
+            self._tick()
+
+    def _tick(self):
         if self._reload.is_set():
             self._reload.clear()
             self.cfg.load()
@@ -101,7 +110,7 @@ class WaveHost:
                 log.warning(_("Wave microphone: {error}").format(error=e))
         elif self.cfg.changed_on_disk():
             self.cfg.load()
-        if self.mixer_enabled and self.mixer.conf.get("auto_route", True):
+        if self.mixer_enabled and self.mixer.conf.get("auto_route", True) and self._route_due():
             try:
                 self.mixer.route_streams()
             except Exception as e:  # noqa: BLE001
@@ -111,6 +120,16 @@ class WaveHost:
         except Exception as e:  # noqa: BLE001
             log.debug(_("Wave microphone: {error}").format(error=e))
         self._watch_effects()
+
+    def _route_due(self):
+        """Neue Streams verteilen: sobald PipeWire einen meldet (sonst jede Sekunde wie bisher);
+        zur Sicherheit auch ohne Meldung alle 30 s."""
+        now = time.monotonic()
+        if self.pulse.available and self.pulse.new_streams == self._streams_seen and now - self._route_at < 30:
+            return False
+        self._streams_seen = self.pulse.new_streams
+        self._route_at = now
+        return True
 
     def _watch_effects(self, force=False):
         """Abgestürzte Effektketten und Rauschunterdrückung neu starten (alle 10 s)."""
@@ -144,8 +163,10 @@ class WaveHost:
 
     def shutdown(self):
         self.running = False
+        self.pulse.stop()
 
     def cleanup(self):
+        self.pulse.stop()
         self.ducker.stop()
         try:
             self.mic_service.stop()

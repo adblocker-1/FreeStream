@@ -22,4 +22,8 @@ def _collect_tk_images():
     blockiert dann diesen Thread (z. B. den Arbeits-Thread von Linewave) für immer.
     """
     yield
+    from streamlin import system  # Ereignis-Threads von Linewave (PulseWatch) nicht in den nächsten Test mitnehmen
+    for w in list(system.PulseWatch.instances):
+        w.stop()
     gc.collect()
+    gc.enable()  # theme.gc_in_main_thread schaltet sie ab, solange ein Fenster lebt

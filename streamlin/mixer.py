@@ -91,11 +91,17 @@ DUCK_FILE = "ducking.json"
 DUCK_USER_FILE = "ducking-user.json"
 
 
+READ_ONLY = ("get-default-sink", "get-default-source", "info", "list")
+
+
 def _run(args):
-    r = subprocess.run(["pactl"] + args, capture_output=True, text=True, timeout=5)
-    if r.returncode != 0:
-        raise RuntimeError((r.stderr or r.stdout or _("pactl error")).strip())
-    return r.stdout.strip()
+    def run():
+        r = subprocess.run(["pactl"] + args, capture_output=True, text=True, timeout=5)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout or _("pactl error")).strip())
+        return r.stdout.strip()
+    # lesende Abfragen innerhalb von system.pactl_snapshot() nur einmal, schreibende leeren den Speicher
+    return system.pactl_cached(("run", *args), run, write=not args or args[0] not in READ_ONLY)
 
 
 def _props(raw=None, **props):

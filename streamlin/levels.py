@@ -36,7 +36,9 @@ def peak_level(data):
     a = array.array("h", bytes(data[: len(data) // 2 * 2]))
     if sys.byteorder == "big":
         a.byteswap()
-    peak = max((abs(x) for x in a), default=0) / 32768.0
+    if not a:
+        return 0.0
+    peak = max(max(a), -min(a)) / 32768.0  # max/min laufen in C – keine Python-Schleife je Messwert
     if peak <= 0:
         return 0.0
     db = 20 * math.log10(peak)
