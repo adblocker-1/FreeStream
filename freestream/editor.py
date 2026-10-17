@@ -47,7 +47,7 @@ ACTION_GLYPH = {
     "system.hotkey": "keyboard", "system.hotkeyswitch": "keyboard", "system.text": "text", "system.open": "folder",
     "system.openapp": "play", "system.close": "close", "system.website": "globe", "system.multimedia": "play",
     "system.timer": "auto", "system.mouse-wheel": "navigate", "profile.openchild": "folder",
-    "profile.backtoparent": "up", "page.next": "arrow", "page.previous": "arrow", "page.goto": "navigate",
+    "profile.backtoparent": "up", "page.next": "arrow", "page.previous": "arrow_left", "page.goto": "goto",
     "page.indicator": "grid", "profile.rotate": "deck", "system.keybrightness": "sun", "system.sleep": "moon",
     "system.digitaltime": "auto", "soundboard.playaudio": "sfx", "soundboard.stopaudioplay": "close",
     "volume-controller.output-device-control": "speaker", "volume-controller.input-device-control": "mic",

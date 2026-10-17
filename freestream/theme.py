@@ -524,6 +524,13 @@ def _draw_glyph(name, size, color, bg, circle):
     elif n == "arrow":
         line((0.1, 0.5), (0.9, 0.5))
         line((0.58, 0.2), (0.9, 0.5), (0.58, 0.8))
+    elif n == "arrow_left":
+        line((0.1, 0.5), (0.9, 0.5))
+        line((0.42, 0.2), (0.1, 0.5), (0.42, 0.8))
+    elif n == "goto":  # Pfeil in eine Seite hinein: „Gehe zu Seite“
+        d.rounded_rectangle((*P(0.5, 0.1), *P(0.94, 0.9)), radius=S * 0.06, outline=c, width=lw)
+        line((0.06, 0.5), (0.66, 0.5))
+        line((0.44, 0.28), (0.66, 0.5), (0.44, 0.72))
     elif n == "chevron":
         line((0.2, 0.36), (0.5, 0.66), (0.8, 0.36))
     elif n == "folder":
