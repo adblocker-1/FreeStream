@@ -967,10 +967,10 @@ class Mixer:
             pct = duck.user_set(key, pct)  # abgesenkt schreiben, Nutzerwert merken
         self.run(["set-sink-input-volume", index, f"{pct}%"])
 
-    def _write_all(self, cid, mix, write, recent=True):
+    def _write_all(self, cid, mix, write, recent=False, loops=None):
         """write(Mix, Block) für alle Mixe hinter mix – gleichzeitig (je ein pactl-Aufruf). Stimmt ein
         gemerkter Index nicht mehr (Loopback neu angelegt), einmal frisch auslesen und wiederholen."""
-        loops = self._loops(cid, mix, recent=recent)
+        loops = loops if loops is not None else self._loops(cid, mix, recent=recent)
         errors = []
 
         def one(m, b):
@@ -993,8 +993,9 @@ class Mixer:
             raise errors[0]
         return loops
 
-    def change_volume(self, cid, mix, delta):
-        """Lautstärke in allen Mixen um delta ändern; gibt die neuen Werte zurück ({Mix: Prozent})."""
+    def change_volume(self, cid, mix, delta, recent=False):
+        """Lautstärke in allen Mixen um delta ändern; gibt die neuen Werte zurück ({Mix: Prozent}).
+        recent: zuletzt gelesene Loopbacks genügen (Tasten am Deck – sofort schreiben)."""
         duck = self._duck()
         out = {}
 
@@ -1005,19 +1006,20 @@ class Mixer:
             self._write_volume(b["index"], key, pct, duck)
             b["volume"] = pct if base is None else b.get("volume", 0)  # gemerkten Stand nachführen
             out[m] = pct
-        self._write_all(cid, mix, write)
+        self._write_all(cid, mix, write, recent=recent)
         return out
 
-    def set_mute(self, cid, mix, mute):
+    def set_mute(self, cid, mix, mute, recent=False):
         """Stumm schalten; "toggle" schaltet alle Mixe gemeinsam um. Gibt den neuen Zustand zurück."""
+        loops = self._loops(cid, mix, recent=recent)
         if mute == "toggle":
-            mute = not all(b.get("mute") for _m, b in self._loops(cid, mix, recent=True))
+            mute = not all(b.get("mute") for _m, b in loops)
         mute = bool(mute)
 
         def write(_m, b):
             self.run(["set-sink-input-mute", b["index"], "1" if mute else "0"])
             b["mute"] = mute
-        self._write_all(cid, mix, write)
+        self._write_all(cid, mix, write, recent=recent, loops=loops)
         return mute
 
     def raw_levels(self, with_index=False):

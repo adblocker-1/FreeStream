@@ -630,7 +630,7 @@ class MixerAction(NativeAction):
         if lv is not None:
             self._show_now(vol=max(0, min(100, lv[0] + delta)))
         try:
-            vols = self.mixer.change_volume(self.channel, self.mix, delta)
+            vols = self.mixer.change_volume(self.channel, self.mix, delta, recent=True)
         except Exception:
             self._lv_at = 0  # gezeigter Stand stimmt nicht: beim nächsten Zeichnen neu lesen
             raise
@@ -642,7 +642,7 @@ class MixerAction(NativeAction):
         if lv is not None:
             self._show_now(mute=target)
         try:
-            self._known(mute=self.mixer.set_mute(self.channel, self.mix, target))
+            self._known(mute=self.mixer.set_mute(self.channel, self.mix, target, recent=True))
         except Exception:
             self._lv_at = 0
             raise

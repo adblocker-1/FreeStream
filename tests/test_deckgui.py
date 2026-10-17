@@ -62,7 +62,7 @@ def test_short_press_and_multi_action_step_once():
 def test_mixer_key_repeats_volume(monkeypatch):
     from freestream import native
     calls = []
-    fake = types.SimpleNamespace(change_volume=lambda c, m, d: calls.append(d), channel=lambda c: None,
+    fake = types.SimpleNamespace(change_volume=lambda c, m, d, **kw: calls.append(d) or {m: 50}, channel=lambda c: None,
                                  mix_ids=lambda: ["monitor", "stream"], channel_mixes=lambda c: ["monitor"],
                                  get=lambda c, m: (50, False))
     monkeypatch.setattr(native.MixerAction, "mixer", property(lambda self: fake))
@@ -241,7 +241,7 @@ def test_mute_and_volume_read_once(monkeypatch):
     sets = [c[1:] for c in calls if c[1] == "set-sink-input-mute"]
     assert len(lists) == 1 and len(sets) == len(mx.channel_mixes("music")) and all(s[-1] == "1" for s in sets)
     calls.clear()
-    assert mx.change_volume("music", "both", 5) == {m: 65 for m in mx.channel_mixes("music")}
+    assert mx.change_volume("music", "both", 5, recent=True) == {m: 65 for m in mx.channel_mixes("music")}
     assert not [c for c in calls if c[1] == "list"]  # eben gelesen: gleich schreiben
     assert all(c[1] == "set-sink-input-volume" for c in calls) and len(calls) == len(mx.channel_mixes("music"))
 
@@ -290,7 +290,7 @@ def test_mix_select_asks_pactl_once(monkeypatch):
 def test_stale_loopback_index_is_read_again(monkeypatch):
     from freestream import mixer as M
     mx, calls = _fake_pactl(monkeypatch, muted=())
-    mx.set_mute("music", "monitor", True)  # liest und merkt sich die Indizes
+    mx.set_mute("music", "monitor", True, recent=True)  # liest und merkt sich die Indizes
     for b in M._RECENT["loops"].values():
         b["index"] = "999"  # Loopback inzwischen neu angelegt: alter Index gilt nicht mehr
     real = mx.run
@@ -301,5 +301,5 @@ def test_stale_loopback_index_is_read_again(monkeypatch):
         return real(args)
     mx.run = run
     calls.clear()
-    assert mx.set_mute("music", "monitor", False) is False
+    assert mx.set_mute("music", "monitor", False, recent=True) is False
     assert [c[1] for c in calls] == ["list", "set-sink-input-mute"]  # einmal frisch gelesen, dann geschrieben
