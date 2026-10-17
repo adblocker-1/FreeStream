@@ -115,3 +115,89 @@ def adopt_session_env():
                 if env.get(k) and not os.environ.get(k):
                     os.environ[k] = env[k]
             return
+
+
+# --------------------------------------------------------------------------
+# Autostart (Einstellungen › Allgemein › „Bei der Anmeldung automatisch starten“)
+# --------------------------------------------------------------------------
+AUTOSTART = {"lindeck": "lindeck run", "linewave": "linewave --hidden"}
+SYSTEM_AUTOSTART = Path("/etc/xdg/autostart")
+
+
+def _user_autostart_dir():
+    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "autostart"
+
+
+def _desktop_flags(path):
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    off = any(line.strip().lower() in ("hidden=true", "x-gnome-autostart-enabled=false")
+              for line in text.splitlines())
+    return not off
+
+
+def autostart_enabled(name):
+    """Startet das Programm bei der Anmeldung? (eigene Datei geht vor der des Pakets)"""
+    user = _desktop_flags(_user_autostart_dir() / f"{name}.desktop")
+    if user is not None:
+        return user
+    return bool(_desktop_flags(SYSTEM_AUTOSTART / f"{name}.desktop"))
+
+
+def set_autostart(name, on):
+    """Autostart an/aus – nur im Benutzerordner, die Datei des Pakets bleibt unangetastet."""
+    d = _user_autostart_dir()
+    f = d / f"{name}.desktop"
+    system_on = bool(_desktop_flags(SYSTEM_AUTOSTART / f"{name}.desktop"))
+    if on and system_on:
+        try:
+            f.unlink()
+        except FileNotFoundError:
+            pass
+        return
+    d.mkdir(parents=True, exist_ok=True)
+    title = "LinDeck" if name == "lindeck" else "Linewave"
+    lines = ["[Desktop Entry]", "Type=Application", f"Name={title}", f"Exec={AUTOSTART.get(name, name)}",
+             f"Icon={name}", "NoDisplay=true"]
+    lines += ["X-GNOME-Autostart-enabled=true", "X-KDE-autostart-phase=2"] if on else \
+        ["Hidden=true", "X-GNOME-Autostart-enabled=false"]
+    f.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def installed_apps():
+    """Programme aus den .desktop-Dateien: [(Name, Fensterklasse)] – für „Profil je Programm“."""
+    dirs = [Path(p) / "applications" for p in
+            (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":")]
+    dirs += [Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "applications",
+             Path("/var/lib/flatpak/exports/share/applications"),
+             Path.home() / ".local/share/flatpak/exports/share/applications"]
+    found = {}
+    for d in dirs:
+        try:
+            files = sorted(d.glob("*.desktop"))
+        except OSError:
+            continue
+        for f in files:
+            try:
+                text = f.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            entry = text.split("[Desktop Action", 1)[0]
+            vals = {}
+            for line in entry.splitlines():
+                if "=" in line and not line.startswith("#"):
+                    k, v = line.split("=", 1)
+                    vals.setdefault(k.strip(), v.strip())
+            if vals.get("NoDisplay", "").lower() == "true" or vals.get("Type", "Application") != "Application":
+                continue
+            name = vals.get("Name")
+            if not name:
+                continue
+            cls = vals.get("StartupWMClass") or \
+                os.path.basename((vals.get("Exec") or f.stem).split()[0]).rsplit(".", 1)[0]
+            if cls in ("env", "flatpak"):
+                cls = f.stem.rsplit(".", 1)[-1] if f.stem.count(".") >= 2 else f.stem
+            found.setdefault(name, cls.lower())
+    return sorted(found.items(), key=lambda x: x[0].lower())

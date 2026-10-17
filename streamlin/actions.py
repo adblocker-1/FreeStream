@@ -756,20 +756,40 @@ class MultiAction(Action):
         if self._running:
             return
         self._running = True
+        # Fortschritt auf der Taste (Einstellungen › Stil › Multi-Aktion), nur bei mehreren Schritten
+        ctrl = getattr(self.ctx, "ctrl", None)
+        show = len(steps) > 1 and ctrl is not None and self.slot is not None and \
+            (self.ctx.cfg.get("multi_progress", True) if self.ctx.cfg is not None else True)
+
+        def progress(done):
+            if show:
+                try:
+                    ctrl.show_overlay(self, ("progress", done / len(steps)), seconds=600)
+                except Exception:  # noqa: BLE001
+                    pass
 
         def worker():
             try:
-                for st in steps:
+                progress(0)
+                for i, st in enumerate(steps, start=1):
                     if isinstance(st, Delay):
                         time.sleep(st.ms / 1000.0)
+                        progress(i)
                         continue
                     try:
                         st.execute()
                     except Exception as e:  # noqa: BLE001
                         log.warning(_("Multi Action step {action} failed: {error}").format(action=st.uuid, error=e))
+                    progress(i)
                     time.sleep(0.03)
             finally:
                 self._running = False
+                if show:
+                    ctrl.overlays.pop(id(self), None)
+                    try:
+                        ctrl.redraw_action(self)
+                    except Exception:  # noqa: BLE001
+                        pass
         threading.Thread(target=worker, daemon=True).start()
 
     def key_down(self):

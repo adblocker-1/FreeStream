@@ -826,3 +826,30 @@ def preview_dial(doc, page_uuid, data, size=(100, 100)):
         icon = [(own, 0)]
     title = act.title() or C.display_name(data)
     return render.compose_dial_segment(size, icon[0][0] if icon else None, title, "", None)
+
+
+def apply_title_style(store_root, key_style, dial_style):
+    """Einstellungen › Stil: Schrift, Position und Farbe der Titel in allen Profilen setzen.
+
+    Gibt die Zahl der geänderten Tasten/Dials zurück."""
+    from . import catalog
+    key_style = {k: v for k, v in (key_style or {}).items() if k in catalog.TITLE_KEYS}
+    dial_style = {k: v for k, v in (dial_style or {}).items() if k in ("ShowTitle", "TitleColor")}
+    n = 0
+    for root in sorted(Path(store_root).glob("*.sdProfile")):
+        try:
+            doc = ProfileDoc(root)
+        except Exception:  # noqa: BLE001
+            continue
+        for page in doc.pages.values():
+            for slot, a in page.items():
+                style = key_style if slot[0] == "key" else dial_style
+                changed = False
+                for act in _walk_actions(a):
+                    for st in act.get("States") or []:
+                        if isinstance(st, dict) and any(st.get(k) != v for k, v in style.items()):
+                            st.update(style)
+                            changed = True
+                n += changed
+        doc.save()
+    return n

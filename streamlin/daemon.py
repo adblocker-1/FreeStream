@@ -96,6 +96,7 @@ class Daemon:
                 stem = stem.rsplit(".", 1)[0] if stem.endswith((".exe", ".app")) else stem
                 auto[stem] = p.id
                 auto[stem.rstrip("0123456789")] = p.id
+        default = self.cfg.get("default_profile") or ""
         if not mapping and not auto:
             return
         win = system.active_window_class()
@@ -110,7 +111,10 @@ class Daemon:
                     self._smart_prev.setdefault(ctrl.serial, ctrl.profile.id)
                     ctrl.load_profile(target)
             elif not target and ctrl.serial in self._smart_prev:
-                ctrl.load_profile(self._smart_prev.pop(ctrl.serial))
+                back = self._smart_prev.pop(ctrl.serial)
+                p = self.store.get(default) if default else None
+                # Standardprofil (Einstellungen › Profile), sonst das Profil von vorher
+                ctrl.load_profile(p.id if p and p in ctrl.candidate_profiles() else back)
 
     @staticmethod
     def already_running():

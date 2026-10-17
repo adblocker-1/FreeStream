@@ -432,10 +432,22 @@ def display_name(data: dict) -> str:
     return data.get("Name") or data.get("UUID", "").rsplit(".", 1)[-1]
 
 
+TITLE_KEYS = ("ShowTitle", "TitleAlignment", "FontFamily", "FontSize", "FontStyle", "FontUnderline", "TitleColor")
+_title_defaults = {}  # Einstellungen › Stil › „Schrift für alle Tasten“
+
+
+def set_title_defaults(style):
+    """Schrift, Position und Farbe für neu angelegte Tasten (aus der Konfiguration)."""
+    _title_defaults.clear()
+    _title_defaults.update({k: v for k, v in (style or {}).items() if k in TITLE_KEYS})
+
+
 def default_state():
-    return {"FontFamily": "", "FontSize": 12, "FontStyle": "", "FontUnderline": False, "Image": "",
-            "OutlineThickness": 2, "ShowTitle": True, "Title": "", "TitleAlignment": "bottom",
-            "TitleColor": "#ffffff"}
+    st = {"FontFamily": "", "FontSize": 12, "FontStyle": "", "FontUnderline": False, "Image": "",
+          "OutlineThickness": 2, "ShowTitle": True, "Title": "", "TitleAlignment": "bottom",
+          "TitleColor": "#ffffff"}
+    st.update(_title_defaults)
+    return st
 
 
 def new_action(uuid: str) -> dict:

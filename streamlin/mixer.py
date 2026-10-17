@@ -42,8 +42,10 @@ Konfiguration (config.json):
 """
 import json
 import logging
+import os
 import re
 import subprocess
+import threading
 import time
 
 from . import paths, system
@@ -491,7 +493,10 @@ class Mixer:
 
     def _save_state(self, st):
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
-        self.state_file.write_text(json.dumps(st, indent=2), encoding="utf-8")
+        # erst in eine Nachbardatei, dann umbenennen: wer gleichzeitig liest, sieht nie eine halbe Datei
+        tmp = self.state_file.with_name(self.state_file.name + f".{os.getpid()}.{threading.get_ident()}.tmp")
+        tmp.write_text(json.dumps(st, indent=2), encoding="utf-8")
+        os.replace(tmp, self.state_file)
 
     def is_active(self):
         names = {b.get("name") for b in system._pactl_blocks("sinks")}

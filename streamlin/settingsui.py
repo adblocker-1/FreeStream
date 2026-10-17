@@ -17,40 +17,81 @@ from .i18n import _
 from .theme import COL, Button, Card, Dialog, Switch, choose_language, label, mode_switch
 
 
-def open_settings(master, app, restart, mixer=None):
-    """Fenster öffnen; ist es schon offen, nach vorne holen."""
+def open_settings(master, app, restart, mixer=None, lindeck=None, tab=None):
+    """Fenster öffnen; ist es schon offen, nach vorne holen (tab: gleich diesen Reiter zeigen)."""
     top = master.winfo_toplevel()
     dlg = getattr(top, "_settings_dialog", None)
     if dlg is not None and dlg.winfo_exists():
         dlg.deiconify()
         dlg.lift()
         dlg.focus_force()
+        if tab and dlg.lindeck is not None:
+            dlg.show_tab(tab)
         return dlg
-    top._settings_dialog = SettingsDialog(master, app, restart, mixer=mixer)
+    top._settings_dialog = SettingsDialog(master, app, restart, mixer=mixer, lindeck=lindeck)
+    if tab and lindeck is not None:
+        top._settings_dialog.show_tab(tab)
     return top._settings_dialog
 
 
 class SettingsDialog(Dialog):
-    def __init__(self, master, app, restart, mixer=None):
-        """mixer: (eingerichtet, enable(bool)) – nur in Linewave: Mixer einrichten/entfernen."""
-        super().__init__(master, _("Settings"), width=500)
-        self.app, self.restart = app, restart
+    TABS = ("general", "devices", "profiles", "plugins", "style")
+
+    def __init__(self, master, app, restart, mixer=None, lindeck=None):
+        """mixer: (eingerichtet, enable(bool)) – nur in Linewave: Mixer einrichten/entfernen.
+        lindeck: das LinDeck-Fenster (EditorApp) – dann mit den Reitern Geräte, Profile, Plugins, Stil."""
+        super().__init__(master, _("Settings"), width=820 if lindeck is not None else 500)
+        self.app, self.restart, self.lindeck = app, restart, lindeck
         self._outer = self.body
-        self._scroll = ScrollArea(self._outer)
+        self.pages, self.page = {}, None
+        if lindeck is not None:
+            from .theme import Segmented
+            self.tabs = Segmented(self._outer, [("general", _("General")), ("devices", _("Devices")),
+                                                ("profiles", _("Profiles")), ("plugins", _("Plugins")),
+                                                ("style", _("Style"))], command=self.show_tab)
+            self.tabs.pack(anchor="w", pady=(0, 14))
+            self.host = tk.Frame(self._outer, bg=COL["bg"])
+            self.host.pack(fill="both", expand=True)
+            general = tk.Frame(self.host, bg=COL["bg"])
+            self.pages["general"] = general
+        else:
+            general = self._outer
+        self._scroll = ScrollArea(general)
         self._scroll.pack(fill="both", expand=True)
         self.body = self._scroll.inner
         b = self.body
-        header(b, _("Settings"), _("These settings apply to LinDeck and Linewave."), icon="gear")
+        if lindeck is None:
+            header(b, _("Settings"), _("These settings apply to LinDeck and Linewave."), icon="gear")
+        wrap = 640 if lindeck is not None else 420
 
-        # ---------------------------------------------------------- Design
+        # ---------------------------------------------------------- Programm
+        card = self._card(_("Program"))
+        row = tk.Frame(card, bg=COL["panel"])
+        row.pack(fill="x", pady=(0, 12))
+        label(row, _("Installed version: {version}").format(version=__version__), 10).pack(side="left")
+        Button(row, _("Check now"), icon="spark", command=self._check, height=30).pack(side="right")
+        self.auto_update = self._switch_row(card, self._toggle_updates, updater.configured(),
+                                            _("Check for updates every time {app} starts").format(app=app))
+        self.beta = self._switch_row(card, self._toggle_beta, updater.channel() == "beta",
+                                     _("Include beta versions"), pady=(10, 0),
+                                     hint=_("Beta versions bring new features earlier but may contain more bugs."))
+        self._autostart_name = "lindeck" if app == "LinDeck" else "linewave"
+        from . import desktop
+        self.autostart = self._switch_row(card, self._toggle_autostart,
+                                          desktop.autostart_enabled(self._autostart_name),
+                                          _("Start automatically when you log in"), pady=(10, 0),
+                                          hint=_("{app} then runs in the background and is ready as soon as "
+                                                 "your desktop appears.").format(app=app))
+        Button(card, _("Install an earlier version…"), icon="undo", kind="ghost", height=28,
+               command=self._rollback).pack(anchor="w", pady=(10, 0))
+
+        # ---------------------------------------------------------- Aussehen und Sprache
         card = self._card(_("Appearance"))
         self.appearance = mode_switch(card, app, restart)
         self.appearance.pack(fill="x")
         label(card, _("Auto follows the light or dark setting of your desktop."), 9, color=COL["muted"],
-              wraplength=420, justify="left").pack(anchor="w", pady=(8, 0))
-
-        # ---------------------------------------------------------- Sprache
-        card = self._card(_("Language"))
+              wraplength=wrap, justify="left").pack(anchor="w", pady=(8, 0))
+        label(card, _("Language"), 10).pack(anchor="w", pady=(14, 6))
         self.codes = ["auto"] + i18n.available()
         names = [_("System language")] + [i18n.name(c) for c in i18n.available()]
         cur = i18n.configured()
@@ -66,30 +107,15 @@ class SettingsDialog(Dialog):
             label(card, (_("Remove mixer: the Linewave channels and mixes disappear, apps play directly on your "
                            "device again. Your settings are kept.") if active else
                          _("The mixer is off. Set it up to give every app its own channel.")), 9,
-                  color=COL["muted"], wraplength=420, justify="left").pack(anchor="w")
+                  color=COL["muted"], wraplength=wrap, justify="left").pack(anchor="w")
             Button(card, _("Remove mixer") if active else _("Set up mixer"), icon="close" if active else "wave",
                    kind="danger" if active else "primary", height=30,
                    command=lambda: (self.destroy(), enable(not active))).pack(anchor="w", pady=(10, 0))
 
-        # ---------------------------------------------------------- Updates
-        card = self._card(_("Updates"))
-        self.auto_update = self._switch_row(card, self._toggle_updates, updater.configured(),
-                                            _("Check for updates every time {app} starts").format(app=app))
-        self.beta = self._switch_row(card, self._toggle_beta, updater.channel() == "beta",
-                                     _("Include beta versions"), pady=(10, 0),
-                                     hint=_("Beta versions bring new features earlier but may contain more bugs."))
-        row = tk.Frame(card, bg=COL["panel"])
-        row.pack(fill="x", pady=(12, 0))
-        label(row, _("Installed version: {version}").format(version=__version__), 9, color=COL["muted"]).pack(
-            side="left")
-        Button(row, _("Check now"), icon="spark", command=self._check, height=30).pack(side="right")
-        Button(card, _("Install an earlier version…"), icon="undo", kind="ghost", height=28,
-               command=self._rollback).pack(anchor="w", pady=(8, 0))
-
         # ---------------------------------------------------------- Hilfe
         card = self._card(_("Help"))
         label(card, _("Something not working? Create a support report and attach it to a GitHub issue. "
-                      "Passwords and tokens are removed from it."), 9, color=COL["muted"], wraplength=420,
+                      "Passwords and tokens are removed from it."), 9, color=COL["muted"], wraplength=wrap,
               justify="left").pack(anchor="w")
         row = tk.Frame(card, bg=COL["panel"])
         row.pack(fill="x", pady=(10, 0))
@@ -98,15 +124,41 @@ class SettingsDialog(Dialog):
         self.report_btn.pack(side="left")
         Button(row, _("Report a problem on GitHub"), icon="globe", kind="ghost", height=30,
                command=lambda: webbrowser.open(support.ISSUE_URL)).pack(side="left", padx=(8, 0))
-        self.report_status = label(card, "", 9, color=COL["muted"], wraplength=420, justify="left")
+        self.report_status = label(card, "", 9, color=COL["muted"], wraplength=wrap, justify="left")
 
         self._build_backup()
 
         self.body = self._outer
         footer(self)
         Button(self.buttons, _("Close"), kind="primary", command=self.destroy).pack(side="right")
-        self._fit()
+        if lindeck is not None:
+            self.geometry("820x660")
+            self.minsize(760, 520)
+            self.show_tab("general")
+        else:
+            self._fit()
         self.focus_set()
+
+    def show_tab(self, key):
+        """Reiter wechseln; die Seiten werden beim ersten Öffnen gebaut."""
+        if self.page is not None:
+            self.page.pack_forget()
+        if key not in self.pages:
+            from . import lindecksettings as L
+            cls = {"devices": L.DevicesPage, "profiles": L.ProfilesPage, "plugins": L.PluginsPage,
+                   "style": L.StylePage}[key]
+            self.pages[key] = cls(self.host, self, self.lindeck)
+        self.page = self.pages[key]
+        self.page.pack(fill="both", expand=True)
+        if getattr(self, "tabs", None) is not None and self.tabs.value != key:
+            self.tabs.set(key)
+
+    def _toggle_autostart(self):
+        from . import desktop
+        try:
+            desktop.set_autostart(self._autostart_name, self.autostart.get())
+        except OSError as e:
+            messagebox.showerror(_("Settings"), str(e), parent=self)
 
     def _card(self, title):
         field(self.body, title)
@@ -154,7 +206,8 @@ class SettingsDialog(Dialog):
     def _build_backup(self):
         card = self._card(_("Backup"))
         label(card, _("Save all profiles, images, plugins and settings of LinDeck and Linewave to one file, "
-                      "or restore them from such a file."), 9, color=COL["muted"], wraplength=420,
+                      "or restore them from such a file."), 9, color=COL["muted"],
+              wraplength=640 if self.lindeck is not None else 420,
               justify="left").pack(anchor="w")
         row = tk.Frame(card, bg=COL["panel"])
         row.pack(fill="x", pady=(12, 0))

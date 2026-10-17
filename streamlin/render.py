@@ -258,7 +258,23 @@ def compose_key(size, frame, title, state, overlay=None, background=(0, 0, 0), b
         _alert(img)
     elif overlay == "ok":
         _ok(img)
+    elif isinstance(overlay, tuple) and overlay[0] == "progress":
+        _progress(img, overlay[1])
     return img
+
+
+def _progress(img, frac):
+    """Fortschritt einer Multi-Aktion: abgedunkelt, unten ein Balken."""
+    w, h = img.size
+    shade = Image.new("RGBA", (w, h), (0, 0, 0, 110))
+    img.alpha_composite(shade)
+    d = ImageDraw.Draw(img)
+    pad, bh = w * 0.14, max(4, h * 0.07)
+    y = h * 0.5 - bh / 2
+    d.rounded_rectangle((pad, y, w - pad, y + bh), radius=bh / 2, fill=(70, 70, 78))
+    frac = max(0.0, min(1.0, float(frac)))
+    if frac > 0:
+        d.rounded_rectangle((pad, y, pad + (w - 2 * pad) * frac, y + bh), radius=bh / 2, fill=(91, 124, 255))
 
 
 def _alert(img):

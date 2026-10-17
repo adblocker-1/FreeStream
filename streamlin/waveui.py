@@ -2056,9 +2056,15 @@ class WaveWindow:
             # Zuordnung, außer ein neuer/geänderter Mix oder Kanal verlangt es)
             force = getattr(self, "_table_force", False)
             if ids != self._strip_ids and (self._strip_ids is None or force or not self._held("member")):
-                old, self._strip_ids, self._table_force = self._strip_ids, ids, False
-                if old is None or not self._sync_table(st["channels"], mixes, old, ids):
+                old, self._table_force = self._strip_ids, False
+                try:
+                    synced = old is not None and self._sync_table(st["channels"], mixes, old, ids)
+                except Exception:  # noqa: BLE001 – lieber ganz neu aufbauen als halb stehen bleiben
+                    log.exception("mixer table sync failed")
+                    synced = False
+                if not synced:
                     self._build_table(st["channels"], mixes)
+                self._strip_ids = ids
             if ids[1] != self._mix_card_ids:
                 self._mix_card_ids = ids[1]
                 self._fill_mix_cards(mixes)

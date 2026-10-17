@@ -78,6 +78,29 @@ def _rounded(img, r):
     return out
 
 
+def install_files(parent):
+    """Plugin-Dateien wählen und installieren; True, wenn Dateien gewählt wurden."""
+    files = filedialog.askopenfilenames(
+        parent=parent, title=_("Install plugin"),
+        filetypes=[(_("Plugin (Elgato format)"), "*.streamDeckPlugin *.zip"), (_("All files"), "*")])
+    if not files:
+        return False
+    msgs = []
+    for f in files:
+        try:
+            for uid in plugins.install(f):
+                info = plugins.installed().get(uid)
+                name = info.name if info else uid
+                msgs.append(_("“{name}” installed").format(name=name) if not info or info.runnable else
+                            _("“{name}” installed – does not run on Linux ({reason})").format(
+                                name=name, reason=info.reason))
+        except Exception as e:  # noqa: BLE001
+            msgs.append(f"{f}: {e}")
+    if msgs:
+        messagebox.showinfo(_("Plugins"), "\n".join(msgs), parent=parent)
+    return True
+
+
 class PluginManager(Dialog):
     def __init__(self, master, host=None, on_change=None):
         super().__init__(master, _("Plugins"), width=720, height=640)
@@ -213,26 +236,9 @@ class PluginManager(Dialog):
             self.on_change()
 
     def install(self):
-        files = filedialog.askopenfilenames(
-            parent=self, title=_("Install plugin"),
-            filetypes=[(_("Plugin (Elgato format)"), "*.streamDeckPlugin *.zip"), (_("All files"), "*")])
-        if not files:
-            return
-        msgs = []
-        for f in files:
-            try:
-                for uid in plugins.install(f):
-                    info = plugins.installed().get(uid)
-                    name = info.name if info else uid
-                    msgs.append(_("“{name}” installed").format(name=name) if not info or info.runnable else
-                                _("“{name}” installed – does not run on Linux ({reason})").format(
-                                    name=name, reason=info.reason))
-            except Exception as e:  # noqa: BLE001
-                msgs.append(f"{f}: {e}")
-        self._sync()
-        self.render()
-        if msgs:
-            messagebox.showinfo(_("Plugins"), "\n".join(msgs), parent=self)
+        if install_files(self):
+            self._sync()
+            self.render()
 
     def restart(self, info):
         host = self.host
