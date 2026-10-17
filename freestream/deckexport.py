@@ -109,6 +109,7 @@ def adopt_new_devices(store_root=None, connected=None):
 
 
 # ------------------------------------------------------------------ Belegung
+USED = "used"  # Export-Modus: nur benutzte Kanäle, später benutzte kommen dazu
 CHANNEL_KINDS = {"dial": "mute", "tile": "mute", "fader_top": "up", "fader_bottom": "down"}
 DEFAULT_MIXES = ("monitor", "stream")
 
@@ -272,7 +273,8 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None, 
         pages = _fill(root, model, list(channels), mix, mixes)
     except EditError as e:
         raise ExportError(str(e)) from e
-    meta["linewave"] = {"channels": list(channels), "all": bool(all_channels), "mix": mix, "mixes": mixes}
+    mode = USED if all_channels == USED else bool(all_channels)
+    meta["linewave"] = {"channels": list(channels), "all": mode, "mix": mix, "mixes": mixes}
     (root / META).write_text(json.dumps(meta, indent=2), encoding="utf-8")
     os.utime(root)
     notify_freedeck()
@@ -297,16 +299,23 @@ def notify_freedeck():
     return True
 
 
-def sync(channels, store_root=None, mixes=None):
+def sync(channels, store_root=None, mixes=None, used=None):
     """FreeWave-Profile an die aktuellen Kanäle und Mixe anpassen (neue dazu, gelöschte weg).
 
-    channels: alle Kanal-ids in Mixer-Reihenfolge. Gibt die Namen geänderter Profile zurück."""
+    channels: alle Kanal-ids in Mixer-Reihenfolge; used: davon die benutzten (Mixer.used_channels).
+    Profile im Modus „benutzte Kanäle“ bekommen einen Kanal dazu, sobald er benutzt wird – entfernt
+    wird dabei nichts (sonst verschwände eine Taste, nur weil das Programm gerade zu ist).
+    Gibt die Namen geänderter Profile zurück."""
     mixes = list(linewave_mixes() if mixes is None else mixes)
     changed = []
     for p in managed_profiles(store_root):
         lw = _meta(p.root).get("linewave") or {}
         old = [c for c in lw.get("channels") or []]
-        if lw.get("all", True):
+        mode = lw.get("all", True)
+        if mode == USED:
+            keep = set(old) | set(used or ())
+            want = [c for c in channels if c in keep]
+        elif mode:
             want = list(channels)
         else:
             want = [c for c in old if c in channels]

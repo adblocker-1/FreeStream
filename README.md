@@ -241,7 +241,9 @@ also for an input device such as a second microphone or a capture card.
 
 With FreeDeck installed too, **Export to FreeDeck** in the mixer header creates a
 profile “FreeWave” for your deck – laid out like the Wave Link profile – and keeps
-it up to date when you add or delete channels:
+it up to date when you add or delete channels. Only channels you actually use are
+pre-selected (something plays in them, a program is assigned, microphone and inputs);
+a channel you start using later is added by itself:
 
 - top row: mix keys (All and every mix) and “Channels 1–7”
 - per channel: a tile with icon and volume (press = mute) and a fader over two

@@ -4,7 +4,7 @@ Zwei Programme: FreeDeck (Stream Deck, liest Elgato-Profile direkt ein) und
 FreeWave (Audio-Mixer und Wave-Mikrofon, Ersatz für Wave Link).
 """
 
-__version__ = "0.29.2"
+__version__ = "0.29.3"
 APP_NAME = "freedeck"
 
 

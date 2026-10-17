@@ -349,3 +349,36 @@ def test_export_dialog_uses_connected_deck(root, store, tmp_path):
     assert dlg._selected_device()["model"] == "20GBD9901"
     assert [c.checked for _d, c in dlg.cards] == [False, True]
     dlg.destroy()
+
+
+def test_export_only_used_channels(root, store):
+    from freestream.wavedialogs import DeckExportDialog
+    chans = [("system", "System"), ("music", "Musik"), ("sfx", "SFX"), ("mic", "Mikrofon")]
+    dlg = DeckExportDialog(root, chans, used=["system", "music", "mic"])
+    assert dlg._selected_channels() == ["system", "music", "mic"]  # SFX: nichts spielt dort
+    dlg._create()
+    root_dir = _profile(store, "FreeWave")
+    meta = json.loads((root_dir / "lindeck-meta.json").read_text())["linewave"]
+    assert meta["channels"] == ["system", "music", "mic"] and meta["all"] == deckexport.USED
+    ids = ["system", "music", "sfx", "mic"]
+    assert deckexport.sync(ids, used=["system", "mic"]) == []  # Programm zu: Taste bleibt
+    assert deckexport.sync(ids, used=["system", "music", "sfx", "mic"]) == ["FreeWave"]  # SFX benutzt: dazu
+    meta = json.loads((root_dir / "lindeck-meta.json").read_text())["linewave"]
+    assert meta["channels"] == ["system", "music", "sfx", "mic"] and meta["all"] == deckexport.USED
+    # nichts benutzt (frisch eingerichtet): alle vorausgewählt
+    dlg = DeckExportDialog(root, chans, used=[])
+    assert dlg._selected_channels() == ["system", "music", "sfx", "mic"]
+    dlg.destroy()
+
+
+def test_used_channels(tmp_path, monkeypatch):
+    from freestream import mixer as M
+    from freestream.config import Config
+    monkeypatch.setattr(paths, "STATE_DIR", tmp_path)
+    cfg = Config()
+    cfg.data["mixer"] = {"routes": {"spotify": "music"}}
+    mx = M.Mixer(cfg)
+    assert mx.used_channels() == ["music", "mic"]  # zugeordnetes Programm, Mikrofon
+    mx.note_used([{"channel": "game"}, {"channel": None}])
+    assert mx.used_channels() == ["music", "game", "mic"]  # gemerkt, auch wenn das Spiel wieder zu ist
+    assert mx.used_channels([{"channel": "sfx"}]) == ["music", "game", "sfx", "mic"]
