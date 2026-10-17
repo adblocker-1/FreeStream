@@ -166,10 +166,23 @@ def test_window_and_edge_bar(daemon, tmp_path):
         assert daemon.virtual_controller.model == "FDV2X4"
         assert _until(root, lambda: (w.cols, w.rows) == (2, 4) and w.win.winfo_ismapped() and w.win.winfo_x() > 0)
         assert w.win.winfo_x() + w.win.winfo_width() >= root.winfo_screenwidth() - 2
-        w._set_collapsed(True)
-        assert _until(root, lambda: w.win.winfo_width() <= 12) and w.collapsed
-        w._expand()
-        assert _until(root, lambda: w.win.winfo_width() > 100) and not w.collapsed
+        sw = root.winfo_screenwidth()
+        from freestream.virtualui import GRIP
+        # Klick auf den Griff (innen, links): gleitet hinaus, nur der Griff bleibt sichtbar
+        gx, gy = GRIP // 2, w.height // 2
+        assert w._in_grip(gx, gy) and not w._in_grip(w.width - 5, gy)
+        w._hover(types.SimpleNamespace(x=gx, y=gy))
+        assert w.grip_hover
+        steps = []
+        w.win.geometry = (lambda orig: lambda g=None: (steps.append(g), orig(g))[1] if g else orig())(w.win.geometry)
+        w._press(types.SimpleNamespace(x=gx, y=gy, x_root=0, y_root=0))
+        assert w.collapsed and _until(root, lambda: w.win.winfo_x() == sw - GRIP)
+        xs = [int(g.split("+")[1]) for g in steps if g and g.startswith("+")]
+        assert len(xs) >= 10 and xs == sorted(xs)  # gleitet in vielen kleinen Schritten, nur nach außen
+        assert xs[1] - xs[0] > xs[-1] - xs[-2]      # schnell los, langsam ankommen
+        # Tasten sind eingeklappt nicht erreichbar, der Griff schon: wieder herein
+        w._press(types.SimpleNamespace(x=gx, y=gy, x_root=0, y_root=0))
+        assert not w.collapsed and _until(root, lambda: w.win.winfo_x() == sw - w.width)
         # ausgeschaltet: Fenster weg
         V.update(daemon.cfg, enabled=False)
         daemon.scan()
