@@ -734,3 +734,76 @@ def test_lv2_bridge_wiring(env, pactl, monkeypatch):
     assert effects._PROCS["music"][f"{node}_s1l"].stdin.getvalue() == "threshold = -20\n"
     mx.fx.stop("music")
     assert any(c[0] == "unload-module" for c in pactl.cmds)
+
+
+def test_linked_sliders_move_together(env, pactl):
+    from freestream.mixer import Mixer
+    mx = Mixer(_config(env, {"mixer": {"enabled": True}}))
+    mx.setup()
+    mx.set_volume("music", "monitor", 70)
+    mx.set_volume("music", "stream", 40)
+    assert not mx.is_linked("music")
+    mx.set_linked("music", True)
+    assert mx.is_linked("music") and Mixer(_reload_cfg()).is_linked("music")  # gespeichert
+    mx.set_volume("music", "monitor", 80)  # +10 -> Stream-Mix geht mit, Abstand bleibt
+    assert mx.get("music", "monitor")[0] == 80 and mx.get("music", "stream")[0] == 50
+    assert mx.change_volume("music", "stream", -20) == {"monitor": 60, "stream": 30}
+    mx.set_linked("music", False)
+    mx.set_volume("music", "monitor", 90)
+    assert mx.get("music", "stream")[0] == 30  # entkoppelt: nur der eine Mix
+
+
+def _reload_cfg():
+    from freestream.config import Config
+    return Config()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
+def test_wave_window_link_hear_drag_and_clip(env, pactl):
+    import tkinter as tk
+    import types
+
+    from freestream.wavehost import WaveHost
+    from freestream.waveui import WaveWindow
+    host = WaveHost(_config(env, {"mixer": {"enabled": True}}))
+    host.start()
+    root = tk.Tk()
+    try:
+        win = WaveWindow(root, host, tray=False,
+                         level_factory=lambda d: types.SimpleNamespace(level=1.0, stop=lambda: None))
+        assert _pump(root, lambda: bool(win.strips) and bool(getattr(win, "link_btns", None)))
+        # 6. gekoppelte Regler: Kettensymbol je Kanal mit zwei Mixen
+        assert "music" in win.link_btns and not win.link_btns["music"].on
+        win._on_link("music", True)
+        assert _pump(root, lambda: host.mixer.is_linked("music"))
+        before = win.strips["music"]["stream"]["pct"]
+        win._on_level("music", "monitor", str(win.strips["music"]["monitor"]["pct"] - 10))
+        assert win.strips["music"]["stream"]["pct"] == before - 10  # sofort mitgezogen
+        assert _pump(root, lambda: host.mixer.get("music", "stream")[0] == before - 10)
+        # 8. Mithören: Mikrofon im Persönlichen Mix laut
+        hear = win.strips["mic"]["hear"]
+        assert hear is not None and not hear.get()
+        hear.set(True)
+        win._on_hear_mic()
+        assert _pump(root, lambda: host.mixer.get("mic", "monitor") == (100, False) or
+                     host.mixer.get("mic", "monitor")[1] is False)
+        # 9. Mix-Pegel: Übersteuerung wird rot als „CLIP“ angezeigt
+        assert _pump(root, lambda: win.mix_meters["stream"]["db"].get() == "CLIP")
+        # 7. Programm per Ziehen in einen Kanal
+        moved = []
+        win._on_stream = lambda s, cid: moved.append((s["app"], cid))
+        card = win.strips["voice"]["card"]
+        win._drop_target = lambda x, y: ("voice", card)
+        s = {"app": "Spotify", "channel": "music", "index": "5"}
+        win._drag_app(s, None, "start", 10, 10)
+        win._drag_app(s, None, "move", 20, 20)
+        assert card.outline == theme_accent()
+        win._drag_app(s, None, "drop", 20, 20)
+        assert moved == [("Spotify", "voice")] and win._drag_ghost is None
+    finally:
+        root.destroy()
+
+
+def theme_accent():
+    from freestream.theme import COL
+    return COL["accent"]

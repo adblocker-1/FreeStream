@@ -207,7 +207,7 @@ def test_volume_never_above_100():
 
     class M(mixer.Mixer):
         def __init__(self):
-            pass
+            self.cfg = None
 
         def _duck(self):
             return None

@@ -524,6 +524,17 @@ def _draw_glyph(name, size, color, bg, circle):
     elif n == "arrow":
         line((0.1, 0.5), (0.9, 0.5))
         line((0.58, 0.2), (0.9, 0.5), (0.58, 0.8))
+    elif n in ("link", "link_off"):  # zwei Kettenglieder (gekoppelt) bzw. getrennt
+        r = S * 0.16
+        w2 = int(lw * 1.4)
+        if n == "link":
+            d.rounded_rectangle((*P(0.0, 0.28), *P(0.62, 0.72)), radius=r, outline=c, width=w2)
+            d.rounded_rectangle((*P(0.38, 0.28), *P(1.0, 0.72)), radius=r, outline=c, width=w2)
+        else:
+            d.rounded_rectangle((*P(0.0, 0.28), *P(0.42, 0.72)), radius=r, outline=c, width=w2)
+            d.rounded_rectangle((*P(0.58, 0.28), *P(1.0, 0.72)), radius=r, outline=c, width=w2)
+            line((0.5, 0.04), (0.5, 0.18))
+            line((0.5, 0.82), (0.5, 0.96))
     elif n == "arrow_left":
         line((0.1, 0.5), (0.9, 0.5))
         line((0.42, 0.2), (0.1, 0.5), (0.42, 0.8))

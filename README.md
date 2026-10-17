@@ -223,7 +223,8 @@ mute for every channel.
 
 ## Apps and channels
 
-Under **Apps** you choose which channel a program plays into; new programs go into
+Under **Apps** you choose which channel a program plays into – click it, or **drag it
+onto another channel** (also onto a channel row in the mixer); new programs go into
 the matching channel by themselves. **Add channel** creates your own channels,
 also for an input device such as a second microphone or a capture card.
 
@@ -232,6 +233,9 @@ also for an input device such as a second microphone or a capture card.
 | Feature | |
 |---|---|
 | **Effects** | **FX** below a channel: high-pass, EQ, gate, compressor, reverb and any LADSPA/LV2 plugin (`swh-plugins`, `tap-plugins`, `x42-plugins` …) |
+| **Linked sliders** | the chain between two mix sliders links them: moving one moves all mixes of the channel by the same amount (also from the deck) |
+| **Hear yourself** | the headphones button on the microphone row puts your voice on your headphones (Personal Mix) |
+| **Mix levels** | each mix shows its level in dB; **CLIP** in red means it is too loud |
 | **Scenes** | save the whole mix under a name and switch with one click, a shortcut or a deck key |
 | **Auto-ducking** | music gets quieter while you speak and comes back afterwards |
 | **Noise suppression** | for any microphone; uses [RNNoise](https://github.com/werman/noise-suppression-for-voice) if installed, otherwise PipeWire's built-in filter |
