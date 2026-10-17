@@ -111,18 +111,38 @@ def test_idle_image_instead_of_logo(tmp_path, monkeypatch, deck_type):
     deck.set_key_image = lambda k, img: calls.append(("key", k))
     deck.set_touchscreen_image = lambda *a: calls.append("touch")
     deck.close = lambda: calls.append("close")
-    assert not ctrl.show_idle_image()  # nichts gewählt
-    ctrl.cfg.device(ctrl.serial)["idle_image"] = str(_bg(tmp_path / "idle.png"))
-    ctrl.stop()
-    assert "reset" not in calls and calls[-1] == "close"
-    assert {c[1] for c in calls if isinstance(c, tuple)} == set(range(ctrl.key_count))
-    assert ("touch" in calls) == ctrl.touch
-    # Bild weg: wie bisher zurücksetzen
-    calls.clear()
-    ctrl.cfg.device(ctrl.serial)["idle_image"] = str(tmp_path / "gibtsnicht.png")
-    ctrl.stop()
-    assert calls == ["reset", "close"]
-    real_close()  # Lese-Thread der Bibliothek beenden
+    try:
+        assert not ctrl.show_idle_image()  # nichts gewählt
+        ctrl.cfg.device(ctrl.serial)["idle_image"] = str(_bg(tmp_path / "idle.png"))
+        assert ctrl.show_idle_image()  # Fehler hier sichtbar (stop() verschluckt sie)
+        calls.clear()
+        ctrl.stop()
+        assert "reset" not in calls and calls[-1] == "close"
+        assert {c[1] for c in calls if isinstance(c, tuple)} == set(range(ctrl.key_count))
+        assert ("touch" in calls) == ctrl.touch
+        # Bild weg: wie bisher zurücksetzen
+        calls.clear()
+        ctrl.cfg.device(ctrl.serial)["idle_image"] = str(tmp_path / "gibtsnicht.png")
+        ctrl.stop()
+        assert calls == ["reset", "close"]
+    finally:
+        real_close()  # Lese-Thread der Bibliothek beenden – sonst bremst er alle folgenden Tests
+
+
+def test_old_pillow_gets_new_names(monkeypatch):
+    """Ubuntu 22.04 (Pillow 9.0): ohne Image.Transpose konnte die Gerätebibliothek XL-Tasten nicht spiegeln."""
+    from PIL import Image as I
+
+    from freestream import render
+    monkeypatch.delattr(I, "Transpose")
+    monkeypatch.delattr(I, "Resampling")
+    render.pillow_compat()
+    assert I.Transpose.FLIP_LEFT_RIGHT == I.FLIP_LEFT_RIGHT and I.Resampling.LANCZOS == I.LANCZOS
+    pytest.importorskip("StreamDeck")
+    from StreamDeck.DeviceManager import DeviceManager
+    from StreamDeck.ImageHelpers import PILHelper
+    xl = next(d for d in DeviceManager(transport="dummy").enumerate() if d.deck_type() == "Stream Deck XL")
+    assert PILHelper.to_native_key_format(xl, I.new("RGB", (96, 96), (1, 2, 3)))
 
 
 import test_editor  # noqa: E402

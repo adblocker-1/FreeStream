@@ -282,6 +282,9 @@ def test_mix_select_asks_pactl_once(monkeypatch):
     calls.clear()
     sel.key_down()
     assert native.deck_mix() == "stream"
+    import threading
+    for t in [t for t in threading.enumerate() if t.name == "mix-select"]:
+        t.join(5)  # die Kanaltasten zeichnet ein Hintergrund-Thread neu
     assert len([c for c in calls if c[1] == "list"]) == 1  # früher eine je Taste und Mix
     assert order[0] is sel  # die gedrückte Mix-Taste zuerst
     native._DECK_MIX["mix"] = "both"
@@ -330,3 +333,69 @@ def test_other_keys_of_the_channel_follow_at_once(monkeypatch):
     assert tile.drawn and tile.drawn[0] == (65, False)  # sofort, nicht erst im Sekundentakt
     tile.key_down()  # stumm
     assert up._level() == (65, True) and down._level() == (65, True)
+
+
+def test_hold_repeat_not_reset_by_late_tick_listing(monkeypatch):
+    """Halten der Taste: kommt eine Abfrage des Sekundentakts, die vor dem letzten Schreiben gestellt
+    wurde, erst danach zurück, darf sie den eben geschriebenen Wert nicht zurückdrehen – sonst rechnet der
+    nächste Schritt vom alten Wert aus und die Anzeige springt."""
+    from freestream import mixer as M
+    from freestream import system
+    mx, calls = _fake_pactl(monkeypatch, muted=())
+    stale = system._pactl_blocks("sink-inputs")  # Abfrage „unterwegs“: alle Kanäle bei 60 %
+    assert mx.change_volume("music", "monitor", 5, recent=True) == {"monitor": 65}
+    M._remember_loops(stale)                     # … kommt erst jetzt an (Sekundentakt)
+    assert mx.change_volume("music", "monitor", 5, recent=True) == {"monitor": 70}
+    assert mx.get("music", "monitor") == (70, False)  # die Taste zeigt auch nach dem Takt den neuen Wert
+
+
+def test_change_elsewhere_is_read_again_before_the_next_press(monkeypatch):
+    """Lautstärke im FreeWave-Fenster (anderer Prozess) geändert: FreeDeck liest auf die Meldung von
+    PipeWire neu ein – der nächste Tastendruck rechnet vom neuen Wert aus, nicht vom gemerkten."""
+    import threading
+    import time
+
+    from freestream import mixer as M
+    from freestream import system
+    mx, calls = _fake_pactl(monkeypatch, muted=())
+    listing = system.run_out(["pactl", "list", "sink-inputs"])
+    state = {"listing": listing}
+    monkeypatch.setattr(system, "run_out", lambda cmd, timeout=2: (calls.append(cmd), state["listing"]
+                                                                   if cmd[:3] == ["pactl", "list", "sink-inputs"] else "")[1])
+
+    class Watch:  # wie system.PulseWatch, Meldungen von Hand
+        def __init__(self):
+            self.version, self._running, self.cond = 0, True, threading.Condition()
+
+        def start(self):
+            return self
+
+        def wait(self, since, timeout):
+            with self.cond:
+                if self.version <= since:
+                    self.cond.wait(timeout)
+                return self.version
+
+        def bump(self):
+            with self.cond:
+                self.version += 1
+                self.cond.notify_all()
+    w = Watch()
+    monkeypatch.setattr(system, "PulseWatch", lambda: w)
+    monkeypatch.setattr(M, "WATCH", True)
+    monkeypatch.setitem(M._WATCH, "wanted", True)
+    M._WATCH.pop("thread", None)
+    assert mx.change_volume("music", "monitor", 5, recent=True) == {"monitor": 65}
+    time.sleep(0.05)
+    # anderes Programm stellt 30 % ein; PipeWire meldet die Änderung
+    state["listing"] = listing.replace("60%", "30%")
+    w.bump()
+    for _i in range(100):
+        blk = (M._recent_loops() or {}).get(mx.loop_name("music", "monitor"))
+        if blk and blk.get("volume") == 30:
+            break
+        time.sleep(0.01)
+    assert mx.change_volume("music", "monitor", 5, recent=True) == {"monitor": 35}
+    monkeypatch.setattr(M, "WATCH", False)
+    w.bump()
+    M._WATCH["thread"].join(2)
