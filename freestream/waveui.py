@@ -388,6 +388,9 @@ class RemoveBadge(tk.Canvas):
         return ImageTk.PhotoImage(im.resize((s, s), Image.LANCZOS), master=self)
 
 
+LINK_GAP = 32  # Lücke hinter dem ersten Mix eines Kanals, darin die Kette (LinkToggle.SIZE + Rand)
+
+
 class LinkToggle(tk.Canvas):
     """Kettensymbol zwischen zwei Mix-Reglern (wie das Schloss in Wave Link): gekoppelt = farbig."""
 
@@ -1217,8 +1220,11 @@ class WaveWindow:
             if btn is None:
                 btn = LinkToggle(self.table, command=lambda on, c=cid: self._on_link(c, on))
                 btn.anchor = anchor
-                btn.configure(bg=theme._bg_of(anchor.master))  # Farbe der Lücke, in der die Kette sitzt
-                btn.place(in_=anchor, relx=1.0, x=5, rely=0.5, anchor="center")  # in der Lücke zum nächsten Mix
+                # eigene, breitere Lücke hinter dem ersten Mix: die Kette sitzt ganz darin (sonst ragt ihr
+                # Quadrat in beide Zellen und zeigt dort die falsche Farbe)
+                anchor.grid_configure(padx=(0, LINK_GAP))
+                btn.configure(bg=theme._bg_of(anchor.master))
+                btn.place(in_=anchor, relx=1.0, x=LINK_GAP // 2, rely=0.5, anchor="center")
                 tk.Misc.lift(btn)
                 btns[cid] = btn
             if not self._held(f"link:{cid}"):
