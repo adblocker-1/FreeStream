@@ -18,6 +18,15 @@ needs_x = pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (x
 HOTKEY = "com.elgato.streamdeck.system.hotkey"
 
 
+def _until(root, cond, secs=5.0):
+    """Tk laufen lassen, bis cond() stimmt (der Takt des Fensters läuft alle 40–300 ms)."""
+    end = time.time() + secs
+    while not cond() and time.time() < end:
+        root.update()
+        time.sleep(0.02)
+    return cond()
+
+
 @pytest.fixture
 def daemon(tmp_path, monkeypatch):
     from freestream import paths
@@ -111,8 +120,8 @@ def test_window_and_edge_bar(daemon, tmp_path):
     root = tk.Tk()
     try:
         w = VirtualDeckWindow(root, daemon)
-        _pump(root, 10)
-        assert w.win is not None and w.win.winfo_ismapped() and w.win.overrideredirect()
+        assert _until(root, lambda: w.win is not None and w.win.winfo_ismapped() and w._seq >= 0)
+        assert w.win.overrideredirect()
         assert (w.cols, w.rows) == (4, 2) and len([h for h in w._hits if h[4][0] == "key"]) == 8
         # Taste klicken
         got = []
@@ -134,27 +143,22 @@ def test_window_and_edge_bar(daemon, tmp_path):
         assert ctrl.page_index == 1
         # Ausblenden (Kürzel / ×) und wieder einblenden
         w.request_toggle()
-        _pump(root, 5)
-        assert not w.win.winfo_ismapped() and V.settings(daemon.cfg)["visible"] is False
+        assert _until(root, lambda: not w.win.winfo_ismapped())
+        assert V.settings(daemon.cfg)["visible"] is False
         w.toggle()
-        _pump(root, 5)
-        assert w.win.winfo_ismapped()
+        assert _until(root, lambda: w.win.winfo_ismapped())
         # Randleiste rechts: Zeilen werden Spalten, klappt ein und wieder aus
         V.update(daemon.cfg, mode="edge")
-        _pump(root, 5)
-        assert (w.cols, w.rows) == (2, 4) and w.win.winfo_ismapped()
+        assert _until(root, lambda: (w.cols, w.rows) == (2, 4) and w.win.winfo_ismapped() and w.win.winfo_x() > 0)
         assert w.win.winfo_x() + w.win.winfo_width() >= root.winfo_screenwidth() - 2
         w._set_collapsed(True)
-        _pump(root, 3)
-        assert w.collapsed and w.win.winfo_width() <= 12
+        assert _until(root, lambda: w.win.winfo_width() <= 12) and w.collapsed
         w._expand()
-        _pump(root, 3)
-        assert not w.collapsed and w.win.winfo_width() > 100
+        assert _until(root, lambda: w.win.winfo_width() > 100) and not w.collapsed
         # ausgeschaltet: Fenster weg
         V.update(daemon.cfg, enabled=False)
         daemon.scan()
-        _pump(root, 20)  # ausgeblendet sieht das Fenster nur alle 300 ms nach
-        assert w.win is None
+        assert _until(root, lambda: w.win is None)
         w.close()
     finally:
         root.destroy()
