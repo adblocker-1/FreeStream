@@ -237,13 +237,23 @@ class ActionTile(tk.Canvas):
         self.img = theme.icon_tile(app.root, glyph, 30, color, radius=0.27)
         self.fb = theme.font(app.root, 10, "bold")
         self.fs = theme.font(app.root, 9)
-        self.bind("<Configure>", lambda e: self._draw())
+        self._idle = None
+        self.bind("<Configure>", self._on_configure)
         self.bind("<Enter>", lambda e: self._set_hover(True))
         self.bind("<Leave>", lambda e: self._set_hover(False))
         self.bind("<ButtonPress-1>", lambda e: app._lib_press(e, atype.uuid))
         self.bind("<B1-Motion>", app._lib_motion)
         self.bind("<ButtonRelease-1>", app._lib_release)
         self.bind("<Double-Button-1>", lambda e: app._lib_double(atype.uuid))
+
+    def _on_configure(self, _e):
+        # beim Aufbau ändert sich die Breite mehrmals (Bildlaufleiste): nur einmal zeichnen, wenn Ruhe ist
+        if self._idle is None:
+            self._idle = self.after_idle(self._idle_draw)
+
+    def _idle_draw(self):
+        self._idle = None
+        self._draw(force=False)
 
     def _set_hover(self, v):
         self.hover = v
@@ -261,9 +271,13 @@ class ActionTile(tk.Canvas):
             return _("dials only")
         return a.category.split(":", 1)[-1].strip() if a.category.startswith("Plugin:") else a.category
 
-    def _draw(self):
-        self.delete("all")
+    def _draw(self, force=True):
         w, h = max(self.winfo_width(), 60), self.H
+        state = (w, self.selected, self.hover)
+        if not force and state == getattr(self, "_drawn", None):
+            return  # <Configure> ohne neue Größe
+        self._drawn = state
+        self.delete("all")
         if w <= 60:
             return  # noch nicht angeordnet: gleich folgt <Configure> mit der echten Breite
         out = COL["accent"] if self.selected else (COL["faint"] if self.hover else COL["border"])
@@ -292,12 +306,33 @@ def _measure_font(widget, fnt):
     return f
 
 
+_SIMPLE = frozenset("…–—„“”‘’‚·×°€")  # Satzzeichen, die sich wie lateinische Buchstaben verhalten
+
+
+def _width(f, text):
+    """Breite von text in Pixeln. Jedes measure() ist ein Tk-Aufruf (unter X rund 0,5 ms) – deshalb
+    zählen bei lateinischer Schrift die einzeln gemessenen Zeichen zusammen (Tk unterschneidet nicht,
+    das Ergebnis ist gleich); andere Schriften und Emoji werden als Ganzes gemessen."""
+    cache = f.__dict__.setdefault("_widths", {})
+    w = cache.get(text)
+    if w is not None:
+        return w
+    if len(cache) > 20000:
+        cache.clear()
+    if len(text) > 1 and all(ord(ch) < 0x300 or ch in _SIMPLE for ch in text):
+        w = sum(_width(f, ch) for ch in text)
+    else:
+        w = f.measure(text)
+    cache[text] = w
+    return w
+
+
 def _cut(text, f, width):
-    """Längster Anfang von text, der mit „…“ in width passt (binäre Suche statt Zeichen für Zeichen)."""
+    """Längster Anfang von text, der mit „…“ in width passt (binäre Suche)."""
     lo, hi = 0, len(text)
     while lo < hi:
         mid = (lo + hi + 1) // 2
-        if f.measure(text[:mid].rstrip() + "…") <= width:
+        if _width(f, text[:mid].rstrip() + "…") <= width:
             lo = mid
         else:
             hi = mid - 1
@@ -307,7 +342,7 @@ def _cut(text, f, width):
 def _clip(text, f, width):
     """Eine Zeile auf `width` Pixel kürzen (mit …); f: tkfont.Font."""
     text = " ".join(str(text or "").split())
-    if f.measure(text) <= width:
+    if _width(f, text) <= width:
         return text
     return _cut(text, f, width)
 
@@ -319,14 +354,15 @@ def _clip_lines(widget, text, fnt, width, lines):
     if hit is not None:
         return hit
     f = _measure_font(widget, fnt)
-    words, out, cur = text.split(), [], ""
+    space = _width(f, " ")
+    words, out, cur, cur_w = text.split(), [], "", 0
     for wd in words:
-        t = (cur + " " + wd).strip()
-        if f.measure(t) <= width or not cur:
-            cur = t
+        ww = _width(f, wd)  # Zeilenbreite aus Wortbreiten: ein Tk-Aufruf je Wort statt je Zwischenstand
+        if not cur or cur_w + space + ww <= width:
+            cur, cur_w = (cur + " " + wd if cur else wd), (cur_w + space + ww if cur else ww)
         else:
             out.append(cur)
-            cur = wd
+            cur, cur_w = wd, ww
             if len(out) > lines:
                 break  # mehr Zeilen braucht niemand
     if cur:
@@ -334,7 +370,7 @@ def _clip_lines(widget, text, fnt, width, lines):
     cut = len(out) > lines
     out = out[:lines]
     for i, line in enumerate(out):
-        if f.measure(line) > width or (cut and i == len(out) - 1):
+        if _width(f, line) > width or (cut and i == len(out) - 1):
             out[i] = _cut(line, f, width)
     if len(_CLIPPED) > 4000:
         _CLIPPED.clear()

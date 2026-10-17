@@ -51,7 +51,8 @@ def daemon(tmp_path, monkeypatch):
 
 def test_virtual_models():
     from freestream import models as M
-    assert M.model_name("FDV4X2") == "Virtuelles Deck 4 × 2"
+    assert M.model_name("FDV4X2") == "Virtuelles Deck 4 × 2" and M.model_name("FDV2X4") == "Virtuelles Deck 2 × 4"
+    assert V.device_model({"model": "FDV8X4", "mode": "edge"}) == "FDV4X8"
     assert M.model_geometry("FDV8X4") == M.Geometry(8, 4) and M.is_virtual("FDV3X2")
     assert not M.is_virtual("20GBA9901") and M.elgato_name("FDV5X3") == "Virtual Deck"
     assert "Stream Deck" not in M.model_name("FDV5X3")
@@ -85,8 +86,20 @@ def test_daemon_adds_resizes_and_removes_virtual_deck(daemon):
     new = daemon.virtual_controller
     assert new is not ctrl and new.geometry.cols == 5 and not ctrl.running
     assert list(daemon.controllers) == ["virtual:FDV5X3"]
-    # 4×2-Profil wird nicht übernommen, obwohl es gemerkt ist
-    assert new.profile.name == "Virtuelles Deck 5 × 3"
+    # das leere, automatisch angelegte Profil zieht mit um – kein zweites Profil
+    assert new.profile.name == "Virtuelles Deck 5 × 3" and len(daemon.store.profiles) == 1
+    assert new.profile.id == ctrl.profile.id
+    # belegt: bleibt bei seiner Größe, die Randleiste (hochkant 3 × 5) bekommt ein eigenes
+    doc = E.ProfileDoc(new.profile.root)
+    doc.place(doc.page_ids[0], ("key", 0, 0), HOTKEY)
+    doc.save()
+    daemon.store.reload()
+    V.update(daemon.cfg, mode="edge")
+    daemon.sync_virtual()
+    edge = daemon.virtual_controller
+    assert edge.model == "FDV3X5" and (edge.geometry.cols, edge.geometry.rows) == (3, 5)
+    assert edge.profile.name == "Virtuelles Deck 3 × 5" and len(daemon.store.profiles) == 2
+    new = edge
     V.update(daemon.cfg, enabled=False)
     daemon.scan()
     assert not daemon.controllers and not new.running
@@ -147,8 +160,10 @@ def test_window_and_edge_bar(daemon, tmp_path):
         assert V.settings(daemon.cfg)["visible"] is False
         w.toggle()
         assert _until(root, lambda: w.win.winfo_ismapped())
-        # Randleiste rechts: Zeilen werden Spalten, klappt ein und wieder aus
+        # Randleiste rechts: hochkant (eigenes Gerät 2 × 4, im Editor genauso), klappt ein und wieder aus
         V.update(daemon.cfg, mode="edge")
+        daemon.sync_virtual()  # wie Einstellungen › Geräte
+        assert daemon.virtual_controller.model == "FDV2X4"
         assert _until(root, lambda: (w.cols, w.rows) == (2, 4) and w.win.winfo_ismapped() and w.win.winfo_x() > 0)
         assert w.win.winfo_x() + w.win.winfo_width() >= root.winfo_screenwidth() - 2
         w._set_collapsed(True)
@@ -187,12 +202,14 @@ def test_settings_virtual_form(own_config, settings, monkeypatch):
     assert calls == ["sync"] and V.settings(cfg)["enabled"] and page.vcard.subtitle == "Ein · Fenster"
     assert page.v_modes["window"].selected and str(page.v_edge.cget("state")) == "disabled"
     _shot(dlg, "settings-virtual")
+    assert page.v_size.cget("values")[1] == "4 × 2 Tasten"
     page.v_modes["edge"].command()
     assert V.settings(cfg)["mode"] == "edge" and page.v_modes["edge"].selected
+    assert page.v_size.cget("values")[1] == "2 × 4 Tasten" and calls == ["sync", "sync"]  # hochkant
     assert str(page.v_edge.cget("state")) == "readonly" and not page.v_top.enabled
     page.v_size.current(3)
     page._v_set(model=page.v_codes[3])
-    assert V.settings(cfg)["model"] == "FDV8X4" and calls == ["sync", "sync"]
+    assert V.settings(cfg)["model"] == "FDV8X4" and calls == ["sync", "sync", "sync"]
     # Tastenkürzel beim Desktop eintragen
     reg = []
     monkeypatch.setattr(shortcuts, "register", lambda *a, **k: reg.append(a) or {})

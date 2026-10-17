@@ -2,7 +2,7 @@
 
 Zwei Darstellungen, Einstellungen › Geräte › Virtuelles Deck:
   window  schwebendes Fenster: Titelleiste zum Verschieben, Tasten, unten Profil und Seiten
-  edge    Leiste am rechten oder linken Bildschirmrand (Tasten gedreht: Zeilen werden Spalten);
+  edge    Leiste am rechten oder linken Bildschirmrand (hochkant – im Editor genauso);
           klappt ein, wenn die Maus sie verlässt, und kommt zurück, sobald die Maus an den Rand fährt
 
 Das Fenster nimmt keinen Fokus (overrideredirect): Tastenkürzel einer Taste landen so im
@@ -152,8 +152,8 @@ class VirtualDeckWindow:
     # ------------------------------------------------------------ Aufbau
     def _build(self, ctrl, s):
         self.ctrl, self.mode, self.edge = ctrl, s["mode"], s["edge"]
-        g = ctrl.geometry
-        self.cols, self.rows = (g.rows, g.cols) if self.mode == "edge" else (g.cols, g.rows)
+        g = ctrl.geometry  # als Randleiste schon hochkant (virtualdeck.device_model)
+        self.cols, self.rows = g.cols, g.rows
         if self.mode == "edge":
             avail = self.root.winfo_screenheight() - 140
             self.tile = max(40, min(64, (avail - 8 * (self.rows - 1)) // self.rows))
@@ -204,8 +204,6 @@ class VirtualDeckWindow:
     # ------------------------------------------------------------ Zeichnen
     def _key_xy(self, k):
         r, c = divmod(k, self.ctrl.geometry.cols)
-        if self.mode == "edge":
-            r, c = c, r
         x0 = (self.width - (self.cols * self.tile + (self.cols - 1) * self.gap)) // 2
         return x0 + c * (self.tile + self.gap), self.title_h + self.pad + r * (self.tile + self.gap)
 
