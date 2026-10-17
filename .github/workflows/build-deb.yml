@@ -27,7 +27,7 @@ jobs:
         image: ["debian:12", "ubuntu:22.04"]
     container: ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Tests und Paket auf ${{ matrix.image }}
         run: sh packaging/ci/compat.sh
 
@@ -35,7 +35,7 @@ jobs:
     needs: compat
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Abhängigkeiten
         run: |
@@ -93,7 +93,7 @@ jobs:
           ! dpkg -s lindeck 2>/dev/null | grep -q '^Status: install ok installed'
           lindeck --version
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: freestream-deb
           path: dist/*.deb
