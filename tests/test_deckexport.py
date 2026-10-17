@@ -269,6 +269,17 @@ def test_export_dialog(root, store):
     assert meta["linewave"]["all"] is False
     dlg = DeckExportDialog(root, chans)
     assert dlg.create_btn.text == "Profil aktualisieren"
+    assert not dlg.transparent.get() and dlg.bg_label.cget("text") == "keins"
+    # Aussehen: Hintergrundbild wählen schaltet „Transparente Tasten“ mit ein
+    from PIL import Image
+    Image.new("RGB", (300, 150), (20, 120, 220)).save(store.parent / "bg.png")
+    dlg._set_background(str(store.parent / "bg.png"))
+    assert dlg.transparent.get() and dlg.bg_label.cget("text") == "bg.png"
+    dlg._create()
+    lk = deckexport.look(PLUS, store)
+    assert lk["opacity"] == 0 and lk["background"] is not None
+    dlg = DeckExportDialog(root, chans)  # merkt sich das Aussehen
+    assert dlg.transparent.get() and dlg.bg_label.cget("text") == "freewave-background.png"
     dlg.destroy()
 
 

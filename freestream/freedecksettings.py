@@ -200,6 +200,14 @@ class DevicesPage(_Page):
                             command=self._set_brightness)
         self.bright.pack(side="left")
         label(r, textvariable=self.bright_val, size=9, color=COL["muted"], width=6, anchor="e").pack(side="left")
+        # Bild, solange FreeDeck nicht läuft (statt des Logos des Geräts)
+        r = self.row(body, _("When not running"))
+        self.idle_preview = tk.Label(r, bg=COL["panel"])
+        self.idle_preview.pack(side="left", padx=(0, 10))
+        Button(r, _("Image…"), icon="image", command=self._pick_idle).pack(side="left")
+        self.idle_remove = Button(r, _("Remove"), kind="ghost", command=lambda: self._set_idle(None))
+        self.idle_remove.pack(side="left", padx=(4, 0))
+        self._show_idle()
         # Info
         r = self.row(body, _("Model"))
         label(r, model_name(ctrl.model), 10).pack(side="left")
@@ -394,6 +402,52 @@ class DevicesPage(_Page):
         self._dcfg()["brightness"] = v
         self.ctrl.set_brightness(v)
         self.save_later()
+
+    def _show_idle(self):
+        """Kleine Vorschau des Bilds für „FreeDeck läuft nicht“ (sonst ein Hinweis)."""
+        path = self.ctrl.idle_image_path() if hasattr(self.ctrl, "idle_image_path") else None
+        if path is None:
+            self._idle_photo = None
+            self.idle_preview.configure(image="", text=_("Device logo"), fg=COL["muted"], font=font(self, 9))
+        else:
+            from PIL import ImageOps
+            try:
+                with Image.open(path) as im:
+                    thumb = ImageOps.fit(im.convert("RGB"), (48, 28), Image.LANCZOS)
+                self._idle_photo = ImageTk.PhotoImage(thumb, master=self)
+                self.idle_preview.configure(image=self._idle_photo, text="")
+            except OSError:
+                self.idle_preview.configure(image="", text=path.name)
+        self.idle_remove.configure_text(enabled=path is not None)
+
+    def _pick_idle(self):
+        f = messagebox.askopenfilename(parent=self, title=_("Image when FreeDeck is not running"), filetypes=[
+            (_("Images"), "*.png *.jpg *.jpeg *.webp *.gif *.bmp"), (_("All files"), "*")])
+        if f:
+            self._set_idle(f)
+
+    def _set_idle(self, src):
+        """Bild in den Konfigurationsordner kopieren (die Quelle darf danach verschwinden)."""
+        from PIL import ImageOps
+        from . import paths
+        d = self._dcfg()
+        dst = paths.CONFIG_DIR / "idle" / f"{self.ctrl.serial}.png"
+        if src is None:
+            d.pop("idle_image", None)
+            dst.unlink(missing_ok=True)
+        else:
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                with Image.open(src) as im:
+                    im = ImageOps.exif_transpose(im).convert("RGB")
+                    im.thumbnail((1600, 1600), Image.LANCZOS)
+                    im.save(dst)
+            except (OSError, ValueError) as e:
+                messagebox.showerror(_("Settings"), _("Image not readable: {error}").format(error=e), parent=self)
+                return
+            d["idle_image"] = str(dst)
+        self.save_now()
+        self._show_idle()
 
     def _set_profile(self):
         pid = self.profile_ids[self.profile.current()]

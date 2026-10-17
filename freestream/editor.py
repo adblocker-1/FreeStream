@@ -2162,6 +2162,19 @@ class ActionForm:
         b.pack(side="left", padx=(4, 0))
         if not st.get("Image"):
             b.configure_text(enabled=False)
+        # Deckkraft: das Hintergrundbild der Seite scheint durch das Symbol (FreeWave-Tasten: ihr Hintergrund)
+        lab(_("Opacity"), 3, 0)
+        orow = tk.Frame(f, bg=COL["panel"])
+        orow.grid(row=3, column=1, sticky="ew", pady=4)
+        try:
+            op = max(0, min(100, int(st.get("IconOpacity", 100))))
+        except (TypeError, ValueError):
+            op = 100
+        op_val = tk.StringVar(f, value=f"{op} %")
+        fd = theme.Fader(orow, length=150, thickness=18, orient="horizontal", value=op,
+                         command=lambda v: self._set_opacity(v, op_val))
+        fd.pack(side="left")
+        ttk.Label(orow, textvariable=op_val, style="Panel.TLabel", width=6).pack(side="left", padx=(8, 0))
         # rechts: Zustand, Titel zeigen + Position, Farbe
         r = 0
         if len(states) > 1:
@@ -2202,6 +2215,21 @@ class ActionForm:
         self.doc.update_state(self.page_uuid, self.slot, self.state_idx, key, value, action=self.data)
         if rebuild:
             self.build_appearance()
+
+    def _set_opacity(self, value, var):
+        """Deckkraft für alle Zustände der Taste (gesammelt beim Ziehen, damit nicht jeder Pixel speichert)."""
+        v = max(0, min(100, int(round(float(value)))))
+        var.set(f"{v} %")
+        job = getattr(self, "_opacity_job", None)
+        if job:
+            self.app.root.after_cancel(job)
+
+        def apply():
+            self._opacity_job = None
+            states = self.data.get("States") or [{}]
+            for i in range(len(states)):
+                self.doc.update_state(self.page_uuid, self.slot, i, "IconOpacity", v, action=self.data)
+        self._opacity_job = self.app.root.after(60, apply)
 
     def _set_int_state(self, key, text):
         try:

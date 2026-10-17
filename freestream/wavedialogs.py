@@ -1,5 +1,6 @@
 """Dialoge von FreeWave: eigene Kanäle anlegen/bearbeiten und Effekte (Plugins) je Kanal."""
 import math
+import os
 import shutil
 import tkinter as tk
 from tkinter import ttk
@@ -697,7 +698,7 @@ class DeckExportDialog(Dialog):
             self.device = tk.StringVar(self, value=names[0])
             self.device_box = ttk.Combobox(b, textvariable=self.device, values=names, state="readonly")
             self.device_box.pack(fill="x", pady=(0, 14))
-            self.device_box.bind("<<ComboboxSelected>>", lambda e: self._update_hint())
+            self.device_box.bind("<<ComboboxSelected>>", lambda e: (self._load_look(), self._update_hint()))
 
         field(b, _("CHANNELS"))
         box = tk.Frame(b, bg=COL["bg"])
@@ -716,12 +717,56 @@ class DeckExportDialog(Dialog):
                       command=self._set_mix, value="selected",
                       fill=True).pack(fill="x", pady=(0, 14))
 
+        # Aussehen: durchsichtige Tasten über einem Hintergrundbild (bleibt beim nächsten Export erhalten)
+        field(b, _("LOOK"))
+        r = tk.Frame(b, bg=COL["bg"])
+        r.pack(fill="x", pady=(0, 8))
+        self.transparent = Switch(r, command=self._update_hint)
+        self.transparent.pack(side="left")
+        label(r, _("Transparent keys – the background image shows through"), 10).pack(side="left", padx=(10, 0))
+        r = tk.Frame(b, bg=COL["bg"])
+        r.pack(fill="x", pady=(0, 14))
+        Button(r, _("Background image…"), icon="image", command=self._pick_background).pack(side="left")
+        self.bg_label = label(r, "", 9, color=COL["muted"])
+        self.bg_label.pack(side="left", padx=(10, 0))
+        self.bg_remove = Button(r, _("Remove"), kind="ghost", command=lambda: self._set_background(None))
+        self.bg_remove.pack(side="left", padx=(4, 0))
+        self.background = self.dx.KEEP
+        self._load_look()
+
         self.hint = label(b, "", 9, color=COL["muted"], wraplength=500, justify="left")
         self.hint.pack(anchor="w")
         self.result = label(b, "", 9, color=COL["muted"], wraplength=500, justify="left")
         self.result.pack(anchor="w", pady=(8, 0))
         self._update_hint()
         self.show()
+
+    def _load_look(self):
+        """Aussehen des schon vorhandenen Profils dieses Geräts übernehmen."""
+        lk = self.dx.look(self._selected_device()["model"])
+        self.transparent.set(lk["opacity"] < 100)
+        self.background = self.dx.KEEP
+        self._shown_bg = lk["background"]
+        self._show_background()
+
+    def _show_background(self):
+        bg = self._shown_bg
+        self.bg_label.configure(text=os.path.basename(str(bg)) if bg else _("none"))
+        self.bg_remove.configure_text(enabled=bool(bg))
+
+    def _pick_background(self):
+        from . import msgbox
+        f = msgbox.askopenfilename(parent=self, title=_("Choose background image"), filetypes=[
+            (_("Images"), "*.png *.jpg *.jpeg *.webp *.gif *.bmp"), (_("All files"), "*")])
+        if f:
+            self._set_background(f)
+
+    def _set_background(self, path):
+        self.background = path  # None = entfernen
+        self._shown_bg = path
+        self._show_background()
+        if path and not self.transparent.get():
+            self.transparent.set(True)  # sonst sieht man das Bild nur zwischen den Tasten
 
     @staticmethod
     def _device_label(d):
@@ -738,6 +783,7 @@ class DeckExportDialog(Dialog):
         for dd, card in self.cards:
             card.checked = dd is d
             card._draw()
+        self._load_look()
         self._update_hint()
 
     def _selected_channels(self):
@@ -775,7 +821,9 @@ class DeckExportDialog(Dialog):
         chans = self._selected_channels()
         try:
             name, pages, created = self.dx.export(d["model"], chans, mix=self.mix,
-                                                  all_channels=len(chans) == len(self.channels))
+                                                  all_channels=len(chans) == len(self.channels),
+                                                  opacity=0 if self.transparent.get() else 100,
+                                                  background=self.background)
         except (self.dx.ExportError, OSError) as e:
             self.result.configure(text=_("Error: {error}").format(error=e), fg=COL["danger"])
             return
