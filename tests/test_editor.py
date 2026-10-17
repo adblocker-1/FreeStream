@@ -281,3 +281,22 @@ def test_gui_inspector_for_all_actions(app):
     assert app.page_uuid == fid and len(app.nav) == 2
     app.folder_back()
     assert app.page_uuid == page
+
+
+def test_gui_stage_all_models(app, store):
+    """Vorschau zeichnet jedes Modell; jede Taste und jeder Regler ist anklickbar."""
+    from streamlin.models import model_geometry
+    app.root.geometry("1280x800")
+    for code in ("20GBA9901", "20GAI9902", "20GAT9901", "20GBX9901", "20GBJ9901", "20GBO9901", "20GBF9901"):
+        d = E.ProfileDoc(E.create_profile(code, code, store))
+        d.place(d.page_ids[0], ("key", 0, 0), HOTKEY)
+        if model_geometry(code).dials:
+            d.place(d.page_ids[0], ("dial", 0), HOTKEY)
+        d.save()
+        app.open_profile(d.id)
+        app.root.update()
+        g = model_geometry(code)
+        slots = {s for *_box, s in app._hit}
+        assert len(slots) == g.cols * g.rows + g.dials, code
+        app.select(("dial", 0) if g.dials else ("key", 1, 0))
+        app.root.update()

@@ -13,7 +13,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 
 from . import paths
-from .i18n import _
+from .i18n import _, pgettext
 
 log = logging.getLogger("streamlin.render")
 
@@ -252,50 +252,106 @@ def compose_key(size, frame, title, state, overlay=None, background=(0, 0, 0), b
     show = state.get("ShowTitle")
     if show is None:
         show = True
-    if show and title:
+    if show and title and not overlay:  # während einer Anzeige steht der Text der Anzeige auf der Taste
         draw_title(img, title, state, w / 72.0)
     if overlay == "alert":
         _alert(img)
     elif overlay == "ok":
         _ok(img)
     elif isinstance(overlay, tuple) and overlay[0] == "progress":
-        _progress(img, overlay[1])
+        _progress(img, *overlay[1:])
     return img
 
 
-def _progress(img, frac):
-    """Fortschritt einer Multi-Aktion: abgedunkelt, unten ein Balken."""
+OK_COLOR, ALERT_COLOR, ACCENT = (34, 197, 94), (244, 63, 94), (91, 124, 255)
+
+
+def _dim(img, alpha=175):
+    img.alpha_composite(Image.new("RGBA", img.size, (8, 9, 13, alpha)))
+
+
+def _mark(d, kind, box, color=(255, 255, 255)):
+    """Kleines Zeichen in box: check, close, layers, deck."""
+    x0, y0, x1, y1 = box
+    s = x1 - x0
+    lw = max(2, round(s * 0.11))
+    if kind == "check":
+        d.line([(x0 + s * 0.12, y0 + s * 0.52), (x0 + s * 0.4, y0 + s * 0.8), (x0 + s * 0.88, y0 + s * 0.22)],
+               fill=color, width=lw, joint="curve")
+    elif kind == "close":
+        d.line([(x0 + s * 0.2, y0 + s * 0.2), (x1 - s * 0.2, y1 - s * 0.2)], fill=color, width=lw)
+        d.line([(x1 - s * 0.2, y0 + s * 0.2), (x0 + s * 0.2, y1 - s * 0.2)], fill=color, width=lw)
+    elif kind == "layers":
+        for a in (0.0, 0.18, 0.36):
+            cy = y0 + s * (0.3 + a)
+            d.polygon([(x0 + s * 0.5, cy - s * 0.2), (x1 - s * 0.05, cy), (x0 + s * 0.5, cy + s * 0.2),
+                       (x0 + s * 0.05, cy)], outline=color, fill=None, width=max(1, lw // 2 + 1))
+    elif kind == "deck":
+        q, g = s * 0.36, s * 0.12
+        for i in range(2):
+            for j in range(2):
+                xx, yy = x0 + s * 0.08 + i * (q + g), y0 + s * 0.08 + j * (q + g)
+                d.rounded_rectangle((xx, yy, xx + q, yy + q), radius=q * 0.25, fill=color)
+
+
+def _badge(img, color, kind, text, sub=""):
+    """Anzeige auf der Taste: farbige Kachel mit Zeichen, darunter ein kurzer Text."""
     w, h = img.size
-    shade = Image.new("RGBA", (w, h), (0, 0, 0, 110))
-    img.alpha_composite(shade)
+    m = min(w, h)
     d = ImageDraw.Draw(img)
-    pad, bh = w * 0.14, max(4, h * 0.07)
-    y = h * 0.5 - bh / 2
-    d.rounded_rectangle((pad, y, w - pad, y + bh), radius=bh / 2, fill=(70, 70, 78))
+    s = m * 0.36
+    x0, y0 = (w - s) / 2, h * 0.2 if not sub else h * 0.12
+    d.rounded_rectangle((x0, y0, x0 + s, y0 + s), radius=s * 0.28, fill=color)
+    p = s * 0.22
+    _mark(d, kind, (x0 + p, y0 + p, x0 + s - p, y0 + s - p))
+    if text:
+        f = _fit_font(text, w * 0.92, int(m * 0.15), "bold")
+        d.text((w / 2, h * (0.72 if sub else 0.76)), text, font=f, fill=(255, 255, 255), anchor="mm")
+    if sub:
+        f = _fit_font(sub, w * 0.92, int(m * 0.11), "regular")
+        d.text((w / 2, h * 0.87), sub, font=f, fill=(150, 156, 170), anchor="mm")
+
+
+def _fit_font(text, width, size, style):
+    f = font(size, style)
+    while size > 7 and f.getlength(text) > width:
+        size -= 1
+        f = font(size, style)
+    return f
+
+
+def _progress(img, frac, step=None, steps=None):
+    """Fortschritt einer Multi-Aktion: „Schritt n / m“ und unten ein Balken."""
+    w, h = img.size
+    _dim(img)
+    text = _("Step {n} / {m}").format(n=step, m=steps) if step and steps else f"{int(round(frac * 100))} %"
+    _badge(img, ACCENT, "layers", text)
+    pad, bh = w * 0.14, max(3, h * 0.055)
+    y = h * 0.88
+    track = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(track).rounded_rectangle((pad, y, w - pad, y + bh), radius=bh / 2, fill=(255, 255, 255, 45))
+    img.alpha_composite(track)
     frac = max(0.0, min(1.0, float(frac)))
     if frac > 0:
-        d.rounded_rectangle((pad, y, pad + (w - 2 * pad) * frac, y + bh), radius=bh / 2, fill=(91, 124, 255))
+        ImageDraw.Draw(img).rounded_rectangle((pad, y, pad + (w - 2 * pad) * frac, y + bh), radius=bh / 2,
+                                              fill=ACCENT)
 
 
 def _alert(img):
-    w, h = img.size
-    d = ImageDraw.Draw(img)
-    s = int(w * 0.45)
-    cx, cy = w // 2, h // 2
-    d.polygon([(cx, cy - s // 2), (cx - s // 2, cy + s // 2), (cx + s // 2, cy + s // 2)], fill=(250, 190, 0),
-              outline=(0, 0, 0))
-    f = font(int(s * 0.6), "bold")
-    d.text((cx, cy + s // 8), "!", font=f, fill=(0, 0, 0), anchor="mm")
+    _dim(img)
+    _badge(img, ALERT_COLOR, "close", pgettext("overlay", "Error"))
 
 
 def _ok(img):
-    w, h = img.size
-    d = ImageDraw.Draw(img)
-    r = int(w * 0.25)
-    cx, cy = w // 2, h // 2
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(40, 180, 90))
-    d.line([(cx - r // 2, cy), (cx - r // 8, cy + r // 2), (cx + r // 2, cy - r // 2)], fill=(255, 255, 255),
-           width=max(2, r // 4))
+    _dim(img)
+    _badge(img, OK_COLOR, "check", pgettext("overlay", "Done"))
+
+
+def no_profile_key(size):
+    """Taste auf einem Gerät ohne Profil: „Kein Profil – in LinDeck wählen“."""
+    img = Image.new("RGBA", size, (14, 16, 21, 255))
+    _badge(img, ACCENT, "deck", pgettext("no profile", "No profile"), _("choose in LinDeck"))
+    return img
 
 
 def text_key(size, text, sub="", bg=(0, 0, 0), fg=(255, 255, 255)):

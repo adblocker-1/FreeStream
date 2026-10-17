@@ -807,8 +807,8 @@ def preview_action(doc, page_uuid, data, size=(72, 72), page_index=0, state=None
     return render.compose_key(size, frame, act.title(), act.state_dict(), base=base)
 
 
-def preview_dial(doc, page_uuid, data, size=(100, 100)):
-    """Segment des Touchstreifens (ohne Live-Werte)."""
+def dial_info(doc, page_uuid, data):
+    """Was ein Regler im Fenster zeigt: dict(icon, title, value, indicator) – ohne Live-Gerät."""
     from .config import DEFAULTS
     pg = doc.runtime_page(page_uuid)
     ctx = A.Context(_PreviewCtrl(doc), _Cfg(DEFAULTS), None, None)
@@ -824,8 +824,19 @@ def preview_dial(doc, page_uuid, data, size=(100, 100)):
         own = None
     if own is not None:
         icon = [(own, 0)]
-    title = act.title() or C.display_name(data)
-    return render.compose_dial_segment(size, icon[0][0] if icon else None, title, "", None)
+    try:
+        fb = act.feedback()
+    except Exception:  # noqa: BLE001
+        fb = {}
+    ind = fb.get("indicator")
+    return {"icon": icon[0][0] if icon else None, "title": act.title() or C.display_name(data),
+            "value": str(fb.get("value") or ""), "indicator": ind if isinstance(ind, (int, float)) else None}
+
+
+def preview_dial(doc, page_uuid, data, size=(100, 100)):
+    """Segment des Touchstreifens (ohne Live-Werte)."""
+    info = dial_info(doc, page_uuid, data)
+    return render.compose_dial_segment(size, info["icon"], info["title"], "", None)
 
 
 def apply_title_style(store_root, key_style, dial_style):

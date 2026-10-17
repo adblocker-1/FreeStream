@@ -29,6 +29,7 @@ from . import paths
 
 # bg: Hauptfläche, side: Seitenleiste, panel: Karten, panel2: Eingabefelder/Chips,
 # raised: Spuren/gedrückt, border: feine Ränder, accent_soft: gewählte Einträge
+# line: Umriss des Geräts in der Vorschau, card/card_edge: Felder des Touchstreifens
 PALETTES = {
     "dark": {
         "bg": "#0e1015", "side": "#12151b", "panel": "#171a21", "panel2": "#1e222b", "raised": "#272c37",
@@ -37,6 +38,7 @@ PALETTES = {
         "monitor": "#22c3ee", "stream": "#c084fc", "danger": "#f43f5e", "danger_soft": "#3a1a24",
         "ok": "#22c55e", "warn": "#f5b13d",
         "device": "#07080b", "slot": "#1a1d24", "drop": "#22c55e", "shadow": "#05060a",
+        "line": "#3e4452", "card": "#1e222b", "card_edge": "#2c323e",
     },
     "light": {
         "bg": "#f3f5f9", "side": "#eceff5", "panel": "#ffffff", "panel2": "#f2f4f8", "raised": "#e6e9f0",
@@ -45,6 +47,7 @@ PALETTES = {
         "monitor": "#0a9cc4", "stream": "#9341e6", "danger": "#e11d48", "danger_soft": "#fde4ea",
         "ok": "#16a34a", "warn": "#d48a06",
         "device": "#16181e", "slot": "#262a33", "drop": "#16a34a", "shadow": "#c9cfda",
+        "line": "#c9ced8", "card": "#ffffff", "card_edge": "#dadfe8",
     },
 }
 MODES = ("auto", "light", "dark")
