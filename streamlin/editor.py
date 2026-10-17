@@ -15,7 +15,7 @@ from pathlib import Path
 from tkinter import ttk
 from tkinter import font as tkfont
 
-from PIL import Image, ImageDraw, ImageFilter, ImageTk
+from PIL import Image, ImageDraw, ImageTk
 
 from . import actions as A
 from . import catalog as C
@@ -102,18 +102,46 @@ TEXT_WIDGETS = ("Entry", "TEntry", "Text", "Spinbox", "TSpinbox", "TCombobox")
 FOOTER_H = 34  # Fußzeile der Bühne (Hinweis, Helligkeit)
 
 
-def _layout(g, width, height, pad=26):
-    """Größte Kachelgröße, bei der Tasten und Touchstreifen in den Bereich passen."""
-    for ts in range(96, 35, -2):
+PEDAL, STUDIO = "20GBF9901", "20GBO9901"
+
+
+def _stage_kind(model, g):
+    """Wie das Gerät gezeichnet wird: plain, plus (Touchstreifen), neo, studio, pedal."""
+    if model == PEDAL:
+        return "pedal"
+    if model == STUDIO:
+        return "studio"
+    if g.touch_keys:
+        return "neo"
+    return "plus" if g.dials else "plain"
+
+
+def _layout(g, width, height, pad=18, kind="plain"):
+    """Größte Kachelgröße, bei der das Gerät samt Touchstreifen/Reglern in den Bereich passt."""
+    for ts in range(96, 19, -2):
         gap = max(6, ts // 7)
-        grid_w = g.cols * ts + (g.cols - 1) * gap
-        seg_w = (grid_w - (g.dials - 1) * 4) / g.dials if g.dials else 0
-        dial_h = int(min(seg_w / 2, ts)) if g.dials else 0
-        knob = int(ts * 0.45) if g.dials else 0
-        total_h = g.rows * ts + (g.rows - 1) * gap + ((gap * 2 + dial_h + gap + knob) if g.dials else 0)
-        if grid_w + 2 * pad <= width and total_h + 2 * pad <= height:
+        L = {"ts": ts, "gap": gap, "kind": kind, "side": 0, "extra": 0}
+        if kind == "pedal":
+            L["pw"], L["ph"] = int(ts * 1.5), int(ts * 1.9)
+            grid_w, grid_h = 3 * L["pw"] + 2 * gap * 2, L["ph"]
+        else:
+            grid_w, grid_h = g.cols * ts + (g.cols - 1) * gap, g.rows * ts + (g.rows - 1) * gap
+        if kind == "plus":
+            L["card_h"] = max(40, min(50, int(ts * 0.56)))
+            L["ring"] = max(14, min(24, int(ts * 0.27)))
+            L["seg_w"] = (grid_w - (g.dials - 1) * 6) / g.dials
+            L["extra"] = 16 + L["card_h"] + 12 + 2 * L["ring"] + 4
+        elif kind == "neo":
+            L["bar_h"] = max(28, int(ts * 0.5))
+            L["extra"] = gap + L["bar_h"]
+        elif kind == "studio":
+            L["ring"] = max(16, int(ts * 0.62))
+            L["side"] = 2 * L["ring"] + 3 * gap
+        L["grid_w"], L["grid_h"] = grid_w, grid_h
+        L["w"], L["h"] = grid_w + 2 * L["side"], grid_h + L["extra"]
+        if L["w"] + 2 * pad <= width and L["h"] + 2 * pad <= height:
             break
-    return ts, gap, grid_w, seg_w, dial_h, knob, total_h
+    return L
 
 
 def _bg(w):
@@ -246,6 +274,16 @@ class ActionTile(tk.Canvas):
         self.create_text(11, 56, text=name, anchor="w", fill=COL["fg"], font=self.fb)
         desc = _clip_lines(self, self._description(), self.fs, w - 22, 2)
         self.create_text(11, 68, text=desc, anchor="nw", fill=COL["muted"], font=self.fs, width=w - 20)
+
+
+def _clip(text, f, width):
+    """Eine Zeile auf `width` Pixel kürzen (mit …); f: tkfont.Font."""
+    text = " ".join(str(text or "").split())
+    if f.measure(text) <= width:
+        return text
+    while text and f.measure(text + "…") > width:
+        text = text[:-1]
+    return text.rstrip() + "…"
 
 
 def _clip_lines(widget, text, fnt, width, lines):
@@ -534,6 +572,8 @@ class EditorApp:
         theme.apply(self.root)
         self.icons = theme.Icons(self.root)
         self._fam = theme.font(self.root)[0]
+        self._small = tkfont.Font(self.root, font=theme.font(self.root, 8))
+        self._small_bold = tkfont.Font(self.root, font=theme.font(self.root, 8, "bold"))
 
     def _build(self):
         r = self.root
@@ -1130,7 +1170,7 @@ class EditorApp:
             self._img_cache[key] = img
         return img
 
-    def _draw_stage(self):
+    def _draw_stage(self, footer_right=None):
         """Bühne: Karte mit Rand, Fußzeile mit Hinweis und Helligkeit."""
         cv = self.canvas
         w, h = cv.winfo_width(), cv.winfo_height()
@@ -1140,35 +1180,45 @@ class EditorApp:
                        text=_("Drag actions onto keys · right-click for more"))
         ctrl = self._ctrl()
         bright = getattr(ctrl, "brightness", None) if ctrl is not None else None
-        if isinstance(bright, (int, float)):
-            cv.create_text(w - 18, h - FOOTER_H / 2 - 2, anchor="e", fill=COL["muted"], font=f,
-                           text=_("Brightness {n} %").format(n=int(bright)))
+        if footer_right is None and isinstance(bright, (int, float)):
+            footer_right = _("Brightness {n} %").format(n=int(bright))
+        if footer_right:
+            cv.create_text(w - 18, h - FOOTER_H / 2 - 2, anchor="e", fill=COL["muted"], font=f, text=footer_right)
 
     def redraw(self):
         cv = self.canvas
         cv.delete("all")
         self._photos = []
         self._hit = []
-        self._draw_stage()
         if not self.doc:
+            self._draw_stage()
             cv.create_text(cv.winfo_width() / 2, (cv.winfo_height() - FOOTER_H) / 2, anchor="center",
                            justify="center", fill=COL["muted"], font=theme.font(self.root, 11),
                            text=_("No profiles yet.\n\n“New…” creates an empty profile,\n"
                                   "“Import…” takes over profiles from the Elgato app."))
             return
+        g, keys, dials = self._slots()
+        kind = _stage_kind(self.doc.model, g)
+        self._draw_stage(_("No display") if kind == "pedal" else None)
         if not self.page_uuid or not self.doc.page(self.page_uuid):
             return
-        g, keys, dials = self._slots()
-        pad = 26
+        pad = 18
         aw, ah = cv.winfo_width() - 24, cv.winfo_height() - FOOTER_H - 12
-        ts, gap, grid_w, seg_w, dial_h, knob, total_h = _layout(g, aw, ah, pad)
-        cw, ch = max(aw, grid_w + 2 * pad), max(ah, total_h + 2 * pad)
-        x0 = 12 + (cw - grid_w) // 2
-        y0 = 12 + max(pad, (ch - total_h) // 2)
-        body = _device_body(grid_w + 2 * pad, total_h + 2 * pad, 28)
-        self._body_photo = ImageTk.PhotoImage(body, master=self.root)
-        cv.create_image(x0 - pad - SHADOW, y0 - pad - SHADOW, image=self._body_photo, anchor="nw")
+        L = _layout(g, aw, ah, pad, kind)
+        ts, gap = L["ts"], L["gap"]
+        cw, ch = max(aw, L["w"] + 2 * pad), max(ah, L["h"] + 2 * pad)
+        bx = 12 + (cw - L["w"]) // 2
+        y0 = 12 + max(pad, (ch - L["h"]) // 2)
+        # Umriss des Geräts: eine feine Linie
+        _round_rect(cv, bx - pad, y0 - pad, bx + L["w"] + pad, y0 + L["h"] + pad, 22, fill="", outline=COL["line"],
+                    width=2)
+        x0 = bx + L["side"]
         page = self.doc.page(self.page_uuid)
+        if kind == "pedal":
+            for slot in keys:
+                x = x0 + slot[1] * (L["pw"] + 2 * gap)
+                self._draw_pedal(slot, page.get(slot), x, y0, L["pw"], L["ph"])
+            return
         bg_path, bg_dim = self.doc.background(self.page_uuid)
         self._tiles = render.background_tiles(bg_path, g.cols, g.rows, (ts, ts), bg_dim, gap_ratio=gap / ts) \
             if bg_path else {}
@@ -1177,44 +1227,172 @@ class EditorApp:
             c, r = slot[1], slot[2]
             x, y = x0 + c * (ts + gap), y0 + r * (ts + gap)
             self._draw_slot(slot, page.get(slot), x, y, ts, ts)
-        if g.dials:
-            y = y0 + g.rows * ts + (g.rows - 1) * gap + gap * 2
-            strip_w = int(g.dials * (seg_w + 4) - 4)
-            strip = Image.new("RGBA", (strip_w, dial_h), (0, 0, 0, 255))
-            sp = self.doc.strip_background(self.page_uuid)
-            if sp:
-                fr = render.load_frames(sp, strip_w, dial_h)
-                if fr:
-                    strip.alpha_composite(fr[0][0].convert("RGBA").resize((strip_w, dial_h)))
-            self._strip_photo = ImageTk.PhotoImage(_rounded(strip, max(6, dial_h // 8)), master=self.root)
-            cv.create_image(x0, y, image=self._strip_photo, anchor="nw")
+        below = y0 + L["grid_h"]
+        if kind == "plus":
+            self._draw_strip(L, x0, below + 16, page, dials)
+        elif kind == "neo":
+            self._draw_infobar(L, x0, below + gap)
+        elif kind == "studio":
             for slot in dials:
-                i = slot[1]
-                x = x0 + i * (seg_w + 4)
-                self._draw_slot(slot, page.get(slot), int(x), y, int(seg_w), dial_h)
-                kx, ky = x + seg_w / 2, y + dial_h + gap + knob / 2
-                cv.create_oval(kx - knob / 2, ky - knob / 2, kx + knob / 2, ky + knob / 2, fill="#2b2c31",
-                               outline="#45474e", width=2)
-                cv.create_line(kx, ky - knob / 2 + 4, kx, ky - knob / 4, fill="#8a8c94", width=2)
+                cx = bx + L["ring"] + gap if slot[1] == 0 else bx + L["w"] - L["ring"] - gap
+                self._draw_ring_dial(slot, page.get(slot), cx, y0 + L["grid_h"] / 2 - 8, L["ring"],
+                                     label=2 * L["ring"] + 2 * gap)
+
+    def _dial_info(self, data):
+        key = ("dialinfo", self.page_uuid, json.dumps(data, sort_keys=True))
+        hit = self._img_cache.get(key)
+        import time
+        if hit is None or time.monotonic() - hit[0] > 3:
+            try:
+                hit = (time.monotonic(), E.dial_info(self.doc, self.page_uuid, data))
+            except Exception:  # noqa: BLE001
+                log.debug("dial_info", exc_info=True)
+                hit = (time.monotonic(), {"icon": None, "title": C.display_name(data), "value": "",
+                                          "indicator": None})
+            self._img_cache[key] = hit
+        return hit[1]
+
+    def _photo(self, img):
+        ph = ImageTk.PhotoImage(img, master=self.root)
+        self._photos.append(ph)
+        return ph
+
+    def _draw_strip(self, L, x0, y, page, dials):
+        """Touchstreifen als Felder (Symbol, Name, Wert), darunter je Regler ein Werte-Ring."""
+        cv = self.canvas
+        seg, ch = L["seg_w"], L["card_h"]
+        sp = self.doc.strip_background(self.page_uuid)
+        if sp:
+            fr = render.load_frames(sp, int(L["grid_w"]), ch)
+            if fr:
+                strip = fr[0][0].convert("RGBA").resize((int(L["grid_w"]), ch))
+                cv.create_image(x0, y, image=self._photo(_rounded(strip, 10)), anchor="nw")
+        for slot in dials:
+            i = slot[1]
+            x = x0 + i * (seg + 6)
+            data = page.get(slot)
+            sel = self.selected is not None and tuple(self.selected) == tuple(slot)
+            if data is None:
+                _round_rect(cv, x, y, x + seg, y + ch, 10, fill="", outline=COL["line"], width=2, dash=(5, 4))
+                cv.create_text(x + seg / 2, y + ch / 2, text="+", fill=COL["faint"], font=(self._fam, 14))
+                info = None
+            else:
+                info = self._dial_info(data)
+                _round_rect(cv, x, y, x + seg, y + ch, 10, fill="" if sp else COL["card"], outline=COL["card_edge"],
+                            width=1)
+                tx = x + 10
+                if info["icon"] is not None:
+                    ic = render._fit(info["icon"].convert("RGBA"), 18, 18)
+                    cv.create_image(x + 10, y + 8, image=self._photo(ic), anchor="nw")
+                    tx = x + 34
+                name = _clip(info["title"], self._small_bold, int(x + seg - 8 - tx))
+                cv.create_text(tx, y + 17, text=name, anchor="w", fill=COL["fg"], font=self._small_bold)
+                ind = info["indicator"]
+                if ind is not None or info["value"]:
+                    by = y + ch - 13
+                    vx = x + seg - 9
+                    cv.create_text(vx, by + 2, text=info["value"], anchor="e", fill=COL["muted"],
+                                   font=self._small)
+                    bw = max(10, seg - 20 - (self._small.measure(info["value"]) + 8 if info["value"] else 0))
+                    if ind is not None:
+                        _round_rect(cv, x + 10, by, x + 10 + bw, by + 5, 2, fill=COL["raised"], outline="")
+                        if ind > 0:
+                            _round_rect(cv, x + 10, by, x + 10 + bw * min(1, ind / 100), by + 5, 2,
+                                        fill=COL["accent"], outline="")
+            if sel:
+                _round_rect(cv, x - 3, y - 3, x + seg + 3, y + ch + 3, 12, fill="", outline=COL["accent"], width=3)
+            self._hit.append((x, y, x + seg, y + ch, slot))
+            self._draw_ring_dial(slot, data, x + seg / 2, y + ch + 12 + L["ring"], L["ring"], info=info,
+                                 select=False)
+
+    def _draw_ring_dial(self, slot, data, cx, cy, r, label=0, info=None, select=True):
+        """Regler als Ring: grauer Bogen, darin der Wert (falls bekannt); label: Breite des Namens darunter."""
+        cv = self.canvas
+        if data is not None and info is None:
+            info = self._dial_info(data)
+        w = max(3, r // 5)
+        box = (cx - r, cy - r, cx + r, cy + r)
+        cv.create_arc(*box, start=225, extent=-270, style="arc", outline=COL["raised"], width=w)
+        ind = info["indicator"] if info else None
+        if ind is not None and ind > 0:
+            cv.create_arc(*box, start=225, extent=-270 * min(1, ind / 100), style="arc", outline=COL["accent"],
+                          width=w)
+        if ind is not None:
+            cv.create_text(cx, cy, text=str(int(ind)), fill=COL["fg"], font=self._small_bold)
+        elif info and info["icon"] is not None and r >= 16:
+            ic = render._fit(info["icon"].convert("RGBA"), int(r), int(r))
+            cv.create_image(cx, cy, image=self._photo(ic))
+        elif data is None:
+            cv.create_text(cx, cy, text="+", fill=COL["faint"], font=(self._fam, 12))
+        y1 = cy + r
+        if label:
+            text = info["title"] if info else _("Dial")
+            cv.create_text(cx, cy + r + 10, text=_clip(text, self._small_bold, int(label)), fill=COL["muted"],
+                           font=self._small_bold)
+            y1 = cy + r + 18
+        if select:
+            if self.selected is not None and tuple(self.selected) == tuple(slot):
+                cv.create_oval(cx - r - 5, cy - r - 5, cx + r + 5, cy + r + 5, outline=COL["accent"], width=3)
+            self._hit.append((cx - r - 4, cy - r - 4, cx + r + 4, y1, slot))
+        else:
+            self._hit.append((cx - r, cy - r, cx + r, cy + r, slot))
+
+    def _draw_infobar(self, L, x0, y):
+        """Neo: Infoleiste mit Uhrzeit und Seite, links und rechts die Touch-Tasten (Seite wechseln)."""
+        import time
+        cv = self.canvas
+        h, tw = L["bar_h"], L["bar_h"]
+        x1 = x0 + L["grid_w"]
+        for x, sign in ((x0, "‹"), (x1 - tw, "›")):
+            _round_rect(cv, x, y, x + tw, y + h, 10, fill=COL["card"], outline=COL["card_edge"], width=1)
+            cv.create_text(x + tw / 2, y + h / 2 - 1, text=sign, fill=COL["muted"], font=(self._fam, 15))
+        ix0, ix1 = x0 + tw + 10, x1 - tw - 10
+        _round_rect(cv, ix0, y, ix1, y + h, 10, fill=COL["device"], outline=COL["card_edge"], width=1)
+        n = len(self.doc.page_ids)
+        idx = self.doc.page_ids.index(self.nav[0]) + 1 if self.nav and self.nav[0] in self.doc.page_ids else 1
+        big = theme.font(self.root, 10, "bold")
+        if h >= 40:
+            cv.create_text((ix0 + ix1) / 2, y + h * 0.36, text=time.strftime("%H:%M"), fill="#e9ecf2", font=big)
+            cv.create_text((ix0 + ix1) / 2, y + h * 0.72, text=_("Page {n} / {m}").format(n=idx, m=n),
+                           fill="#8b93a3", font=self._small)
+        else:
+            cv.create_text((ix0 + ix1) / 2, y + h / 2, fill="#e9ecf2", font=self._small,
+                           text=time.strftime("%H:%M") + "  ·  " + _("Page {n} / {m}").format(n=idx, m=n))
+
+    def _draw_pedal(self, slot, data, x, y, w, h):
+        """Pedal: kein Display – Riffeln, Symbol und Name der Aktion."""
+        cv = self.canvas
+        sel = self.selected is not None and tuple(self.selected) == tuple(slot)
+        if data is None:
+            _round_rect(cv, x, y, x + w, y + h, 16, fill="", outline=COL["line"], width=2, dash=(5, 4))
+            cv.create_text(x + w / 2, y + h / 2, text="+", fill=COL["faint"], font=(self._fam, 18))
+        else:
+            _round_rect(cv, x, y, x + w, y + h, 16, fill=COL["card"], outline=COL["card_edge"], width=1)
+            for k in range(5):
+                yy = y + h * 0.15 + k * h * 0.065
+                cv.create_line(x + w * 0.2, yy, x + w * 0.8, yy, fill=COL["card_edge"], width=2)
+            s = int(min(w, h) * 0.42)
+            img = self._render(slot, data, (s, s))
+            cv.create_image(x + w / 2, y + h * 0.62, image=self._photo(img))
+            title = ((data.get("States") or [{}])[0] or {}).get("Title") if isinstance(data.get("States"), list) \
+                else ""
+            name = _clip(title or C.display_name(data), self._small_bold, int(w - 12))
+            cv.create_text(x + w / 2, y + h * 0.88, text=name, fill=COL["fg"], font=self._small_bold)
+        if sel:
+            _round_rect(cv, x - 3, y - 3, x + w + 3, y + h + 3, 18, fill="", outline=COL["accent"], width=3)
+        self._hit.append((x, y, x + w, y + h, slot))
 
     def _draw_slot(self, slot, data, x, y, w, h):
         cv = self.canvas
         sel = self.selected is not None and tuple(self.selected) == tuple(slot)
         tile = self._tiles.get((slot[1], slot[2])) if slot[0] == "key" and getattr(self, "_tiles", None) else None
         if data is None and tile is not None:
-            ph = ImageTk.PhotoImage(_rounded(tile, max(6, w // 8)), master=self.root)
-            self._photos.append(ph)
-            cv.create_image(x, y, image=ph, anchor="nw")
-        elif data is None and slot[0] == "dial":
-            pass  # leeres Feld auf dem Touchstreifen: der Streifen ist schon gezeichnet
+            cv.create_image(x, y, image=self._photo(_rounded(tile, max(6, w // 8))), anchor="nw")
         elif data is None:
-            _round_rect(cv, x, y, x + w, y + h, max(6, w // 8), fill=COL["slot"], outline="")
-            cv.create_text(x + w / 2, y + h / 2, text="+", fill="#4a4c53", font=(self._fam, max(10, w // 5)))
+            _round_rect(cv, x, y, x + w, y + h, max(6, w // 8), fill="", outline=COL["line"], width=2, dash=(5, 4))
+            cv.create_text(x + w / 2, y + h / 2, text="+", fill=COL["faint"], font=(self._fam, max(10, w // 5)))
         else:
-            img = self._render(slot, data, (w, h))
-            ph = ImageTk.PhotoImage(img, master=self.root)
-            self._photos.append(ph)
-            cv.create_image(x, y, image=ph, anchor="nw")
+            cv.create_image(x, y, image=self._photo(self._render(slot, data, (w, h))), anchor="nw")
             if not A.is_supported(data.get("UUID", "")):
                 cv.create_oval(x + w - 14, y + 4, x + w - 4, y + 14, fill="#f5a623", outline="")
         if sel:
@@ -2233,42 +2411,6 @@ def _shape(model):
 # --------------------------------------------------------------------------
 # Zeichenhilfen
 # --------------------------------------------------------------------------
-SHADOW = 36
-_BODY_CACHE = {}
-
-
-def _device_body(w, h, r):
-    """Gehäuse des Stream Decks: dunkler Verlauf, heller Rand oben, weicher Schatten."""
-    key = (w, h, r)
-    if key in _BODY_CACHE:
-        return _BODY_CACHE[key]
-    W, H = w + 2 * SHADOW, h + 2 * SHADOW
-    out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    sh = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(sh).rounded_rectangle((SHADOW, SHADOW + 8, SHADOW + w, SHADOW + h + 8), r, fill=170)
-    sh = sh.filter(ImageFilter.GaussianBlur(10))
-    out.paste(theme.rgb(COL["shadow"]) + (255,), (0, 0), sh)
-    grad = Image.new("RGBA", (w, h))
-    top, bot = theme.rgb("#26282d"), theme.rgb("#0c0d0f")
-    gd = ImageDraw.Draw(grad)
-    for y in range(h):
-        t = y / max(1, h - 1)
-        gd.line([(0, y), (w, y)], fill=tuple(round(a + (b - a) * t) for a, b in zip(top, bot)) + (255,))
-    k = 3
-    mask = Image.new("L", (w * k, h * k), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, w * k - 1, h * k - 1), r * k, fill=255)
-    mask = mask.resize((w, h), Image.LANCZOS)
-    out.paste(grad, (SHADOW, SHADOW), mask)
-    rim = Image.new("RGBA", (w * k, h * k), (0, 0, 0, 0))
-    ImageDraw.Draw(rim).rounded_rectangle((0, 0, w * k - 1, h * k - 1), r * k, outline=(70, 73, 80, 255),
-                                          width=2 * k)
-    out.alpha_composite(rim.resize((w, h), Image.LANCZOS), (SHADOW, SHADOW))
-    if len(_BODY_CACHE) > 20:
-        _BODY_CACHE.clear()
-    _BODY_CACHE[key] = out
-    return out
-
-
 def _round_rect(cv, x0, y0, x1, y1, r, **kw):
     pts = [x0 + r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y1 - r, x1, y1, x1 - r, y1, x0 + r, y1,
            x0, y1, x0, y1 - r, x0, y0 + r, x0, y0]

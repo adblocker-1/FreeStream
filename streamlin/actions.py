@@ -764,7 +764,8 @@ class MultiAction(Action):
         def progress(done):
             if show:
                 try:
-                    ctrl.show_overlay(self, ("progress", done / len(steps)), seconds=600)
+                    ctrl.show_overlay(self, ("progress", done / len(steps), min(done + 1, len(steps)), len(steps)),
+                                      seconds=600)
                 except Exception:  # noqa: BLE001
                     pass
 

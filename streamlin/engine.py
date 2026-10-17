@@ -260,11 +260,14 @@ class DeckController:
         if self.sleeping or not self.enabled:
             return
         if self.visual and not self.profile:
-            # Noch kein Profil: Hinweis anzeigen
-            msgs = [("LinDeck", pgettext("no profile", "ready")), (_("Profile"), pgettext("no profile", "missing")),
-                    (pgettext("no profile", "Downloads"), pgettext("no profile", "folder"))]
+            # Noch kein Profil: Hinweis auf der mittleren Taste, die übrigen bleiben schwarz
+            try:
+                rows, cols = self.deck.key_layout()
+            except Exception:  # noqa: BLE001
+                rows, cols = 1, self.key_count
+            mid = (rows - 1) // 2 * cols + (cols - 1) // 2
             for k in range(self.key_count):
-                img = render.text_key(self.key_size, *msgs[k]) if k < len(msgs) else \
+                img = render.no_profile_key(self.key_size) if k == mid else \
                     Image.new("RGBA", self.key_size, (0, 0, 0, 255))
                 try:
                     self._set_key(k, img)

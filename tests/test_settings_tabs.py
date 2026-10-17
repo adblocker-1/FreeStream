@@ -190,11 +190,11 @@ def test_apply_title_style_counts(store, doc):
 def test_progress_overlay():
     from PIL import Image
     from streamlin import render
-    base = render.compose_key((72, 72), None, "", {}, overlay=None)
-    half = render.compose_key((72, 72), None, "", {}, overlay=("progress", 0.5))
-    assert base.getpixel((36, 36)) != half.getpixel((20, 36))
-    assert half.getpixel((20, 36))[2] > 200 and half.getpixel((60, 36))[2] < 120  # links gefüllt, rechts nicht
+    half = render.compose_key((72, 72), None, "", {}, overlay=("progress", 0.5, 2, 4))
+    y = int(72 * 0.88) + 1
+    assert half.getpixel((14, y))[2] > 200 and half.getpixel((58, y))[2] < 120  # links gefüllt, rechts nicht
     assert isinstance(half, Image.Image)
+    assert render.compose_key((72, 72), None, "", {}, overlay=("progress", 0.5)).size == (72, 72)  # alte Form
 
 
 def test_engine_rotation_enabled_sleep_default(tmp_path, monkeypatch):

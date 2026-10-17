@@ -60,7 +60,9 @@ profiles stay in `~/.local/share/streamlin`.
 ## The LinDeck window
 
 The layout is the same as in the Elgato app: the device in the middle, all
-actions on the right, the settings of the selected key at the bottom. Drag an
+actions on the right, the settings of the selected key at the bottom. The device
+is drawn like your model – touch strip and dials on the Stream Deck +, the info
+bar on the Neo, pedals on the Pedal; free keys are dashed with a “+”. Drag an
 action onto a key (or double-click it), drag keys to move them, right-click for
 copy, paste and delete. Changes show up on the deck right away. Profiles stay in
 the Elgato format, so you can take them back to Windows with **Export…**.
@@ -68,6 +70,9 @@ the Elgato format, so you can take them back to Windows with **Export…**.
 LinDeck recognises the connected Stream Deck by itself: **New profile** only asks
 for a name, and profiles for a model that is not plugged in are shown greyed out.
 Right-click a profile to open, rename, duplicate, export or delete it.
+
+On the deck itself, a key briefly shows **Done** or **Error** after its action,
+and a Multi Action shows **Step 2 / 5** with a progress bar while it runs.
 
 **Icons …** next to the key preview (or a click on the preview) opens the **icon
 library**: over 100 icons drawn for LinDeck in three packs – **Color**, **White**
@@ -212,7 +217,7 @@ exist only there, for example:
 | Problem | Solution |
 |---|---|
 | Device not detected | replug the device; log out and back in once after installing |
-| Display shows “Profile missing” | there is no profile for this model yet: import one or create it in the window |
+| A key shows “No profile – choose in LinDeck” | there is no profile for this model yet: import one or create it in the window |
 | Hotkeys don't work | log out and back in; check `ls -l /dev/uinput` |
 | Wrong characters from hotkeys | set `keyboard_layout` to your Windows layout |
 | A program doesn't start | `lindeck report` shows what's missing → add it to `app_map` |
