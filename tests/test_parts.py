@@ -1,4 +1,4 @@
-"""LinDeck und Linewave einzeln: jedes Paket läuft allein, beide zusammen arbeiten zusammen."""
+"""FreeDeck und FreeWave einzeln: jedes Paket läuft allein, beide zusammen arbeiten zusammen."""
 import os
 import shutil
 import subprocess
@@ -13,31 +13,31 @@ import parts as P  # noqa: E402  (packaging/parts.py)
 
 
 def test_every_module_belongs_to_exactly_one_part():
-    files = {p.name for p in (ROOT / "streamlin").iterdir() if p.name != "__pycache__"}
-    listed = P.COMMON + P.LINDECK + P.LINEWAVE
+    files = {p.name for p in (ROOT / "freestream").iterdir() if p.name != "__pycache__"}
+    listed = P.COMMON + P.FREEDECK + P.FREEWAVE
     assert len(listed) == len(set(listed))
     assert set(listed) == files
 
 
 def _install(tmp, name):
-    """Paketinhalt wie im .deb nach tmp/<name>/streamlin kopieren."""
-    dst = tmp / name / "streamlin"
+    """Paketinhalt wie im .deb nach tmp/<name>/freestream kopieren."""
+    dst = tmp / name / "freestream"
     dst.mkdir(parents=True)
     for f in P.PACKAGES[name]:
-        src = ROOT / "streamlin" / f
+        src = ROOT / "freestream" / f
         (shutil.copytree if src.is_dir() else shutil.copy2)(src, dst / f)
     return tmp / name
 
 
 def _run(code_or_args, path, tmp, join=None):
     env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(tmp / "home"), "PYTHONPATH": str(path),
-           "STREAMLIN_LANG": "en", "STREAMLIN_JOIN_DIRS": os.pathsep.join(str(j) for j in join or [tmp / "none"])}
+           "FREESTREAM_LANG": "en", "FREESTREAM_JOIN_DIRS": os.pathsep.join(str(j) for j in join or [tmp / "none"])}
     args = code_or_args if isinstance(code_or_args, list) else ["-c", code_or_args]
     return subprocess.run([sys.executable] + args, cwd=tmp, env=env, capture_output=True, text=True, timeout=120)
 
 
 def _imports(mods):
-    return "import importlib\n" + "".join(f"importlib.import_module('streamlin.{m[:-3]}')\n" for m in mods
+    return "import importlib\n" + "".join(f"importlib.import_module('freestream.{m[:-3]}')\n" for m in mods
                                            if m.endswith(".py") and m != "__main__.py")
 
 
@@ -48,44 +48,44 @@ def tmp(tmp_path):
 
 
 def test_lindeck_alone(tmp):
-    path = _install(tmp, "lindeck")
-    r = _run(_imports(P.COMMON + P.LINDECK) + """
-from streamlin import parts, catalog, native
-assert parts.has_lindeck() and not parts.has_linewave()
-assert not any(a.category == "Linewave" for a in catalog.CATALOG)
+    path = _install(tmp, "freedeck")
+    r = _run(_imports(P.COMMON + P.FREEDECK) + """
+from freestream import parts, catalog, native
+assert parts.has_freedeck() and not parts.has_freewave()
+assert not any(a.category == "FreeWave" for a in catalog.CATALOG)
 assert native.lookup("com.lindeck.mixer.channel") is None
 assert native.lookup("com.lindeck.obs.record") is not None
 """, path, tmp)
     assert r.returncode == 0, r.stderr
-    r = _run(["-m", "streamlin", "--help"], path, tmp)
-    assert r.returncode == 0 and "lindeck" in r.stdout, r.stderr
-    r = _run(["-m", "streamlin", "mixer"], path, tmp)
-    assert r.returncode == 2 and "Linewave is not installed" in r.stderr
+    r = _run(["-m", "freestream", "--help"], path, tmp)
+    assert r.returncode == 0 and "freedeck" in r.stdout, r.stderr
+    r = _run(["-m", "freestream", "mixer"], path, tmp)
+    assert r.returncode == 2 and "FreeWave is not installed" in r.stderr
 
 
 def test_linewave_alone(tmp):
-    path = _install(tmp, "linewave")
-    r = _run(_imports(P.COMMON + P.LINEWAVE) + """
-from streamlin import parts
-assert parts.has_linewave() and not parts.has_lindeck()
+    path = _install(tmp, "freewave")
+    r = _run(_imports(P.COMMON + P.FREEWAVE) + """
+from freestream import parts
+assert parts.has_freewave() and not parts.has_freedeck()
 """, path, tmp)
     assert r.returncode == 0, r.stderr
-    r = _run(["-m", "streamlin.linewave", "mixer", "--help"], path, tmp)
-    assert r.returncode == 0 and "linewave" in r.stdout, r.stderr
-    r = _run(["-m", "streamlin", "profiles"], path, tmp)
-    assert r.returncode == 2 and "LinDeck is not installed" in r.stderr
+    r = _run(["-m", "freestream.freewave", "mixer", "--help"], path, tmp)
+    assert r.returncode == 0 and "freewave" in r.stdout, r.stderr
+    r = _run(["-m", "freestream", "profiles"], path, tmp)
+    assert r.returncode == 2 and "FreeDeck is not installed" in r.stderr
 
 
 def test_both_installed_separately_work_together(tmp):
-    deck, wave = _install(tmp, "lindeck"), _install(tmp, "linewave")
+    deck, wave = _install(tmp, "freedeck"), _install(tmp, "freewave")
     code = """
-from streamlin import parts, catalog, native
-assert parts.has_lindeck() and parts.has_linewave()
-assert any(a.category == "Linewave" for a in catalog.CATALOG)
+from freestream import parts, catalog, native
+assert parts.has_freedeck() and parts.has_freewave()
+assert any(a.category == "FreeWave" for a in catalog.CATALOG)
 assert native.lookup("com.lindeck.mixer.channel") is native.MixerAction
-from streamlin import mixer, wavemic  # Module aus dem Linewave-Paket
+from freestream import mixer, wavemic  # Module aus dem FreeWave-Paket
 """
     r = _run(code, deck, tmp, join=[deck, wave])
     assert r.returncode == 0, r.stderr
-    r = _run("from streamlin import parts, daemon; assert parts.has_lindeck()", wave, tmp, join=[deck, wave])
+    r = _run("from freestream import parts, daemon; assert parts.has_freedeck()", wave, tmp, join=[deck, wave])
     assert r.returncode == 0, r.stderr

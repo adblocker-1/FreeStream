@@ -1,4 +1,4 @@
-"""Tests für die Rauschunterdrückung des Mikrofons (Linewave)."""
+"""Tests für die Rauschunterdrückung des Mikrofons (FreeWave)."""
 import json
 import os
 import subprocess
@@ -11,10 +11,10 @@ from test_waveapp import FakePactl, _config, _loops, _pump
 
 @pytest.fixture
 def env(tmp_path, monkeypatch):
-    from streamlin import paths, wavemic
+    from freestream import paths, wavemic
     for name, sub in (("DATA_DIR", "data"), ("STATE_DIR", "state"), ("CONFIG_DIR", "config"),
                       ("CONFIG_FILE", "config/config.json"), ("PROFILES_DIR", "data/profiles"),
-                      ("RESOURCES_DIR", "data/resources"), ("PID_FILE", "state/lindeck.pid")):
+                      ("RESOURCES_DIR", "data/resources"), ("PID_FILE", "state/freedeck.pid")):
         monkeypatch.setattr(paths, name, tmp_path / sub)
     (tmp_path / "state").mkdir()
     monkeypatch.setattr(wavemic, "OWNER", False)
@@ -33,13 +33,13 @@ class NsPactl(FakePactl):
     def blocks(self, what):
         out = super().blocks(what)
         if what == "sources" and self.ns_up:
-            out.append({"name": "linewave_mic_ns", "description": "Linewave Mikrofon (Rauschunterdrückung)"})
+            out.append({"name": "linewave_mic_ns", "description": "FreeWave Mikrofon (Rauschunterdrückung)"})
         return out
 
 
 @pytest.fixture
 def pactl(monkeypatch):
-    from streamlin import mixer, system, wave3hw
+    from freestream import mixer, system, wave3hw
     fake = NsPactl()
     monkeypatch.setattr(system, "_pactl_blocks", fake.blocks)
     monkeypatch.setattr(system, "have", lambda c: True)
@@ -52,7 +52,7 @@ def pactl(monkeypatch):
 @pytest.fixture
 def backends(monkeypatch, pactl):
     """Verfügbare Verfahren festlegen und `pipewire -c` durch einen harmlosen Prozess ersetzen."""
-    from streamlin import noise
+    from freestream import noise
     have = {"rnnoise": False, "webrtc": True}
     monkeypatch.setattr(noise, "rnnoise_plugin", lambda: "/usr/lib/ladspa/librnnoise_ladspa.so"
                         if have["rnnoise"] else None)
@@ -79,7 +79,7 @@ def backends(monkeypatch, pactl):
 
 
 def test_backend_choice(monkeypatch):
-    from streamlin import noise
+    from freestream import noise
     monkeypatch.setattr(noise, "rnnoise_plugin", lambda: "/usr/lib/ladspa/librnnoise_ladspa.so")
     monkeypatch.setattr(noise, "webrtc_available", lambda: True)
     assert noise.available() == ["rnnoise", "webrtc"]
@@ -92,7 +92,7 @@ def test_backend_choice(monkeypatch):
 
 
 def test_rnnoise_plugin_found_in_ladspa_path(tmp_path, monkeypatch):
-    from streamlin import effects, noise
+    from freestream import effects, noise
     monkeypatch.setattr(effects, "LADSPA_DIRS", [])
     monkeypatch.setenv("LADSPA_PATH", str(tmp_path))
     assert noise.rnnoise_plugin() is None
@@ -101,7 +101,7 @@ def test_rnnoise_plugin_found_in_ladspa_path(tmp_path, monkeypatch):
 
 
 def test_configs():
-    from streamlin import noise
+    from freestream import noise
     r = noise.rnnoise_conf("alsa_input.mic", "/usr/lib/ladspa/librnnoise_ladspa.so", 70)
     assert 'plugin = "/usr/lib/ladspa/librnnoise_ladspa.so" label = noise_suppressor_mono' in r
     assert '"VAD Threshold (%)" = 70' in r and 'target.object  = "alsa_input.mic"' in r
@@ -115,7 +115,7 @@ def test_configs():
 
 
 def test_settings_saved_with_mixer_config(env):
-    from streamlin.mixer import Mixer
+    from freestream.mixer import Mixer
     cfg = _config(env, {"mixer": {"enabled": True}})
     ns = Mixer(cfg).noise
     assert ns.settings() == {"enabled": False, "backend": "auto", "strength": 50}
@@ -127,8 +127,8 @@ def test_settings_saved_with_mixer_config(env):
 
 
 def test_mixer_routes_mic_through_noise_suppression(env, pactl, backends, monkeypatch):
-    from streamlin import effects
-    from streamlin.mixer import Mixer
+    from freestream import effects
+    from freestream.mixer import Mixer
     hp = effects.lookup("builtin:highpass")
     cfg = _config(env, {"mixer": {"enabled": True, "noise": {"enabled": True},
                                   "effects": {"mic": [effects.new_effect(hp)]}}})
@@ -162,7 +162,7 @@ def test_mixer_routes_mic_through_noise_suppression(env, pactl, backends, monkey
 
 
 def test_noise_falls_back_without_backend(env, pactl, backends):
-    from streamlin.mixer import Mixer
+    from freestream.mixer import Mixer
     backends["webrtc"] = False
     mx = Mixer(_config(env, {"mixer": {"enabled": True, "noise": {"enabled": True}}}), run=pactl)
     mx.setup()  # nichts installiert: Mikrofon läuft ohne Rauschunterdrückung weiter
@@ -171,13 +171,13 @@ def test_noise_falls_back_without_backend(env, pactl, backends):
 
 
 def test_host_restarts_noise_suppression(env, pactl, backends):
-    from streamlin.wavehost import WaveHost
+    from freestream.wavehost import WaveHost
     cfg = _config(env, {"mixer": {"enabled": True}})
     host = WaveHost(cfg)
     host.start()
     assert host.mixer.is_active() and not host.mixer.noise.running()
     host.mixer.noise.set(enabled=True)
-    # Linewave neu gestartet, Mixer lief weiter: Rauschunterdrückung wird wieder angeworfen
+    # FreeWave neu gestartet, Mixer lief weiter: Rauschunterdrückung wird wieder angeworfen
     host2 = WaveHost(cfg)
     host2.start()
     assert host2.mixer.noise.running()
@@ -185,8 +185,8 @@ def test_host_restarts_noise_suppression(env, pactl, backends):
 
 
 def test_cli_noise(env, pactl, backends, capsys):
-    from streamlin.__main__ import main, wave_main
-    from streamlin.config import Config
+    from freestream.__main__ import main, wave_main
+    from freestream.config import Config
     _config(env, {"mixer": {"enabled": True}})
     assert main(["wave", "noise", "status"]) == 0
     assert "Rauschunterdrückung: aus" in capsys.readouterr().out
@@ -194,7 +194,7 @@ def test_cli_noise(env, pactl, backends, capsys):
     out = capsys.readouterr().out
     assert "startet, sobald der Mixer eingerichtet ist" in out and "PipeWire WebRTC" in out
     assert Config().get("mixer")["noise"]["enabled"] is True
-    from streamlin.mixer import Mixer
+    from freestream.mixer import Mixer
     Mixer(Config()).setup()
     assert main(["wave", "noise"]) == 0
     assert "an (PipeWire WebRTC, aktiv)" in capsys.readouterr().out
@@ -214,8 +214,8 @@ def test_cli_noise(env, pactl, backends, capsys):
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
 def test_mic_view_noise_card(env, pactl, backends):
     import tkinter as tk
-    from streamlin.wavehost import WaveHost
-    from streamlin.waveui import WaveWindow
+    from freestream.wavehost import WaveHost
+    from freestream.waveui import WaveWindow
     host = WaveHost(_config(env, {"mixer": {"enabled": True}}))
     host.start()
     root = tk.Tk()

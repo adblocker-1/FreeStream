@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from streamlin import i18n
+from freestream import i18n
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
@@ -15,7 +15,7 @@ import i18n as tool  # noqa: E402  (tools/i18n.py)
 
 @pytest.fixture
 def lang_env(monkeypatch, tmp_path):
-    for var in ("STREAMLIN_LANG", "LINDECK_LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+    for var in ("FREESTREAM_LANG", "FREEDECK_LANG", "LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
         monkeypatch.delenv(var, raising=False)
     cfg = tmp_path / "config.json"
     monkeypatch.setattr(i18n.paths, "CONFIG_FILE", cfg)
@@ -77,9 +77,9 @@ def test_detect_order(lang_env):
     assert i18n.detect() == "es"                      # config wins over the system locale
     cfg.write_text(json.dumps({"language": "auto"}))
     assert i18n.detect() == "pt_BR"
-    mp.setenv("STREAMLIN_LANG", "fr")
-    assert i18n.detect() == "fr"                      # STREAMLIN_LANG wins over everything
-    mp.setenv("STREAMLIN_LANG", "xx")
+    mp.setenv("FREESTREAM_LANG", "fr")
+    assert i18n.detect() == "fr"                      # FREESTREAM_LANG wins over everything
+    mp.setenv("FREESTREAM_LANG", "xx")
     assert i18n.detect() == "en"
 
 
@@ -91,7 +91,7 @@ def test_languages_offered():
 
 
 def test_template_is_current():
-    """streamlin.pot lists exactly the strings used in the code (tools/i18n.py update)."""
+    """freestream.pot lists exactly the strings used in the code (tools/i18n.py update)."""
     pot = {(e.get("msgctxt"), e["msgid"]) for e in i18n.parse_po(tool.POT.read_text(encoding="utf-8"))
            if e["msgid"]}
     code = {(e.get("msgctxt"), e["msgid"]) for e in tool.extract()}
@@ -107,19 +107,19 @@ def test_language_complete(lang, capsys):
 @pytest.mark.parametrize("lang", ["en", "de", "es", "fr", "pt_BR"])
 def test_all_modules_import(lang, tmp_path):
     """Every module loads in every language (module-level texts, placeholders)."""
-    mods = sorted(p.stem for p in (ROOT / "streamlin").glob("*.py") if p.stem not in ("__init__",))
+    mods = sorted(p.stem for p in (ROOT / "freestream").glob("*.py") if p.stem not in ("__init__",))
     code = ("import importlib, sys\n"
             f"for m in {mods!r}:\n"
-            "    if m in ('__main__', 'linewave'):\n"
+            "    if m in ('__main__', 'freewave'):\n"
             "        continue\n"
             "    try:\n"
-            "        importlib.import_module('streamlin.' + m)\n"
+            "        importlib.import_module('freestream.' + m)\n"
             "    except ImportError as e:\n"
             "        if 'tkinter' not in str(e) and 'StreamDeck' not in str(e) and 'evdev' not in str(e):\n"
             "            raise\n"
-            "from streamlin import i18n\n"
+            "from freestream import i18n\n"
             "print(i18n.current())\n")
-    env = {"PATH": "/usr/bin:/bin", "STREAMLIN_LANG": lang, "HOME": str(tmp_path)}
+    env = {"PATH": "/usr/bin:/bin", "FREESTREAM_LANG": lang, "HOME": str(tmp_path)}
     out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, env=env, capture_output=True, text=True)
     assert out.returncode == 0, out.stderr[-2000:]
     assert out.stdout.strip() == lang
@@ -127,28 +127,44 @@ def test_all_modules_import(lang, tmp_path):
 
 def test_cli_help_translated(tmp_path):
     env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
-    en = subprocess.run([sys.executable, "-m", "streamlin", "--help"], cwd=ROOT, capture_output=True,
-                        text=True, env={**env, "STREAMLIN_LANG": "en"})
-    de = subprocess.run([sys.executable, "-m", "streamlin", "--help"], cwd=ROOT, capture_output=True,
-                        text=True, env={**env, "STREAMLIN_LANG": "de"})
+    en = subprocess.run([sys.executable, "-m", "freestream", "--help"], cwd=ROOT, capture_output=True,
+                        text=True, env={**env, "FREESTREAM_LANG": "en"})
+    de = subprocess.run([sys.executable, "-m", "freestream", "--help"], cwd=ROOT, capture_output=True,
+                        text=True, env={**env, "FREESTREAM_LANG": "de"})
     assert en.returncode == 0 and de.returncode == 0
     assert en.stdout != de.stdout
 
 
-def test_old_lindeck_folders_are_moved(tmp_path):
-    """Bis 0.13 hießen die Ordner „lindeck“: sie ziehen einmalig um, am alten Ort bleibt ein Verweis."""
-    old = tmp_path / "config" / "lindeck"
+@pytest.mark.parametrize("old_name", ["streamlin", "lindeck"])
+def test_old_folders_are_moved(tmp_path, old_name):
+    """Bis 0.28 hießen die Ordner „streamlin“, bis 0.13 „lindeck“: sie ziehen einmalig um, am alten Ort
+    bleibt ein Verweis."""
+    old = tmp_path / "config" / old_name
     old.mkdir(parents=True)
     (old / "config.json").write_text('{"language": "fr"}')
-    code = "from streamlin import paths; print(paths.CONFIG_DIR)"
+    code = "from freestream import paths; print(paths.CONFIG_DIR)"
     env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path), "XDG_CONFIG_HOME": str(tmp_path / "config"),
            "XDG_DATA_HOME": str(tmp_path / "data"), "XDG_STATE_HOME": str(tmp_path / "state")}
     out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, env=env, capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
-    new = tmp_path / "config" / "streamlin"
+    new = tmp_path / "config" / "freestream"
     assert out.stdout.strip() == str(new)
     assert (new / "config.json").read_text() == '{"language": "fr"}'
     assert old.is_symlink() and (old / "config.json").exists()
     # zweiter Start: nichts mehr zu tun
     out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, env=env, capture_output=True, text=True)
     assert out.stdout.strip() == str(new)
+
+
+def test_folder_chain_lindeck_streamlin(tmp_path):
+    """Wer von 0.13 über 0.28 kommt: lindeck → streamlin (Verweis) → freestream."""
+    base = tmp_path / "config"
+    (base / "streamlin").mkdir(parents=True)
+    (base / "streamlin" / "config.json").write_text("{}")
+    (base / "lindeck").symlink_to("streamlin")
+    code = "from freestream import paths; print(paths.CONFIG_DIR)"
+    env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path), "XDG_CONFIG_HOME": str(base),
+           "XDG_DATA_HOME": str(tmp_path / "data"), "XDG_STATE_HOME": str(tmp_path / "state")}
+    out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, env=env, capture_output=True, text=True)
+    assert out.stdout.strip() == str(base / "freestream")
+    assert (base / "lindeck" / "config.json").exists() and (base / "streamlin" / "config.json").exists()

@@ -1,60 +1,64 @@
-# Streamlin: Stream Deck and Wave Link for Linux
+# FreeStream: Stream Deck and Wave Link for Linux
 
-Streamlin brings the Elgato streaming setup to Linux with **two programs**:
+FreeStream brings the Elgato streaming setup to Linux with **two programs**:
 
 | Program | Replaces | Purpose |
 |---|---|---|
-| **[LinDeck](#lindeck)** | Stream Deck app | keys, profiles, plugins – reads your Elgato profiles **directly and unchanged** |
-| **[Linewave](#linewave)** | Wave Link | audio mixer with your own mixes (Personal, Stream, Chat …), effects, Wave microphone |
+| **[FreeDeck](#freedeck)** | Stream Deck app | keys, profiles, plugins – reads your Elgato profiles **directly and unchanged** |
+| **[FreeWave](#freewave)** | Wave Link | audio mixer with your own mixes (Personal, Stream, Chat …), effects, Wave microphone |
 
-| LinDeck | Linewave |
+| FreeDeck | FreeWave |
 |---|---|
-| ![LinDeck window with a Stream Deck +](docs/images/lindeck-window.png) | ![Linewave mixer](docs/images/linewave-mixer.png) |
+| ![FreeDeck window with a Stream Deck +](docs/images/freedeck-window.png) | ![FreeWave mixer](docs/images/freewave-mixer.png) |
 
 Available in **English, German, Spanish, French and Portuguese (Brazil)**.
+
+> **New name:** FreeStream was called *Streamlin* until version 0.28 – FreeDeck was
+> *LinDeck* and FreeWave was *Linewave*. Updating keeps all your profiles, mixes and
+> settings; the old commands `lindeck` and `linewave` keep working.
 
 **Contents**
 
 - [Installation](#installation)
-- [LinDeck](#lindeck): [first start](#first-start) · [the window](#the-window) ·
+- [FreeDeck](#freedeck): [first start](#first-start) · [the window](#the-window) ·
   [icons and backgrounds](#icons-and-backgrounds) · [actions](#actions) ·
-  [plugins and connections](#plugins-and-connections) · [settings](#lindeck-settings) ·
-  [troubleshooting](#lindeck-troubleshooting)
-- [Linewave](#linewave): [first start](#first-start-1) · [the mixer](#the-mixer) ·
+  [plugins and connections](#plugins-and-connections) · [settings](#freedeck-settings) ·
+  [troubleshooting](#freedeck-troubleshooting)
+- [FreeWave](#freewave): [first start](#first-start-1) · [the mixer](#the-mixer) ·
   [apps and channels](#apps-and-channels) · [more features](#more-features) ·
-  [Linewave on the deck](#linewave-on-the-deck) · [troubleshooting](#linewave-troubleshooting)
+  [FreeWave on the deck](#freewave-on-the-deck) · [troubleshooting](#freewave-troubleshooting)
 - [For both programs](#for-both-programs): settings file, help, legal
 
 ## Installation
 
 1. Download from [Releases](../../releases) and double-click it, or run
    `sudo apt install ./<file>.deb`:
-   - `streamlin_<version>_all.deb` – both programs (recommended)
-   - `lindeck_<version>_all.deb` – only LinDeck
-   - `linewave_<version>_all.deb` – only Linewave
+   - `freestream_<version>_all.deb` – both programs (recommended)
+   - `freedeck_<version>_all.deb` – only FreeDeck
+   - `freewave_<version>_all.deb` – only FreeWave
 
-   You can install LinDeck and Linewave separately and add the other one later.
-2. Start **LinDeck** or **Linewave** from the menu. Both also start invisibly when
+   You can install FreeDeck and FreeWave separately and add the other one later.
+2. Start **FreeDeck** or **FreeWave** from the menu. Both also start invisibly when
    you log in; closing a window keeps the program running in the background.
 
 **Requirements:** a Debian-based distribution (Debian 12/13, Ubuntu 22.04+,
 Linux Mint 21+, Pop!_OS, Zorin …) with Python ≥ 3.10, X11 or Wayland. The package
-sets up device access, hotkeys, autostart and menu entries. If LinDeck does not
+sets up device access, hotkeys, autostart and menu entries. If FreeDeck does not
 start right after installing, log out and back in once.
 
-**Updates:** at every start, LinDeck and Linewave look for a new release and
+**Updates:** at every start, FreeDeck and FreeWave look for a new release and
 install it after you confirm (can be switched off in **Settings**).
-**Uninstall:** `sudo apt remove streamlin` (or `lindeck` / `linewave`); your
-profiles stay in `~/.local/share/streamlin`.
+**Uninstall:** `sudo apt remove freestream` (or `freedeck` / `freewave`); your
+profiles stay in `~/.local/share/freestream`.
 
 > **Status:** version 0.28, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 
 ---
 
-# LinDeck
+# FreeDeck
 
-LinDeck runs every Elgato Stream Deck – keys, icons, folders, pages, multi
+FreeDeck runs every Elgato Stream Deck – keys, icons, folders, pages, multi
 actions, dials and touch strips – with your profiles from the Elgato app. You can
 also edit profiles or create new ones right on Linux.
 
@@ -65,9 +69,9 @@ stick and plug it in on Linux. At the first start, the **setup** finds your deck
 and takes over the profiles from the stick, your Downloads folder or files you
 choose – or starts you off with an empty profile.
 
-![LinDeck setup](docs/images/lindeck-setup.png)
+![FreeDeck setup](docs/images/freedeck-setup.png)
 
-Later, LinDeck still imports new profiles (`.streamDeckProfile` files and
+Later, FreeDeck still imports new profiles (`.streamDeckProfile` files and
 backups) from USB sticks and Downloads by itself.
 
 ## The window
@@ -80,7 +84,7 @@ settings of the selected key at the bottom.
 - The device is drawn like your model: touch strip and dials on the Stream Deck +,
   the info bar on the Neo (‹ › turn the pages), pedals on the Pedal. Free keys are
   dashed with a “+”.
-- **Profiles:** **New profile** only asks for a name – LinDeck knows the connected
+- **Profiles:** **New profile** only asks for a name – FreeDeck knows the connected
   model. Right-click a profile to rename, duplicate, export or delete it. Profiles
   stay in the Elgato format, so **Export…** takes them back to Windows.
 - **On the deck**, a key briefly shows **Done** or **Error** after its action; a
@@ -89,17 +93,17 @@ settings of the selected key at the bottom.
 ## Icons and backgrounds
 
 **Icons …** next to the key preview opens the **icon library**: over 100 icons
-drawn for LinDeck in three packs (**Color**, **White**, **Black**) with search and
+drawn for FreeDeck in three packs (**Color**, **White**, **Black**) with search and
 zoom. **Own image …** takes any picture.
 
-![Icon library](docs/images/lindeck-icons.png)
+![Icon library](docs/images/freedeck-icons.png)
 
 **Background** above the device spreads a picture across all keys of a page; the
 touch strip of the Stream Deck + can get its own image.
 
 | | |
 |---|---|
-| ![Background image across all keys](docs/images/lindeck-background.png) | ![Background dialog](docs/images/lindeck-background-dialog.png) |
+| ![Background image across all keys](docs/images/freedeck-background.png) | ![Background dialog](docs/images/freedeck-background-dialog.png) |
 
 ## Actions
 
@@ -120,7 +124,7 @@ All built-in actions of the Elgato app work:
 | **Volume Controller** | input/output devices and app volume |
 | **Smart Profiles** | switch profiles by active window (X11, KDE, Hyprland, Sway) – see **Settings → Profiles** |
 
-LinDeck adds its own **live keys**: **Clock**, **Countdown** (flashes and plays a
+FreeDeck adds its own **live keys**: **Clock**, **Countdown** (flashes and plays a
 sound at zero), **Stopwatch** and a **system monitor** (CPU, memory, temperature,
 network, battery, disk space).
 
@@ -133,7 +137,7 @@ restart or remove it. Plugins built with the official SDK need
 [Node.js](https://nodejs.org/en/download) (version 20 recommended); Windows-only
 and macOS-only plugins cannot run.
 
-![Plugin management](docs/images/lindeck-plugins.png)
+![Plugin management](docs/images/freedeck-plugins.png)
 
 The services are set up under **Settings → Connections**, each with a
 connection test:
@@ -147,7 +151,7 @@ connection test:
 
 ![Connections](docs/images/settings-connections.png)
 
-<a id="lindeck-settings"></a>
+<a id="freedeck-settings"></a>
 ## Settings
 
 **Settings** (gear at the bottom of the sidebar) have tabs, like the Elgato app:
@@ -166,23 +170,23 @@ connection test:
 | ![General settings](docs/images/settings.png) | ![Device settings](docs/images/settings-devices.png) |
 | ![Profile settings](docs/images/settings-profiles.png) | ![Style settings](docs/images/settings-style.png) |
 
-<a id="lindeck-troubleshooting"></a>
+<a id="freedeck-troubleshooting"></a>
 ## Troubleshooting
 
 | Problem | Solution |
 |---|---|
 | Device not detected | replug the device; log out and back in once after installing |
-| A key shows “No profile – choose in LinDeck” | there is no profile for this model yet: import one or create it in the window |
+| A key shows “No profile – choose in FreeDeck” | there is no profile for this model yet: import one or create it in the window |
 | Hotkeys don't work | log out and back in; check `ls -l /dev/uinput` |
 | Wrong characters from hotkeys | **Settings → Connections → Windows profiles**: choose your Windows keyboard layout |
-| A program doesn't start | `lindeck report` shows what's missing → add it under **Settings → Connections → Windows profiles** |
+| A program doesn't start | `freedeck report` shows what's missing → add it under **Settings → Connections → Windows profiles** |
 | Key shows a warning symbol | the plugin is missing or Windows-only |
 
 ---
 
-# Linewave
+# FreeWave
 
-Linewave replaces Elgato Wave Link: an audio mixer for PipeWire with your own
+FreeWave replaces Elgato Wave Link: an audio mixer for PipeWire with your own
 mixes, effects and support for Elgato Wave microphones.
 
 ## First start
@@ -199,12 +203,12 @@ mute for every channel.
 
 - **Personal Mix** – what you hear on your headphones (also on several devices at once).
 - **Stream Mix** – what your audience hears. In OBS, choose the audio source
-  **“Monitor of Linewave Stream Mix”**.
+  **“Monitor of FreeWave Stream Mix”**.
 - **Your own mixes** – **Create mix** in the sidebar, e.g. a **Chat Mix** for
-  Discord (choose “Monitor of Linewave Chat Mix” as microphone there). A mix goes
+  Discord (choose “Monitor of FreeWave Chat Mix” as microphone there). A mix goes
   to any devices you tick and/or to a virtual source for other programs.
 
-![Programs go into channels, each channel has a slider in every mix](docs/images/linewave-flow.png)
+![Programs go into channels, each channel has a slider in every mix](docs/images/freewave-flow.png)
 
 - **Click an empty cell** (it shows ⊕) to put a channel into a mix; the small ✕
   on a cell takes it out. New mixes and channels start empty.
@@ -228,12 +232,12 @@ also for an input device such as a second microphone or a capture card.
 | **Keyboard shortcuts** | mute the microphone or apply a scene from any app, also on Wayland |
 | **Wave microphones** | Wave:3: gain, mute, Low Cut, Clipguard, LEDs and monitoring; Wave:1, Neo, XLR: gain and mute |
 
-![Wave:3 settings](docs/images/linewave-microphone.png)
+![Wave:3 settings](docs/images/freewave-microphone.png)
 
-## Linewave on the deck
+## FreeWave on the deck
 
-With LinDeck installed too, **Export to LinDeck** in the mixer header creates a
-profile “Linewave” for your deck – laid out like the Wave Link profile – and keeps
+With FreeDeck installed too, **Export to FreeDeck** in the mixer header creates a
+profile “FreeWave” for your deck – laid out like the Wave Link profile – and keeps
 it up to date when you add or delete channels:
 
 - top row: mix keys (All and every mix) and “Channels 1–7”
@@ -242,23 +246,23 @@ it up to date when you add or delete channels:
 - on the Stream Deck +: the dials
 
 The actions **Mixer Channel**, **Mixer Scene** and **Wave Microphone** work even
-when the Linewave window is closed.
+when the FreeWave window is closed.
 
-<a id="linewave-troubleshooting"></a>
+<a id="freewave-troubleshooting"></a>
 ## Troubleshooting
 
 | Problem | Solution |
 |---|---|
 | No sound after setting up the mixer | choose your headphones under **Listen** in the mixer; **Settings → Remove mixer** restores everything |
-| OBS hears nothing | use the audio source “Monitor of Linewave Stream Mix” and check that the channel is in the Stream Mix |
+| OBS hears nothing | use the audio source “Monitor of FreeWave Stream Mix” and check that the channel is in the Stream Mix |
 
-Linewave's **Settings** have the general part plus **Remove mixer / Set up mixer**.
+FreeWave's **Settings** have the general part plus **Remove mixer / Set up mixer**.
 
 ---
 
 # For both programs
 
-**Settings file:** everything is stored in `~/.config/streamlin/config.json`.
+**Settings file:** everything is stored in `~/.config/freestream/config.json`.
 Passwords and access tokens (OBS, Discord, Home Assistant) go into your desktop's
 **keyring** (GNOME Keyring, KWallet); without a keyring they stay in the file,
 which then only you can read. The Windows-profile values look like this:
@@ -272,9 +276,9 @@ which then only you can read. The Windows-profile values look like this:
 ```
 
 **Help:** **Settings → Help → Create support report…** and attach the file to a
-[GitHub issue](https://github.com/adblocker-1/Streamlin/issues/new).
+[GitHub issue](../../issues/new).
 
-**Legal:** Streamlin is an independent project and is not affiliated with Elgato
+**Legal:** FreeStream is an independent project and is not affiliated with Elgato
 or Corsair. “Elgato”, “Stream Deck” and “Wave Link” are trademarks of Corsair
 Memory, Inc. It contains no code and no graphics from Elgato; default icons are
 only taken from your own Elgato installer. It bundles

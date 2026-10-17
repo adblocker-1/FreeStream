@@ -18,7 +18,7 @@ pytestmark = pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X
 @pytest.fixture
 def usb(tmp_path, monkeypatch):
     """Simulierte USB-Geräte (sysfs); ohne Aufruf von plug() ist nichts angeschlossen."""
-    from streamlin import models
+    from freestream import models
     root = tmp_path / "usb"
     root.mkdir()
     monkeypatch.setattr(models, "USB_ROOT", str(root))
@@ -33,7 +33,7 @@ def usb(tmp_path, monkeypatch):
 
 def test_popup_menu():
     import tkinter as tk
-    from streamlin.theme import PopupMenu
+    from freestream.theme import PopupMenu
     root = tk.Tk()
     try:
         done = []
@@ -63,7 +63,7 @@ def test_popup_menu():
 
 
 def test_lindeck_more_menu_and_profile_context(app, store, usb, monkeypatch):
-    from streamlin import editdoc, editor
+    from freestream import editdoc, editor
     assert not hasattr(app, "more_btn") and not hasattr(app, "_more_menu")  # kein „…“-Menü mehr
     other = editdoc.create_profile("Gaming", "20GAT9901", store)
     app.refresh_profiles()
@@ -83,7 +83,7 @@ def test_lindeck_more_menu_and_profile_context(app, store, usb, monkeypatch):
 
 
 def test_lindeck_model_detected_automatically(app, store, usb):
-    from streamlin import editdoc, editor
+    from freestream import editdoc, editor
     # nichts angeschlossen: Modell des offenen Profils (Stream Deck +)
     assert app.auto_model() == ("20GBD9901", False)
     usb(0x006C)  # Stream Deck XL angesteckt
@@ -102,7 +102,7 @@ def test_lindeck_model_detected_automatically(app, store, usb):
 
 
 def test_lindeck_new_profile_uses_connected_model(app, store, usb, monkeypatch):
-    from streamlin import editor
+    from freestream import editor
     usb(0x0084)  # Stream Deck +
 
     class Dlg:
@@ -126,8 +126,8 @@ def test_lindeck_devices_only_connected(app):
 
 def test_linewave_mix_menu_and_create_in_sidebar(env, pactl, monkeypatch):
     import tkinter as tk
-    from streamlin.wavehost import WaveHost
-    from streamlin.waveui import WaveWindow
+    from freestream.wavehost import WaveHost
+    from freestream.waveui import WaveWindow
     cfg = _config(env, {"mixer": {"enabled": True, "mixes": [{"id": "chat", "name": "Chat", "virtual": True}]}})
     host = WaveHost(cfg)
     host.start()
@@ -140,12 +140,12 @@ def test_linewave_mix_menu_and_create_in_sidebar(env, pactl, monkeypatch):
         assert menu.labels() == ["Bearbeiten …", "Abhören", "Mix löschen"]
         assert not next(e for e in menu.entries if e and e["label"] == "Mix löschen")["enabled"]  # fester Mix
         menu.close()
-        from streamlin import msgbox as messagebox
+        from freestream import msgbox as messagebox
         monkeypatch.setattr(messagebox, "askyesno", lambda *a, **k: True)
         win._mix_menu("chat", 10, 10).invoke("Mix löschen")
         assert _pump(root, lambda: "chat" not in win.mix_cards)
         assert host.mixer.mix_ids() == ["monitor", "stream"]
-        assert not hasattr(win, "open_lindeck") and not hasattr(win, "more_btn")
+        assert not hasattr(win, "open_freedeck") and not hasattr(win, "more_btn")
         for fn in (win._scene_menu, win._output_menu):
             m = fn()
             assert m.labels()
@@ -155,14 +155,14 @@ def test_linewave_mix_menu_and_create_in_sidebar(env, pactl, monkeypatch):
         root.destroy()
 
 
-def test_settings_offer_mixer_removal_in_linewave(env):
+def test_settings_offer_mixer_removal_in_freewave(env):
     import tkinter as tk
-    from streamlin.settingsui import SettingsDialog
-    from streamlin.theme import Button
+    from freestream.settingsui import SettingsDialog
+    from freestream.theme import Button
     root = tk.Tk()
     try:
         calls = []
-        dlg = SettingsDialog(root, "Linewave", lambda: None, mixer=(True, calls.append))
+        dlg = SettingsDialog(root, "FreeWave", lambda: None, mixer=(True, calls.append))
 
         def buttons(w):
             for c in w.winfo_children():
@@ -172,8 +172,8 @@ def test_settings_offer_mixer_removal_in_linewave(env):
         btn = next(b for b in buttons(dlg) if b.text == "Mixer entfernen")
         btn.command()
         assert calls == [False]
-        lindeck = SettingsDialog(root, "LinDeck", lambda: None)
-        assert not any(b.text in ("Mixer entfernen", "Mixer einrichten") for b in buttons(lindeck))
-        lindeck.destroy()
+        freedeck = SettingsDialog(root, "FreeDeck", lambda: None)
+        assert not any(b.text in ("Mixer entfernen", "Mixer einrichten") for b in buttons(freedeck))
+        freedeck.destroy()
     finally:
         root.destroy()

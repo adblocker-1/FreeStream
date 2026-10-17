@@ -5,16 +5,16 @@ import zipfile
 
 import pytest
 
-from streamlin import backup, paths
+from freestream import backup, paths
 
 
 @pytest.fixture(autouse=True)
 def home(tmp_path, monkeypatch):
     """Eigenes Zuhause mit Profil, Plugin, Einstellungen, Logs und Caches."""
     share = tmp_path / "share"
-    cfg, data, state = tmp_path / "cfg" / "streamlin", share / "streamlin", tmp_path / "state" / "streamlin"
+    cfg, data, state = tmp_path / "cfg" / "freestream", share / "freestream", tmp_path / "state" / "freestream"
     for name, val in (("CONFIG_DIR", cfg), ("DATA_DIR", data), ("STATE_DIR", state),
-                      ("CONFIG_FILE", cfg / "config.json"), ("PID_FILE", state / "streamlin.pid")):
+                      ("CONFIG_FILE", cfg / "config.json"), ("PID_FILE", state / "freestream.pid")):
         monkeypatch.setattr(paths, name, val)
     monkeypatch.setattr(backup, "running_programs", lambda: [])
     prof = data / "profiles" / "P1.sdProfile"
@@ -37,12 +37,12 @@ def home(tmp_path, monkeypatch):
     state.mkdir(parents=True)
     (state / "state.json").write_text('{"ABC": {"profile": "P1"}}')
     (state / "wavemic.json").write_text('{"lowcut": true}')
-    (state / "streamlin.log").write_text("log")
+    (state / "freestream.log").write_text("log")
     (state / "mixer.json").write_text("{}")
     (state / "updates").mkdir()
-    (state / "updates" / "streamlin_9.deb").write_bytes(b"deb")
+    (state / "updates" / "freestream_9.deb").write_bytes(b"deb")
     # alter Ordnername als Verweis (wie nach dem Umzug 0.13) und Verweise im Datenordner
-    (share / "lindeck").symlink_to("streamlin")
+    (share / "lindeck").symlink_to("freestream")
     (data / "old-profiles").symlink_to("profiles")
     (data / "outside").symlink_to(tmp_path)
     return tmp_path
@@ -72,7 +72,7 @@ def test_create_contents(home):
 
 
 def test_without_plugins_keeps_installed(home):
-    path = backup.create(home / "np.streamlin-backup", plugins=False)["path"]
+    path = backup.create(home / "np.freestream-backup", plugins=False)["path"]
     assert not any(n.startswith("data/plugins/") for n in _names(path))
     plug = paths.DATA_DIR / "plugins" / "com.x.sdPlugin"
     backup.restore(path)
@@ -80,7 +80,7 @@ def test_without_plugins_keeps_installed(home):
 
 
 def test_round_trip_and_safety_backup(home):
-    path = backup.create(home / "full.streamlin-backup")["path"]
+    path = backup.create(home / "full.freestream-backup")["path"]
     # danach ändert sich alles
     (paths.CONFIG_DIR / "config.json").write_text('{"language": "de"}')
     prof = paths.DATA_DIR / "profiles" / "P1.sdProfile"
@@ -99,7 +99,7 @@ def test_round_trip_and_safety_backup(home):
     assert exe.exists() and os.access(exe, os.X_OK)
     assert (paths.DATA_DIR / "old-profiles").is_symlink() and os.readlink(paths.DATA_DIR / "old-profiles") == "profiles"
     assert (paths.DATA_DIR / "outside").is_symlink()  # eigener Verweis nach außen bleibt
-    assert (paths.STATE_DIR / "streamlin.log").exists()  # Laufzeitdaten unberührt
+    assert (paths.STATE_DIR / "freestream.log").exists()  # Laufzeitdaten unberührt
     assert not any(p.name.startswith(backup.STAGE) for p in paths.DATA_DIR.iterdir())
     # Sicherheitskopie enthält den Stand vor dem Einspielen
     assert safety.parent == paths.STATE_DIR / "backups"
@@ -113,7 +113,7 @@ def test_round_trip_and_safety_backup(home):
 
 
 def _evil(home, entries, links=None, files=None):
-    path = home / "evil.streamlin-backup"
+    path = home / "evil.freestream-backup"
     with zipfile.ZipFile(path, "w") as z:
         z.writestr("manifest.json", json.dumps({
             "format": backup.FORMAT, "format_version": 1, "files": files if files is not None else list(entries),
@@ -124,7 +124,7 @@ def _evil(home, entries, links=None, files=None):
 
 
 @pytest.mark.parametrize("name", ["data/../../evil.txt", "/etc/evil", "config/../x", "data\\..\\x",
-                                  "other/x", "state/streamlin.log", "state/../../x", "C:/x"])
+                                  "other/x", "state/freestream.log", "state/../../x", "C:/x"])
 def test_zip_slip_rejected(home, name):
     path = _evil(home, {name: "boom"})
     with pytest.raises(backup.BackupError):
@@ -151,16 +151,16 @@ def test_link_chain_escape_rejected(home):
 
 
 def test_invalid_archives(home):
-    junk = home / "junk.streamlin-backup"
+    junk = home / "junk.freestream-backup"
     junk.write_text("no zip")
     with pytest.raises(backup.BackupError):
         backup.inspect(junk)
     with pytest.raises(backup.BackupError):  # Datei nicht im Manifest
         backup.inspect(_evil(home, {"data/a": "1"}, files=[]))
-    with zipfile.ZipFile(home / "new.streamlin-backup", "w") as z:
+    with zipfile.ZipFile(home / "new.freestream-backup", "w") as z:
         z.writestr("manifest.json", json.dumps({"format": backup.FORMAT, "format_version": 99, "files": []}))
     with pytest.raises(backup.BackupError):
-        backup.inspect(home / "new.streamlin-backup")
+        backup.inspect(home / "new.freestream-backup")
 
 
 def test_zip_bomb_rejected(home, monkeypatch):
@@ -172,7 +172,7 @@ def test_zip_bomb_rejected(home, monkeypatch):
 
 def test_programs_restarted(home, monkeypatch):
     stopped, started = [], []
-    monkeypatch.setattr(backup, "running_programs", lambda: [("linewave", 4242, True)])
+    monkeypatch.setattr(backup, "running_programs", lambda: [("freewave", 4242, True)])
     monkeypatch.setattr(backup.os, "kill", lambda pid, sig: stopped.append(pid))
     monkeypatch.setattr(backup.desktop, "_alive", lambda pid: False)
     monkeypatch.setattr(backup.subprocess, "Popen", lambda cmd, **kw: started.append(cmd))
@@ -182,8 +182,8 @@ def test_programs_restarted(home, monkeypatch):
 
 
 def test_cli(home, monkeypatch, capsys):
-    from streamlin.__main__ import main, wave_main
-    out = home / "cli.streamlin-backup"
+    from freestream.__main__ import main, wave_main
+    out = home / "cli.freestream-backup"
     assert main(["backup", str(out), "--no-plugins"]) == 0
     assert out.exists() and not any(n.startswith("data/plugins/") for n in _names(out))
     (paths.CONFIG_DIR / "config.json").write_text("{}")
@@ -192,7 +192,7 @@ def test_cli(home, monkeypatch, capsys):
     assert (paths.CONFIG_DIR / "config.json").read_text() == "{}"
     assert wave_main(["restore", str(out), "--yes"]) == 0
     assert json.loads((paths.CONFIG_DIR / "config.json").read_text())["language"] == "en"
-    assert wave_main(["restore", str(home / "missing.streamlin-backup"), "--yes"]) == 1
+    assert wave_main(["restore", str(home / "missing.freestream-backup"), "--yes"]) == 1
 
 
 def test_settings_backup_card(home, monkeypatch):
@@ -202,13 +202,13 @@ def test_settings_backup_card(home, monkeypatch):
     except tk.TclError:
         pytest.skip("kein Display")
     root.withdraw()
-    from streamlin import settingsui
+    from freestream import settingsui
     restarts = []
     monkeypatch.setattr(settingsui.SettingsDialog, "winfo_screenheight", lambda self: 720)  # kleiner Bildschirm
     try:
-        dlg = settingsui.SettingsDialog(root, "Linewave", lambda: restarts.append(1))
+        dlg = settingsui.SettingsDialog(root, "FreeWave", lambda: restarts.append(1))
         assert dlg.winfo_reqheight() <= 720 - 60  # Platz für Titelleiste und Panel
-        out = home / "ui.streamlin-backup"
+        out = home / "ui.freestream-backup"
         monkeypatch.setattr(settingsui.filedialog, "asksaveasfilename", lambda **kw: str(out))
         dlg._backup()
         _pump(root, lambda: not dlg._busy)

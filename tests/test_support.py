@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from streamlin import paths, support
+from freestream import paths, support
 
 
 @pytest.fixture(autouse=True)
@@ -12,7 +12,7 @@ def home(tmp_path, monkeypatch):
                       ("PROFILES_DIR", "data/profiles"), ("PLUGINS_DIR", "data/plugins")):
         monkeypatch.setattr(paths, name, tmp_path / sub)
     monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "cfg" / "config.json")
-    monkeypatch.setattr(paths, "LOG_FILE", tmp_path / "state" / "streamlin.log")
+    monkeypatch.setattr(paths, "LOG_FILE", tmp_path / "state" / "freestream.log")
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     (tmp_path / "home").mkdir()
     return tmp_path
@@ -74,10 +74,10 @@ def test_report_file_without_any_tools(home, monkeypatch):
     (paths.STATE_DIR / "mixer.json").write_text('{"modules": [1, 2]}')
     (paths.STATE_DIR / "discord-token.json").write_text('{"access_token": "never-in-report"}')
     monkeypatch.setenv("PATH", str(home / "empty"))  # kein pactl, lsusb, dpkg …
-    path = support.write_report(app="LinDeck")
-    assert path.parent == home / "home" and path.name.startswith("streamlin-support-")
+    path = support.write_report(app="FreeDeck")
+    assert path.parent == home / "home" and path.name.startswith("freestream-support-")
     text = path.read_text()
-    for title in ("## Streamlin", "## System", "## LinDeck devices", "## Audio", "## LinDeck / Linewave state",
+    for title in ("## FreeStream", "## System", "## FreeDeck devices", "## Audio", "## FreeDeck / FreeWave state",
                   "## config.json", "## Log"):
         assert title in text
     assert "(pactl not available)" in text and "(lsusb not available)" in text
@@ -118,12 +118,12 @@ def test_devices_from_sysfs(tmp_path):
 
 
 def test_cli_support_report(home, capsys):
-    from streamlin.__main__ import main, wave_main
+    from freestream.__main__ import main, wave_main
     out = home / "r1.txt"
     assert main(["support-report", str(out)]) == 0
-    assert out.exists() and "Report created by: LinDeck" in out.read_text()
+    assert out.exists() and "Report created by: FreeDeck" in out.read_text()
     assert str(out) in capsys.readouterr().out
     (home / "dir").mkdir()
     assert wave_main(["support-report", str(home / "dir")]) == 0
-    [made] = (home / "dir").glob("streamlin-support-*.txt")
-    assert "Report created by: Linewave" in made.read_text()
+    [made] = (home / "dir").glob("freestream-support-*.txt")
+    assert "Report created by: FreeWave" in made.read_text()

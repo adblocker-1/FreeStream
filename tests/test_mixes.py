@@ -1,4 +1,4 @@
-"""Eigene Mixe in Linewave (wie „Mixes“ in Wave Link 2): anlegen, Kanäle zuordnen, Ausgänge,
+"""Eigene Mixe in FreeWave (wie „Mixes“ in Wave Link 2): anlegen, Kanäle zuordnen, Ausgänge,
 Abhören, Hauptregler – und die Mix-Tasten auf dem Stream Deck (pactl simuliert)."""
 import json
 import os
@@ -13,7 +13,7 @@ pactl = test_waveapp.pactl
 
 
 def _mixer(env, data=None):
-    from streamlin.mixer import Mixer
+    from freestream.mixer import Mixer
     cfg = _config(env, data or {"mixer": {"enabled": True}})
     mx = Mixer(cfg)
     mx.setup()
@@ -21,7 +21,7 @@ def _mixer(env, data=None):
 
 
 def _loop_sink(pactl, lid):
-    """Name des Sinks, auf den ein Linewave-Loopback spielt."""
+    """Name des Sinks, auf den ein FreeWave-Loopback spielt."""
     b = next(b for b in pactl.inputs.values() if b["props"].get("linewave.loop") == lid)
     return next((s["name"] for s in pactl.sinks if s["index"] == b["sink"]), None)
 
@@ -118,7 +118,7 @@ def test_direct_personal_mix_listen_and_output_switch(env, pactl):
 
 
 def test_old_state_is_rebuilt_and_ducking_uses_all_mixes(env, pactl):
-    from streamlin import paths
+    from freestream import paths
     mx, _cfg = _mixer(env)
     st = json.loads((paths.STATE_DIR / "mixer.json").read_text())
     st.pop("loops")  # Zustand einer Version ohne eigene Mixe
@@ -126,14 +126,14 @@ def test_old_state_is_rebuilt_and_ducking_uses_all_mixes(env, pactl):
     mx.add_mix("Chat", virtual=True)
     assert "loops" in json.loads((paths.STATE_DIR / "mixer.json").read_text())
     assert "music_chat" in mx.raw_levels()
-    from streamlin.ducking import Ducker
+    from freestream.ducking import Ducker
     d = Ducker(mx, cfg=mx.cfg, level=lambda: 0.0)
     assert set(d._mix_ids(0.0)) == {"monitor", "stream", "chat"}
 
 
 def test_deck_mix_keys_follow_linewave_mixes(env, pactl, tmp_path, monkeypatch):
-    from streamlin import deckexport, editdoc, mixkeys, native, paths
-    from streamlin.models import Geometry
+    from freestream import deckexport, editdoc, mixkeys, native, paths
+    from freestream.models import Geometry
     xl = deckexport.plan(Geometry(8, 4), ["a"], mixes=["monitor", "stream", "chat"])
     assert [k for _s, c, k in xl[0] if c is None] == ["mix:both", "mix:monitor", "mix:stream", "mix:chat", "pages"]
     many = deckexport.plan(Geometry(5, 3), ["a"], mixes=["monitor", "stream", "chat"])
@@ -191,8 +191,8 @@ def test_deck_mix_keys_follow_linewave_mixes(env, pactl, tmp_path, monkeypatch):
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
 def test_window_mix_table(env, pactl, monkeypatch):
     import tkinter as tk
-    from streamlin.wavehost import WaveHost
-    from streamlin.waveui import EmptyCell, WaveWindow
+    from freestream.wavehost import WaveHost
+    from freestream.waveui import EmptyCell, WaveWindow
     cfg = _config(env, {"mixer": {"enabled": True, "mixes": [
         {"id": "chat", "name": "Chat-Mix", "icon": "chat", "virtual": True, "exclude": ["music"]}]}})
     host = WaveHost(cfg)
@@ -252,7 +252,7 @@ def test_window_mix_table(env, pactl, monkeypatch):
         assert _pump(root, lambda: "system" not in host.mixer.mix("chat")["exclude"])
         assert win.strips["system"]["master"]["fader"] is keep
         # Mix löschen: nur seine Spalte verschwindet
-        from streamlin import msgbox
+        from freestream import msgbox
         monkeypatch.setattr(msgbox, "askyesno", lambda *a, **k: True)
         win._delete_mix(host.mixer.mix("chat"))
         assert _pump(root, lambda: "chat" not in win.mix_heads)

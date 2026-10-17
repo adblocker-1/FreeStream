@@ -3,18 +3,18 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "streamlin"
-version = "0.28.1"
-description = "Stream Deck and Wave Link replacement for Linux: LinDeck and Linewave"
+name = "freestream"
+version = "0.29.0"
+description = "Stream Deck and Wave Link replacement for Linux: FreeDeck and FreeWave"
 requires-python = ">=3.9"
 dependencies = ["streamdeck>=0.10", "pillow", "evdev", "cairosvg"]
 
 [project.scripts]
-lindeck = "streamlin.__main__:main"
-linewave = "streamlin.__main__:wave_main"
+freedeck = "freestream.__main__:main"
+freewave = "freestream.__main__:wave_main"
 
 [tool.setuptools]
-packages = ["streamlin"]
+packages = ["freestream"]
 
 [tool.setuptools.package-data]
-streamlin = ["locale/*.po", "locale/*.pot"]
+freestream = ["locale/*.po", "locale/*.pot"]

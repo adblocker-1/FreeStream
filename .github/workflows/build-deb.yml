@@ -45,7 +45,7 @@ jobs:
           pip install --break-system-packages "streamdeck>=0.10" pyflakes pytest
 
       - name: Code prüfen
-        run: python3 -m pyflakes streamlin tests tools packaging
+        run: python3 -m pyflakes freestream tests tools packaging
 
       - name: Tests
         run: xvfb-run -a python3 -m pytest -q tests
@@ -57,37 +57,45 @@ jobs:
         run: |
           # startet das installierte Programm und prüft, dass es läuft (kein Absturz beim Start)
           starts() {
-            pkill -f 'python3 -m streamlin' || true; sleep 1  # sonst holt der Start nur eine laufende Instanz nach vorne
-            out=$(STREAMLIN_NO_UPDATE_CHECK=1 timeout 10 xvfb-run -a "$@" 2>&1) && rc=0 || rc=$?
-            pkill -f 'python3 -m streamlin' || true
+            pkill -f 'python3 -m freestream' || true; sleep 1  # sonst holt der Start nur eine laufende Instanz nach vorne
+            out=$(FREESTREAM_NO_UPDATE_CHECK=1 timeout 10 xvfb-run -a "$@" 2>&1) && rc=0 || rc=$?
+            pkill -f 'python3 -m freestream' || true
             echo "$out"
             if [ "$rc" != 124 ] || echo "$out" | grep -q Traceback; then
               echo "::error::$* startet nicht (Rückgabewert $rc)"; return 1
             fi
           }
           # beide Programme in einem Paket
-          sudo apt-get install -y ./dist/streamlin_*.deb
-          lindeck --version
-          lindeck profiles
-          linewave mixer --help
-          starts lindeck
-          starts linewave
+          sudo apt-get install -y ./dist/freestream_*.deb
+          freedeck --version
+          freedeck profiles
+          freewave mixer --help
+          starts freedeck
+          starts freewave
           # Updates: das installierte Paket wird erkannt
-          (cd / && python3 -c "import sys; sys.path.insert(0, '/opt/streamlin'); from streamlin import updater; p = updater.installed_packages(); print(p); assert set(p) == {'streamlin'}")
-          # einzeln: ersetzt das Paket streamlin, beide arbeiten zusammen
-          sudo apt-get install -y ./dist/lindeck_*.deb ./dist/linewave_*.deb
+          (cd / && python3 -c "import sys; sys.path.insert(0, '/opt/freestream'); from freestream import updater; p = updater.installed_packages(); print(p); assert set(p) == {'freestream'}")
+          # einzeln: ersetzt das Paket freestream, beide arbeiten zusammen
+          sudo apt-get install -y ./dist/freedeck_*.deb ./dist/freewave_*.deb
+          freedeck --version
+          freedeck mixer --help
+          freewave mixer --help
+          starts freedeck
+          # nur FreeDeck: FreeWave-Befehle melden sich als nicht installiert
+          sudo apt-get remove -y freewave
+          freedeck profiles
+          ! freedeck mixer
+          # Umstieg vom alten Paketnamen: lindeck (alt) wird von freedeck ersetzt
+          sudo apt-get remove -y freedeck
+          sudo apt-get install -y ./dist/lindeck_*.deb
           lindeck --version
-          lindeck mixer --help
-          linewave mixer --help
-          starts lindeck
-          # nur LinDeck: Linewave-Befehle melden sich als nicht installiert
-          sudo apt-get remove -y linewave
-          lindeck profiles
-          ! lindeck mixer
+          freedeck --version
+          sudo apt-get install -y ./dist/freedeck_*.deb
+          ! dpkg -s lindeck 2>/dev/null | grep -q '^Status: install ok installed'
+          lindeck --version
 
       - uses: actions/upload-artifact@v4
         with:
-          name: streamlin-deb
+          name: freestream-deb
           path: dist/*.deb
 
       - name: Release anlegen
@@ -98,7 +106,7 @@ jobs:
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             TAG="${GITHUB_REF_NAME}"
           else
-            TAG="v$(python3 -c 'import streamlin; print(streamlin.__version__)')"
+            TAG="v$(python3 -c 'import freestream; print(freestream.__version__)')"
           fi
           if [ "${{ inputs.replace }}" = "true" ] && gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG wird neu angelegt"
@@ -110,9 +118,9 @@ jobs:
             echo "Release $TAG gibt es schon – Pakete bleiben, nur der Text wird aktualisiert"
           elif [ -f "$NOTES" ]; then
             # Ohne vorhandenen Tag legt gh ihn auf dem gebauten Commit an
-            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "Streamlin $TAG" --notes-file "$NOTES"
+            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "FreeStream $TAG" --notes-file "$NOTES"
           else
-            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "Streamlin $TAG" --generate-notes
+            gh release create "$TAG" dist/*.deb --target "${GITHUB_SHA}" --title "FreeStream $TAG" --generate-notes
           fi
 
       - name: Release-Texte aktualisieren

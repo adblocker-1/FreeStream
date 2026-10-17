@@ -4,11 +4,11 @@ from datetime import datetime
 
 import pytest
 
-from streamlin import actions as A
-from streamlin import catalog as C
-from streamlin import desktop, livekeys, native, sysinfo
-from streamlin.config import DEFAULTS
-from streamlin.i18n import _, pgettext
+from freestream import actions as A
+from freestream import catalog as C
+from freestream import desktop, livekeys, native, sysinfo
+from freestream.config import DEFAULTS
+from freestream.i18n import _, pgettext
 
 SIZES = [(72, 72), (80, 80), (96, 96), (120, 120), (144, 144)]
 
@@ -373,10 +373,10 @@ def test_engine_stream_deck_plus(fake, tmp_path, monkeypatch):
     pytest.importorskip("StreamDeck")
     from StreamDeck.DeviceManager import DeviceManager
 
-    from streamlin import editdoc as E
-    from streamlin.config import Config, State
-    from streamlin.engine import DeckController
-    from streamlin.profiles import ProfileStore
+    from freestream import editdoc as E
+    from freestream.config import Config, State
+    from freestream.engine import DeckController
+    from freestream.profiles import ProfileStore
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
     monkeypatch.setattr(desktop, "notify", lambda *a, **kw: None)
     store_dir = tmp_path / "profiles"

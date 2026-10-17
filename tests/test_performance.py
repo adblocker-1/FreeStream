@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from streamlin import render, system
+from freestream import render, system
 
 
 def test_pulse_watch_events():
@@ -47,7 +47,7 @@ def test_pactl_snapshot_runs_each_query_once(monkeypatch):
 
 
 def test_route_due_waits_for_new_streams():
-    from streamlin import wavehost
+    from freestream import wavehost
     host = wavehost.WaveHost.__new__(wavehost.WaveHost)
     host.pulse = system.PulseWatch()
     host._streams_seen, host._route_at = -1, 0.0
@@ -76,7 +76,7 @@ def test_title_layer_cached():
 
 def test_peak_level():
     import array
-    from streamlin import levels
+    from freestream import levels
     assert levels.peak_level(b"") == 0.0
     assert levels.peak_level(array.array("h", [0, -32768]).tobytes()) == 1.0
     half = levels.peak_level(array.array("h", [100, -16384, 50]).tobytes())
@@ -87,8 +87,8 @@ def test_peak_level():
 def test_select_moves_only_the_ring(tmp_path):
     import tkinter as tk
 
-    from streamlin import editdoc as E
-    from streamlin import editor
+    from freestream import editdoc as E
+    from freestream import editor
     store = tmp_path / "p"
     store.mkdir()
     d = E.ProfileDoc(E.create_profile("XL", "20GAT9901", store))
@@ -123,7 +123,7 @@ def test_pulse_watch_gives_up_when_pactl_exits_at_once(tmp_path, monkeypatch):
     end = time.time() + 6
     while w._running and time.time() < end:
         time.sleep(0.1)
-    assert not w._running and not w.available  # aufgegeben: Linewave fragt wieder regelmäßig nach
+    assert not w._running and not w.available  # aufgegeben: FreeWave fragt wieder regelmäßig nach
 
 
 @pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X")
@@ -131,7 +131,7 @@ def test_gc_runs_in_main_thread_while_window_lives():
     import gc
     import tkinter as tk
 
-    from streamlin import theme
+    from freestream import theme
     root = tk.Tk()
     theme.gc_in_main_thread(root)
     assert not gc.isenabled()  # kein Aufräumen in Arbeits-Threads (Tk-Objekte dort freigeben hängt)
