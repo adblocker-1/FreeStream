@@ -911,13 +911,19 @@ class Mixer:
             return ids
         return (mix,)
 
+    def _loops(self, cid, mix, hint=None):
+        """[(Mix, Loopback-Block)] aller Mixe hinter mix – aus einer einzigen pactl-Abfrage."""
+        with system.pactl_snapshot():
+            out = [(m, self._loop_input(cid, m)) for m in self._mixes_of(cid, mix)]
+        for m, b in out:
+            if not b:
+                raise RuntimeError(hint.format(id=cid, mix=m) if hint else
+                                   _("Channel {id}/{mix} not found").format(id=cid, mix=m))
+        return out
+
     def set_volume(self, cid, mix, pct):
         duck = self._duck()
-        for m in self._mixes_of(cid, mix):
-            b = self._loop_input(cid, m)
-            if not b:
-                raise RuntimeError(_("Channel {id}/{mix} not found – is the mixer set up? (freewave mixer setup)").format(
-                    id=cid, mix=m))
+        for m, b in self._loops(cid, mix, _("Channel {id}/{mix} not found – is the mixer set up? (freewave mixer setup)")):
             self._write_volume(b["index"], f"{cid}_{m}", pct, duck)
 
     def _write_volume(self, index, key, pct, duck=None):
@@ -927,18 +933,25 @@ class Mixer:
         self.run(["set-sink-input-volume", index, f"{pct}%"])
 
     def change_volume(self, cid, mix, delta):
-        for m in self._mixes_of(cid, mix):
-            vol, _m = self.get(cid, m)
-            if vol is None:
-                raise RuntimeError(_("Channel {id}/{mix} not found").format(id=cid, mix=m))
-            self.set_volume(cid, m, vol + delta)
+        """Lautstärke in allen Mixen um delta ändern; gibt die neuen Werte zurück ({Mix: Prozent})."""
+        duck = self._duck()
+        out = {}
+        for m, b in self._loops(cid, mix):  # erst alles lesen (eine Abfrage), dann schreiben
+            key = f"{cid}_{m}"
+            base = duck.base(key) if duck else None
+            pct = max(0, min(MAX_VOLUME, int((b.get("volume", 0) if base is None else base) + delta)))
+            self._write_volume(b["index"], key, pct, duck)
+            out[m] = pct
+        return out
 
     def set_mute(self, cid, mix, mute):
-        for m in self._mixes_of(cid, mix):
-            b = self._loop_input(cid, m)
-            if not b:
-                raise RuntimeError(_("Channel {id}/{mix} not found").format(id=cid, mix=m))
-            self.run(["set-sink-input-mute", b["index"], "toggle" if mute == "toggle" else ("1" if mute else "0")])
+        """Stumm schalten; "toggle" schaltet alle Mixe gemeinsam um. Gibt den neuen Zustand zurück."""
+        loops = self._loops(cid, mix)
+        if mute == "toggle":
+            mute = not all(b.get("mute") for _m, b in loops)
+        for _m, b in loops:
+            self.run(["set-sink-input-mute", b["index"], "1" if mute else "0"])
+        return bool(mute)
 
     def raw_levels(self, with_index=False):
         """Tatsächliche Lautstärken der Loopbacks: {"music_monitor": (Prozent, stumm[, Index])}."""

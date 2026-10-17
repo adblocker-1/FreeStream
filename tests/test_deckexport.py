@@ -212,10 +212,7 @@ def test_volume_never_above_100():
             return None
 
         def _loop_input(self, cid, mix):
-            return {"index": "7"}
-
-        def get(self, cid, mix):
-            return 98, False
+            return {"index": "7", "volume": 98}
 
         def run(self, args):
             written.append(args)

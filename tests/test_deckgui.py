@@ -212,3 +212,72 @@ def test_window_follows_deck_page_and_live_keys(tmp_path, monkeypatch):
         assert app.nav == [doc.page_ids[1]]
     finally:
         root.destroy()
+
+
+# ------------------------------------------------------------------ schnelle Mixer-Tasten
+def _fake_pactl(monkeypatch, muted=("music_monitor",)):
+    from freestream import mixer as M
+    from freestream.config import Config
+    mx = M.Mixer(Config())
+    listing = "\n".join(
+        f"Sink Input #{i}\n\tMute: {'yes' if f'{c}_{m}' in muted else 'no'}\n"
+        f"\tVolume: front-left: 50000 /  60% / -7 dB\n\tProperties:\n\t\tlinewave.loop = \"{M.PREFIX}{c}_{m}\"\n"
+        for i, (c, m) in enumerate((c["id"], m) for c in mx.channels() for m in mx.mix_ids()))
+    calls = []
+
+    def run_out(cmd, timeout=2):
+        calls.append(cmd)
+        return listing if cmd[:3] == ["pactl", "list", "sink-inputs"] else ""
+    monkeypatch.setattr(system, "run_out", run_out)
+    monkeypatch.setattr(M, "_run", lambda args: run_out(["pactl", *args]))
+    monkeypatch.setattr(M.Mixer, "_duck", lambda self: None)
+    return M.Mixer(Config()), calls  # erst jetzt: Mixer merkt sich _run beim Anlegen
+
+
+def test_mute_and_volume_read_once(monkeypatch):
+    mx, calls = _fake_pactl(monkeypatch)
+    assert mx.set_mute("music", "both", "toggle") is True  # nicht alle stumm -> alle stumm
+    lists = [c for c in calls if c[1] == "list"]
+    sets = [c[1:] for c in calls if c[1] == "set-sink-input-mute"]
+    assert len(lists) == 1 and len(sets) == len(mx.channel_mixes("music")) and all(s[-1] == "1" for s in sets)
+    calls.clear()
+    assert mx.change_volume("music", "both", 5) == {m: 65 for m in mx.channel_mixes("music")}
+    assert len([c for c in calls if c[1] == "list"]) == 1
+
+
+def test_mixer_key_draws_known_state_without_asking_again(monkeypatch):
+    from freestream import native
+    from freestream.config import Config
+    mx, calls = _fake_pactl(monkeypatch, muted=())
+    ctx = types.SimpleNamespace(cfg=Config(), ctrl=None)
+    a = native.MixerAction({"UUID": "com.lindeck.mixer.channel",
+                            "Settings": {"channel": "music", "mix": "monitor", "action": "mute"}}, None, ctx)
+    a.redraw = lambda: None
+    a.tick()
+    calls.clear()
+    a.key_down()
+    assert a._level() == (60, True)
+    assert [c[1] for c in calls] == ["list", "set-sink-input-mute"]  # lesen, schreiben – kein zweites Lesen
+
+
+def test_mix_select_asks_pactl_once(monkeypatch):
+    from freestream import native
+    from freestream.config import Config
+    mx, calls = _fake_pactl(monkeypatch)
+    ctx = types.SimpleNamespace(cfg=Config(), ctrl=None)
+    keys = {}
+    for i, c in enumerate(mx.channels()):
+        keys[i] = native.MixerAction({"UUID": "com.lindeck.mixer.channel",
+                                      "Settings": {"channel": c["id"], "mix": "selected", "display": "tile"}}, None, ctx)
+    sel = native.MixSelectAction({"UUID": "com.lindeck.mixer.mixselect", "Settings": {"mix": "stream"}}, None, ctx)
+    keys[99] = sel
+    order = []
+    for k, a in keys.items():
+        a.redraw = (lambda a=a: order.append(a))
+    ctx.ctrl = types.SimpleNamespace(keys=keys, dials={})
+    calls.clear()
+    sel.key_down()
+    assert native.deck_mix() == "stream"
+    assert len([c for c in calls if c[1] == "list"]) == 1  # früher eine je Taste und Mix
+    assert order[0] is sel  # die gedrückte Mix-Taste zuerst
+    native._DECK_MIX["mix"] = "both"
