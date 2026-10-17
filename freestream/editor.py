@@ -10,6 +10,7 @@ Start: freedeck edit [Profil]
 """
 import json
 import logging
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import ttk
@@ -29,6 +30,7 @@ from .i18n import _, ngettext
 from .models import MODELS, connected_models, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
 
+DEVICE_WATCH_MS = 300  # so oft schaut das Fenster nach, was am Deck passiert
 log = logging.getLogger("freestream.editor")
 
 COL = theme.COL
@@ -384,6 +386,8 @@ class EditorApp:
         self._hit = []
         self._drag = None
         self._save_job = None
+        self._followed_at = 0.0
+        self._shown_seq = None
         self._profile_ids = []
         self._types = dict(C.BY_UUID)
         self._insp_tab = "appearance"
@@ -420,6 +424,58 @@ class EditorApp:
                 root.after(300, self.open_setup)
         if self.daemon is not None:
             self.refresh_devices(initial=True)
+            self._dev_state = self._device_state()
+            self.root.after(DEVICE_WATCH_MS, self._watch_device)
+
+    def _device_state(self):
+        ctrl = self._ctrl()
+        if ctrl is None:
+            return None
+        return (ctrl.serial, ctrl.profile.id if ctrl.profile else None, ctrl.page_index,
+                tuple(pg.uuid for pg in list(getattr(ctrl, "folder_stack", ()))), getattr(ctrl, "brightness", None))
+
+    def _watch_device(self):
+        """Was am Deck passiert (Seite, Ordner, Profil, Helligkeit), auch im Fenster zeigen."""
+        try:
+            if self.root.winfo_viewable() and not self._save_job:
+                st = self._device_state()
+                old, self._dev_state = self._dev_state, st
+                ours = time.monotonic() - self._followed_at < 1.5  # Wechsel kam vom Fenster selbst
+                if st is not None and old is not None and st[0] == old[0] and st != old and not ours:
+                    self._follow_device(old, st)
+                ctrl = self._device_page()
+                seq = getattr(ctrl, "shown_seq", None)
+                if seq != self._shown_seq:
+                    self._shown_seq = seq
+                    if ctrl is not None and not self._drag:
+                        self.redraw()  # Live-Tasten (Lautstärke, Stumm …) wie am Deck
+        except Exception as e:  # noqa: BLE001 - die Überwachung darf nie stehen bleiben
+            log.debug("watch device: %s", e)
+        try:
+            self.root.after(DEVICE_WATCH_MS, self._watch_device)
+        except tk.TclError:
+            pass
+
+    def _follow_device(self, old, st):
+        __, pid, page, folders, bright = st
+        if (pid, page, folders) == old[1:4]:
+            if bright != old[4]:  # nur Helligkeit: Fußzeile neu
+                self.redraw()
+            return
+        if not pid:
+            return
+        if not self.doc or self.doc.id != pid:
+            self.open_profile(pid, from_device=True)
+        if not self.doc or self.doc.id != pid:
+            return
+        ids = self.doc.page_ids
+        if not 0 <= page < len(ids):
+            return
+        nav = [ids[page]] + [u for u in folders if self.doc.page(u)]
+        if nav != self.nav:
+            self.nav = nav
+            self.selected = None
+            self.refresh_all()
 
     def open_setup(self):
         """Einrichtung (erster Start): Gerät erkennen, Profile übernehmen oder neu anlegen."""
@@ -527,6 +583,7 @@ class EditorApp:
         if (g.cols, g.rows) != (ctrl.geometry.cols, ctrl.geometry.rows):
             return  # Profil passt nicht zu diesem Gerät
         pid = self.doc.id
+        self._followed_at = time.monotonic()
 
         def work():
             try:
@@ -1212,7 +1269,39 @@ class EditorApp:
             hit = self._tk_cache[id(img)] = (img, ImageTk.PhotoImage(img, master=self.root))
         return hit[1]
 
+    def _device_page(self):
+        """Gerät, das gerade genau die bearbeitete Seite zeigt (sonst None)."""
+        ctrl = self._ctrl()
+        if ctrl is None or not self.doc or not getattr(ctrl, "profile", None) or ctrl.profile.id != self.doc.id \
+                or not hasattr(ctrl, "live_image"):
+            return None
+        pg = ctrl.current_page()
+        if pg is None or not self.page_uuid or pg.uuid.lower() != self.page_uuid.lower():
+            return None
+        return ctrl
+
+    def _live(self, slot, size):
+        """Tastenbild so, wie das Deck es gerade zeigt (Lautstärke, Stumm, Zustand) – oder None."""
+        if slot[0] != "key" or self._save_job:
+            return None
+        ctrl = self._device_page()
+        if ctrl is None or slot[1] >= ctrl.geometry.cols:
+            return None
+        img = ctrl.live_image(slot[2] * ctrl.geometry.cols + slot[1])
+        if img is None:
+            return None
+        key = ("live", id(img), size)
+        hit = self._img_cache.get(key)
+        if hit is None or hit[0] is not img:
+            self._img_cache_trim()
+            hit = self._img_cache[key] = (img, _rounded(img.convert("RGBA").resize(size, Image.LANCZOS),
+                                                        max(6, size[0] // 8)))
+        return hit[1]
+
     def _render(self, slot, data, size):
+        live = self._live(slot, size)
+        if live is not None:
+            return live
         tile = self._tiles.get((slot[1], slot[2])) if slot[0] == "key" and getattr(self, "_tiles", None) else None
         key = (self.page_uuid, slot[0], json.dumps(data, sort_keys=True), size,
                (slot[1:], self._tiles_id) if tile is not None else None,

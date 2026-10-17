@@ -552,16 +552,28 @@ class MixerAction(NativeAction):
 
     def key_down(self):
         mx = self.mixer
+        self._lv_at = 0  # vor dem Neuzeichnen in run(): sonst zeigt die Taste noch den alten Wert
         if self.func == "output":
             self.run(mx.set_monitor_output, self.settings.get("device") or "next")
         elif self.key_action in ("up", "down"):
             step = int(self.settings.get("step") or 5)
-            self.run(mx.change_volume, self.channel, self.mix, step if self.key_action == "up" else -step)
+            delta = step if self.key_action == "up" else -step
+            if self.run(mx.change_volume, self.channel, self.mix, delta):
+                def again():  # gedrückt halten: weiter lauter/leiser
+                    self._lv_at = 0
+                    if not self.run(mx.change_volume, self.channel, self.mix, delta):
+                        self.stop_repeat()
+                self.start_repeat(again)
         elif self.key_action == "set":
             self.run(mx.set_volume, self.channel, self.mix, int(self.settings.get("volume") or 100))
         else:
             self.run(mx.set_mute, self.channel, self.mix, "toggle")
-        self._lv_at = 0
+
+    def key_up(self, held_ms=0):
+        self.stop_repeat()
+
+    def will_disappear(self):
+        self.stop_repeat()
 
     def dial_rotate(self, ticks):
         self._lv_at = 0

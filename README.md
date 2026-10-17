@@ -81,6 +81,9 @@ settings of the selected key at the bottom.
 
 - **Drag an action onto a key** (or double-click it), drag keys to move them,
   right-click for copy, paste and delete. Changes show up on the deck right away.
+- It also works the other way round: turn the page, open a folder or switch the
+  profile on the deck and the window follows; keys that change by themselves
+  (volume, mute, clock …) look exactly like on the deck.
 - The device is drawn like your model: touch strip and dials on the Stream Deck +,
   the info bar on the Neo (‹ › turn the pages), pedals on the Pedal. Free keys are
   dashed with a “+”.
@@ -242,7 +245,7 @@ it up to date when you add or delete channels:
 
 - top row: mix keys (All and every mix) and “Channels 1–7”
 - per channel: a tile with icon and volume (press = mute) and a fader over two
-  keys (upper = louder, lower = quieter)
+  keys (upper = louder, lower = quieter – hold the key to keep going)
 - on the Stream Deck +: the dials
 
 The actions **Mixer Channel**, **Mixer Scene** and **Wave Microphone** work even

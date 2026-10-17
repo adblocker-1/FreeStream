@@ -122,6 +122,7 @@ class Action:
         self.title_override = None
         self.image_override = None
         self.slot = None  # wird vom Controller gesetzt: ("key", idx) / ("dial", idx)
+        self.pressed = False  # Taste gerade gedrückt (vom Controller gesetzt)
 
     # ---------------------------------------------------------------- Info
     @property
@@ -217,6 +218,31 @@ class Action:
         pass
 
     # -------------------------------------------------------------- Helfer
+    REPEAT_DELAY, REPEAT_EVERY = 0.4, 0.12  # Gedrückthalten: nach 0,4 s alle 0,12 s wiederholen
+
+    def start_repeat(self, fn):
+        """fn wiederholen, solange die Taste gedrückt bleibt (bis key_up oder Seitenwechsel)."""
+        self.stop_repeat()
+        stop = self._repeat_stop = threading.Event()
+
+        def loop():
+            # pressed setzt der Controller beim echten Drücken/Loslassen (Multi-Actions: nie gedrückt)
+            if stop.wait(self.REPEAT_DELAY):
+                return
+            while self.pressed and not stop.is_set():
+                try:
+                    fn()
+                except Exception as e:  # noqa: BLE001
+                    log.debug("repeat %s: %s", self.uuid, e)
+                    return
+                stop.wait(self.REPEAT_EVERY)
+        threading.Thread(target=loop, name="key-repeat", daemon=True).start()
+
+    def stop_repeat(self):
+        ev = getattr(self, "_repeat_stop", None)
+        if ev is not None:
+            ev.set()
+
     def redraw(self):
         if self.ctx and self.ctx.ctrl:
             self.ctx.ctrl.redraw_action(self)
@@ -1044,10 +1070,14 @@ class VolumeDevice(Action):
             self._mute()
         elif act in ("unmute",):
             self._mute("0")
-        elif act in ("up", "increase", "volumeup"):
-            self._change(self._step())
-        elif act in ("down", "decrease", "volumedown"):
-            self._change(-self._step())
+        elif act in ("up", "increase", "volumeup", "down", "decrease", "volumedown"):
+            delta = self._step() if act in ("up", "increase", "volumeup") else -self._step()
+
+            def step():
+                self._change(delta)
+                self.redraw()
+            self._change(delta)
+            self.start_repeat(step)
         elif act in ("set", "setvolume", "volume"):
             v = int(float(self.settings.get("volume") or 50))
             if self.app:
@@ -1057,6 +1087,12 @@ class VolumeDevice(Action):
         else:
             self._mute()
         self.redraw()
+
+    def key_up(self, held_ms=0):
+        self.stop_repeat()
+
+    def will_disappear(self):
+        self.stop_repeat()
 
     def dial_rotate(self, ticks):
         self._change(self._step() * ticks)

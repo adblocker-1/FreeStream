@@ -7,7 +7,7 @@ import time
 from PIL import Image
 
 from . import actions as A
-from . import render
+from . import render, system
 from .i18n import _, pgettext
 from .models import geometry_for_deck, model_for_deck, model_name
 
@@ -64,6 +64,8 @@ class DeckController:
         self.dial_down_at = {}
         self.overlays = {}       # id(action) -> (art, bis)
         self.anim = {}           # Tastenindex -> [frames, idx, next_time]
+        self.shown = {}          # Tastenindex -> zuletzt gezeigtes Bild (für die Live-Vorschau im Fenster)
+        self.shown_seq = 0       # zählt hoch, wenn sich ein gezeigtes Bild ändert
         self._tick_wake = threading.Event()  # weckt den Takt (neue Animation, Ende)
         self.ctx = None
 
@@ -235,10 +237,11 @@ class DeckController:
                     self.plugin_host.will_disappear(self, a)
             except Exception:  # noqa: BLE001
                 pass
-        self.keys, self.dials, self.infobar, self.anim = {}, {}, {}, {}
+        self.keys, self.dials, self.infobar, self.anim, self.shown = {}, {}, {}, {}, {}
 
     def show_current(self):
-        with self.lock:
+        # eine pactl-Abfrage für alle Tasten der Seite statt einer je Taste und Mix
+        with self.lock, system.pactl_snapshot():
             self._unload_actions()
             pg = self.current_page()
             cols = self.geometry.cols
@@ -273,6 +276,10 @@ class DeckController:
     def render_all(self):
         if self.sleeping or not self.enabled:
             return
+        with system.pactl_snapshot():
+            self._render_all()
+
+    def _render_all(self):
         if self.visual and not self.profile:
             # Noch kein Profil: Hinweis auf der mittleren Taste, die übrigen bleiben schwarz
             try:
@@ -358,6 +365,14 @@ class DeckController:
         img = render.compose_key(self.key_size, frame, a.title(), a.state_dict(), self._overlay_for(a), base=tile)
         return img, (frames if len(frames) > 1 else None)
 
+    def live_image(self, k):
+        """Was Taste k gerade am Gerät zeigt, wenn ihre Aktion sich von selbst ändert (Lautstärke, Stumm,
+        Uhr, umgeschalteter Zustand …) – sonst None (dann reicht die normale Vorschau)."""
+        a = self.keys.get(k)
+        if a is None or not (a.needs_tick or a.state or a.title_override is not None):
+            return None
+        return self.shown.get(k)
+
     def render_key(self, k, frame_idx=0):
         if not self.visual or k >= self.key_count:
             return
@@ -368,6 +383,8 @@ class DeckController:
                 self._tick_wake.set()
             elif not frames:
                 self.anim.pop(k, None)
+            self.shown[k] = img
+            self.shown_seq += 1
         try:
             self._set_key(k, img)
         except Exception as e:  # noqa: BLE001
@@ -574,6 +591,7 @@ class DeckController:
         if pressed:
             self.key_down_at[k] = time.time()
             if a is not None:
+                a.pressed = True
                 if self.plugin_host and not a.supported:
                     self.plugin_host.key_down(a)
                     return
@@ -581,6 +599,8 @@ class DeckController:
                     self._run(a.key_down)
         else:
             held = (time.time() - self.key_down_at.pop(k, time.time())) * 1000
+            if a is not None:
+                a.pressed = False
             if a is not None and self.keys.get(k) is a:
                 if self.plugin_host and not a.supported:
                     self.plugin_host.key_up(a)
@@ -672,6 +692,10 @@ class DeckController:
                 self._second_tick(now)
 
     def _second_tick(self, now):
+        with system.pactl_snapshot():
+            self._tick_actions(now)
+
+    def _tick_actions(self, now):
         dcfg = self.cfg.device(self.serial)
         mins = dcfg.get("sleep_after_minutes", self.cfg.get("sleep_after_minutes", 0)) or 0
         if mins and now - self.last_input > mins * 60:
