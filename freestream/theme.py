@@ -300,11 +300,27 @@ def font(root, size=10, weight="normal"):
 EXTRA_GLYPHS = {}  # Name -> fn(size, color) -> RGBA-Bild (von Programmteilen eingetragen)
 
 
+_GLYPHS = {}
+
+
 def glyph(name, size=20, color=None, bg=None, circle=None):
     """Symbol als RGBA-Bild. circle: Hintergrundkreis in dieser Farbe."""
     color = color or COL["fg"]
     if name in EXTRA_GLYPHS and not bg and not circle:
         return EXTRA_GLYPHS[name](size, color)
+    try:
+        key = (name, size, color, bg, circle)
+        hit = _GLYPHS.get(key)
+    except TypeError:  # Farbe als Liste
+        return _draw_glyph(name, size, color, bg, circle)
+    if hit is None:
+        if len(_GLYPHS) > 1024:
+            _GLYPHS.clear()
+        hit = _GLYPHS[key] = _draw_glyph(name, size, color, bg, circle)
+    return hit.copy()  # Aufrufer dürfen das Bild verändern
+
+
+def _draw_glyph(name, size, color, bg, circle):
     k = 4
     S = size * k
     im = Image.new("RGBA", (S, S), (0, 0, 0, 0))

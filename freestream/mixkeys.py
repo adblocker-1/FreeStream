@@ -7,9 +7,12 @@
 
 Alles wird mit PIL gezeichnet (keine Elgato-Grafiken).
 """
+from collections import OrderedDict
+from functools import wraps
+
 from PIL import Image, ImageDraw
 
-from . import render, theme
+from . import i18n, render, theme
 from .i18n import _, pgettext
 
 BG = (16, 16, 20)
@@ -19,6 +22,31 @@ RED = (229, 72, 77)
 GREY = (150, 150, 160)
 SS = 3  # Überabtastung für glatte Kanten
 MIX_ICON = {"both": "wave", "monitor": "headphones", "stream": "stream"}
+
+
+_CACHE = OrderedDict()
+_CACHE_MAX = 512
+
+
+def _cached(fn):
+    """Fertige Tastenbilder merken: Seitenwechsel und Sekundentakt zeichnen meist dieselben Bilder
+    (gleiche Lautstärke, gleicher Mix) – neu zeichnen kostet je Taste einige Millisekunden."""
+    @wraps(fn)
+    def wrapper(*args, **kw):
+        key = (fn.__name__, i18n.current(), args, tuple(sorted(kw.items())))
+        try:
+            img = _CACHE[key]
+            _CACHE.move_to_end(key)
+            return img
+        except KeyError:
+            pass
+        except TypeError:  # nicht hashbar (z. B. Farbe als Liste): einfach zeichnen
+            return fn(*args, **kw)
+        img = _CACHE[key] = fn(*args, **kw)
+        while len(_CACHE) > _CACHE_MAX:
+            _CACHE.popitem(last=False)
+        return img
+    return wrapper
 
 
 def mix_name(mix):
@@ -62,6 +90,7 @@ def _dim(c, t=0.3):
     return tuple(round(b + (x - b) * t) for b, x in zip(BG, c))
 
 
+@_cached
 def tile(size, icon, color, vol, muted, mix, label=None):
     """Kanal-Kachel: abgerundetes Quadrat mit Symbol, darunter „Alle 80%“ bzw. „stumm“."""
     w, h = size
@@ -90,6 +119,7 @@ def tile(size, icon, color, vol, muted, mix, label=None):
     return _done(im, w, h)
 
 
+@_cached
 def fader(size, half, icon, color, vol, muted, mix, label=None):
     """Hälfte („top“ oder „bottom“) eines Faders, der über zwei übereinanderliegende Tasten geht."""
     w, h = size
@@ -130,6 +160,7 @@ def fader(size, half, icon, color, vol, muted, mix, label=None):
     return _done(part, w, h)
 
 
+@_cached
 def mix_key(size, mix, selected, sub="", name=None, icon=None):
     """Mix-Wahl: Symbol und Name; der gewählte Mix ist grün umrandet."""
     w, h = size
@@ -149,6 +180,7 @@ def mix_key(size, mix, selected, sub="", name=None, icon=None):
     return _done(im, w, h)
 
 
+@_cached
 def pages_key(size, first, last):
     """„Kanäle 1–7“ – zeigt, welche Kanäle diese Seite steuert; Drücken blättert weiter."""
     w, h = size
