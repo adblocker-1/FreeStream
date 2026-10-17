@@ -275,18 +275,18 @@ class ActionTile(tk.Canvas):
         self.create_text(11, 68, text=desc, anchor="nw", fill=COL["muted"], font=self.fs, width=w - 20)
 
 
-_FONTS = {}       # (Tk-Instanz, Schriftbeschreibung) -> tkfont.Font (anlegen ist teuer)
 _CLIPPED = {}     # (Text, Schrift, Breite, Zeilen) -> gekürzter Text
 
 
 def _measure_font(widget, fnt):
-    """Schrift zum Messen; je Tk-Instanz zwischengespeichert (ein neues Fenster bekommt neue Objekte)."""
-    key = (widget.tk, str(fnt))
-    f = _FONTS.get(key)
+    """Schrift zum Messen, je Fenster zwischengespeichert (anlegen ist teuer). Der Speicher hängt am
+    Hauptfenster selbst: Tk-Objekte dürfen nicht länger leben als ihr Fenster (und nie in einem anderen
+    Thread freigegeben werden)."""
+    root = widget._root()
+    cache = root.__dict__.setdefault("_measure_fonts", {})
+    f = cache.get(str(fnt))
     if f is None:
-        if len(_FONTS) > 50:
-            _FONTS.clear()
-        f = _FONTS[key] = tkfont.Font(widget, font=fnt)
+        f = cache[str(fnt)] = tkfont.Font(widget, font=fnt)
     return f
 
 
@@ -379,6 +379,7 @@ class EditorApp:
         self.clipboard = None
         self._photos = []
         self._img_cache = {}
+        self._tk_cache = {}    # id(PIL-Bild) -> (Bild, PhotoImage)
         self._hit = []
         self._drag = None
         self._save_job = None
@@ -862,6 +863,7 @@ class EditorApp:
         self.nav = [self.doc.page_ids[0]] if self.doc.page_ids else []
         self.selected = None
         self._img_cache.clear()
+        self._tk_cache.clear()
         self.refresh_profiles()
         self.root.title(f"LinDeck – {self.doc.name}")
         if self.daemon is None:
@@ -1082,6 +1084,7 @@ class EditorApp:
                 return
             if not self._save_job and self.doc.reload_external():
                 self._img_cache.clear()
+                self._tk_cache.clear()
                 self.redraw()
                 focus = self.root.focus_get()
                 if not (focus and focus.winfo_class() in TEXT_WIDGETS):
@@ -1196,6 +1199,17 @@ class EditorApp:
     def _img_cache_trim(self):
         if len(self._img_cache) > 600:
             self._img_cache.clear()
+            self._tk_cache.clear()
+
+    def _tk_image(self, img):
+        """Tk-Bild zu einem (zwischengespeicherten) PIL-Bild – die Umwandlung kostet bei jedem Neuzeichnen
+        sonst spürbar Zeit. Schlüssel ist das PIL-Objekt selbst; es bleibt im Eintrag, damit die id gültig bleibt."""
+        hit = self._tk_cache.get(id(img))
+        if hit is None or hit[0] is not img:
+            if len(self._tk_cache) > 600:
+                self._tk_cache.clear()
+            hit = self._tk_cache[id(img)] = (img, ImageTk.PhotoImage(img, master=self.root))
+        return hit[1]
 
     def _render(self, slot, data, size):
         tile = self._tiles.get((slot[1], slot[2])) if slot[0] == "key" and getattr(self, "_tiles", None) else None
@@ -1234,6 +1248,7 @@ class EditorApp:
         cv.delete("all")
         self._photos = []
         self._hit = []
+        self._rings = {}
         if not self.doc:
             self._draw_stage()
             cv.create_text(cv.winfo_width() / 2, (cv.winfo_height() - FOOTER_H) / 2, anchor="center",
@@ -1301,6 +1316,25 @@ class EditorApp:
         self._photos.append(ph)
         return ph
 
+    def _sel_ring(self, slot, shape, box, r=0):
+        """Auswahlrahmen eines Feldes merken und – wenn es gewählt ist – zeichnen (Tag „sel“).
+        So kann select() nur den Rahmen versetzen, statt das ganze Gerät neu zu zeichnen."""
+        self._rings[tuple(slot)] = (shape, box, r)
+        if self.selected is not None and tuple(self.selected) == tuple(slot):
+            self._draw_ring(shape, box, r)
+
+    def _draw_ring(self, shape, box, r):
+        if shape == "oval":
+            self.canvas.create_oval(*box, outline=COL["accent"], width=3, tags="sel")
+        else:
+            _round_rect(self.canvas, *box, r, fill="", outline=COL["accent"], width=3, tags="sel")
+
+    def _show_selection(self):
+        self.canvas.delete("sel")
+        spec = self._rings.get(tuple(self.selected)) if self.selected is not None else None
+        if spec:
+            self._draw_ring(*spec)
+
     def _draw_strip(self, L, x0, y, page, dials):
         """Touchstreifen als Felder (Symbol, Name, Wert), darunter je Regler ein Werte-Ring."""
         cv = self.canvas
@@ -1315,7 +1349,6 @@ class EditorApp:
             i = slot[1]
             x = x0 + i * (seg + 6)
             data = page.get(slot)
-            sel = self.selected is not None and tuple(self.selected) == tuple(slot)
             if data is None:
                 _round_rect(cv, x, y, x + seg, y + ch, 10, fill="", outline=COL["line"], width=2, dash=(5, 4))
                 cv.create_text(x + seg / 2, y + ch / 2, text="+", fill=COL["faint"], font=(self._fam, 14))
@@ -1343,8 +1376,7 @@ class EditorApp:
                         if ind > 0:
                             _round_rect(cv, x + 10, by, x + 10 + bw * min(1, ind / 100), by + 5, 2,
                                         fill=COL["accent"], outline="")
-            if sel:
-                _round_rect(cv, x - 3, y - 3, x + seg + 3, y + ch + 3, 12, fill="", outline=COL["accent"], width=3)
+            self._sel_ring(slot, "rect", (x - 3, y - 3, x + seg + 3, y + ch + 3), 12)
             self._hit.append((x, y, x + seg, y + ch, slot))
             self._draw_ring_dial(slot, data, x + seg / 2, y + ch + 12 + L["ring"], L["ring"], info=info,
                                  select=False)
@@ -1375,8 +1407,7 @@ class EditorApp:
                            font=self._small_bold)
             y1 = cy + r + 18
         if select:
-            if self.selected is not None and tuple(self.selected) == tuple(slot):
-                cv.create_oval(cx - r - 5, cy - r - 5, cx + r + 5, cy + r + 5, outline=COL["accent"], width=3)
+            self._sel_ring(slot, "oval", (cx - r - 5, cy - r - 5, cx + r + 5, cy + r + 5))
             self._hit.append((cx - r - 4, cy - r - 4, cx + r + 4, y1, slot))
         else:
             self._hit.append((cx - r, cy - r, cx + r, cy + r, slot))
@@ -1415,7 +1446,6 @@ class EditorApp:
     def _draw_pedal(self, slot, data, x, y, w, h):
         """Pedal: kein Display – Riffeln, Symbol und Name der Aktion."""
         cv = self.canvas
-        sel = self.selected is not None and tuple(self.selected) == tuple(slot)
         if data is None:
             _round_rect(cv, x, y, x + w, y + h, 16, fill="", outline=COL["line"], width=2, dash=(5, 4))
             cv.create_text(x + w / 2, y + h / 2, text="+", fill=COL["faint"], font=(self._fam, 18))
@@ -1431,13 +1461,11 @@ class EditorApp:
                 else ""
             name = _clip(title or C.display_name(data), self._small_bold, int(w - 12))
             cv.create_text(x + w / 2, y + h * 0.88, text=name, fill=COL["fg"], font=self._small_bold)
-        if sel:
-            _round_rect(cv, x - 3, y - 3, x + w + 3, y + h + 3, 18, fill="", outline=COL["accent"], width=3)
+        self._sel_ring(slot, "rect", (x - 3, y - 3, x + w + 3, y + h + 3), 18)
         self._hit.append((x, y, x + w, y + h, slot))
 
     def _draw_slot(self, slot, data, x, y, w, h):
         cv = self.canvas
-        sel = self.selected is not None and tuple(self.selected) == tuple(slot)
         tile = self._tiles.get((slot[1], slot[2])) if slot[0] == "key" and getattr(self, "_tiles", None) else None
         if data is None and tile is not None:
             cv.create_image(x, y, image=self._photo(_rounded(tile, max(6, w // 8))), anchor="nw")
@@ -1445,12 +1473,10 @@ class EditorApp:
             _round_rect(cv, x, y, x + w, y + h, max(6, w // 8), fill="", outline=COL["line"], width=2, dash=(5, 4))
             cv.create_text(x + w / 2, y + h / 2, text="+", fill=COL["faint"], font=(self._fam, max(10, w // 5)))
         else:
-            cv.create_image(x, y, image=self._photo(self._render(slot, data, (w, h))), anchor="nw")
+            cv.create_image(x, y, image=self._tk_image(self._render(slot, data, (w, h))), anchor="nw")
             if not A.is_supported(data.get("UUID", "")):
                 cv.create_oval(x + w - 14, y + 4, x + w - 4, y + 14, fill="#f5a623", outline="")
-        if sel:
-            _round_rect(cv, x - 3, y - 3, x + w + 3, y + h + 3, max(8, w // 7), fill="", outline=COL["accent"],
-                        width=3)
+        self._sel_ring(slot, "rect", (x - 3, y - 3, x + w + 3, y + h + 3), max(8, w // 7))
         self._hit.append((x, y, x + w, y + h, slot))
 
     def slot_at(self, x, y):
@@ -1459,9 +1485,13 @@ class EditorApp:
                 return slot
         return None
 
-    def select(self, slot):
+    def select(self, slot, redraw=False):
+        """Feld wählen. redraw: das Gerät neu zeichnen (nach Änderungen am Inhalt); sonst wandert nur der Rahmen."""
         self.selected = slot
-        self.redraw()
+        if not redraw and slot is not None and tuple(slot) in getattr(self, "_rings", {}):
+            self._show_selection()  # nur der Rahmen wandert
+        else:
+            self.redraw()
         self.build_inspector()
 
     def _move_selection(self, dx, dy):
@@ -1516,7 +1546,7 @@ class EditorApp:
         if not self._fits(self.doc.get(self.page_uuid, d["slot"]), target):
             return
         self.doc.move(self.page_uuid, d["slot"], self.page_uuid, target)
-        self.select(target)
+        self.select(target, redraw=True)
 
     def _move_to_page(self, slot, pid):
         g, keys, dials = self._slots()
@@ -1759,7 +1789,7 @@ class EditorApp:
                                        parent=self.root):
                 return
         self.doc.place(self.page_uuid, slot, uuid)
-        self.select(slot)
+        self.select(slot, redraw=True)
         self.status(_("{name} added").format(name=self._types[uuid].name))
 
     # ========================================================= Eigenschaften

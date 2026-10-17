@@ -25,7 +25,7 @@ from tkinter import font as tkfont
 
 from PIL import Image, ImageDraw, ImageTk
 
-from . import ducking, levels, parts, shortcuts, theme, wavemic
+from . import ducking, levels, parts, shortcuts, system, theme, wavemic
 from .dialogkit import ScrollArea
 from .i18n import _, ngettext
 from .parts import has_lindeck
@@ -34,6 +34,7 @@ from .theme import (COL, Button, Card, Chip, Fader, HScroll, InfoCard, LevelMete
 
 log = logging.getLogger("streamlin.waveui")
 REFRESH_MS = 1500
+REFRESH_IDLE_MS = 5000  # mit PipeWire-Ereignissen: ohne Änderung nur alle 5 s (Mikrofon, Ducking, Geräte)
 LEVEL_MS = 40  # 25 Hz
 TOUCH_HOLD = 2.5
 MUTE_ICONS = {"monitor": ("headphones", "headphones_off"), "stream": ("stream", "stream_off")}
@@ -596,7 +597,7 @@ class WaveWindow:
                     done(res, err)
                 except Exception as e:  # noqa: BLE001
                     log.exception("UI: %s", e)
-        if self.visible() and not self._refreshing and time.time() - self._last_refresh > REFRESH_MS / 1000:
+        if self.visible() and not self._refreshing and self._refresh_due():
             self.refresh()
         self.root.after(100, self._poll)
 
@@ -1947,11 +1948,20 @@ class WaveWindow:
             v = lv.get(f"mix:{mid}", 0.0)
             m["meter"].set(v)
             db = levels.level_db(v)
-            m["db"].set(f"{db:.0f} dB" if db is not None else ("−∞ dB" if self.levels.running else ""))
+            text = f"{db:.0f} dB" if db is not None else ("−∞ dB" if self.levels.running else "")
+            if m.get("db_text") != text:  # Tk nur ansprechen, wenn sich die Zahl ändert (25×/s)
+                m["db_text"] = text
+                m["db"].set(text)
 
     # ------------------------------------------------------ Aktualisieren
     def collect(self):
-        """Zustand von Mixer und Mikrofon einlesen (läuft im Arbeits-Thread)."""
+        """Zustand von Mixer und Mikrofon einlesen (läuft im Arbeits-Thread).
+
+        Gleiche pactl-Abfragen laufen dabei nur einmal (system.pactl_snapshot)."""
+        with system.pactl_snapshot():
+            return self._collect()
+
+    def _collect(self):
         st = {"mixer_enabled": self.host.mixer_enabled, "error": self.host.error, "mixer_active": False}
         try:
             st["mixer_active"] = self.mixer.is_active()
@@ -2013,6 +2023,18 @@ class WaveWindow:
         except Exception:  # noqa: BLE001
             st["noise"] = {}
         return st
+
+    def _refresh_due(self):
+        """Neu einlesen, wenn PipeWire eine Änderung meldet (gebündelt), sonst nur alle REFRESH_IDLE_MS –
+        ohne Ereignisse (pactl subscribe fehlt) wie bisher alle REFRESH_MS."""
+        age = time.time() - self._last_refresh
+        pulse = getattr(self.host, "pulse", None)
+        if pulse is None or not pulse.available:
+            return age > REFRESH_MS / 1000
+        if pulse.version != getattr(self, "_pulse_seen", None) and age > 0.25:
+            self._pulse_seen = pulse.version
+            return True
+        return age > REFRESH_IDLE_MS / 1000
 
     def refresh(self):
         if self._refreshing:

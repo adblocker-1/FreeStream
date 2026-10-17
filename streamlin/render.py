@@ -147,6 +147,31 @@ def builtin_icon_path(rel_image: str, plugin_dir_name: str):
 def draw_title(img: Image.Image, title: str, state: dict, scale: float):
     if not title:
         return
+    key = (title, img.size, round(scale, 3), state.get("FontSize"), state.get("FontStyle"), state.get("FontFamily"),
+           str(state.get("TitleColor")), state.get("OutlineThickness"), state.get("TitleAlignment"),
+           bool(state.get("FontUnderline")))
+    layer = _title_layer(key, title, dict(state), scale, img.size)
+    img.alpha_composite(layer)
+
+
+_TITLE_CACHE = {}
+
+
+def _title_layer(key, title, state, scale, size_px):
+    """Titel als durchsichtige Ebene – zwischengespeichert, denn Schrift mit Umriss zu zeichnen ist der
+    teuerste Teil einer Taste und dieselben Titel kommen bei jedem Seitenwechsel wieder."""
+    layer = _TITLE_CACHE.get(key)
+    if layer is not None:
+        return layer
+    layer = Image.new("RGBA", size_px, (0, 0, 0, 0))
+    _draw_title(layer, title, state, scale)
+    if len(_TITLE_CACHE) > 512:
+        _TITLE_CACHE.clear()
+    _TITLE_CACHE[key] = layer
+    return layer
+
+
+def _draw_title(img: Image.Image, title: str, state: dict, scale: float):
     size = int(round((state.get("FontSize") or 12) * 1.05 * scale))
     style, family = _style_of(state), state.get("FontFamily") or ""
     f = font(size, style, family)

@@ -34,12 +34,13 @@ class _Async:
 
     def __init__(self, widget, fn, done):
         self.widget, self.done, self.q = widget, done, queue.Queue()
+        q = self.q  # der Thread hält nur die Warteschlange, nie das Fenster (Tk-Objekte nur im Tk-Thread freigeben)
 
         def run():
             try:
-                self.q.put((True, fn()))
+                q.put((True, fn()))
             except Exception as e:  # noqa: BLE001 - Fehler im Dialog anzeigen
-                self.q.put((False, e))
+                q.put((False, e))
         threading.Thread(target=run, daemon=True).start()
         self._poll()
 

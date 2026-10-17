@@ -467,9 +467,128 @@ def active_window_class():
 # --------------------------------------------------------------------------
 # Audiogeräte und App-Lautstärken (Elgato Volume Controller)
 # --------------------------------------------------------------------------
+class PulseWatch:
+    """Meldet Änderungen in PipeWire/PulseAudio über `pactl subscribe` – statt ständig nachzufragen.
+
+    version steigt bei jeder relevanten Änderung (Sinks, Sources, Streams, Module, Server),
+    new_streams bei jedem neuen Wiedergabe-Stream. Eigene pactl-Aufrufe (client) und Pegelmesser
+    (source-output) zählen nicht, sonst würde jede Abfrage die nächste auslösen.
+    Läuft pactl nicht (oder bricht ab), ist available False – dann fragt man wie bisher regelmäßig.
+    """
+    KINDS = ("sink", "source", "sink-input", "module", "server", "card")
+
+    def __init__(self):
+        self.version = 0
+        self.new_streams = 0
+        self.available = False
+        self._cond = threading.Condition()
+        self._proc = None
+        self._running = False
+
+    def start(self):
+        if self._running or not have("pactl"):
+            return self
+        self._running = True
+        threading.Thread(target=self._loop, name="pulse-watch", daemon=True).start()
+        return self
+
+    def stop(self):
+        self._running = False
+        proc = self._proc
+        if proc is not None:
+            try:
+                proc.terminate()
+            except OSError:
+                pass
+        with self._cond:
+            self._cond.notify_all()
+
+    def wait(self, since, timeout):
+        """Bis zu timeout Sekunden warten, bis version größer als since ist. Gibt die version zurück."""
+        with self._cond:
+            if self.version <= since:
+                self._cond.wait(timeout)
+            return self.version
+
+    def _loop(self):
+        import time
+        delay = 1.0
+        while self._running:
+            started = time.monotonic()
+            try:
+                self._proc = subprocess.Popen(["pactl", "subscribe"], stdout=subprocess.PIPE,
+                                              stderr=subprocess.DEVNULL, text=True, bufsize=1)
+                self.available = True
+                for line in self._proc.stdout:
+                    self._event(line)
+                    if not self._running:
+                        break
+            except Exception as e:  # noqa: BLE001 - ohne Ereignisse fragt Linewave eben regelmäßig nach
+                log.debug("pactl subscribe: %s", e)
+            finally:
+                self.available = False
+                if self._proc is not None:
+                    try:
+                        self._proc.kill()
+                        self._proc.wait(1)
+                    except Exception:  # noqa: BLE001
+                        pass
+            with self._cond:  # Zustand unbekannt: einmal neu einlesen lassen
+                self.version += 1
+                self._cond.notify_all()
+            if not self._running:
+                break
+            delay = 1.0 if time.monotonic() - started > 30 else min(30.0, delay * 2)
+            time.sleep(delay)
+
+    def _event(self, line):
+        # Event 'new' on sink-input #123
+        m = re.match(r"Event '(\w+)' on ([\w-]+)", line.strip())
+        if not m or m.group(2) not in self.KINDS:
+            return
+        with self._cond:
+            self.version += 1
+            if m.group(2) == "sink-input" and m.group(1) == "new":
+                self.new_streams += 1
+            self._cond.notify_all()
+
+
+_SNAP = threading.local()
+
+
+class pactl_snapshot:
+    """Innerhalb des Blocks liefern gleiche lesende pactl-Abfragen (list …, get-default-…) das erste
+    Ergebnis wieder, statt pactl jedes Mal neu zu starten. Gilt nur für den eigenen Thread;
+    schreibende Befehle (pactl_cached(…, write=True)) leeren den Zwischenspeicher."""
+
+    def __enter__(self):
+        self.outer = getattr(_SNAP, "cache", None) is not None
+        if not self.outer:
+            _SNAP.cache = {}
+        return self
+
+    def __exit__(self, *exc):
+        if not self.outer:
+            _SNAP.cache = None
+        return False
+
+
+def pactl_cached(key, fn, write=False):
+    """fn() ausführen – innerhalb von pactl_snapshot() für gleiche Schlüssel nur einmal."""
+    cache = getattr(_SNAP, "cache", None)
+    if cache is None:
+        return fn()
+    if write:
+        cache.clear()
+        return fn()
+    if key not in cache:
+        cache[key] = fn()
+    return cache[key]
+
+
 def _pactl_blocks(what):
     """pactl list <what> -> Liste von dicts mit index, name, description, sink, props, volume, mute."""
-    out = run_out(["pactl", "list", what], timeout=3)
+    out = pactl_cached(("list", what), lambda: run_out(["pactl", "list", what], timeout=3))
     blocks, cur = [], None
     for line in out.splitlines():
         if re.match(r"^\S.*#\d+", line):

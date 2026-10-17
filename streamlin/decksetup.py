@@ -39,6 +39,14 @@ def find_profiles():
     return found
 
 
+def _search(result):
+    try:
+        found = find_profiles()
+    except Exception:  # noqa: BLE001
+        found = []
+    result.append(found)
+
+
 class DeckSetup(tk.Toplevel):
     def __init__(self, app, on_done=None):
         super().__init__(app.root)
@@ -57,7 +65,8 @@ class DeckSetup(tk.Toplevel):
         self.picked = []           # selbst gewählte Dateien
         self.imported = []
         self._job = None
-        threading.Thread(target=self._search, daemon=True).start()
+        result = self._search_result = []  # der Such-Thread bekommt nur diese Liste, nicht das Fenster
+        threading.Thread(target=_search, args=(result,), daemon=True).start()
 
         head = tk.Frame(self, bg=COL["bg"], padx=22, pady=16)
         head.pack(fill="x")
@@ -218,13 +227,6 @@ class DeckSetup(tk.Toplevel):
         cv.pack(side="left", padx=(0, 6))
         label(row, sub, 9, color=COL["muted"]).pack(side="left")
 
-    def _search(self):
-        try:
-            found = find_profiles()
-        except Exception:  # noqa: BLE001
-            found = []
-        self.found = found
-
     def _step_2(self):
         self._title(_("Your profiles"), _("On Windows, copy the folder %APPDATA%\\Elgato\\StreamDeck\\ProfilesV3 "
                                           "to a USB stick – or export single profiles in the Elgato app."))
@@ -262,6 +264,8 @@ class DeckSetup(tk.Toplevel):
             self._job = None
         for w in self.opt_box.winfo_children():
             w.destroy()
+        if self.found is None and self._search_result:
+            self.found = self._search_result[0]
         found = self.found
         if found is None:
             text = _("Searching Downloads, desktop and USB sticks …")

@@ -4,7 +4,7 @@ Zwei Programme: LinDeck (Stream Deck, liest Elgato-Profile direkt ein) und
 Linewave (Audio-Mixer und Wave-Mikrofon, Ersatz für Wave Link).
 """
 
-__version__ = "0.28.0"
+__version__ = "0.28.1"
 APP_NAME = "lindeck"
 
 
