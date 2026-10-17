@@ -558,16 +558,28 @@ class MixerAction(NativeAction):
         elif self.key_action in ("up", "down"):
             step = int(self.settings.get("step") or 5)
             delta = step if self.key_action == "up" else -step
-            if self.run(mx.change_volume, self.channel, self.mix, delta):
+            if self.run(self._change, delta):
                 def again():  # gedrückt halten: weiter lauter/leiser
-                    self._lv_at = 0
-                    if not self.run(mx.change_volume, self.channel, self.mix, delta):
+                    if not self.run(self._change, delta):
                         self.stop_repeat()
                 self.start_repeat(again)
         elif self.key_action == "set":
             self.run(mx.set_volume, self.channel, self.mix, int(self.settings.get("volume") or 100))
         else:
-            self.run(mx.set_mute, self.channel, self.mix, "toggle")
+            self.run(self._toggle_mute)
+
+    # Nach dem Schreiben ist der neue Zustand bekannt: gleich so zeichnen, statt PipeWire erneut zu fragen
+    def _known(self, vol=None, mute=None):
+        old_vol, old_mute = getattr(self, "_lv", (None, False))
+        self._lv = (old_vol if vol is None else vol, old_mute if mute is None else mute)
+        self._lv_at = time.time()
+
+    def _change(self, delta):
+        vols = self.mixer.change_volume(self.channel, self.mix, delta)
+        self._known(vol=max(vols.values()) if vols else None)
+
+    def _toggle_mute(self):
+        self._known(mute=self.mixer.set_mute(self.channel, self.mix, "toggle"))
 
     def key_up(self, held_ms=0):
         self.stop_repeat()
@@ -576,12 +588,10 @@ class MixerAction(NativeAction):
         self.stop_repeat()
 
     def dial_rotate(self, ticks):
-        self._lv_at = 0
-        self.run(self.mixer.change_volume, self.channel, self.mix, int(self.settings.get("step") or 2) * ticks)
+        self.run(self._change, int(self.settings.get("step") or 2) * ticks)
 
     def dial_down(self):
-        self._lv_at = 0
-        self.run(self.mixer.set_mute, self.channel, self.mix, "toggle")
+        self.run(self._toggle_mute)
 
     def dial_up(self, held_ms=0):
         pass
@@ -666,11 +676,16 @@ class MixSelectAction(NativeAction):
         else:
             _DECK_MIX["mix"] = self.target
         ctrl = self.ctx.ctrl if self.ctx else None
-        for a in list((getattr(ctrl, "keys", None) or {}).values()) + list((getattr(ctrl, "dials", None) or {}).values()):
-            if isinstance(a, (MixerAction, MixSelectAction)):
-                a._lv_at = 0
-                a.tick()
-                a.redraw()
+        # läuft im Ereignis-Thread des Decks: alle Kanaltasten aus EINER pactl-Abfrage (früher eine je Taste
+        # und Mix – das hielt sekundenlang alle folgenden Tastendrücke auf)
+        acts = list((getattr(ctrl, "keys", None) or {}).values()) + list((getattr(ctrl, "dials", None) or {}).values())
+        acts.sort(key=lambda a: not isinstance(a, MixSelectAction))  # die Mix-Tasten zuerst: sofort sichtbar
+        with system.pactl_snapshot():
+            for a in acts:
+                if isinstance(a, (MixerAction, MixSelectAction)):
+                    a._lv_at = 0
+                    a.tick()
+                    a.redraw()
 
 
 class MixerPagesAction(NativeAction):

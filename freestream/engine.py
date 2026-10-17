@@ -20,6 +20,9 @@ except ImportError:  # pragma: no cover
     DialEventType = TouchscreenEventType = PILHelper = None
 
 
+POLL_HZ = 100
+
+
 class DeckController:
     def __init__(self, deck, store, cfg, state, vin, sound):
         self.deck = deck
@@ -81,6 +84,10 @@ class DeckController:
         except Exception:  # noqa: BLE001
             self.firmware = ""
         d.set_brightness(self.brightness if self.enabled else 0)
+        try:  # Tasten 100-mal pro Sekunde abfragen statt 20-mal: bis zu 40 ms schneller
+            d.set_poll_frequency(POLL_HZ)
+        except Exception:  # noqa: BLE001 - ältere Bibliothek
+            pass
         d.set_key_callback(lambda deck, k, s: self.events.put(("key", k, s)))
         if self.dial_count:
             d.set_dial_callback(lambda deck, i, ev, v: self.events.put(("dial", i, ev, v)))
