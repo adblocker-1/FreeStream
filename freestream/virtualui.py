@@ -26,6 +26,7 @@ TICK_MS = 40          # neue Tastenbilder abholen
 IDLE_MS = 300         # ausgeblendet: seltener nachsehen
 GRIP = 20             # Randleiste: innerer Rand mit dem Griff darin – bleibt eingeklappt sichtbar
 SLIDE_MS, SLIDE_STEPS = 220, 13  # Hinaus-/Hereingleiten: Dauer und Bilder (≈ 60 pro Sekunde)
+GRIP_REACH = 36       # Griff: klickbar 36 px über und unter der Mitte (nicht die ganze Kante)
 RADIUS = 16           # runde Ecken der Randleiste (nach innen)
 # Gehäuse wie ein echtes Deck – dunkel, auch im hellen Design
 CHROME = {"bg": "#16181e", "edge": "#2a2f3a", "fg": "#e9ecf2", "muted": "#8b93a3", "slot": "#0b0c10",
@@ -170,6 +171,8 @@ class VirtualDeckWindow:
                 self._want_toggle.clear()
                 self.toggle()
             self.update()
+            if self.grip_hover:
+                self.check_hover()
         except Exception as e:  # noqa: BLE001 - der Takt muss weiterlaufen
             log.debug("Virtuelles Deck: %s", e)
         if reschedule:
@@ -360,7 +363,7 @@ class VirtualDeckWindow:
         col = CHROME["fg"] if self.grip_hover else "#4b5160"
         rounded_rect(cv, gx - 2, cy - 20, gx + 2, cy + 20, 2, fill=col, outline="", tags="grip")
         x0, x1 = (0, GRIP) if self.edge == "right" else (self.width - GRIP, self.width)
-        self._grip_box = (x0, 0, x1, h)
+        self._grip_box = (x0, cy - GRIP_REACH, x1, cy + GRIP_REACH)
 
     def _draw_footer(self):
         cv, ctrl = self.cv, self.ctrl
@@ -476,6 +479,17 @@ class VirtualDeckWindow:
     def _hover(self, e):
         self._set_grip_hover(self._in_grip(e.x, e.y))
 
+    def check_hover(self):
+        """Hervorhebung des Griffs nach der Mausposition richten. Gleitet die Leiste unter der stehenden
+        Maus weg, meldet X kein <Leave> – der Griff bliebe sonst hell."""
+        if self.cv is None or not self.win.winfo_ismapped():
+            self._set_grip_hover(False)
+            return
+        px, py = self.win.winfo_pointerxy()
+        x, y = px - self.cv.winfo_rootx(), py - self.cv.winfo_rooty()
+        inside = 0 <= x < self.width and 0 <= y < self.height
+        self._set_grip_hover(inside and self._in_grip(x, y))
+
     def _set_grip_hover(self, on):
         if on != self.grip_hover and self.cv is not None:
             self.grip_hover = on
@@ -518,6 +532,7 @@ class VirtualDeckWindow:
             return
         if i >= SLIDE_STEPS:
             self._slide = None
+            self.root.after(30, self.check_hover)  # Maus steht still, die Leiste ist weg
             return
         sl[2] = i
         sl[3] = self.root.after(max(1, SLIDE_MS // SLIDE_STEPS), self._slide_step)
