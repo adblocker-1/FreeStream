@@ -105,7 +105,13 @@ zoom. **Own image …** takes any picture.
 ![Icon library](docs/images/freedeck-icons.png)
 
 **Background** above the device spreads a picture across all keys of a page; the
-touch strip of the Stream Deck + can get its own image.
+touch strip of the Stream Deck + can get its own image. **Opacity** (Appearance tab of a
+key) lets the background shine through the icon – on FreeWave keys only their dark
+background becomes see-through, the symbol, fader and text stay sharp.
+
+**When FreeDeck is not running** (Settings → Devices): instead of the logo, the deck keeps
+showing a picture of your choice across all keys after you quit FreeDeck or shut down –
+as long as the deck has power.
 
 | | |
 |---|---|
@@ -166,9 +172,9 @@ Turn it on under **Settings → Devices → Virtual deck** and choose how it loo
 | | |
 |---|---|
 | **Floating window** | move it anywhere by its title bar; **always on top** if you like; profile and pages at the bottom |
-| **Edge bar** | docked at the right or left screen edge; slides away when the mouse leaves and comes back when you move the mouse to the edge |
+| **Edge bar** | docked upright at the right or left screen edge (e.g. 2 × 4 instead of 4 × 2 – shown the same way in the FreeDeck window); a click on the grip at its inner side lets it slide away (only the grip stays visible) and back again |
 
-Also there: the **size** (3 × 2, 4 × 2, 5 × 3 or 8 × 4 keys), a **keyboard shortcut** to show
+Also there: the **size** (3 × 2, 4 × 2, 5 × 3 or 8 × 4 keys; FreeDeck creates one empty profile for it and moves it along when you try other sizes), a **keyboard shortcut** to show
 and hide it from anywhere (e.g. Super + D – or run `freedeck virtual-deck`) and the profile.
 Assign keys like on a real deck: choose **Virtual deck** in the sidebar of the FreeDeck window
 and drag actions onto it. Clicking a key doesn't take the focus away, so hotkeys go to the
@@ -187,7 +193,7 @@ its profiles too.
 | Tab | |
 |---|---|
 | **General** | version and updates, start when you log in, light/dark, language, help and backup |
-| **Devices** | per deck: name, on/off, **orientation** (upside down 180°), **sleep after**, brightness, serial number, firmware, profile – and the [virtual deck](#virtual-deck) |
+| **Devices** | per deck: name, on/off, **orientation** (upside down 180°), **sleep after**, brightness, **picture when FreeDeck is not running**, serial number, firmware, profile – and the [virtual deck](#virtual-deck) |
 | **Profiles** | switch profiles **automatically** by the program in the foreground, and the **default profile** |
 | **Plugins** | installed plugins with status, log, restart and remove |
 | **Connections** | OBS, Discord, Home Assistant – and **Windows profiles**: keyboard layout and which Linux program or folder replaces a Windows one |
@@ -277,6 +283,8 @@ it up to date when you add or delete channels:
 - per channel: a tile with icon and volume (press = mute) and a fader over two
   keys (upper = louder, lower = quieter – hold the key to keep going)
 - on the Stream Deck +: the dials
+- **Look**: *Transparent keys* and a *background image* for all pages – kept when
+  FreeWave updates the profile (also a background you set in FreeDeck)
 
 The actions **Mixer Channel**, **Mixer Scene** and **Wave Microphone** work even
 when the FreeWave window is closed.

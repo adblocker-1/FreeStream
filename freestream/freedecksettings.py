@@ -13,7 +13,7 @@ from . import msgbox as messagebox
 from . import plugins, system, virtualdeck
 from .dialogkit import ScrollArea, ShortcutField, entry
 from .i18n import _, ngettext
-from .models import VIRTUAL_MODELS, model_name
+from .models import VIRTUAL_MODELS, VIRTUAL_SIZES, VIRTUAL_UPRIGHT, model_name
 from .theme import COL, Button, Card, Fader, Icons, Segmented, Switch, font, icon_tile, label, rounded_rect, section
 
 SLEEP_CHOICES = [0, 1, 5, 10, 15, 30, 60]
@@ -200,6 +200,14 @@ class DevicesPage(_Page):
                             command=self._set_brightness)
         self.bright.pack(side="left")
         label(r, textvariable=self.bright_val, size=9, color=COL["muted"], width=6, anchor="e").pack(side="left")
+        # Bild, solange FreeDeck nicht läuft (statt des Logos des Geräts)
+        r = self.row(body, _("When not running"))
+        self.idle_preview = tk.Label(r, bg=COL["panel"])
+        self.idle_preview.pack(side="left", padx=(0, 10))
+        Button(r, _("Image…"), icon="image", command=self._pick_idle).pack(side="left")
+        self.idle_remove = Button(r, _("Remove"), kind="ghost", command=lambda: self._set_idle(None))
+        self.idle_remove.pack(side="left", padx=(4, 0))
+        self._show_idle()
         # Info
         r = self.row(body, _("Model"))
         label(r, model_name(ctrl.model), 10).pack(side="left")
@@ -233,15 +241,13 @@ class DevicesPage(_Page):
         r = self.row(body, _("Display"), pady=14, width=w, top=True)
         self.v_modes = {}
         for mode, title, sub in (("window", _("Floating window"), _("move it anywhere, stays on top")),
-                                 ("edge", _("Edge bar"), _("slides in, mouse to the edge brings it"))):
+                                 ("edge", _("Edge bar"), _("click its grip to slide it away and back"))):
             card = ModeCard(r, mode, title, sub, command=lambda m=mode: self._v_set(mode=m))
             card.pack(side="left", padx=(0, 8))
             self.v_modes[mode] = card
         r = self.row(body, _("Size"), width=w)
-        self.v_codes = list(VIRTUAL_MODELS)
-        self.v_size = ttk.Combobox(r, state="readonly", width=24, values=[
-            _("{cols} × {rows} keys").format(cols=g.cols, rows=g.rows) for g in VIRTUAL_MODELS.values()])
-        self.v_size.current(self.v_codes.index(s["model"]))
+        self.v_codes = list(VIRTUAL_SIZES)
+        self.v_size = ttk.Combobox(r, state="readonly", width=24)
         self.v_size.bind("<<ComboboxSelected>>", lambda e: self._v_set(model=self.v_codes[self.v_size.current()]))
         self.v_size.pack(side="left")
         r = self.row(body, _("Always on top"), width=w)
@@ -282,7 +288,11 @@ class DevicesPage(_Page):
         on = s["enabled"]
         for mode, card in self.v_modes.items():
             card.set(selected=mode == s["mode"], enabled=on)
-        self.v_size.configure(state="readonly" if on else "disabled")
+        # Randleiste: hochkant (2 × 4 statt 4 × 2) – so steht sie auch im Editor
+        geos = [VIRTUAL_MODELS[VIRTUAL_UPRIGHT[c] if s["mode"] == "edge" else c] for c in self.v_codes]
+        self.v_size.configure(values=[_("{cols} × {rows} keys").format(cols=g.cols, rows=g.rows) for g in geos],
+                              state="readonly" if on else "disabled")
+        self.v_size.current(self.v_codes.index(s["model"]))
         self.v_top.set_enabled(on and s["mode"] == "window")
         self.v_edge.configure(state="readonly" if on and s["mode"] == "edge" else "disabled")
         ctrl = self.virtual_controller()
@@ -300,7 +310,7 @@ class DevicesPage(_Page):
         virtualdeck.update(self.cfg, **changes)
         self.save_now()
         daemon = getattr(self.freedeck, "daemon", None)
-        if hasattr(daemon, "sync_virtual") and ("enabled" in changes or "model" in changes):
+        if hasattr(daemon, "sync_virtual") and {"enabled", "model", "mode"} & set(changes):
             try:
                 daemon.sync_virtual()  # gleich anlegen/ändern statt erst im nächsten Takt
             except Exception as e:  # noqa: BLE001
@@ -392,6 +402,52 @@ class DevicesPage(_Page):
         self._dcfg()["brightness"] = v
         self.ctrl.set_brightness(v)
         self.save_later()
+
+    def _show_idle(self):
+        """Kleine Vorschau des Bilds für „FreeDeck läuft nicht“ (sonst ein Hinweis)."""
+        path = self.ctrl.idle_image_path() if hasattr(self.ctrl, "idle_image_path") else None
+        if path is None:
+            self._idle_photo = None
+            self.idle_preview.configure(image="", text=_("Device logo"), fg=COL["muted"], font=font(self, 9))
+        else:
+            from PIL import ImageOps
+            try:
+                with Image.open(path) as im:
+                    thumb = ImageOps.fit(im.convert("RGB"), (48, 28), Image.LANCZOS)
+                self._idle_photo = ImageTk.PhotoImage(thumb, master=self)
+                self.idle_preview.configure(image=self._idle_photo, text="")
+            except OSError:
+                self.idle_preview.configure(image="", text=path.name)
+        self.idle_remove.configure_text(enabled=path is not None)
+
+    def _pick_idle(self):
+        f = messagebox.askopenfilename(parent=self, title=_("Image when FreeDeck is not running"), filetypes=[
+            (_("Images"), "*.png *.jpg *.jpeg *.webp *.gif *.bmp"), (_("All files"), "*")])
+        if f:
+            self._set_idle(f)
+
+    def _set_idle(self, src):
+        """Bild in den Konfigurationsordner kopieren (die Quelle darf danach verschwinden)."""
+        from PIL import ImageOps
+        from . import paths
+        d = self._dcfg()
+        dst = paths.CONFIG_DIR / "idle" / f"{self.ctrl.serial}.png"
+        if src is None:
+            d.pop("idle_image", None)
+            dst.unlink(missing_ok=True)
+        else:
+            try:
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                with Image.open(src) as im:
+                    im = ImageOps.exif_transpose(im).convert("RGB")
+                    im.thumbnail((1600, 1600), Image.LANCZOS)
+                    im.save(dst)
+            except (OSError, ValueError) as e:
+                messagebox.showerror(_("Settings"), _("Image not readable: {error}").format(error=e), parent=self)
+                return
+            d["idle_image"] = str(dst)
+        self.save_now()
+        self._show_idle()
 
     def _set_profile(self):
         pid = self.profile_ids[self.profile.current()]

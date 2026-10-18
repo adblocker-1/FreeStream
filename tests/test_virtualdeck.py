@@ -18,6 +18,15 @@ needs_x = pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (x
 HOTKEY = "com.elgato.streamdeck.system.hotkey"
 
 
+def _until(root, cond, secs=5.0):
+    """Tk laufen lassen, bis cond() stimmt (der Takt des Fensters läuft alle 40–300 ms)."""
+    end = time.time() + secs
+    while not cond() and time.time() < end:
+        root.update()
+        time.sleep(0.02)
+    return cond()
+
+
 @pytest.fixture
 def daemon(tmp_path, monkeypatch):
     from freestream import paths
@@ -42,7 +51,8 @@ def daemon(tmp_path, monkeypatch):
 
 def test_virtual_models():
     from freestream import models as M
-    assert M.model_name("FDV4X2") == "Virtuelles Deck 4 × 2"
+    assert M.model_name("FDV4X2") == "Virtuelles Deck 4 × 2" and M.model_name("FDV2X4") == "Virtuelles Deck 2 × 4"
+    assert V.device_model({"model": "FDV8X4", "mode": "edge"}) == "FDV4X8"
     assert M.model_geometry("FDV8X4") == M.Geometry(8, 4) and M.is_virtual("FDV3X2")
     assert not M.is_virtual("20GBA9901") and M.elgato_name("FDV5X3") == "Virtual Deck"
     assert "Stream Deck" not in M.model_name("FDV5X3")
@@ -76,8 +86,20 @@ def test_daemon_adds_resizes_and_removes_virtual_deck(daemon):
     new = daemon.virtual_controller
     assert new is not ctrl and new.geometry.cols == 5 and not ctrl.running
     assert list(daemon.controllers) == ["virtual:FDV5X3"]
-    # 4×2-Profil wird nicht übernommen, obwohl es gemerkt ist
-    assert new.profile.name == "Virtuelles Deck 5 × 3"
+    # das leere, automatisch angelegte Profil zieht mit um – kein zweites Profil
+    assert new.profile.name == "Virtuelles Deck 5 × 3" and len(daemon.store.profiles) == 1
+    assert new.profile.id == ctrl.profile.id
+    # belegt: bleibt bei seiner Größe, die Randleiste (hochkant 3 × 5) bekommt ein eigenes
+    doc = E.ProfileDoc(new.profile.root)
+    doc.place(doc.page_ids[0], ("key", 0, 0), HOTKEY)
+    doc.save()
+    daemon.store.reload()
+    V.update(daemon.cfg, mode="edge")
+    daemon.sync_virtual()
+    edge = daemon.virtual_controller
+    assert edge.model == "FDV3X5" and (edge.geometry.cols, edge.geometry.rows) == (3, 5)
+    assert edge.profile.name == "Virtuelles Deck 3 × 5" and len(daemon.store.profiles) == 2
+    new = edge
     V.update(daemon.cfg, enabled=False)
     daemon.scan()
     assert not daemon.controllers and not new.running
@@ -111,8 +133,8 @@ def test_window_and_edge_bar(daemon, tmp_path):
     root = tk.Tk()
     try:
         w = VirtualDeckWindow(root, daemon)
-        _pump(root, 10)
-        assert w.win is not None and w.win.winfo_ismapped() and w.win.overrideredirect()
+        assert _until(root, lambda: w.win is not None and w.win.winfo_ismapped() and w._seq >= 0)
+        assert w.win.overrideredirect()
         assert (w.cols, w.rows) == (4, 2) and len([h for h in w._hits if h[4][0] == "key"]) == 8
         # Taste klicken
         got = []
@@ -134,27 +156,37 @@ def test_window_and_edge_bar(daemon, tmp_path):
         assert ctrl.page_index == 1
         # Ausblenden (Kürzel / ×) und wieder einblenden
         w.request_toggle()
-        _pump(root, 5)
-        assert not w.win.winfo_ismapped() and V.settings(daemon.cfg)["visible"] is False
+        assert _until(root, lambda: not w.win.winfo_ismapped())
+        assert V.settings(daemon.cfg)["visible"] is False
         w.toggle()
-        _pump(root, 5)
-        assert w.win.winfo_ismapped()
-        # Randleiste rechts: Zeilen werden Spalten, klappt ein und wieder aus
+        assert _until(root, lambda: w.win.winfo_ismapped())
+        # Randleiste rechts: hochkant (eigenes Gerät 2 × 4, im Editor genauso), klappt ein und wieder aus
         V.update(daemon.cfg, mode="edge")
-        _pump(root, 5)
-        assert (w.cols, w.rows) == (2, 4) and w.win.winfo_ismapped()
+        daemon.sync_virtual()  # wie Einstellungen › Geräte
+        assert daemon.virtual_controller.model == "FDV2X4"
+        assert _until(root, lambda: (w.cols, w.rows) == (2, 4) and w.win.winfo_ismapped() and w.win.winfo_x() > 0)
         assert w.win.winfo_x() + w.win.winfo_width() >= root.winfo_screenwidth() - 2
-        w._set_collapsed(True)
-        _pump(root, 3)
-        assert w.collapsed and w.win.winfo_width() <= 12
-        w._expand()
-        _pump(root, 3)
-        assert not w.collapsed and w.win.winfo_width() > 100
+        sw = root.winfo_screenwidth()
+        from freestream.virtualui import GRIP
+        # Klick auf den Griff (innen, links): gleitet hinaus, nur der Griff bleibt sichtbar
+        gx, gy = GRIP // 2, w.height // 2
+        assert w._in_grip(gx, gy) and not w._in_grip(w.width - 5, gy)
+        w._hover(types.SimpleNamespace(x=gx, y=gy))
+        assert w.grip_hover
+        steps = []
+        w.win.geometry = (lambda orig: lambda g=None: (steps.append(g), orig(g))[1] if g else orig())(w.win.geometry)
+        w._press(types.SimpleNamespace(x=gx, y=gy, x_root=0, y_root=0))
+        assert w.collapsed and _until(root, lambda: w.win.winfo_x() == sw - GRIP)
+        xs = [int(g.split("+")[1]) for g in steps if g and g.startswith("+")]
+        assert len(xs) >= 10 and xs == sorted(xs)  # gleitet in vielen kleinen Schritten, nur nach außen
+        assert xs[1] - xs[0] > xs[-1] - xs[-2]      # schnell los, langsam ankommen
+        # Tasten sind eingeklappt nicht erreichbar, der Griff schon: wieder herein
+        w._press(types.SimpleNamespace(x=gx, y=gy, x_root=0, y_root=0))
+        assert not w.collapsed and _until(root, lambda: w.win.winfo_x() == sw - w.width)
         # ausgeschaltet: Fenster weg
         V.update(daemon.cfg, enabled=False)
         daemon.scan()
-        _pump(root, 20)  # ausgeblendet sieht das Fenster nur alle 300 ms nach
-        assert w.win is None
+        assert _until(root, lambda: w.win is None)
         w.close()
     finally:
         root.destroy()
@@ -183,12 +215,14 @@ def test_settings_virtual_form(own_config, settings, monkeypatch):
     assert calls == ["sync"] and V.settings(cfg)["enabled"] and page.vcard.subtitle == "Ein · Fenster"
     assert page.v_modes["window"].selected and str(page.v_edge.cget("state")) == "disabled"
     _shot(dlg, "settings-virtual")
+    assert page.v_size.cget("values")[1] == "4 × 2 Tasten"
     page.v_modes["edge"].command()
     assert V.settings(cfg)["mode"] == "edge" and page.v_modes["edge"].selected
+    assert page.v_size.cget("values")[1] == "2 × 4 Tasten" and calls == ["sync", "sync"]  # hochkant
     assert str(page.v_edge.cget("state")) == "readonly" and not page.v_top.enabled
     page.v_size.current(3)
     page._v_set(model=page.v_codes[3])
-    assert V.settings(cfg)["model"] == "FDV8X4" and calls == ["sync", "sync"]
+    assert V.settings(cfg)["model"] == "FDV8X4" and calls == ["sync", "sync", "sync"]
     # Tastenkürzel beim Desktop eintragen
     reg = []
     monkeypatch.setattr(shortcuts, "register", lambda *a, **k: reg.append(a) or {})

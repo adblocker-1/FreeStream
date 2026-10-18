@@ -35,13 +35,20 @@ MODELS = {
 }
 
 # Virtuelles Deck (Fenster auf dem Bildschirm, Einstellungen › Geräte): eigener Code je Größe.
-# Gleiche Raster wie Mini, Neo, Original und XL – deren Profile passen also auch.
+# Quer gleiche Raster wie Mini, Neo, Original und XL – deren Profile passen also auch. Als Leiste am
+# Bildschirmrand steht das Deck hochkant (Spalten und Zeilen getauscht), im Editor genauso.
 VIRTUAL_MODELS = {
     "FDV3X2": Geometry(3, 2),
     "FDV4X2": Geometry(4, 2),
     "FDV5X3": Geometry(5, 3),
     "FDV8X4": Geometry(8, 4),
+    "FDV2X3": Geometry(2, 3),
+    "FDV2X4": Geometry(2, 4),
+    "FDV3X5": Geometry(3, 5),
+    "FDV4X8": Geometry(4, 8),
 }
+VIRTUAL_SIZES = ("FDV3X2", "FDV4X2", "FDV5X3", "FDV8X4")  # zur Wahl (quer)
+VIRTUAL_UPRIGHT = {"FDV3X2": "FDV2X3", "FDV4X2": "FDV2X4", "FDV5X3": "FDV3X5", "FDV8X4": "FDV4X8"}
 VIRTUAL_DEFAULT = "FDV4X2"
 
 # USB Product-ID (Vendor 0x0fd9) -> Elgato-Modellcode

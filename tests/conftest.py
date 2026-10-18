@@ -34,5 +34,8 @@ def _forget_recent_loops():
     """Gemerkte Loopbacks (mixer._RECENT) gelten nur für den laufenden Test."""
     from freestream import mixer
     mixer._RECENT["at"] = 0.0
+    mixer._WRITTEN.clear()
+    mixer.WATCH = False  # kein pactl subscribe im Hintergrund (eigener Test in test_deckgui)
     yield
     mixer._RECENT["at"] = 0.0
+    mixer._WRITTEN.clear()

@@ -88,7 +88,8 @@ class Daemon:
         from . import virtualdeck
         with self._virtual_lock:
             s = virtualdeck.settings(self.cfg)
-            did = "virtual:" + s["model"] if s["enabled"] else None
+            model = virtualdeck.device_model(s)
+            did = "virtual:" + model if s["enabled"] else None
             for old in [k for k, c in list(self.controllers.items()) if c.virtual and k != did]:
                 ctrl = self.controllers.pop(old)
                 if getattr(self, "plugin_host", None):
@@ -96,7 +97,7 @@ class Daemon:
                 ctrl.stop()
             if did is None or did in self.controllers:
                 return did
-            deck = virtualdeck.VirtualDeck(s["model"])
+            deck = virtualdeck.VirtualDeck(model)
             deck.open()
             ctrl = DeckController(deck, self.store, self.cfg, self.state, self.vin, self.sound)
             ctrl.plugin_host = getattr(self, "plugin_host", None)
@@ -109,10 +110,27 @@ class Daemon:
             return did
 
     def _virtual_profile(self, ctrl):
-        """Leeres Profil „Virtuelles Deck“ für eine Größe, zu der es noch keins gibt."""
-        from .editdoc import create_profile
+        """Profil „Virtuelles Deck“ für eine Größe, zu der es noch keins gibt.
+
+        Ein schon angelegtes, noch leeres Profil des virtuellen Decks wird auf die neue Größe umgestellt –
+        so entsteht beim Ausprobieren von Größe und Darstellung nicht jedes Mal ein neues Profil."""
+        from .editdoc import ProfileDoc, create_profile
+        from .models import is_virtual
         try:
-            create_profile(model_name(ctrl.model), ctrl.model, self.store.root)
+            for p in sorted(self.store.profiles.values(), key=lambda p: p.name):
+                auto = p.meta.get("virtual_auto") or p.name == model_name(p.model)
+                if not (is_virtual(p.model) and auto):
+                    continue
+                doc = ProfileDoc(p.root)
+                if any(list(pg.items()) for pg in doc.pages.values()) or len(doc.page_ids) > 1:
+                    continue  # schon belegt: bleibt für seine Größe
+                doc.set_model(ctrl.model)
+                doc.rename(model_name(ctrl.model))
+                doc.save()
+                self.store.reload()
+                return
+            root = create_profile(model_name(ctrl.model), ctrl.model, self.store.root)
+            (root / "lindeck-meta.json").write_text('{"virtual_auto": true}', encoding="utf-8")
             self.store.reload()
         except Exception as e:  # noqa: BLE001
             log.warning(_("Could not create a profile for the virtual deck: {error}").format(error=e))

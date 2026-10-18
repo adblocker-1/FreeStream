@@ -13,6 +13,7 @@ Einstellungen sind nicht dokumentiert; FreeDeck liest die üblichen Felder
 und nutzt sonst den Tastentitel (z. B. als Szenenname).
 """
 import logging
+import threading
 import time
 
 from PIL import Image
@@ -453,7 +454,8 @@ class DiscordAction(NativeAction):
 class MixerAction(NativeAction):
     @property
     def mixer(self):
-        from .mixer import Mixer
+        from .mixer import Mixer, want_watch
+        want_watch()  # Änderungen aus FreeWave/pavucontrol sofort mitbekommen (sonst springt die Lautstärke)
         return Mixer(getattr(getattr(self, "ctx", None), "cfg", None))
 
     @property
@@ -540,8 +542,10 @@ class MixerAction(NativeAction):
         self.title_override = ""
         label = self.mix_label()
         if self.display == "tile":
-            return [(mixkeys.tile(size, icon, color, vol, mute, self.mix, label=label), 0)]
-        return [(mixkeys.fader(size, self.display[6:], icon, color, vol, mute, self.mix, label=label), 0)]
+            return [(mixkeys.tile(size, icon, color, vol, mute, self.mix, label=label,
+                                  bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
+        return [(mixkeys.fader(size, self.display[6:], icon, color, vol, mute, self.mix, label=label,
+                               bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
 
     @property
     def key_action(self):
@@ -551,13 +555,17 @@ class MixerAction(NativeAction):
         if self.empty:
             return (None, False)
         now = time.time()
-        if now - getattr(self, "_lv_at", 0) > 1.0:
+        at0 = getattr(self, "_lv_at", 0)
+        if now - at0 > 1.0:
             mx = self.mixer
             mixes = mx.channel_mixes(self.channel) if self.mix == "both" else (self.mix,)
             vals = [mx.get(self.channel, m) for m in mixes]
             vols = [v for v, _mu in vals if v is not None]
-            self._lv = (max(vols) if vols else None, all(mu for _v, mu in vals) if vols else False)
-            self._lv_at = now
+            lv = (max(vols) if vols else None, all(mu for _v, mu in vals) if vols else False)
+            # während des Lesens hat ein Tastendruck einen neueren Stand gezeigt: der gilt (sonst springt
+            # die Anzeige beim Halten kurz auf den alten Wert zurück)
+            if getattr(self, "_lv_at", 0) == at0:
+                self._lv, self._lv_at = lv, now
         return self._lv
 
     def active(self):
@@ -637,14 +645,24 @@ class MixerAction(NativeAction):
             log.debug("share level: %s", e)
 
     def _fresh_level(self):
-        """Zuletzt gelesener Stand (Lautstärke, stumm), wenn er noch frisch ist, sonst None."""
+        """Stand (Lautstärke, stumm) für die sofortige Anzeige: aus derselben Quelle, aus der gleich
+        geschrieben wird (letzte Abfrage samt eigener Änderungen – auch aus dem FreeWave-Fenster), sonst
+        der eigene, wenn er noch frisch ist; None = erst nach dem Schreiben zeigen."""
+        try:
+            lv = self.mixer.recent_level(self.channel, self.mix)
+        except Exception:  # noqa: BLE001 - nur Anzeige
+            lv = None
+        if lv is not None and lv[0] is not None:
+            return lv
         lv = getattr(self, "_lv", None)
-        return lv if lv and lv[0] is not None and time.time() - getattr(self, "_lv_at", 0) < 3.0 else None
+        return lv if lv and lv[0] is not None and time.time() - getattr(self, "_lv_at", 0) < 1.5 else None
 
     def _show_now(self, vol=None, mute=None):
-        """Neuen Stand sofort zeigen – das Schreiben an PipeWire läuft danach."""
-        self._known(vol=vol, mute=mute)
+        """Neuen Stand sofort zeigen – das Schreiben an PipeWire läuft danach. Erst die gedrückte Taste,
+        dann die anderen Tasten des Kanals (jede Taste ist eine eigene USB-Übertragung)."""
+        self._known(vol=vol, mute=mute, share=False)
         self.redraw()
+        self._share()
 
     def _change(self, delta):
         lv = self._fresh_level()
@@ -755,9 +773,11 @@ class MixSelectAction(NativeAction):
         self.title_override = ""
         if self.target == "cycle":
             _mid, name, icon = self._info(self._current())
-            return [(mixkeys.mix_key(size, self._current(), True, sub="Mix", name=name, icon=icon), 0)]
+            return [(mixkeys.mix_key(size, self._current(), True, sub="Mix", name=name, icon=icon,
+                                     bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
         _mid, name, icon = self._info(self.target)
-        return [(mixkeys.mix_key(size, self.target, self._current() == self.target, name=name, icon=icon), 0)]
+        return [(mixkeys.mix_key(size, self.target, self._current() == self.target, name=name, icon=icon,
+                                 bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
 
     def key_down(self):
         if self.target == "cycle":
@@ -766,16 +786,25 @@ class MixSelectAction(NativeAction):
         else:
             _DECK_MIX["mix"] = self.target
         ctrl = self.ctx.ctrl if self.ctx else None
-        # läuft im Ereignis-Thread des Decks: alle Kanaltasten aus EINER pactl-Abfrage (früher eine je Taste
-        # und Mix – das hielt sekundenlang alle folgenden Tastendrücke auf)
         acts = list((getattr(ctrl, "keys", None) or {}).values()) + list((getattr(ctrl, "dials", None) or {}).values())
-        acts.sort(key=lambda a: not isinstance(a, MixSelectAction))  # die Mix-Tasten zuerst: sofort sichtbar
-        with system.pactl_snapshot():
-            for a in acts:
-                if isinstance(a, (MixerAction, MixSelectAction)):
+        # die Mix-Tasten sofort (im Ereignis-Thread, ohne PipeWire zu fragen) …
+        for a in acts:
+            if isinstance(a, MixSelectAction):
+                a.redraw()
+        # … die Kanaltasten daneben im Hintergrund: sonst wartet jeder weitere Tastendruck, bis alle neu
+        # gezeichnet sind. Alle aus EINER pactl-Abfrage; ein neuerer Mix-Wechsel bricht den alten ab.
+        chans = [a for a in acts if isinstance(a, MixerAction)]
+        _DECK_MIX["gen"] = gen = _DECK_MIX.get("gen", 0) + 1
+
+        def redraw_channels():
+            with system.pactl_snapshot():
+                for a in chans:
+                    if _DECK_MIX.get("gen") != gen:
+                        return
                     a._lv_at = 0
                     a.tick()
                     a.redraw()
+        threading.Thread(target=redraw_channels, name="mix-select", daemon=True).start()
 
 
 class MixerPagesAction(NativeAction):
@@ -789,7 +818,8 @@ class MixerPagesAction(NativeAction):
         from . import mixkeys
         self.title_override = ""
         first = int(self.settings.get("first") or 1)
-        return [(mixkeys.pages_key(size, first, int(self.settings.get("last") or first)), 0)]
+        return [(mixkeys.pages_key(size, first, int(self.settings.get("last") or first),
+                                   bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
 
     def key_down(self):
         if self.ctx and self.ctx.ctrl:

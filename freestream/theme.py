@@ -24,7 +24,7 @@ import tkinter as tk
 from tkinter import font as tkfont
 from tkinter import ttk
 
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageChops, ImageDraw, ImageTk
 
 from . import paths
 
@@ -181,9 +181,15 @@ def mix(a, b, t):
 
 
 # ================================================================ Schriften/ttk
+_FAMILY = {}  # Tk-Interpreter -> Schriftfamilie (families() ist ein teurer Tk-Aufruf)
+
+
 def _family(root):
-    have = set(tkfont.families(root))
-    return next((f for f in FONT_FAMILIES if f in have), "TkDefaultFont")
+    fam = _FAMILY.get(root.tk)
+    if fam is None:
+        have = set(tkfont.families(root))
+        fam = _FAMILY[root.tk] = next((f for f in FONT_FAMILIES if f in have), "TkDefaultFont")
+    return fam
 
 
 def apply(root):
@@ -524,17 +530,24 @@ def _draw_glyph(name, size, color, bg, circle):
     elif n == "arrow":
         line((0.1, 0.5), (0.9, 0.5))
         line((0.58, 0.2), (0.9, 0.5), (0.58, 0.8))
-    elif n in ("link", "link_off"):  # zwei Kettenglieder (gekoppelt) bzw. getrennt
-        r = S * 0.16
-        w2 = int(lw * 1.4)
-        if n == "link":
-            d.rounded_rectangle((*P(0.0, 0.28), *P(0.62, 0.72)), radius=r, outline=c, width=w2)
-            d.rounded_rectangle((*P(0.38, 0.28), *P(1.0, 0.72)), radius=r, outline=c, width=w2)
-        else:
-            d.rounded_rectangle((*P(0.0, 0.28), *P(0.42, 0.72)), radius=r, outline=c, width=w2)
-            d.rounded_rectangle((*P(0.58, 0.28), *P(1.0, 0.72)), radius=r, outline=c, width=w2)
-            line((0.5, 0.04), (0.5, 0.18))
-            line((0.5, 0.82), (0.5, 0.96))
+    elif n in ("link", "link_off"):  # zwei schräge Kettenglieder: verhakt (gekoppelt) bzw. auseinander
+        layer = Image.new("L", (S, S), 0)
+        ld = ImageDraw.Draw(layer)
+        th = S * 0.30                      # Höhe eines Glieds
+        ln = S * (0.56 if n == "link" else 0.42)
+        off = S * (0.17 if n == "link" else 0.27)
+        width = max(2, round(S * 0.085))
+        for cx in (S / 2 - off, S / 2 + off):
+            ld.rounded_rectangle((cx - ln / 2, S / 2 - th / 2, cx + ln / 2, S / 2 + th / 2), radius=th / 2,
+                                 outline=255, width=width)
+        if n == "link_off" and size >= 24:  # kleine Striche an der Bruchstelle (klein nur Unruhe)
+            for sx in (-1, 1):
+                ld.line([(S / 2 + sx * S * 0.03, S / 2 - th * 0.95), (S / 2 + sx * S * 0.07, S / 2 - th * 1.35)],
+                        fill=255, width=max(1, width * 2 // 3))
+                ld.line([(S / 2 + sx * S * 0.03, S / 2 + th * 0.95), (S / 2 + sx * S * 0.07, S / 2 + th * 1.35)],
+                        fill=255, width=max(1, width * 2 // 3))
+        layer = layer.rotate(45, resample=Image.BICUBIC, center=(S / 2, S / 2))
+        im.paste(Image.new("RGBA", (S, S), c), (0, 0), layer)
     elif n == "arrow_left":
         line((0.1, 0.5), (0.9, 0.5))
         line((0.42, 0.2), (0.1, 0.5), (0.42, 0.8))
@@ -1140,20 +1153,18 @@ def gradient_mark(master, size, kind="deck"):
         a, b = (("#5b7cff", "#8a5cff") if kind == "deck" else ("#22c3ee", "#c084fc"))
         k = 4
         S = size * k
-        grad = Image.new("RGBA", (S, S))
-        ca, cb = rgb(a), rgb(b)
-        px = grad.load()
-        for y in range(S):
-            for x in range(S):
-                t = (x + y) / (2 * S - 2)
-                px[x, y] = tuple(round(u + (v - u) * t) for u, v in zip(ca, cb)) + (255,)
+        # Verlauf schräg von links oben nach rechts unten: Mittel aus waagrechtem und senkrechtem Verlauf
+        v = Image.linear_gradient("L").resize((S, S))
+        t = ImageChops.add(v, v.rotate(90), scale=2)
+        grad = Image.composite(Image.new("RGBA", (S, S), rgb(a) + (255,)), Image.new("RGBA", (S, S), rgb(b) + (255,)),
+                               ImageChops.invert(t))
         mask = Image.new("L", (S, S), 0)
         ImageDraw.Draw(mask).rounded_rectangle((0, 0, S - 1, S - 1), radius=S * 0.3, fill=255)
         im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
         im.paste(grad, (0, 0), mask)
         g = glyph("deck" if kind == "deck" else "wave", int(S * 0.56), "#ffffff")
         im.alpha_composite(g, (int(S * 0.22), int(S * 0.22)))
-        cache[key] = ImageTk.PhotoImage(im.resize((size, size), Image.LANCZOS), master=master)
+        cache[key] = ImageTk.PhotoImage(im.reduce(k), master=master)
     return cache[key]
 
 
@@ -1168,7 +1179,7 @@ def icon_tile(master, name, size, color, radius=0.28, fg="#ffffff"):
         ImageDraw.Draw(im).rounded_rectangle((0, 0, S - 1, S - 1), radius=S * radius, fill=rgb(color) + (255,))
         g = glyph(name, int(S * 0.5), fg)
         im.alpha_composite(g, (int(S * 0.25), int(S * 0.25)))
-        cache[key] = ImageTk.PhotoImage(im.resize((size, size), Image.LANCZOS), master=master)
+        cache[key] = ImageTk.PhotoImage(im.reduce(k), master=master)  # 4× gezeichnet, Mittel je 4×4 Pixel
     return cache[key]
 
 

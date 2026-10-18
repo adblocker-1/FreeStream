@@ -12,6 +12,21 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageSequence
 
+
+def pillow_compat():
+    """Pillow < 9.1 (Ubuntu 22.04, Mint 21) kennt Image.Transpose und Image.Resampling noch nicht – die
+    Gerätebibliothek (python-elgato-streamdeck) braucht sie aber, um Tastenbilder zu spiegeln (XL,
+    Original, Mini). Ohne sie bleiben die Tasten dieser Decks dunkel. Gleiche Werte unter neuem Namen."""
+    names = {"Transpose": ("FLIP_LEFT_RIGHT", "FLIP_TOP_BOTTOM", "ROTATE_90", "ROTATE_180", "ROTATE_270",
+                           "TRANSPOSE", "TRANSVERSE"),
+             "Resampling": ("NEAREST", "BOX", "BILINEAR", "HAMMING", "BICUBIC", "LANCZOS")}
+    for group, members in names.items():
+        if not hasattr(Image, group):
+            setattr(Image, group, type(group, (), {m: getattr(Image, m) for m in members if hasattr(Image, m)}))
+
+
+pillow_compat()
+
 from . import paths
 from .i18n import _, pgettext
 
@@ -273,7 +288,9 @@ def compose_key(size, frame, title, state, overlay=None, background=(0, 0, 0), b
     w, h = size
     img = base.copy() if base is not None else Image.new("RGBA", (w, h), background + (255,))
     if frame is not None:
-        img.alpha_composite(frame if frame.size == (w, h) else _fit(frame, w, h))
+        own = frame.info.get("own_opacity")  # FreeWave-Tasten: nur ihr Hintergrund wird durchsichtig
+        frame = frame if frame.size == (w, h) else _fit(frame, w, h)
+        img.alpha_composite(frame if own else with_opacity(frame, state.get("IconOpacity", 100)))
     show = state.get("ShowTitle")
     if show is None:
         show = True
@@ -285,6 +302,20 @@ def compose_key(size, frame, title, state, overlay=None, background=(0, 0, 0), b
         _ok(img)
     elif isinstance(overlay, tuple) and overlay[0] == "progress":
         _progress(img, *overlay[1:])
+    return img
+
+
+def with_opacity(img, pct):
+    """Bild mit pct % Deckkraft (Einstellung „Deckkraft“ einer Taste: das Hintergrundbild der Seite
+    scheint durch). 100 % = unverändert."""
+    try:
+        pct = max(0, min(100, int(pct)))
+    except (TypeError, ValueError):
+        return img
+    if pct >= 100:
+        return img
+    img = img.convert("RGBA") if img.mode != "RGBA" else img.copy()
+    img.putalpha(img.getchannel("A").point(lambda a: a * pct // 100))
     return img
 
 

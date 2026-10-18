@@ -2,12 +2,15 @@
 
 Zwei Darstellungen, Einstellungen › Geräte › Virtuelles Deck:
   window  schwebendes Fenster: Titelleiste zum Verschieben, Tasten, unten Profil und Seiten
-  edge    Leiste am rechten oder linken Bildschirmrand (Tasten gedreht: Zeilen werden Spalten);
-          klappt ein, wenn die Maus sie verlässt, und kommt zurück, sobald die Maus an den Rand fährt
+  edge    Leiste am rechten oder linken Bildschirmrand (hochkant – im Editor genauso), zum Rand hin
+          gerade, nach innen rund. Ein Klick auf den Griff am inneren Rand lässt sie hinausgleiten
+          (nur der Griff bleibt stehen), ein zweiter holt sie zurück
 
 Das Fenster nimmt keinen Fokus (overrideredirect): Tastenkürzel einer Taste landen so im
 Programm, in dem du gerade arbeitest – wie bei einem echten Deck.
 """
+import ctypes
+import ctypes.util
 import logging
 import threading
 import tkinter as tk
@@ -21,10 +24,84 @@ from .theme import COL, Icons, PopupMenu, elide, font, rounded_rect
 log = logging.getLogger("freestream.virtualui")
 TICK_MS = 40          # neue Tastenbilder abholen
 IDLE_MS = 300         # ausgeblendet: seltener nachsehen
-COLLAPSE_MS = 900     # Randleiste klappt so lange nach dem Verlassen ein
+GRIP = 20             # Randleiste: innerer Rand mit dem Griff darin – bleibt eingeklappt sichtbar
+SLIDE_MS, SLIDE_STEPS = 220, 13  # Hinaus-/Hereingleiten: Dauer und Bilder (≈ 60 pro Sekunde)
+RADIUS = 16           # runde Ecken der Randleiste (nach innen)
 # Gehäuse wie ein echtes Deck – dunkel, auch im hellen Design
 CHROME = {"bg": "#16181e", "edge": "#2a2f3a", "fg": "#e9ecf2", "muted": "#8b93a3", "slot": "#0b0c10",
           "dot": "#3a404d", "pill": "#222630"}
+
+
+def _ease_out(t):
+    """Schnell los, weich ankommen."""
+    return 1 - (1 - t) ** 3
+
+
+_X = {}  # libX11/libXext und eine eigene Verbindung zum X-Server (für die Fensterform)
+
+
+def _toplevel_xid(wid):
+    """Tk legt um jedes Toplevel ein Hüllfenster – geformt werden muss das oberste (Kind des Wurzelfensters)."""
+    x11, dpy = _X["x11"], _X["dpy"]
+    x11.XQueryTree.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.POINTER(ctypes.c_ulong),
+                               ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_void_p),
+                               ctypes.POINTER(ctypes.c_uint)]
+    x11.XFree.argtypes = [ctypes.c_void_p]
+    for _i in range(4):
+        root, parent, kids, n = ctypes.c_ulong(), ctypes.c_ulong(), ctypes.c_void_p(), ctypes.c_uint()
+        if not x11.XQueryTree(dpy, wid, ctypes.byref(root), ctypes.byref(parent), ctypes.byref(kids),
+                              ctypes.byref(n)):
+            break
+        if kids:
+            x11.XFree(kids)
+        if not parent.value or parent.value == root.value:
+            break
+        wid = parent.value
+    return wid
+
+
+def _round_shape(win, w, h, r, side):
+    """Fensterform mit runden Ecken auf einer Seite (X11-Shape): Fenster ohne Rahmen sind sonst
+    rechteckig. side: "left" oder "right" = die runde Seite. Ohne X11/Xext bleibt es eckig."""
+    try:
+        if "dpy" not in _X:
+            x11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11") or "libX11.so.6")
+            xext = ctypes.cdll.LoadLibrary(ctypes.util.find_library("Xext") or "libXext.so.6")
+            x11.XOpenDisplay.restype = ctypes.c_void_p
+            x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+            x11.XFlush.argtypes = [ctypes.c_void_p]
+            _X.update(x11=x11, xext=xext, dpy=x11.XOpenDisplay(None))
+        if not _X["dpy"]:
+            return False
+
+        class Rect(ctypes.Structure):
+            _fields_ = [("x", ctypes.c_short), ("y", ctypes.c_short), ("width", ctypes.c_ushort),
+                        ("height", ctypes.c_ushort)]
+        rows = []
+        for y in range(h):
+            dy = max(r - y - 0.5, y + 0.5 - (h - r), 0)
+            inset = round(r - (r * r - dy * dy) ** 0.5) if dy else 0
+            rows.append(inset)
+        rects, y = [], 0
+        while y < h:  # gleiche Zeilen zu einem Rechteck zusammenfassen
+            y1 = y
+            while y1 + 1 < h and rows[y1 + 1] == rows[y]:
+                y1 += 1
+            x0 = rows[y] if side == "left" else 0
+            rects.append(Rect(x0, y, w - rows[y], y1 - y + 1))
+            y = y1 + 1
+        arr = (Rect * len(rects))(*rects)
+        wid = _toplevel_xid(int(win.wm_frame(), 16))
+        xext = _X["xext"]
+        xext.XShapeCombineRectangles.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int, ctypes.c_int,
+                                                 ctypes.c_int, ctypes.c_void_p, ctypes.c_int, ctypes.c_int,
+                                                 ctypes.c_int]
+        xext.XShapeCombineRectangles(_X["dpy"], wid, 0, 0, 0, arr, len(rects), 0, 0)  # Bounding, Set
+        _X["x11"].XFlush(_X["dpy"])
+        return True
+    except Exception as e:  # noqa: BLE001 - nur Aussehen
+        log.debug("Fensterform: %s", e)
+        return False
 
 
 def _rounded(img, size, radius, dim=False):
@@ -53,7 +130,8 @@ class VirtualDeckWindow:
         self._down = None          # gedrückte Taste
         self._drag = None          # Fenster verschieben: (x, y) des Mausklicks im Fenster
         self._hits = []            # (x0, y0, x1, y1, Ziel)
-        self._collapse_job = None
+        self.grip_hover = False
+        self._slide = None         # laufende Animation: [Start-x, Ziel-x, Schritt, after-Job]
         self._ticks = 0
         self._want_toggle = threading.Event()
         self._job = root.after(TICK_MS, self._tick)
@@ -104,7 +182,8 @@ class VirtualDeckWindow:
         if not s["enabled"] or ctrl is None:
             self.destroy_window()
             return
-        shape = (id(ctrl), s["mode"], s["edge"], s["topmost"])
+        multi = ctrl.page_count > 1 if s["mode"] == "edge" else None  # Randleiste: Seitenpunkte nur bei Bedarf
+        shape = (id(ctrl), s["mode"], s["edge"], s["topmost"], multi)
         if self.win is None or shape != self.shape:
             self.destroy_window()
             self._build(ctrl, s)
@@ -132,6 +211,7 @@ class VirtualDeckWindow:
         return (p.id if p else None, p.name if p else "", ctrl.page_index, ctrl.page_count, len(ctrl.folder_stack))
 
     def destroy_window(self):
+        self._cancel_slide()
         if self.win is not None:
             try:
                 self.win.destroy()
@@ -152,18 +232,23 @@ class VirtualDeckWindow:
     # ------------------------------------------------------------ Aufbau
     def _build(self, ctrl, s):
         self.ctrl, self.mode, self.edge = ctrl, s["mode"], s["edge"]
-        g = ctrl.geometry
-        self.cols, self.rows = (g.rows, g.cols) if self.mode == "edge" else (g.cols, g.rows)
+        g = ctrl.geometry  # als Randleiste schon hochkant (virtualdeck.device_model)
+        self.cols, self.rows = g.cols, g.rows
         if self.mode == "edge":
-            avail = self.root.winfo_screenheight() - 140
-            self.tile = max(40, min(64, (avail - 8 * (self.rows - 1)) // self.rows))
-            self.gap, self.pad, self.title_h, self.foot_h = 8, 10, 0, 26
+            self.gap, self.pad, self.title_h = 10, 12, 0
+            self.foot_h = 22 if ctrl.page_count > 1 else 0
+            avail = self.root.winfo_screenheight() - 120 - self.foot_h
+            self.tile = max(40, min(64, (avail - self.gap * (self.rows - 1)) // self.rows))
+            grid_w = self.cols * self.tile + (self.cols - 1) * self.gap
+            # innen 20 px (der Griff sitzt im Rand), sonst überall 12 px
+            self.width = GRIP + grid_w + self.pad
+            self.grid_x = GRIP if self.edge == "right" else self.pad
+            self.height = self.pad + self.rows * self.tile + (self.rows - 1) * self.gap + self.pad + self.foot_h
         else:
             self.tile, self.gap, self.pad, self.title_h, self.foot_h = 72, 10, 12, 34, 44
-        self.width = 2 * self.pad + self.cols * self.tile + (self.cols - 1) * self.gap
-        if self.mode == "window":
-            self.width = max(self.width, 300)
-        self.height = self.title_h + self.pad + self.rows * self.tile + (self.rows - 1) * self.gap + self.foot_h
+            self.width = max(300, 2 * self.pad + self.cols * self.tile + (self.cols - 1) * self.gap)
+            self.grid_x = None
+            self.height = self.title_h + self.pad + self.rows * self.tile + (self.rows - 1) * self.gap + self.foot_h
         self.win = tk.Toplevel(self.root, bg=CHROME["bg"])
         self.win.withdraw()
         self.win.title(_("Virtual deck"))
@@ -172,26 +257,30 @@ class VirtualDeckWindow:
             self.win.attributes("-topmost", bool(s["topmost"] or self.mode == "edge"))
         except tk.TclError:
             pass
-        self.cv = tk.Canvas(self.win, width=self.width, height=self.height, bg=CHROME["bg"], highlightthickness=1,
-                            highlightbackground=CHROME["edge"], bd=0)
+        edge = self.mode == "edge"
+        self.cv = tk.Canvas(self.win, width=self.width, height=self.height, bg=CHROME["bg"],
+                            highlightthickness=0 if edge else 1, highlightbackground=CHROME["edge"], bd=0)
         self.cv.pack()
         self.f_title = font(self.root, 10, "bold")
         self.f_small = font(self.root, 9)
         self.cv.bind("<ButtonPress-1>", self._press)
         self.cv.bind("<ButtonRelease-1>", self._release)
         self.cv.bind("<B1-Motion>", self._motion)
-        if self.mode == "edge":
-            self.win.bind("<Enter>", lambda e: self._expand())
-            self.win.bind("<Leave>", lambda e: self._collapse_later())
-        self.collapsed = False
+        if edge:
+            self.cv.bind("<Motion>", self._hover)
+            self.cv.bind("<Leave>", lambda e: self._set_grip_hover(False))
+        self._shaped = False
 
     def _place(self, s):
         sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
         if self.mode == "edge":
-            # eingeklappt: schmaler Streifen über die ganze Höhe – die Maus findet ihn am Rand
-            w, h = (8 if self.collapsed else self.width + 2), self.height + 2
-            x = 0 if self.edge == "left" else sw - w
-            self.win.geometry(f"{w}x{h}+{x}+{max(0, (sh - h) // 2)}")
+            self._cancel_slide()
+            self.win.geometry(f"{self.width}x{self.height}+{self._edge_x(self.collapsed)}"
+                              f"+{max(0, (sh - self.height) // 2)}")
+            if not self._shaped:
+                self.win.update_idletasks()
+                self._shaped = _round_shape(self.win, self.width, self.height, RADIUS,
+                                            "left" if self.edge == "right" else "right")
             return
         pos = s.get("pos")
         if isinstance(pos, (list, tuple)) and len(pos) == 2:
@@ -204,9 +293,8 @@ class VirtualDeckWindow:
     # ------------------------------------------------------------ Zeichnen
     def _key_xy(self, k):
         r, c = divmod(k, self.ctrl.geometry.cols)
-        if self.mode == "edge":
-            r, c = c, r
-        x0 = (self.width - (self.cols * self.tile + (self.cols - 1) * self.gap)) // 2
+        x0 = self.grid_x if self.grid_x is not None else \
+            (self.width - (self.cols * self.tile + (self.cols - 1) * self.gap)) // 2
         return x0 + c * (self.tile + self.gap), self.title_h + self.pad + r * (self.tile + self.gap)
 
     def _photo(self, k, img):
@@ -225,13 +313,12 @@ class VirtualDeckWindow:
             return
         cv.delete("all")
         self._hits = []
-        if self.mode == "edge" and self.collapsed:
-            cv.configure(width=6, height=self.height)
-            mid = self.height // 2
-            rounded_rect(cv, 1, mid - 40, 6, mid + 40, 3, fill=CHROME["muted"], outline="")
-            return
-        cv.configure(width=self.width, height=self.height)
         ctrl = self.ctrl
+        if self.mode == "edge":  # Gehäuse: zum Bildschirmrand gerade (Rand außerhalb), innen rund
+            w, h = self.width, self.height
+            box = (0, 0, w + RADIUS * 2, h - 1) if self.edge == "right" else (-RADIUS * 2, 0, w - 1, h - 1)
+            rounded_rect(cv, *box, RADIUS, fill=CHROME["bg"], outline=CHROME["edge"])
+            self._draw_grip()
         if self.title_h:
             self._draw_title()
         __, images, __ = ctrl.deck.snapshot()
@@ -262,9 +349,23 @@ class VirtualDeckWindow:
         self._hits.append((x - 12, 0, x + 12, h, ("edit",)))
         self._hits.append((0, 0, x - 14, h, ("drag",)))
 
+    def _draw_grip(self):
+        """Griff im inneren Rand: dezenter Strich; unter der Maus hell auf einer Fläche (ohne Pfeil)."""
+        cv, h = self.cv, self.height
+        cv.delete("grip")
+        gx = GRIP // 2 if self.edge == "right" else self.width - GRIP // 2
+        cy = h // 2
+        if self.grip_hover:
+            rounded_rect(cv, gx - 5, cy - 30, gx + 5, cy + 30, 5, fill="#262b36", outline="", tags="grip")
+        col = CHROME["fg"] if self.grip_hover else "#4b5160"
+        rounded_rect(cv, gx - 2, cy - 20, gx + 2, cy + 20, 2, fill=col, outline="", tags="grip")
+        x0, x1 = (0, GRIP) if self.edge == "right" else (self.width - GRIP, self.width)
+        self._grip_box = (x0, 0, x1, h)
+
     def _draw_footer(self):
         cv, ctrl = self.cv, self.ctrl
-        y = self.height - self.foot_h / 2
+        # Randleiste: Punkte zwischen Tasten und unterem Rand (gleicher Abstand wie überall)
+        y = self.height - self.foot_h / 2 - (self.pad - 4 if self.mode == "edge" else 0)
         n, cur = ctrl.page_count, ctrl.page_index
         if self.mode == "window":
             # Profil: Klick öffnet die Auswahl
@@ -287,7 +388,8 @@ class VirtualDeckWindow:
                 cv.create_text(cx0 - 20, y, text="‹", font=self.f_title, fill=CHROME["fg"])
                 self._hits.append((cx0 - 32, y - 14, cx0 - 10, y + 14, ("page", -1)))
             else:
-                cx0 = (self.width - span) // 2
+                gw = self.cols * self.tile + (self.cols - 1) * self.gap
+                cx0 = self.grid_x + (gw - span) // 2
             for i in range(dots):
                 cx = cx0 + i * 14
                 on = i == min(cur, dots - 1)
@@ -301,9 +403,15 @@ class VirtualDeckWindow:
                 return what
         return None
 
+    def _in_grip(self, x, y):
+        b = getattr(self, "_grip_box", None)
+        return self.mode == "edge" and b is not None and b[0] <= x <= b[2] and b[1] <= y <= b[3]
+
     def _press(self, e):
+        if self._in_grip(e.x, e.y):
+            self.set_collapsed(not self.collapsed)
+            return
         if self.mode == "edge" and self.collapsed:
-            self._expand()
             return
         what = self._hit(e.x, e.y)
         if not what:
@@ -365,23 +473,59 @@ class VirtualDeckWindow:
             pass
 
     # ------------------------------------------------------------ Randleiste
-    def _collapse_later(self):
-        if self._collapse_job:
-            self.root.after_cancel(self._collapse_job)
-        if self._down is None:
-            self._collapse_job = self.root.after(COLLAPSE_MS, lambda: self._set_collapsed(True))
+    def _hover(self, e):
+        self._set_grip_hover(self._in_grip(e.x, e.y))
 
-    def _expand(self):
-        if self._collapse_job:
-            self.root.after_cancel(self._collapse_job)
-            self._collapse_job = None
-        if self.collapsed:
-            self._set_collapsed(False)
+    def _set_grip_hover(self, on):
+        if on != self.grip_hover and self.cv is not None:
+            self.grip_hover = on
+            self.cv.configure(cursor="hand2" if on else "")
+            self._draw_grip()
 
-    def _set_collapsed(self, on):
-        self._collapse_job = None
-        if self.win is None or self.collapsed == on:
+    def _edge_x(self, collapsed):
+        """x-Position der Randleiste: ganz sichtbar oder bis auf den Griff hinausgeschoben."""
+        sw = self.root.winfo_screenwidth()
+        if self.edge == "right":
+            return sw - GRIP if collapsed else sw - self.width
+        return -(self.width - GRIP) if collapsed else 0
+
+    def set_collapsed(self, on, animate=True):
+        """Randleiste hinaus- oder hereingleiten lassen (Klick auf den Griff)."""
+        if self.win is None or self.mode != "edge":
             return
-        self.collapsed = on
-        self._place(virtualdeck.settings(self.cfg))
-        self.draw()
+        self.collapsed = bool(on)
+        self._draw_grip()
+        target = self._edge_x(self.collapsed)
+        start = self.win.winfo_x()
+        self._cancel_slide()
+        if not animate or start == target or not self.win.winfo_ismapped():
+            self.win.geometry(f"+{target}+{self.win.winfo_y()}")
+            return
+        self._slide = [start, target, 0, None]
+        self._slide_step()
+
+    def _slide_step(self):
+        sl = self._slide
+        if sl is None or self.win is None:
+            return
+        start, target, i, _job = sl
+        i += 1
+        x = round(start + (target - start) * _ease_out(i / SLIDE_STEPS))
+        try:
+            self.win.geometry(f"+{x}+{self.win.winfo_y()}")
+        except tk.TclError:
+            self._slide = None
+            return
+        if i >= SLIDE_STEPS:
+            self._slide = None
+            return
+        sl[2] = i
+        sl[3] = self.root.after(max(1, SLIDE_MS // SLIDE_STEPS), self._slide_step)
+
+    def _cancel_slide(self):
+        if self._slide is not None and self._slide[3] is not None:
+            try:
+                self.root.after_cancel(self._slide[3])
+            except tk.TclError:
+                pass
+        self._slide = None
