@@ -272,3 +272,31 @@ def test_window_mix_table(env, pactl, monkeypatch):
     finally:
         win.quitting = True
         root.destroy()
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
+def test_window_new_channel_with_apps(env, pactl, monkeypatch):
+    import tkinter as tk
+
+    from freestream import desktop
+    from freestream.wavehost import WaveHost
+    from freestream.waveui import WaveWindow
+    monkeypatch.setattr(desktop, "app_entries", lambda: [{"name": "Firefox", "cls": "firefox", "key": "firefox",
+                                                           "icon": ""}])
+    host = WaveHost(_config(env, {"mixer": {"enabled": True}}))
+    host.start()
+    root = tk.Tk()
+    try:
+        win = WaveWindow(root, host, tray=False)
+        assert _pump(root, lambda: bool(win.strips))
+        choices = win._app_choices(None)
+        assert choices["routes"] == [] and choices["installed"][0]["name"] == "Firefox"
+        assert choices["elsewhere"]["spotify"] == host.mixer.channel("music")["name"]
+        win._save_channel(None, {"name": "Podcast", "kind": "apps", "source": "", "icon": "chat", "color": "",
+                                 "apps_add": [("spotify", "Spotify")], "apps_remove": []})
+        assert _pump(root, lambda: "podcast" in win.strips)
+        assert _pump(root, lambda: host.mixer.routes()["spotify"] == "podcast")
+        assert [r["key"] for r in win._app_choices(host.mixer.channel("podcast"))["routes"]] == ["spotify"]
+    finally:
+        win.quitting = True
+        root.destroy()

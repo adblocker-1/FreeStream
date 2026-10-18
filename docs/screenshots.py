@@ -467,6 +467,31 @@ def shot_freewave(tmp):
     grab(dlg, "freewave-channel.png")
     dlg.destroy()
 
+    def app_png(name, color):
+        f = tmp / f"app-{name}.png"
+        im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        ImageDraw.Draw(im).ellipse((4, 4, 60, 60), fill=color)
+        im.save(f)
+        return f
+    installed = [{"name": n, "key": k, "cls": k, "icon": k, "icon_path": app_png(k, c)} for n, k, c in (
+        ("Audacity", "audacity", "#2f7bff"), ("Firefox", "firefox", "#ff8a3d"), ("Rhythmbox", "rhythmbox", "#f5b13d"),
+        ("Spotify", "spotify", "#30d158"), ("Steam", "steam", "#5b7cff"), ("VLC media player", "vlc", "#ff8a3d"))]
+    apps = {"routes": [{"key": "firefox", "name": "Firefox", "own": True},
+                       {"key": "spotify", "name": "Spotify", "own": False},
+                       {"key": "cyberpunk2077", "name": "Cyberpunk 2077", "own": True}],
+            "running": [{"key": "spotify", "app": "Spotify", "names": "spotify"},
+                        {"key": "vlc", "app": "VLC media player", "names": "vlc"}],
+            "installed": installed, "elsewhere": {"steam": "Game"}}
+    dlg = ChannelDialog(root, [], channel=host.mixer.channel("music"), on_save=lambda v: None, apps=apps)
+    dlg.show_tab("apps")
+    pump(root, 1)
+    grab(dlg, "freewave-channel-apps.png")
+    pk = dlg.pick_app()
+    pump(root, 1)
+    grab(pk, "freewave-add-app.png")
+    pk.destroy()
+    dlg.destroy()
+
     cat = effects.catalog()
     chain = [effects.new_effect(p) for p in (effects.lookup("builtin:highpass", cat),
                                             next((p for p in cat if p["label"] == "gate"), None),

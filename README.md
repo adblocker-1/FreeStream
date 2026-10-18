@@ -256,6 +256,15 @@ onto another channel** (also onto a channel row in the mixer); new programs go i
 the matching channel by themselves. **Add channel** creates your own channels,
 also for an input device such as a second microphone or a capture card.
 
+You can also pick the apps **in advance**, before they ever play: click a channel's
+name in the mixer and open the **Apps** tab. It lists every app that lands in this
+channel – apps that aren't running right now are marked *(not active)*, the bin
+takes one out again (also the built-in ones like Firefox → Browser). **Add app**
+offers what is playing now and everything installed, with a search; an app missing
+from the list can be added by its name.
+
+![Apps tab of a channel: apps assigned in advance](docs/images/freewave-channel-apps.png)
+
 ## More features
 
 | Feature | |

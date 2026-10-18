@@ -1525,14 +1525,42 @@ class WaveWindow:
 
     def _channel_dialog(self, ch):
         from .wavedialogs import ChannelDialog
+        with_apps = ch is None or (ch.get("kind", "apps") == "apps" and ch["id"] != "mic")
 
-        def opened(inputs, err):
+        def gather():
+            return self.mixer.inputs(), (self._app_choices(ch) if with_apps else None)
+
+        def opened(res, err):
             if err is not None:
                 return
+            inputs, apps = res
             ChannelDialog(self.root, inputs or [], channel=ch, default_look=channel_look(ch or {"id": ""}),
                           on_save=lambda v: self._save_channel(ch, v),
-                          on_delete=(lambda: self._delete_channel(ch)) if ch else None)
-        self.worker.submit(self.mixer.inputs, opened)
+                          on_delete=(lambda: self._delete_channel(ch)) if ch else None, apps=apps)
+        self.worker.submit(gather, opened)
+
+    def _app_choices(self, ch):
+        """Für den Reiter „Apps“: zugeordnete, gerade spielende und installierte Programme (im Worker)."""
+        from . import desktop
+        if getattr(self, "_app_entries", None) is None:
+            try:
+                entries = desktop.app_entries()
+            except Exception:  # noqa: BLE001
+                entries = []
+            for e in entries:
+                e["icon_path"] = desktop.app_icon(e["icon"])
+            self._app_entries = entries
+        installed = self._app_entries
+        try:
+            running = self.mixer.streams()
+        except RuntimeError:
+            running = []
+        known = [s["names"] for s in running] + [" ".join((e["key"], e["cls"], e["name"])) for e in installed]
+        routes = self.mixer.channel_routes(ch["id"], known) if ch else []
+        names = {c["id"]: c["name"] for c in self.mixer.app_channels()}
+        cid = ch["id"] if ch else None
+        elsewhere = {k: names[v] for k, v in self.mixer.routes().items() if v in names and v != cid}
+        return {"routes": routes, "running": running, "installed": installed, "elsewhere": elsewhere}
 
     def _save_channel(self, ch, v):
         self._force_table()  # gleich abgleichen, auch während einer Zuordnung
@@ -1540,20 +1568,26 @@ class WaveWindow:
         def work():
             if ch is None:
                 # neuer Kanal startet in keinem Mix: Zuordnung wählt man selbst in der Tabelle
-                return self.mixer.add_channel(v["name"], v["kind"], v["source"], v["icon"], v["color"],
-                                              in_mixes=False)
-            changes = {"icon": v["icon"], "color": v["color"]}
-            if ch["id"] != "mic":
-                changes["name"] = v["name"]
-            if ch.get("kind") == "input" or ch["id"] == "mic":
-                changes["source"] = v["source"]
-            return self.mixer.update_channel(ch["id"], **changes)
+                res = self.mixer.add_channel(v["name"], v["kind"], v["source"], v["icon"], v["color"],
+                                             in_mixes=False)
+            else:
+                changes = {"icon": v["icon"], "color": v["color"]}
+                if ch["id"] != "mic":
+                    changes["name"] = v["name"]
+                if ch.get("kind") == "input" or ch["id"] == "mic":
+                    changes["source"] = v["source"]
+                res = self.mixer.update_channel(ch["id"], **changes)
+            if v.get("apps_add") or v.get("apps_remove"):
+                self.mixer.set_channel_routes(res["id"], add=v.get("apps_add", ()), remove=v.get("apps_remove", ()))
+            return res
 
         def done(res, err):
             if err is None:
                 self.status((_("Channel “{name}” created") if ch is None else _("Channel “{name}” saved"))
                             .format(name=res["name"]))
             self._force_table()  # jetzt ist die Änderung da: die nächste Abfrage muss abgleichen
+            self._stream_keys = None
+            self._apps_ids = None
             self.refresh()
         self.worker.submit(work, done)
 

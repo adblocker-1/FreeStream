@@ -451,7 +451,56 @@ class Mixer:
     def routes(self):
         r = dict(DEFAULT_ROUTES)
         r.update({k.lower(): v for k, v in (self.conf.get("routes") or {}).items()})
-        return r
+        return {k: v for k, v in r.items() if v}  # "" = Standard-Zuordnung abgeschaltet
+
+    def channel_routes(self, cid, known=()):
+        """Programme, die ein Kanal bekommt: [{"key", "name", "own"}]. Eigene Zuordnungen immer, die
+        eingebauten (Firefox → Browser …) nur für Programme aus known (Namen installierter oder gerade
+        spielender Programme, so verglichen wie beim Verteilen der Streams)."""
+        own = {k.lower(): v for k, v in (self.conf.get("routes") or {}).items()}
+        names = {k.lower(): v for k, v in (self.conf.get("route_names") or {}).items()}
+        known = " ".join(k.lower() for k in known if k)
+        out = []
+        for key, target in self.routes().items():
+            if target != cid:
+                continue
+            if key not in own and not re.search(r"\b" + re.escape(key), known):
+                continue
+            out.append({"key": key, "name": names.get(key) or key.title(), "own": key in own})
+        return sorted(out, key=lambda e: e["name"].lower())
+
+    def set_channel_routes(self, cid, add=(), remove=()):
+        """Programme einem Kanal zuordnen (add: [(key, Name)]) oder wieder lösen (remove: [key]).
+        Laufende Streams der neuen Programme wandern sofort in den Kanal. Gibt die Zahl verschobener zurück."""
+        if cid not in {c["id"] for c in self.app_channels()}:
+            raise RuntimeError(_("Unknown channel: {id}").format(id=cid))
+        conf = self.cfg.data.setdefault("mixer", {})
+        routes = conf.setdefault("routes", {})
+        names = conf.setdefault("route_names", {})
+        for key in remove:
+            key = key.lower()
+            if DEFAULT_ROUTES.get(key) == cid:
+                routes[key] = ""  # eingebaute Zuordnung abschalten
+            elif routes.get(key) == cid:
+                routes.pop(key, None)
+                names.pop(key, None)
+        moved = 0
+        for key, name in add:
+            key = key.lower().strip()
+            if not key:
+                continue
+            routes[key] = cid
+            if name:
+                names[key] = name
+            for b in system.app_streams(key):
+                try:
+                    self.run(["move-sink-input", b["index"], self.sink_name(cid)])
+                    moved += 1
+                except RuntimeError as e:
+                    log.debug("move %s: %s", key, e)
+        if hasattr(self.cfg, "save"):
+            self.cfg.save()
+        return moved
 
     # ------------------------------------------------------------------ Mixe
     def mixes(self):
@@ -1503,7 +1552,9 @@ class Mixer:
             out.append({"index": b["index"], "channel": cid, "sink": sink,
                         "app": (p.get("application.name") or p.get("application.process.binary")
                                 or p.get("node.name") or _("Stream {index}").format(index=b["index"])),
-                        "key": (p.get("application.process.binary") or p.get("application.name") or "").lower()})
+                        "key": (p.get("application.process.binary") or p.get("application.name") or "").lower(),
+                        "names": " ".join(filter(None, (p.get("application.name"), p.get("application.process.binary"),
+                                                        p.get("application.id"), p.get("node.name")))).lower()})
         return out
 
     def move_stream(self, index, cid, remember=""):

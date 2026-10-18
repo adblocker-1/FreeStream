@@ -195,8 +195,39 @@ def set_autostart(name, on):
     f.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def installed_apps():
-    """Programme aus den .desktop-Dateien: [(Name, Fensterklasse)] – für „Profil je Programm“."""
+GENERIC_EXEC = {"env", "flatpak", "sh", "bash", "python", "python3", "java", "wine", "wine64", "gamemoderun",
+                "steam", "snap", "gtk-launch", "xdg-open", "mono", "electron", "pkexec", "sudo"}
+
+
+def _icon_dirs():
+    data = [Path(p) for p in (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":")]
+    data += [Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share"),
+             Path("/var/lib/flatpak/exports/share"), Path.home() / ".local/share/flatpak/exports/share"]
+    return data
+
+
+def app_icon(name):
+    """Pfad zu einem Programmsymbol (PNG/XPM) zum Icon-Namen einer .desktop-Datei, sonst None."""
+    if not name:
+        return None
+    p = Path(name)
+    if p.is_absolute():
+        return p if p.is_file() and p.suffix.lower() in (".png", ".xpm") else None
+    for base in _icon_dirs():
+        for size in ("48x48", "64x64", "128x128", "256x256", "32x32", "96x96", "512x512"):
+            f = base / "icons" / "hicolor" / size / "apps" / f"{name}.png"
+            if f.is_file():
+                return f
+    for ext in (".png", ".xpm"):
+        f = Path("/usr/share/pixmaps") / f"{name}{ext}"
+        if f.is_file():
+            return f
+    return None
+
+
+def app_entries():
+    """Programme aus den .desktop-Dateien: [{"name", "cls" (Fensterklasse), "key" (wie das Programm in
+    PipeWire heißt – Programmdatei, sonst Fensterklasse), "icon" (Name aus Icon=)}], nach Namen sortiert."""
     dirs = [Path(p) / "applications" for p in
             (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":")]
     dirs += [Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "applications",
@@ -222,11 +253,17 @@ def installed_apps():
             if vals.get("NoDisplay", "").lower() == "true" or vals.get("Type", "Application") != "Application":
                 continue
             name = vals.get("Name")
-            if not name:
+            if not name or name in found:
                 continue
-            cls = vals.get("StartupWMClass") or \
-                os.path.basename((vals.get("Exec") or f.stem).split()[0]).rsplit(".", 1)[0]
+            exe = os.path.basename((vals.get("Exec") or f.stem).split()[0]).rsplit(".", 1)[0]
+            cls = vals.get("StartupWMClass") or exe
             if cls in ("env", "flatpak"):
                 cls = f.stem.rsplit(".", 1)[-1] if f.stem.count(".") >= 2 else f.stem
-            found.setdefault(name, cls.lower())
-    return sorted(found.items(), key=lambda x: x[0].lower())
+            key = exe if exe and exe.lower() not in GENERIC_EXEC else (vals.get("StartupWMClass") or name)
+            found[name] = {"name": name, "cls": cls.lower(), "key": key.lower(), "icon": vals.get("Icon", "")}
+    return sorted(found.values(), key=lambda e: e["name"].lower())
+
+
+def installed_apps():
+    """Programme aus den .desktop-Dateien: [(Name, Fensterklasse)] – für „Profil je Programm“."""
+    return [(e["name"], e["cls"]) for e in app_entries()]
