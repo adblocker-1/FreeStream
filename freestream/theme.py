@@ -509,12 +509,19 @@ def _draw_glyph(name, size, color, bg, circle):
     elif n == "auto":
         ell(0.08, 0.08, 0.92, 0.92, fill=False)
         d.pieslice((*P(0.08, 0.08), *P(0.92, 0.92)), 90, 270, fill=c)
-    elif n == "gear":
-        ell(0.3, 0.3, 0.7, 0.7, fill=False)
+    elif n == "gear":  # Zahnrad: Scheibe mit 8 Zähnen und Loch
+        cx, cy = P(0.5, 0.5)
         for i in range(8):
             a = i * math.pi / 4
-            line((0.5 + 0.3 * math.cos(a), 0.5 + 0.3 * math.sin(a)),
-                 (0.5 + 0.46 * math.cos(a), 0.5 + 0.46 * math.sin(a)), width=lw + 2)
+            ca, sa = math.cos(a), math.sin(a)
+            hw = 0.085 * w
+            pts = []
+            for r, t in ((0.26, -1), (0.48, -1), (0.48, 1), (0.26, 1)):
+                pts.append((cx + r * w * ca - t * hw * sa, cy + r * w * sa + t * hw * ca))
+            d.polygon(pts, fill=c)
+        ell(0.17, 0.17, 0.83, 0.83)
+        r = 0.15 * w
+        d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(0, 0, 0, 0) if not bg else bg)
     elif n in ("undo", "redo"):
         sx = (lambda x: x) if n == "undo" else (lambda x: 1 - x)
         line((sx(0.36), 0.6), (sx(0.1), 0.36), (sx(0.36), 0.12))

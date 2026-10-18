@@ -210,6 +210,14 @@ def test_freedeck_layout_like_deck_software(app, store):
     rows = [w for w in app.library.inner.winfo_children() if isinstance(w, ActionRow)]
     assert rows and all("hotkey" in (r.type.name + r.type.description + r.type.category).lower() for r in rows)
     app.search_var.set("")
+    # Seiten: ‹ ● ○ › unter den Tasten
+    app.add_page()
+    ids = app.doc.page_ids
+    assert app.nav[0] == ids[1] and app.page_dots.current == ids[1]
+    app.page_dots._click(types.SimpleNamespace(x=app.page_dots._x(0)))
+    assert app.nav[0] == ids[0]
+    app.page_dots._click(types.SimpleNamespace(x=int(app.page_dots["width"]) - 5))  # ›
+    assert app.nav[0] == ids[1]
 
 
 def test_freewave_mix_columns_fit_window(env, pactl):

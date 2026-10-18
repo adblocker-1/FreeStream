@@ -388,6 +388,60 @@ def _autowrap(label):
     label.bind("<Configure>", lambda e: label.configure(wraplength=max(100, e.width - 4)), add="+")
 
 
+class PageDots(tk.Canvas):
+    """Seitenwahl unter den Tasten: ‹ Punkte › – Klick wählt, Rechtsklick öffnet das Seitenmenü."""
+
+    GAP, H = 18, 28
+
+    def __init__(self, master, app, ids, current):
+        self.app, self.ids, self.current = app, list(ids), current
+        n = min(len(self.ids), 12)
+        super().__init__(master, width=72 + max(0, n - 1) * self.GAP, height=self.H, bg=_bg(master), highlightthickness=0,
+                         bd=0, cursor="hand2")
+        self.f = theme.font(app.root, 12, "bold")
+        self.bind("<Button-1>", self._click)
+        self.bind("<Button-3>", self._menu)
+        self._draw()
+
+    def _x(self, i):
+        return 36 + i * self.GAP
+
+    def _draw(self):
+        self.delete("all")
+        h = self.H
+        self.create_text(12, h / 2 - 1, text="‹", fill=COL["muted"], font=self.f)
+        cur = self.ids.index(self.current) if self.current in self.ids else -1
+        for i in range(min(len(self.ids), 12)):
+            x, r = self._x(i), 4 if i == cur else 3.5
+            self.create_oval(x - r, h / 2 - r, x + r, h / 2 + r, outline="",
+                             fill=COL["fg"] if i == cur else COL["faint"])
+        self.create_text(int(self["width"]) - 12, h / 2 - 1, text="›", fill=COL["muted"], font=self.f)
+
+    def _index_at(self, x):
+        n = min(len(self.ids), 12)
+        if x < 24:
+            return "prev"
+        if x > int(self["width"]) - 24:
+            return "next"
+        i = round((x - 36) / self.GAP)
+        return i if 0 <= i < n else None
+
+    def _click(self, e):
+        hit = self._index_at(e.x)
+        cur = self.ids.index(self.current) if self.current in self.ids else 0
+        if hit == "prev":
+            hit = cur - 1
+        elif hit == "next":
+            hit = cur + 1
+        if isinstance(hit, int) and 0 <= hit < len(self.ids) and self.ids[hit] != self.current:
+            self.app.goto_page(self.ids[hit])
+
+    def _menu(self, e):
+        hit = self._index_at(e.x)
+        if isinstance(hit, int):
+            self.app._page_menu(e, self.ids[hit])
+
+
 class DropButton(tk.Canvas):
     """Auswahlfeld der Kopfzeile (Gerät, Profil): Symbol, Text, ⌄ – Klick klappt die Liste darunter auf."""
 
@@ -913,7 +967,7 @@ class EditorApp:
         tk.Frame(main, bg=COL["border"], height=1).pack(side="bottom", fill="x")
         foot = tk.Frame(main, bg=COL["canvas"], padx=20, pady=10)
         foot.pack(side="bottom", fill="x")
-        self.pagebar = tk.Frame(foot, bg=COL["canvas"], height=34)
+        self.pagebar = tk.Frame(foot, bg=COL["canvas"], height=36)
         self.pagebar.pack(side="left", fill="x", expand=True)
         self.canvas = tk.Canvas(main, bg=COL["canvas"], highlightthickness=0, height=300)
         self.canvas.pack(side="top", fill="both", expand=True, padx=12, pady=(12, 0))
@@ -1301,19 +1355,15 @@ class EditorApp:
         if len(self.nav) > 1:
             self.back_btn = theme.Button(bar, _("↩ Back"), command=self.folder_back, height=30)
             self.back_btn.pack(side="left", padx=(0, 10))
-        ids = self.doc.page_ids
-        for i, pid in enumerate(ids):
-            on = bool(self.nav) and self.nav[0] == pid
-            b = theme.PillButton(bar, text=str(i + 1), active=on, height=30, padx=11,
-                                 command=lambda p=pid: self.goto_page(p))
-            b.pack(side="left", padx=(0, 6))
-            b._page = pid
-            b.bind("<Button-3>", lambda e, p=pid: self._page_menu(e, p))
-        add = theme.PillButton(bar, text="+", height=30, padx=11, command=self.add_page)
-        add.pack(side="left")
         has_bg = self.doc.background(self.page_uuid)[0] is not None
         theme.Button(bar, _("Background"), icon="image", kind="primary" if has_bg else "default",
                      command=self.open_background).pack(side="right")
+        # Seiten wie in der Deck-Software: ‹ ● ○ ○ › mittig unter den Tasten, daneben + für eine neue
+        mid = tk.Frame(bar, bg=_bg(bar))
+        mid.place(relx=0.5, rely=0.5, anchor="center")
+        self.page_dots = PageDots(mid, self, self.doc.page_ids, self.nav[0] if self.nav else None)
+        self.page_dots.pack(side="left")
+        theme.PillButton(mid, text="+", height=26, padx=9, command=self.add_page).pack(side="left", padx=(10, 0))
 
     def _page_menu(self, e, pid):
         """Kontextmenü einer Seitenschaltfläche: verschieben, löschen, hinzufügen."""
@@ -1483,9 +1533,6 @@ class EditorApp:
         cw, ch = max(aw, L["w"] + 2 * pad), max(ah, L["h"] + 2 * pad)
         bx = 12 + (cw - L["w"]) // 2
         y0 = 12 + max(pad, (ch - L["h"]) // 2)
-        # Umriss des Geräts: eine feine Linie
-        _round_rect(cv, bx - pad, y0 - pad, bx + L["w"] + pad, y0 + L["h"] + pad, 22, fill="", outline=COL["line"],
-                    width=2)
         x0 = bx + L["side"]
         page = self.doc.page(self.page_uuid)
         if kind == "pedal":
