@@ -266,7 +266,7 @@ msgstr ""
 msgid "FreeWave is not running"
 msgstr ""
 
-#: freestream/__main__.py:92 freestream/editor.py:1005 freestream/editor.py:1300
+#: freestream/__main__.py:92 freestream/editor.py:1059 freestream/editor.py:1354
 #, python-brace-format
 msgid "{n} page"
 msgid_plural "{n} pages"
@@ -888,15 +888,15 @@ msgstr ""
 msgid "Could not start {program}: {error}"
 msgstr ""
 
-#: freestream/bgui.py:14 freestream/editor.py:2339 freestream/freedecksettings.py:425 freestream/wavedialogs.py:990
+#: freestream/bgui.py:14 freestream/editor.py:2386 freestream/freedecksettings.py:425 freestream/wavedialogs.py:990
 msgid "Images"
 msgstr ""
 
-#: freestream/bgui.py:14 freestream/decksetup.py:300 freestream/editor.py:1155 freestream/editor.py:2340
+#: freestream/bgui.py:14 freestream/decksetup.py:300 freestream/editor.py:1209 freestream/editor.py:2387
 msgid "All files"
 msgstr ""
 
-#: freestream/bgui.py:19 freestream/bgui.py:127 freestream/bgui.py:167 freestream/editor.py:1315
+#: freestream/bgui.py:19 freestream/bgui.py:127 freestream/bgui.py:167 freestream/editor.py:1359
 msgid "Background"
 msgstr ""
 
@@ -908,7 +908,7 @@ msgstr ""
 msgid "The image is spread across all keys of this page – like a desktop wallpaper. Keys with their own icon sit on top; empty keys show the image."
 msgstr ""
 
-#: freestream/bgui.py:38 freestream/bgui.py:73 freestream/dialogkit.py:170 freestream/editor.py:2481
+#: freestream/bgui.py:38 freestream/bgui.py:73 freestream/dialogkit.py:170 freestream/editor.py:2528
 msgid "Remove"
 msgstr ""
 
@@ -936,7 +936,7 @@ msgstr ""
 msgid "Darkens the image so titles stay easy to read."
 msgstr ""
 
-#: freestream/bgui.py:78 freestream/decksetup.py:22 freestream/editor.py:2633 freestream/iconlib.py:72
+#: freestream/bgui.py:78 freestream/decksetup.py:22 freestream/editor.py:2680 freestream/iconlib.py:72
 msgid "Done"
 msgstr ""
 
@@ -1063,7 +1063,7 @@ msgstr ""
 msgid "Set volume"
 msgstr ""
 
-#: freestream/catalog.py:69 freestream/editor.py:2601 freestream/editor.py:2608
+#: freestream/catalog.py:69 freestream/editor.py:2648 freestream/editor.py:2655
 msgid "Key combination"
 msgstr ""
 
@@ -1091,7 +1091,7 @@ msgstr ""
 msgid "Text"
 msgstr ""
 
-#: freestream/catalog.py:89 freestream/editor.py:865 freestream/iconlib.py:71
+#: freestream/catalog.py:89 freestream/editor.py:919 freestream/iconlib.py:71
 msgid "Open"
 msgstr ""
 
@@ -1732,7 +1732,7 @@ msgstr ""
 msgid "Page"
 msgstr ""
 
-#: freestream/catalog.py:131 freestream/editor.py:1172 freestream/freedecksettings.py:219 freestream/freedecksettings.py:269
+#: freestream/catalog.py:131 freestream/editor.py:1226 freestream/freedecksettings.py:219 freestream/freedecksettings.py:269
 msgid "Profile"
 msgstr ""
 
@@ -1740,7 +1740,7 @@ msgstr ""
 msgid "24-hour format"
 msgstr ""
 
-#: freestream/catalog.py:140 freestream/editor.py:2072 freestream/settingsui.py:90 freestream/theme.py:1427
+#: freestream/catalog.py:140 freestream/editor.py:2119 freestream/settingsui.py:90 freestream/theme.py:1434
 msgid "Appearance"
 msgstr ""
 
@@ -2272,7 +2272,7 @@ msgstr ""
 msgid "Accept self-signed certificates (HTTPS)"
 msgstr ""
 
-#: freestream/connectionsui.py:385 freestream/editor.py:2470 freestream/wavedialogs.py:786
+#: freestream/connectionsui.py:385 freestream/editor.py:2517 freestream/wavedialogs.py:786
 msgid "Add"
 msgstr ""
 
@@ -2374,7 +2374,7 @@ msgstr ""
 msgid "Device"
 msgstr ""
 
-#: freestream/decksetup.py:22 freestream/editor.py:827 freestream/settingsui.py:50
+#: freestream/decksetup.py:22 freestream/editor.py:881 freestream/settingsui.py:50
 msgid "Profiles"
 msgstr ""
 
@@ -2426,7 +2426,7 @@ msgstr ""
 msgid "Nothing found in Downloads, on the desktop or on USB sticks. Choose the files yourself."
 msgstr ""
 
-#: freestream/decksetup.py:298 freestream/editor.py:1153
+#: freestream/decksetup.py:298 freestream/editor.py:1207
 msgid "Import profiles"
 msgstr ""
 
@@ -2486,7 +2486,7 @@ msgstr ""
 msgid "Let's go"
 msgstr ""
 
-#: freestream/decksetup.py:170 freestream/editor.py:654 freestream/freedecksettings.py:133 freestream/freedecksettings.py:104
+#: freestream/decksetup.py:170 freestream/editor.py:708 freestream/freedecksettings.py:133 freestream/freedecksettings.py:104
 msgid "Connected"
 msgstr ""
 
@@ -2501,7 +2501,7 @@ msgstr[1] ""
 msgid "Choose files …"
 msgstr ""
 
-#: freestream/decksetup.py:299 freestream/editor.py:1154
+#: freestream/decksetup.py:299 freestream/editor.py:1208
 msgid "Profiles (Elgato format)"
 msgstr ""
 
@@ -2640,7 +2640,7 @@ msgstr ""
 msgid "The last page cannot be deleted"
 msgstr ""
 
-#: freestream/editdoc.py:737 freestream/editor.py:2677 freestream/editor.py:2680 freestream/editor.py:2708
+#: freestream/editdoc.py:737 freestream/editor.py:2724 freestream/editor.py:2727 freestream/editor.py:2755
 msgid "New profile"
 msgstr ""
 
@@ -2677,304 +2677,304 @@ msgstr ""
 msgid "Bold italic"
 msgstr ""
 
-#: freestream/editor.py:821 freestream/editor.py:888 freestream/virtualui.py:375
+#: freestream/editor.py:875 freestream/editor.py:942 freestream/virtualui.py:375
 msgid "No profile"
 msgstr ""
 
-#: freestream/editor.py:834 freestream/editor.py:770 freestream/pluginui.py:100 freestream/pluginui.py:106
+#: freestream/editor.py:888 freestream/editor.py:824 freestream/pluginui.py:100 freestream/pluginui.py:106
 msgid "Plugins"
 msgstr ""
 
-#: freestream/editor.py:836 freestream/iconlib.py:73
+#: freestream/editor.py:890 freestream/iconlib.py:73
 msgid "Export"
 msgstr ""
 
-#: freestream/editor.py:838 freestream/editor.py:1163 freestream/iconlib.py:73
+#: freestream/editor.py:892 freestream/editor.py:1217 freestream/iconlib.py:73
 msgid "Import"
 msgstr ""
 
-#: freestream/editor.py:866
+#: freestream/editor.py:920
 msgid "Rename…"
 msgstr ""
 
-#: freestream/editor.py:867
+#: freestream/editor.py:921
 msgid "Duplicate"
 msgstr ""
 
-#: freestream/editor.py:868
+#: freestream/editor.py:922
 msgid "Export…"
 msgstr ""
 
-#: freestream/editor.py:870 freestream/editor.py:1135
+#: freestream/editor.py:924 freestream/editor.py:1189
 msgid "Delete profile"
 msgstr ""
 
-#: freestream/editor.py:1111
+#: freestream/editor.py:1165
 msgid "Duplicate profile"
 msgstr ""
 
-#: freestream/editor.py:1111
+#: freestream/editor.py:1165
 msgid "Name of the copy:"
 msgstr ""
 
-#: freestream/editor.py:1124
+#: freestream/editor.py:1178
 msgid "Rename profile"
 msgstr ""
 
-#: freestream/editor.py:1124
+#: freestream/editor.py:1178
 msgid "New name:"
 msgstr ""
 
-#: freestream/editor.py:1189
+#: freestream/editor.py:1243
 msgid "Saving…"
 msgstr ""
 
-#: freestream/editor.py:1258
+#: freestream/editor.py:1312
 msgid "Settings page opened – changes are applied automatically"
 msgstr ""
 
-#: freestream/editor.py:1325
+#: freestream/editor.py:1375
 msgid "Move left"
 msgstr ""
 
-#: freestream/editor.py:1326
+#: freestream/editor.py:1376
 msgid "Move right"
 msgstr ""
 
-#: freestream/editor.py:1328
+#: freestream/editor.py:1378
 msgid "Add page"
 msgstr ""
 
-#: freestream/editor.py:1329 freestream/editor.py:1347
+#: freestream/editor.py:1379 freestream/editor.py:1397
 msgid "Delete page"
 msgstr ""
 
-#: freestream/editor.py:1816
+#: freestream/editor.py:1863
 msgid "Cut"
 msgstr ""
 
-#: freestream/editor.py:1817 freestream/iconlib.py:65
+#: freestream/editor.py:1864 freestream/iconlib.py:65
 msgid "Copy"
 msgstr ""
 
-#: freestream/editor.py:1818 freestream/editor.py:2026
+#: freestream/editor.py:1865 freestream/editor.py:2073
 msgid "Paste"
 msgstr ""
 
-#: freestream/editor.py:1826 freestream/editor.py:2120 freestream/iconlib.py:65
+#: freestream/editor.py:1873 freestream/editor.py:2167 freestream/iconlib.py:65
 msgid "Delete"
 msgstr ""
 
-#: freestream/editor.py:2200 freestream/freedecksettings.py:1005 freestream/native.py:314
+#: freestream/editor.py:2247 freestream/freedecksettings.py:1005 freestream/native.py:314
 msgid "Title"
 msgstr ""
 
-#: freestream/editor.py:2208 freestream/freedecksettings.py:908
+#: freestream/editor.py:2255 freestream/freedecksettings.py:908
 msgid "Font"
 msgstr ""
 
-#: freestream/editor.py:2219 freestream/editor.py:2346 freestream/editor.py:2333
+#: freestream/editor.py:2266 freestream/editor.py:2393 freestream/editor.py:2380
 msgid "Icon"
 msgstr ""
 
-#: freestream/editor.py:2230
+#: freestream/editor.py:2277
 msgid "Default"
 msgstr ""
 
-#: freestream/editor.py:2235
+#: freestream/editor.py:2282
 msgid "Opacity"
 msgstr ""
 
-#: freestream/editor.py:2258 freestream/freedecksettings.py:903 freestream/freedecksettings.py:938
+#: freestream/editor.py:2305 freestream/freedecksettings.py:903 freestream/freedecksettings.py:938
 msgid "Show title"
 msgstr ""
 
-#: freestream/editor.py:2270 freestream/editor.py:2314 freestream/freedecksettings.py:986
+#: freestream/editor.py:2317 freestream/editor.py:2361 freestream/freedecksettings.py:986
 msgid "Title color"
 msgstr ""
 
-#: freestream/editor.py:2435
+#: freestream/editor.py:2482
 msgid "INCLUDED ACTIONS"
 msgstr ""
 
-#: freestream/editor.py:2601
+#: freestream/editor.py:2648
 msgid "e.g. Ctrl+Shift+T, Alt+F4, Super+E, F13:"
 msgstr ""
 
-#: freestream/editor.py:2644
+#: freestream/editor.py:2691
 msgid "Settings (JSON)"
 msgstr ""
 
-#: freestream/editor.py:2683 freestream/wavedialogs.py:136 freestream/wavedialogs.py:465 freestream/wavedialogs.py:806
+#: freestream/editor.py:2730 freestream/wavedialogs.py:136 freestream/wavedialogs.py:465 freestream/wavedialogs.py:806
 msgid "Name"
 msgstr ""
 
-#: freestream/editor.py:663 freestream/editor.py:660 freestream/freedecksettings.py:139
+#: freestream/editor.py:717 freestream/editor.py:714 freestream/freedecksettings.py:139
 msgid "No device connected"
 msgstr ""
 
-#: freestream/editor.py:746
+#: freestream/editor.py:800
 msgid "FreeDeck keeps running"
 msgstr ""
 
-#: freestream/editor.py:746
+#: freestream/editor.py:800
 msgid "FreeDeck stays active. Open it again via its icon in the tray."
 msgstr ""
 
-#: freestream/editor.py:893 freestream/editor.py:644 freestream/hass.py:94 freestream/models.py:117
+#: freestream/editor.py:947 freestream/editor.py:698 freestream/hass.py:94 freestream/models.py:117
 msgid "unknown"
 msgstr ""
 
-#: freestream/editor.py:944
+#: freestream/editor.py:998
 msgid "Search actions"
 msgstr ""
 
-#: freestream/editor.py:957
+#: freestream/editor.py:1011
 msgid "Drag onto a key or double-click"
 msgstr ""
 
-#: freestream/editor.py:1173
+#: freestream/editor.py:1227
 msgid "Export profile"
 msgstr ""
 
-#: freestream/editor.py:1302
+#: freestream/editor.py:1356
 msgid "↩ Back"
 msgstr ""
 
-#: freestream/editor.py:1364
+#: freestream/editor.py:1414
 msgid "Folder not found"
 msgstr ""
 
-#: freestream/editor.py:1476
+#: freestream/editor.py:1526
 msgid "No display"
 msgstr ""
 
-#: freestream/editor.py:1620
+#: freestream/editor.py:1667
 msgid "Dial"
 msgstr ""
 
-#: freestream/editor.py:1771
+#: freestream/editor.py:1818
 msgid "There is no free space on the target page"
 msgstr ""
 
-#: freestream/editor.py:1813 freestream/editor.py:2086
+#: freestream/editor.py:1860 freestream/editor.py:2133
 msgid "Open folder"
 msgstr ""
 
-#: freestream/editor.py:1816
+#: freestream/editor.py:1863
 msgid "Ctrl+X"
 msgstr ""
 
-#: freestream/editor.py:1817
+#: freestream/editor.py:1864
 msgid "Ctrl+C"
 msgstr ""
 
-#: freestream/editor.py:1818
+#: freestream/editor.py:1865
 msgid "Ctrl+V"
 msgstr ""
 
-#: freestream/editor.py:1826
+#: freestream/editor.py:1873
 msgid "Del"
 msgstr ""
 
-#: freestream/editor.py:1914
+#: freestream/editor.py:1961
 msgid "dials only"
 msgstr ""
 
-#: freestream/editor.py:1964
+#: freestream/editor.py:2011
 msgid "No free space – select a key to replace it"
 msgstr ""
 
-#: freestream/editor.py:2010
+#: freestream/editor.py:2057
 msgid "Select a key to edit it."
 msgstr ""
 
-#: freestream/editor.py:2148
+#: freestream/editor.py:2195
 msgid "SETTINGS"
 msgstr ""
 
-#: freestream/editor.py:2250
+#: freestream/editor.py:2297
 msgid "State"
 msgstr ""
 
-#: freestream/editor.py:2338
+#: freestream/editor.py:2385
 msgid "Choose icon"
 msgstr ""
 
-#: freestream/editor.py:2427
+#: freestream/editor.py:2474
 msgid "Choose file"
 msgstr ""
 
-#: freestream/editor.py:2680
+#: freestream/editor.py:2727
 msgid "For the connected device"
 msgstr ""
 
-#: freestream/editor.py:2681
+#: freestream/editor.py:2728
 msgid "No device connected – the profile is for the model used last"
 msgstr ""
 
-#: freestream/editor.py:2686 freestream/wavedialogs.py:910
+#: freestream/editor.py:2733 freestream/wavedialogs.py:910
 msgid "DEVICE – DETECTED AUTOMATICALLY"
 msgstr ""
 
-#: freestream/editor.py:2686 freestream/wavedialogs.py:924
+#: freestream/editor.py:2733 freestream/wavedialogs.py:924
 msgid "DEVICE"
 msgstr ""
 
-#: freestream/editor.py:645
+#: freestream/editor.py:699
 msgid "Layout of this profile"
 msgstr ""
 
-#: freestream/editor.py:653 freestream/freedecksettings.py:107
+#: freestream/editor.py:707 freestream/freedecksettings.py:107
 msgid "Virtual"
 msgstr ""
 
-#: freestream/editor.py:1043
+#: freestream/editor.py:1097
 msgid "Open profile"
 msgstr ""
 
-#: freestream/editor.py:1057
+#: freestream/editor.py:1111
 #, python-brace-format
 msgid "{name} opened – changes are saved automatically"
 msgstr ""
 
-#: freestream/editor.py:1165
+#: freestream/editor.py:1219
 #, python-brace-format
 msgid "{n} profile imported"
 msgid_plural "{n} profiles imported"
 msgstr[0] ""
 msgstr[1] ""
 
-#: freestream/editor.py:1197
+#: freestream/editor.py:1251
 msgid "saved"
 msgstr ""
 
-#: freestream/editor.py:1200 freestream/hassui.py:99 freestream/iconlib.py:65 freestream/wavedialogs.py:812
+#: freestream/editor.py:1254 freestream/hassui.py:99 freestream/iconlib.py:65 freestream/wavedialogs.py:812
 msgid "Save"
 msgstr ""
 
-#: freestream/editor.py:1244
+#: freestream/editor.py:1298
 msgid "Settings page"
 msgstr ""
 
-#: freestream/editor.py:1244
+#: freestream/editor.py:1298
 msgid "FreeDeck must be running for this (menu: “FreeDeck” or `freedeck`), because it runs the plugins."
 msgstr ""
 
-#: freestream/editor.py:1347
+#: freestream/editor.py:1397
 msgid "This page contains actions. Delete it anyway?"
 msgstr ""
 
-#: freestream/editor.py:1453 freestream/editor.py:904
+#: freestream/editor.py:1503 freestream/editor.py:958
 msgid "Drag actions onto keys · right-click for more"
 msgstr ""
 
-#: freestream/editor.py:1457
+#: freestream/editor.py:1507
 #, python-brace-format
 msgid "Brightness {n} %"
 msgstr ""
 
-#: freestream/editor.py:1471
+#: freestream/editor.py:1521
 msgid ""
 "No profiles yet.\n"
 "\n"
@@ -2982,238 +2982,238 @@ msgid ""
 "“Import…” takes over profiles from the Elgato app."
 msgstr ""
 
-#: freestream/editor.py:1776
+#: freestream/editor.py:1823
 #, python-brace-format
 msgid "Action moved to page {n}"
 msgstr ""
 
-#: freestream/editor.py:1835
+#: freestream/editor.py:1882
 msgid "Copied"
 msgstr ""
 
-#: freestream/editor.py:1914
+#: freestream/editor.py:1961
 msgid "keys and dials"
 msgstr ""
 
-#: freestream/editor.py:1915
+#: freestream/editor.py:1962
 msgid "keys"
 msgstr ""
 
-#: freestream/editor.py:1973
+#: freestream/editor.py:2020
 #, python-brace-format
 msgid "“{name}” only works on dials"
 msgstr ""
 
-#: freestream/editor.py:1974
+#: freestream/editor.py:2021
 #, python-brace-format
 msgid "“{name}” only works on keys"
 msgstr ""
 
-#: freestream/editor.py:1984
+#: freestream/editor.py:2031
 msgid "Replace folder"
 msgstr ""
 
-#: freestream/editor.py:1984
+#: freestream/editor.py:2031
 msgid "The folder and its contents will be replaced. Continue?"
 msgstr ""
 
-#: freestream/editor.py:1989
+#: freestream/editor.py:2036
 #, python-brace-format
 msgid "{name} added"
 msgstr ""
 
-#: freestream/editor.py:2018
+#: freestream/editor.py:2065
 #, python-brace-format
 msgid "Key {col},{row}"
 msgstr ""
 
-#: freestream/editor.py:2019
+#: freestream/editor.py:2066
 #, python-brace-format
 msgid "Dial {n}"
 msgstr ""
 
-#: freestream/editor.py:2143 freestream/editor.py:2119
+#: freestream/editor.py:2190 freestream/editor.py:2166
 msgid "Settings (JSON)…"
 msgstr ""
 
-#: freestream/editor.py:2229
+#: freestream/editor.py:2276
 msgid "Icons…"
 msgstr ""
 
-#: freestream/editor.py:2574
+#: freestream/editor.py:2621
 msgid "Press keys…"
 msgstr ""
 
-#: freestream/editor.py:2628
+#: freestream/editor.py:2675
 #, python-brace-format
 msgid "Edit {name}"
 msgstr ""
 
-#: freestream/editor.py:2662 freestream/hass.py:422
+#: freestream/editor.py:2709 freestream/hass.py:422
 #, python-brace-format
 msgid "A JSON object { … } is expected"
 msgstr ""
 
-#: freestream/editor.py:2688 freestream/wavedialogs.py:915
+#: freestream/editor.py:2735 freestream/wavedialogs.py:915
 msgid "connected"
 msgstr ""
 
-#: freestream/editor.py:2696
+#: freestream/editor.py:2743
 msgid "Create"
 msgstr ""
 
-#: freestream/editor.py:2697 freestream/editor.py:2656 freestream/hassui.py:100 freestream/hassui.py:186
+#: freestream/editor.py:2744 freestream/editor.py:2703 freestream/hassui.py:100 freestream/hassui.py:186
 msgid "Cancel"
 msgstr ""
 
-#: freestream/editor.py:707
+#: freestream/editor.py:761
 msgid "Switching device failed: %s"
 msgstr ""
 
-#: freestream/editor.py:895
+#: freestream/editor.py:949
 #, python-brace-format
 msgid "Page {n} of {total}"
 msgstr ""
 
-#: freestream/editor.py:1029
+#: freestream/editor.py:1083
 msgid "Cleanup failed: %s"
 msgstr ""
 
-#: freestream/editor.py:1112
+#: freestream/editor.py:1166
 #, python-brace-format
 msgid "{name} (copy)"
 msgstr ""
 
-#: freestream/editor.py:1136
+#: freestream/editor.py:1190
 #, python-brace-format
 msgid "Permanently delete profile “{name}”?"
 msgstr ""
 
-#: freestream/editor.py:1176
+#: freestream/editor.py:1230
 msgid "Profile (Elgato format)"
 msgstr ""
 
-#: freestream/editor.py:1179
+#: freestream/editor.py:1233
 #, python-brace-format
 msgid "Exported: {path}"
 msgstr ""
 
-#: freestream/editor.py:1916
+#: freestream/editor.py:1963
 #, python-brace-format
 msgid ""
 "{name}: {description} ({where}).\n"
 "Drag onto a key or double-click."
 msgstr ""
 
-#: freestream/editor.py:2022
+#: freestream/editor.py:2069
 #, python-brace-format
 msgid "{where} – empty"
 msgstr ""
 
-#: freestream/editor.py:2281
+#: freestream/editor.py:2328
 msgid "underline"
 msgstr ""
 
-#: freestream/editor.py:2446 freestream/hassui.py:185
+#: freestream/editor.py:2493 freestream/hassui.py:185
 msgid "Choose"
 msgstr ""
 
-#: freestream/editor.py:2449 freestream/editor.py:2479
+#: freestream/editor.py:2496 freestream/editor.py:2526
 msgid "Edit…"
 msgstr ""
 
-#: freestream/editor.py:2451
+#: freestream/editor.py:2498
 msgid "Clear"
 msgstr ""
 
-#: freestream/editor.py:2578
+#: freestream/editor.py:2625
 msgid "Type in…"
 msgstr ""
 
-#: freestream/editor.py:2646
+#: freestream/editor.py:2693
 msgid "Raw data of the action (“Settings”) – for plugin actions and special cases."
 msgstr ""
 
-#: freestream/editor.py:2655 freestream/wavedialogs.py:880
+#: freestream/editor.py:2702 freestream/wavedialogs.py:880
 msgid "Apply"
 msgstr ""
 
-#: freestream/editor.py:2689 freestream/freedecksettings.py:293
+#: freestream/editor.py:2736 freestream/freedecksettings.py:293
 #, python-brace-format
 msgid "{cols} × {rows} keys"
 msgstr ""
 
-#: freestream/editor.py:2691
+#: freestream/editor.py:2738
 #, python-brace-format
 msgid "{n} dial"
 msgid_plural "{n} dials"
 msgstr[0] ""
 msgstr[1] ""
 
-#: freestream/editor.py:2739
+#: freestream/editor.py:2786
 #, python-brace-format
 msgid "No graphical display available: {error}"
 msgstr ""
 
-#: freestream/editor.py:1199
+#: freestream/editor.py:1253
 #, python-brace-format
 msgid "Saving failed: {error}"
 msgstr ""
 
-#: freestream/editor.py:1655 freestream/editor.py:1659
+#: freestream/editor.py:1702 freestream/editor.py:1706
 #, python-brace-format
 msgid "Page {n} / {m}"
 msgstr ""
 
-#: freestream/editor.py:1895
+#: freestream/editor.py:1942
 msgid "No matching actions"
 msgstr ""
 
-#: freestream/editor.py:2011
+#: freestream/editor.py:2058
 msgid "Tips: drag actions from the right onto keys · move keys by drag & drop (also onto another page) · right-click to copy/paste · double-click opens folders · Ctrl+Z undoes."
 msgstr ""
 
-#: freestream/editor.py:2023
+#: freestream/editor.py:2070
 msgid "Drag an action here from the list on the right, or double-click it there."
 msgstr ""
 
-#: freestream/editor.py:2072 freestream/editor.py:2111
+#: freestream/editor.py:2119 freestream/editor.py:2158
 msgid "Action"
 msgstr ""
 
-#: freestream/editor.py:2073
+#: freestream/editor.py:2120
 msgid "Advanced"
 msgstr ""
 
-#: freestream/editor.py:1823
+#: freestream/editor.py:1870
 #, python-brace-format
 msgid "Move to page {n}"
 msgstr ""
 
-#: freestream/editor.py:2100 freestream/editor.py:2117
+#: freestream/editor.py:2147 freestream/editor.py:2164
 msgid "Settings page…"
 msgstr ""
 
-#: freestream/editor.py:2252
+#: freestream/editor.py:2299
 #, python-brace-format
 msgid "State {n}"
 msgstr ""
 
-#: freestream/editor.py:2104
+#: freestream/editor.py:2151
 msgid "This action has no further settings."
 msgstr ""
 
-#: freestream/editor.py:2126
+#: freestream/editor.py:2173
 #, python-brace-format
 msgid "Action of the plugin “{plugin}” – cannot run on Linux (plugin not installed or only for Windows/macOS). Title, icon and settings are kept."
 msgstr ""
 
-#: freestream/editor.py:2404 freestream/freedecksettings.py:574
+#: freestream/editor.py:2451 freestream/freedecksettings.py:574
 #, python-brace-format
 msgid "Page {n}"
 msgstr ""
 
-#: freestream/editor.py:2415
+#: freestream/editor.py:2462
 msgid "(next profile)"
 msgstr ""
 
@@ -5047,7 +5047,7 @@ msgstr ""
 msgid "Beta versions bring new features earlier but may contain more bugs."
 msgstr ""
 
-#: freestream/settingsui.py:97 freestream/theme.py:635
+#: freestream/settingsui.py:97 freestream/theme.py:642
 msgid "System language"
 msgstr ""
 
@@ -5080,7 +5080,7 @@ msgstr ""
 msgid "Auto follows the light or dark setting of your desktop."
 msgstr ""
 
-#: freestream/settingsui.py:95 freestream/theme.py:656
+#: freestream/settingsui.py:95 freestream/theme.py:663
 msgid "Language"
 msgstr ""
 
@@ -5205,24 +5205,24 @@ msgstr ""
 msgid "Audio playback failed: {error}"
 msgstr ""
 
-#: freestream/theme.py:654
+#: freestream/theme.py:661
 #, python-brace-format
 msgid "{app} will be shown in {language} after a restart. Restart now?"
 msgstr ""
 
-#: freestream/theme.py:1431
+#: freestream/theme.py:1438
 msgid "Light"
 msgstr ""
 
-#: freestream/theme.py:1431
+#: freestream/theme.py:1438
 msgid "Dark"
 msgstr ""
 
-#: freestream/theme.py:1432
+#: freestream/theme.py:1439
 msgid "Auto"
 msgstr ""
 
-#: freestream/theme.py:1427
+#: freestream/theme.py:1434
 #, python-brace-format
 msgid "{app} switches to the new look after a restart. Restart now?"
 msgstr ""

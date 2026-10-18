@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "freestream"
-version = "0.35.0"
+version = "0.35.1"
 description = "Stream Deck and Wave Link replacement for Linux: FreeDeck and FreeWave"
 requires-python = ">=3.9"
 dependencies = ["streamdeck>=0.10", "pillow", "evdev", "cairosvg"]
