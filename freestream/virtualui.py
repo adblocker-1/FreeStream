@@ -24,7 +24,7 @@ from .theme import COL, Icons, PopupMenu, elide, font, rounded_rect
 log = logging.getLogger("freestream.virtualui")
 TICK_MS = 40          # neue Tastenbilder abholen
 IDLE_MS = 300         # ausgeblendet: seltener nachsehen
-GRIP = 22             # Randleiste: Spalte mit dem Griff – bleibt eingeklappt sichtbar
+GRIP = 20             # Randleiste: innerer Rand mit dem Griff darin – bleibt eingeklappt sichtbar
 SLIDE_MS, SLIDE_STEPS = 220, 13  # Hinaus-/Hereingleiten: Dauer und Bilder (≈ 60 pro Sekunde)
 RADIUS = 16           # runde Ecken der Randleiste (nach innen)
 # Gehäuse wie ein echtes Deck – dunkel, auch im hellen Design
@@ -240,8 +240,9 @@ class VirtualDeckWindow:
             avail = self.root.winfo_screenheight() - 120 - self.foot_h
             self.tile = max(40, min(64, (avail - self.gap * (self.rows - 1)) // self.rows))
             grid_w = self.cols * self.tile + (self.cols - 1) * self.gap
-            self.width = GRIP + self.pad + grid_w + self.pad
-            self.grid_x = GRIP + self.pad if self.edge == "right" else self.pad
+            # innen 20 px (der Griff sitzt im Rand), sonst überall 12 px
+            self.width = GRIP + grid_w + self.pad
+            self.grid_x = GRIP if self.edge == "right" else self.pad
             self.height = self.pad + self.rows * self.tile + (self.rows - 1) * self.gap + self.pad + self.foot_h
         else:
             self.tile, self.gap, self.pad, self.title_h, self.foot_h = 72, 10, 12, 34, 44
@@ -349,21 +350,16 @@ class VirtualDeckWindow:
         self._hits.append((0, 0, x - 14, h, ("drag",)))
 
     def _draw_grip(self):
-        """Griff am inneren Rand: dezent; unter der Maus hell, mit Pfeil in die Richtung, in die es geht."""
+        """Griff im inneren Rand: dezenter Strich; unter der Maus hell auf einer Fläche (ohne Pfeil)."""
         cv, h = self.cv, self.height
         cv.delete("grip")
-        gx = GRIP // 2 + 3 if self.edge == "right" else self.width - GRIP // 2 - 3
+        gx = GRIP // 2 if self.edge == "right" else self.width - GRIP // 2
         cy = h // 2
         if self.grip_hover:
-            rounded_rect(cv, gx - 7, cy - 36, gx + 7, cy + 36, 7, fill="#262b36", outline="", tags="grip")
+            rounded_rect(cv, gx - 5, cy - 30, gx + 5, cy + 30, 5, fill="#262b36", outline="", tags="grip")
         col = CHROME["fg"] if self.grip_hover else "#4b5160"
-        rounded_rect(cv, gx - 2, cy - 22, gx + 2, cy + 22, 2, fill=col, outline="", tags="grip")
-        if self.grip_hover:
-            out = (self.edge == "right") != self.collapsed  # Richtung: hinaus zum Rand oder herein
-            d = 3 if out else -3
-            cv.create_line(gx - d, cy - 33, gx + d, cy - 28, gx - d, cy - 23, fill=col, width=2,
-                           capstyle="round", joinstyle="round", tags="grip")
-        x0, x1 = (0, GRIP + 4) if self.edge == "right" else (self.width - GRIP - 4, self.width)
+        rounded_rect(cv, gx - 2, cy - 20, gx + 2, cy + 20, 2, fill=col, outline="", tags="grip")
+        x0, x1 = (0, GRIP) if self.edge == "right" else (self.width - GRIP, self.width)
         self._grip_box = (x0, 0, x1, h)
 
     def _draw_footer(self):
