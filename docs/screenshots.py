@@ -467,6 +467,31 @@ def shot_freewave(tmp):
     grab(dlg, "freewave-channel.png")
     dlg.destroy()
 
+    def app_png(name, color):
+        f = tmp / f"app-{name}.png"
+        im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        ImageDraw.Draw(im).ellipse((4, 4, 60, 60), fill=color)
+        im.save(f)
+        return f
+    installed = [{"name": n, "key": k, "cls": k, "icon": k, "icon_path": app_png(k, c)} for n, k, c in (
+        ("Audacity", "audacity", "#2f7bff"), ("Firefox", "firefox", "#ff8a3d"), ("Rhythmbox", "rhythmbox", "#f5b13d"),
+        ("Spotify", "spotify", "#30d158"), ("Steam", "steam", "#5b7cff"), ("VLC media player", "vlc", "#ff8a3d"))]
+    apps = {"routes": [{"key": "firefox", "name": "Firefox", "own": True},
+                       {"key": "spotify", "name": "Spotify", "own": False},
+                       {"key": "cyberpunk2077", "name": "Cyberpunk 2077", "own": True}],
+            "running": [{"key": "spotify", "app": "Spotify", "names": "spotify"},
+                        {"key": "vlc", "app": "VLC media player", "names": "vlc"}],
+            "installed": installed, "elsewhere": {"steam": "Game"}}
+    dlg = ChannelDialog(root, [], channel=host.mixer.channel("music"), on_save=lambda v: None, apps=apps)
+    dlg.show_tab("apps")
+    pump(root, 1)
+    grab(dlg, "freewave-channel-apps.png")
+    pk = dlg.pick_app()
+    pump(root, 1)
+    grab(pk, "freewave-add-app.png")
+    pk.destroy()
+    dlg.destroy()
+
     cat = effects.catalog()
     chain = [effects.new_effect(p) for p in (effects.lookup("builtin:highpass", cat),
                                             next((p for p in cat if p["label"] == "gate"), None),
@@ -486,14 +511,14 @@ def diagram():
     """Schaubild: Programme → Kanäle → Persönlicher Mix / Stream-Mix."""
     import math
     W, H = 1200, 600
-    bg, fg, muted = (27, 28, 31), (232, 232, 234), (154, 156, 165)
+    bg, fg, muted = (28, 28, 28), (242, 242, 242), (168, 168, 168)
     blue, purple = (64, 140, 230), (175, 95, 220)
     im = Image.new("RGB", (W, H), bg)
     d = ImageDraw.Draw(im)
     f_head, f_box, f_small = font(26), font(19), font(15, bold=False)
     d.text((W // 2, 34), "How FreeWave works", font=f_head, fill=fg, anchor="mm")
 
-    def box(x, y, w, h, title, sub="", color=(46, 48, 54)):
+    def box(x, y, w, h, title, sub="", color=(50, 50, 50)):
         d.rounded_rectangle((x, y, x + w, y + h), radius=12, fill=color)
         d.text((x + w / 2, y + (h / 2 if not sub else h / 2 - 10)), title, font=f_box, fill=fg, anchor="mm")
         if sub:
@@ -506,7 +531,7 @@ def diagram():
                    (b[0] - 13 * math.cos(ang + 0.45), b[1] - 13 * math.sin(ang + 0.45)), b], fill=color)
 
     def slider(x, y, level, color):
-        d.rounded_rectangle((x, y, x + 10, y + 44), radius=4, fill=(20, 20, 24))
+        d.rounded_rectangle((x, y, x + 10, y + 44), radius=4, fill=(20, 20, 20))
         top = y + 44 - int(44 * level)
         d.rounded_rectangle((x, top, x + 10, y + 44), radius=4, fill=color)
 

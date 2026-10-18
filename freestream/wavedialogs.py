@@ -1,6 +1,7 @@
 """Dialoge von FreeWave: eigene Kanäle anlegen/bearbeiten und Effekte (Plugins) je Kanal."""
 import math
 import os
+import re
 import shutil
 import tkinter as tk
 from tkinter import ttk
@@ -65,10 +66,50 @@ class _Picker(tk.Frame):
                     cv.create_image(19, 19, image=self.icons.get(v, 16, COL["muted"]))
 
 
-class ChannelDialog(Dialog):
-    """Kanal anlegen oder bearbeiten: Name, Art (Programme/Eingang), Gerät, Symbol, Farbe."""
+def _app_image(master, path, size):
+    """Programmsymbol aus einer Datei als Bild (zwischengespeichert), sonst None."""
+    cache = master.__dict__.setdefault("_app_images", {})
+    key = (str(path), size)
+    if key not in cache:
+        img = None
+        if path:
+            try:
+                from PIL import Image, ImageTk
+                with Image.open(path) as im:
+                    im = im.convert("RGBA")
+                    im.thumbnail((size, size), Image.LANCZOS)
+                    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+                    canvas.paste(im, ((size - im.width) // 2, (size - im.height) // 2), im)
+                    img = ImageTk.PhotoImage(canvas, master=master)
+            except Exception:  # noqa: BLE001 – kaputte Symbole: Ersatzbild
+                img = None
+        cache[key] = img
+    return cache[key] or icon_tile(master, "grid", size, "#3a4252", radius=0.3)
 
-    def __init__(self, master, inputs, channel=None, on_save=None, on_delete=None, default_look=("wave", COLORS[5])):
+
+def _matches(key, text):
+    """Passt der Programmschlüssel zum Text? Wie beim Verteilen der Streams (Wortanfang)."""
+    return bool(key) and re.search(r"\b" + re.escape(key.lower()), (text or "").lower()) is not None
+
+
+def _entry_for(key, installed):
+    """Installiertes Programm zu einem Schlüssel (für Namen und Symbol)."""
+    for e in installed:
+        if key in (e["key"], e["cls"]):
+            return e
+    return next((e for e in installed if _matches(key, " ".join((e["key"], e["cls"], e["name"])))), None)
+
+
+class ChannelDialog(Dialog):
+    """Kanal anlegen oder bearbeiten: Name, Art (Programme/Eingang), Gerät, Symbol, Farbe – und unter
+    „Apps“ die Programme, die von selbst in diesen Kanal kommen (auch solche, die gerade nicht laufen).
+
+    apps: {"routes": [{"key", "name", "own"}], "running": [{"key", "app", "names"}],
+           "installed": desktop.app_entries(), "elsewhere": {Schlüssel: Kanalname}} oder None.
+    """
+
+    def __init__(self, master, inputs, channel=None, on_save=None, on_delete=None, default_look=("wave", COLORS[5]),
+                 apps=None):
         edit = channel is not None
         c = channel or {}
         is_mic = c.get("id") == "mic"
@@ -79,10 +120,16 @@ class ChannelDialog(Dialog):
         icon, color = c.get("icon") or default_look[0], c.get("color") or default_look[1]
         color = color if color in COLORS else COLORS[5]
         self.head = header(b, _("Edit channel") if edit else _("Create new channel"),
-                           (_("Afterwards, put apps into the channel in the mixer under “Apps”.")
+                           (_("Under “Apps” you choose which apps play in this channel.")
                             if not edit else _("Changes are applied to the mixer right away.")), icon=icon, color=color)
 
-        card = Card(b, pad=18, stretch=True)
+        self.kind = c.get("kind", "apps") if edit else "apps"
+        self.apps = apps if (apps is not None and not is_mic and self.kind == "apps") else None
+        if self.apps is not None:
+            self.tabs = SoftSegmented(b, [("general", _("General"), "gear"), ("apps", _("Apps"), "grid")],
+                                      command=self.show_tab, fill=True, height=34)
+            self.tabs.pack(fill="x", pady=(0, 12))
+        card = self.general = Card(b, pad=18, stretch=True)
         card.pack(fill="x")
         cb = card.body
         self.name = tk.StringVar(self, value=c.get("name", ""))
@@ -92,7 +139,6 @@ class ChannelDialog(Dialog):
         if is_mic:
             self.entry.configure(state="disabled")
 
-        self.kind = c.get("kind", "apps") if edit else "apps"
         if not edit:
             field(cb, _("TYPE"))
             self.kind_seg = SoftSegmented(cb, [("apps", _("Apps"), "grid"), ("input", _("Input device"), "input")],
@@ -117,6 +163,11 @@ class ChannelDialog(Dialog):
         self.color = _Picker(cb, COLORS, color, "color", command=self.icon.set_color)
         self.color.pack(anchor="w")
         self.icon.watch = self.color.watch = self._look
+
+        self.app_list = []          # [{"key", "name", "icon"}] wie gerade gezeigt
+        self.added, self.removed = {}, set()
+        if self.apps is not None:
+            self._build_apps(b)
         self.error = label(b, "", 9, color=COL["danger"])
         self.error.pack(anchor="w", pady=(10, 0))
 
@@ -132,6 +183,77 @@ class ChannelDialog(Dialog):
         self.bind("<Return>", lambda e: self._save())
         self.show()
 
+    # ------------------------------------------------------------ Apps
+    def _build_apps(self, b):
+        installed = self.apps.get("installed") or []
+        for r in self.apps.get("routes") or []:
+            e = _entry_for(r["key"], installed)
+            self.app_list.append({"key": r["key"], "name": (e["name"] if e and not r.get("own") else r["name"]),
+                                  "icon": e and e.get("icon_path")})
+        self.app_list.sort(key=lambda a: a["name"].lower())
+        card = self.apps_card = Card(b, pad=18, stretch=True)
+        cb = card.body
+        label(cb, _("Apps in this channel"), 11, "bold").pack(anchor="w")
+        label(cb, _("These apps land in this channel by themselves – also apps that are not running yet."), 9,
+              color=COL["muted"], wraplength=440, justify="left").pack(anchor="w", pady=(2, 12))
+        self.app_rows = tk.Frame(cb, bg=COL["panel"])
+        self.app_rows.pack(fill="x")
+        self.add_btn = Button(cb, _("Add app"), "plus", command=self.pick_app)
+        self.add_btn.pack(anchor="w", pady=(12, 0))
+        self._draw_apps()
+
+    def _active(self, key):
+        return any(_matches(key, s.get("names") or s.get("key")) for s in self.apps.get("running") or [])
+
+    def _draw_apps(self):
+        for w in self.app_rows.winfo_children():
+            w.destroy()
+        if not self.app_list:
+            label(self.app_rows, _("No apps yet"), 10, color=COL["faint"]).pack(anchor="w", pady=6)
+        for a in self.app_list:
+            row = tk.Frame(self.app_rows, bg=COL["panel"])
+            row.pack(fill="x", pady=3)
+            tk.Label(row, image=_app_image(self, a.get("icon"), 28), bg=COL["panel"]).pack(side="left")
+            label(row, a["name"], 10).pack(side="left", padx=(10, 6))
+            if not self._active(a["key"]):
+                label(row, _("(not active)"), 9, color=COL["faint"]).pack(side="left")
+            Button(row, "", "trash", kind="ghost", height=28, padx=6,
+                   command=lambda k=a["key"]: self.remove_app(k)).pack(side="right")
+        if hasattr(self, "tabs"):
+            self.tabs.items[1] = ("apps", _("Apps ({n})").format(n=len(self.app_list)) if self.app_list
+                                  else _("Apps"), "grid")
+            self.tabs._draw()
+
+    def show_tab(self, tab):
+        if tab == "apps":
+            self.general.pack_forget()
+            self.apps_card.pack(fill="x", after=self.tabs)
+        else:
+            self.apps_card.pack_forget()
+            self.general.pack(fill="x", after=self.tabs)
+        self.tabs.set(tab)
+
+    def add_app(self, key, name, icon=None):
+        key = (key or "").strip().lower()
+        if not key or any(a["key"] == key for a in self.app_list):
+            return
+        self.app_list.append({"key": key, "name": name or key.title(), "icon": icon})
+        self.app_list.sort(key=lambda a: a["name"].lower())
+        self.removed.discard(key)
+        self.added[key] = name or key.title()
+        self._draw_apps()
+
+    def remove_app(self, key):
+        self.app_list = [a for a in self.app_list if a["key"] != key]
+        if self.added.pop(key, None) is None:
+            self.removed.add(key)
+        self._draw_apps()
+
+    def pick_app(self):
+        taken = {a["key"] for a in self.app_list}
+        return AppPicker(self, self.apps, taken, self.add_app)
+
+    # ------------------------------------------------------------ Allgemein
     def _look(self):
         tile = getattr(self.head, "tile", None)
         if tile is not None:
@@ -148,16 +270,27 @@ class ChannelDialog(Dialog):
             self.dev_frame.pack(fill="x", after=self.kind_hint if hasattr(self, "kind_hint") else self.entry.box)
         else:
             self.dev_frame.pack_forget()
+        if hasattr(self, "tabs"):  # Eingang: keine Programme
+            if kind == "input":
+                self.tabs.pack_forget()
+            elif not self.tabs.winfo_manager():
+                self.tabs.pack(fill="x", pady=(0, 12), before=self.general)
 
     def values(self):
         src = next((n for n, d in self.inputs if d == self.dev.get()), "")
-        return {"name": self.name.get().strip(), "kind": self.kind, "source": src, "icon": self.icon.value,
-                "color": self.color.value}
+        v = {"name": self.name.get().strip(), "kind": self.kind, "source": src, "icon": self.icon.value,
+             "color": self.color.value, "apps_add": [], "apps_remove": []}
+        if self.apps is not None and self.kind == "apps":
+            v["apps_add"] = sorted(self.added.items())
+            v["apps_remove"] = sorted(self.removed)
+        return v
 
     def _save(self):
         v = self.values()
         if not v["name"] and self.entry.cget("state") != "disabled":
             self.error.configure(text=_("Please enter a name"))
+            if hasattr(self, "tabs"):
+                self.show_tab("general")
             return
         if v["kind"] == "input" and not v["source"]:
             self.error.configure(text=_("Please choose an input device"))
@@ -170,6 +303,103 @@ class ChannelDialog(Dialog):
         self.destroy()
         if self.on_delete:
             self.on_delete()
+
+
+class AppPicker(Dialog):
+    """Programm für einen Kanal wählen: gerade spielende oben, darunter alle installierten, mit Suche.
+    Steht ein Programm nicht in der Liste, übernimmt „… hinzufügen“ den eingegebenen Namen."""
+
+    def __init__(self, master, apps, taken, on_pick):
+        super().__init__(master, _("Add app"), width=460, height=560)
+        self.apps, self.taken, self.on_pick = apps, set(taken), on_pick
+        b = self.body
+        header(b, _("Add app"), _("Its sound goes to this channel from now on, whenever it plays."), icon="grid",
+               color="#2f7bff", wrap=360)
+        field(b, _("SEARCH"))
+        self.query = tk.StringVar(self)
+        self.search = entry(b, self.query)
+        self.search.box.pack(fill="x", pady=(0, 10))
+        self.area = ScrollArea(b)
+        self.area.pack(fill="both", expand=True)
+        footer(self)
+        Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right")
+        self.query.trace_add("write", lambda *a: self._fill())
+        self._fill()
+        self.search.focus_set()
+        self.bind("<Return>", lambda e: self._enter())
+        self.show()
+
+    def candidates(self):
+        """[(Abschnitt, [{"key", "name", "icon", "sub"}])] passend zur Suche."""
+        q = self.query.get().strip().lower()
+        installed = self.apps.get("installed") or []
+        elsewhere = self.apps.get("elsewhere") or {}
+        seen = set(self.taken)
+        playing, apps = [], []
+        for s in self.apps.get("running") or []:
+            key = s.get("key") or ""
+            if not key or key in seen:
+                continue
+            e = _entry_for(key, installed)
+            name = e["name"] if e else (s.get("app") or key.title())
+            if q and q not in name.lower() and q not in key:
+                continue
+            seen.add(key)
+            playing.append({"key": key, "name": name, "icon": e and e.get("icon_path"),
+                            "sub": elsewhere.get(key, "")})
+        for e in installed:
+            if e["key"] in seen or (q and q not in e["name"].lower() and q not in e["key"]):
+                continue
+            seen.add(e["key"])
+            apps.append({"key": e["key"], "name": e["name"], "icon": e.get("icon_path"),
+                         "sub": elsewhere.get(e["key"], "")})
+        out = [(_("PLAYING NOW"), playing), (_("INSTALLED"), apps)]
+        return [(t, items) for t, items in out if items]
+
+    def _fill(self):
+        inner = self.area.inner
+        for w in inner.winfo_children():
+            w.destroy()
+        groups = self.candidates()
+        q = self.query.get().strip()
+        if q:
+            self._row(inner, {"key": q.lower(), "name": _("Add “{name}”").format(name=q), "icon": None,
+                              "sub": _("by name – for apps not listed here"), "own_name": q})
+        for title, items in groups:
+            field(inner, title, pady=(10, 4))
+            for a in items[:200]:
+                self._row(inner, a)
+        if not groups and not q:
+            label(inner, _("No apps found"), 10, color=COL["faint"]).pack(anchor="w", pady=8)
+        self.area.cv.yview_moveto(0)
+
+    def _row(self, parent, a):
+        row = tk.Frame(parent, bg=COL["bg"], cursor="hand2", padx=6, pady=4)
+        row.pack(fill="x")
+        widgets = [row, tk.Label(row, image=_app_image(self, a.get("icon"), 28), bg=COL["bg"])]
+        widgets[-1].pack(side="left")
+        widgets.append(label(row, a["name"], 10))
+        widgets[-1].pack(side="left", padx=10)
+        if a.get("sub"):
+            sub = a["sub"] if a.get("own_name") else _("now in “{channel}”").format(channel=a["sub"])
+            widgets.append(label(row, sub, 9, color=COL["faint"]))
+            widgets[-1].pack(side="left")
+        for w in widgets:
+            w.bind("<Button-1>", lambda e, a=a: self.pick(a))
+            w.bind("<Enter>", lambda e, ws=widgets: [x.configure(bg=COL["panel2"]) for x in ws])
+            w.bind("<Leave>", lambda e, ws=widgets: [x.configure(bg=COL["bg"]) for x in ws])
+
+    def _enter(self):
+        q = self.query.get().strip()
+        groups = self.candidates()
+        if groups and sum(len(i) for _t, i in groups) == 1:
+            self.pick(groups[0][1][0])
+        elif q:
+            self.pick({"key": q.lower(), "name": q, "icon": None})
+
+    def pick(self, a):
+        self.destroy()
+        self.on_pick(a["key"], a.get("own_name") or a["name"], a.get("icon"))
 
 
 MIX_ICONS = ["headphones", "stream", "chat", "speaker", "record", "game", "music", "mic", "wave", "grid"]

@@ -177,3 +177,59 @@ def test_settings_offer_mixer_removal_in_freewave(env):
         freedeck.destroy()
     finally:
         root.destroy()
+
+
+def test_freedeck_layout_like_deck_software(app, store):
+    """Gerät und Profil als Auswahlfelder oben, Aktionen als aufklappbare Liste rechts."""
+    from freestream import editdoc
+    from freestream.editor import ActionRow, CategoryRow
+    editdoc.create_profile("Zweites", "20GBD9901", store)
+    app.refresh_profiles()
+    assert app.prof_dd.text == "Test"
+    app._toggle_drop("prof")
+    app.root.update()
+    assert app.prof_panel.winfo_ismapped() and not app.dev_panel.winfo_ismapped()
+    second = next(i for p, i in app.profile_items.items() if app.store.get(p).name == "Zweites")
+    second.command()  # Profil in der Liste gewählt: Liste zu, Profil offen
+    app.root.update()
+    assert not app.prof_panel.winfo_ismapped() and app.doc.name == "Zweites" and app.prof_dd.text == "Zweites"
+    app._toggle_drop("dev")
+    app.root.update()
+    assert app.dev_panel.winfo_ismapped()
+    app._toggle_drop("dev")  # nochmal: zu
+    app.root.update()
+    assert not app.dev_panel.winfo_ismapped()
+    # Kategorien: anfangs die ersten beiden offen, Klick klappt auf/zu, Suche zeigt alles Gefundene
+    cats = [w for w in app.library.inner.winfo_children() if isinstance(w, CategoryRow)]
+    assert [c.open for c in cats[:3]] == [True, True, False]
+    third = cats[2].cat
+    app.toggle_category(third)
+    rows = [w for w in app.library.inner.winfo_children() if isinstance(w, ActionRow)]
+    assert any(r.type.category == third for r in rows)
+    app.search_var.set("hotkey")
+    rows = [w for w in app.library.inner.winfo_children() if isinstance(w, ActionRow)]
+    assert rows and all("hotkey" in (r.type.name + r.type.description + r.type.category).lower() for r in rows)
+    app.search_var.set("")
+
+
+def test_freewave_mix_columns_fit_window(env, pactl):
+    """Mix-Spalten füllen die Breite (wie Wave Link); breiteres Fenster = breitere Spalten, Regler bleiben."""
+    import tkinter as tk
+    from freestream.wavehost import WaveHost
+    from freestream.waveui import MIX_W_MAX, MIX_W_MIN, WaveWindow
+    host = WaveHost(_config(env, {"mixer": {"enabled": True}}))
+    host.start()
+    root = tk.Tk()
+    try:
+        win = WaveWindow(root, host, tray=False)
+        assert _pump(root, lambda: bool(win.strips))
+        w0 = win.mix_w
+        assert MIX_W_MIN <= w0 <= MIX_W_MAX
+        fader = win.strips["system"]["monitor"]["fader"]
+        root.geometry("1700x800")
+        assert _pump(root, lambda: win.mix_w > w0)
+        assert win.strips["system"]["monitor"]["fader"] is fader and int(fader["width"]) == win.mix_w - 100
+        assert int(win.mix_heads["monitor"]["card"]["width"]) == win.mix_w
+    finally:
+        win.quitting = True
+        root.destroy()

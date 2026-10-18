@@ -171,12 +171,20 @@ def test_window_and_edge_bar(daemon, tmp_path):
         # Klick auf den Griff (innen, links): gleitet hinaus, nur der Griff bleibt sichtbar
         gx, gy = GRIP // 2, w.height // 2
         assert w._in_grip(gx, gy) and not w._in_grip(w.width - 5, gy)
+        assert not w._in_grip(gx, 8) and not w._in_grip(gx, w.height - 8)  # nur der Griff, nicht die ganze Kante
         w._hover(types.SimpleNamespace(x=gx, y=gy))
         assert w.grip_hover
+        w._hover(types.SimpleNamespace(x=gx, y=10))
+        assert not w.grip_hover
+        w._hover(types.SimpleNamespace(x=gx, y=gy))
+        w._press(types.SimpleNamespace(x=gx, y=12, x_root=0, y_root=0))  # Rand neben dem Griff: nichts
+        assert not w.collapsed
         steps = []
         w.win.geometry = (lambda orig: lambda g=None: (steps.append(g), orig(g))[1] if g else orig())(w.win.geometry)
         w._press(types.SimpleNamespace(x=gx, y=gy, x_root=0, y_root=0))
         assert w.collapsed and _until(root, lambda: w.win.winfo_x() == sw - GRIP)
+        # die Maus steht nicht über dem Griff (X meldet beim Weggleiten kein <Leave>): nicht mehr hell
+        assert _until(root, lambda: not w.grip_hover)
         xs = [int(g.split("+")[1]) for g in steps if g and g.startswith("+")]
         assert len(xs) >= 10 and xs == sorted(xs)  # gleitet in vielen kleinen Schritten, nur nach außen
         assert xs[1] - xs[0] > xs[-1] - xs[-2]      # schnell los, langsam ankommen

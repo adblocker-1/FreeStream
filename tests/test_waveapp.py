@@ -807,3 +807,104 @@ def test_wave_window_link_hear_drag_and_clip(env, pactl):
 def theme_accent():
     from freestream.theme import COL
     return COL["accent"]
+
+
+# ==========================================================================
+# Programme vorab einem Kanal zuordnen (Kanal-Dialog › Apps)
+# ==========================================================================
+def test_channel_routes_preassign_and_remove(env, pactl):
+    from freestream.wavehost import WaveHost
+    host = WaveHost(_config(env, {"mixer": {"enabled": True}}))
+    host.start()
+    host.tick()
+    m = host.mixer
+    known = [s["names"] for s in m.streams()] + ["firefox"]
+    # eingebaut: Spotify → Musik (läuft), Firefox → Browser (installiert); unbekannte eingebaute fehlen
+    assert [r["key"] for r in m.channel_routes("music", known)] == ["spotify"]
+    assert [r["key"] for r in m.channel_routes("browser", known)] == ["firefox"]
+    # Firefox vorab auf Musik, Spotify raus aus Musik
+    assert m.set_channel_routes("music", add=[("firefox", "Firefox")], remove=["spotify"]) == 0
+    assert [(r["key"], r["name"], r["own"]) for r in m.channel_routes("music", known)] == [
+        ("firefox", "Firefox", True)]
+    assert m.channel_routes("browser", known) == []
+    saved = json.loads((env / "config" / "config.json").read_text())["mixer"]
+    assert saved["routes"] == {"firefox": "music", "spotify": ""} and saved["route_names"] == {"firefox": "Firefox"}
+    assert "spotify" not in m.routes()
+    # Firefox startet später: landet von selbst in Musik; ein neuer Spotify-Stream bleibt, wo er ist
+    pactl.inputs["9"] = {"index": "9", "sink": "1", "volume": 100, "mute": False,
+                         "props": {"application.name": "Firefox", "application.process.binary": "firefox"}}
+    pactl.inputs["10"] = {"index": "10", "sink": "1", "volume": 100, "mute": False,
+                          "props": {"application.name": "Spotify", "application.process.binary": "spotify"}}
+    m.route_streams()
+    chans = {s["index"]: s["channel"] for s in m.streams()}
+    assert chans["9"] == "music" and chans["10"] is None
+    # laufendes Programm zuordnen verschiebt es gleich; eigene Zuordnung entfernen löscht sie ganz
+    assert m.set_channel_routes("game", add=[("spotify", "Spotify")]) == 2
+    assert {s["index"]: s["channel"] for s in m.streams()}["10"] == "game"
+    m.set_channel_routes("music", remove=["firefox"])
+    assert "firefox" not in json.loads((env / "config" / "config.json").read_text())["mixer"]["route_names"]
+    assert m.routes()["firefox"] == "browser"  # wieder die eingebaute Zuordnung
+    with pytest.raises(RuntimeError):
+        m.set_channel_routes("mic", add=[("x", "X")])
+
+
+@pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
+def test_channel_dialog_apps_tab(tmp_path):
+    import tkinter as tk
+    from PIL import Image
+
+    from freestream.wavedialogs import AppPicker, ChannelDialog
+    Image.new("RGBA", (64, 64), (255, 120, 0, 255)).save(tmp_path / "ff.png")
+    apps = {"routes": [{"key": "spotify", "name": "Spotify", "own": False},
+                       {"key": "battlefield", "name": "Battlefield 6", "own": True}],
+            "running": [{"key": "spotify", "app": "Spotify", "names": "spotify spotify"},
+                        {"key": "vlc", "app": "VLC media player", "names": "vlc media player vlc"}],
+            "installed": [{"name": "Firefox", "cls": "firefox", "key": "firefox", "icon": "firefox",
+                           "icon_path": tmp_path / "ff.png"},
+                          {"name": "Spotify", "cls": "spotify", "key": "spotify", "icon": "", "icon_path": None}],
+            "elsewhere": {"firefox": "Browser"}}
+    root = tk.Tk()
+    try:
+        saved = []
+        d = ChannelDialog(root, [], channel={"id": "music", "name": "Musik", "kind": "apps"}, on_save=saved.append,
+                          apps=apps)
+        d.show_tab("apps")
+        root.update()
+        assert d.apps_card.winfo_ismapped() and not d.general.winfo_ismapped()
+        assert [a["key"] for a in d.app_list] == ["battlefield", "spotify"]
+        assert d._active("spotify") and not d._active("battlefield")  # „(nicht aktiv)“
+        pk = d.pick_app()
+        groups = dict(pk.candidates())
+        assert [a["key"] for a in groups["GERADE AKTIV"]] == ["vlc"]  # Spotify ist schon drin
+        assert [a["key"] for a in groups["INSTALLIERT"]] == ["firefox"]
+        pk.query.set("fire")
+        root.update()
+        assert [a["key"] for _t, items in pk.candidates() for a in items] == ["firefox"]
+        pk.pick(dict(pk.candidates())["INSTALLIERT"][0])
+        assert [a["key"] for a in d.app_list] == ["battlefield", "firefox", "spotify"]
+        # eigener Name, wenn das Programm nicht in der Liste steht
+        pk = AppPicker(d, apps, {"x"}, d.add_app)
+        pk.query.set("Cyberpunk2077")
+        pk._enter()
+        d.remove_app("spotify")
+        d.remove_app("cyberpunk2077")  # eben hinzugefügt und wieder weg: keine Änderung
+        root.update()
+        assert d.tabs.items[1][1] == "Apps (2)"
+        d.show_tab("general")
+        d._save()
+        assert saved[0]["apps_add"] == [("firefox", "Firefox")] and saved[0]["apps_remove"] == ["spotify"]
+        # Eingangs-Kanal und Mikrofon: kein Reiter „Apps“
+        d = ChannelDialog(root, [], channel={"id": "mic", "name": "Mikrofon"}, apps=apps)
+        assert not hasattr(d, "tabs") and d.values()["apps_add"] == []
+        d.destroy()
+        # neuer Kanal: als Eingang verschwindet der Reiter
+        d = ChannelDialog(root, [("alsa_input.x", "Gerät X")], apps=dict(apps, routes=[]))
+        d._kind("input")
+        root.update()
+        assert not d.tabs.winfo_ismapped()
+        d._kind("apps")
+        root.update()
+        assert d.tabs.winfo_ismapped()
+        d.destroy()
+    finally:
+        root.destroy()

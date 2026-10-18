@@ -63,7 +63,6 @@ ACTION_GLYPH = {
     "homeassistant.state": "gauge",
 }
 theme.EXTRA_GLYPHS.update(livekeys.GLYPHS)  # selbst gezeichnete Symbole der Live-Tasten
-PLUGINS_CHIP = "plugins"
 
 
 def category_look(cat):
@@ -79,10 +78,6 @@ def action_look(uuid, cat):
         if uuid.startswith(prefix):
             return ACTION_GLYPH.get(uuid[len(prefix):], glyph), color
     return glyph, color
-
-
-def chip_label(cat):
-    return {"OBS Studio": "OBS", _("Spotify & Media"): _("Media"), "Home Assistant": "Home"}.get(cat, cat)
 
 
 def profile_glyph(name):
@@ -224,36 +219,59 @@ class RoundBox(tk.Canvas):
         self.itemconfigure(self._win, width=max(1, w - 2 * self.padx), height=max(1, h - 2 * self.pad))
 
 
-class ActionTile(tk.Canvas):
-    """Kachel der Aktionsbibliothek: Symbol, Name, kurze Beschreibung."""
+class CategoryRow(tk.Canvas):
+    """Kopf einer Kategorie in der Aktionsliste: Pfeil, Name, Anzahl; Klick klappt auf/zu."""
 
-    H = 104
+    H = 34
+
+    def __init__(self, master, app, cat, is_open, count):
+        super().__init__(master, bg=_bg(master), highlightthickness=0, bd=0, height=self.H, cursor="hand2")
+        self.app, self.cat, self.open, self.count = app, cat, is_open, count
+        self.hover = False
+        self.fb = theme.font(app.root, 10, "bold")
+        self.fs = theme.font(app.root, 9)
+        self.bind("<Configure>", lambda e: self._draw())
+        self.bind("<Button-1>", lambda e: app.toggle_category(cat))
+        self.bind("<Enter>", lambda e: self._set_hover(True))
+        self.bind("<Leave>", lambda e: self._set_hover(False))
+
+    def _set_hover(self, v):
+        self.hover = v
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        w, h = max(self.winfo_width(), 60), self.H
+        if self.hover:
+            theme.rounded_rect(self, 0, 1, w - 1, h - 1, 6, fill=COL["nav_on"], outline="")
+        self.create_image(14, h / 2, image=self.app.icons.get("chevron" if self.open else "chevron_right", 13,
+                                                               COL["muted"]))
+        name = self.cat.split(":", 1)[-1].strip() if self.cat.startswith("Plugin:") else self.cat
+        self.create_text(28, h / 2, text=_clip(name, _measure_font(self, self.fb), w - 70), anchor="w",
+                         fill=COL["fg"], font=self.fb)
+        self.create_text(w - 10, h / 2, text=str(self.count), anchor="e", fill=COL["faint"], font=self.fs)
+
+
+class ActionRow(tk.Canvas):
+    """Aktion in der Liste: kleines Symbol und Name; ziehen auf eine Taste oder doppelklicken."""
+
+    H = 38
 
     def __init__(self, master, app, atype):
         super().__init__(master, bg=_bg(master), highlightthickness=0, bd=0, height=self.H, cursor="hand2")
         self.app, self.type = app, atype
         self.selected = self.hover = False
         glyph, color = action_look(atype.uuid, atype.category)
-        self.img = theme.icon_tile(app.root, glyph, 30, color, radius=0.27)
-        self.fb = theme.font(app.root, 10, "bold")
+        self.img = theme.icon_tile(app.root, glyph, 26, color, radius=0.22)
+        self.f = theme.font(app.root, 10)
         self.fs = theme.font(app.root, 9)
-        self._idle = None
-        self.bind("<Configure>", self._on_configure)
+        self.bind("<Configure>", lambda e: self._draw())
         self.bind("<Enter>", lambda e: self._set_hover(True))
         self.bind("<Leave>", lambda e: self._set_hover(False))
         self.bind("<ButtonPress-1>", lambda e: app._lib_press(e, atype.uuid))
         self.bind("<B1-Motion>", app._lib_motion)
         self.bind("<ButtonRelease-1>", app._lib_release)
         self.bind("<Double-Button-1>", lambda e: app._lib_double(atype.uuid))
-
-    def _on_configure(self, _e):
-        # beim Aufbau ändert sich die Breite mehrmals (Bildlaufleiste): nur einmal zeichnen, wenn Ruhe ist
-        if self._idle is None:
-            self._idle = self.after_idle(self._idle_draw)
-
-    def _idle_draw(self):
-        self._idle = None
-        self._draw(force=False)
 
     def _set_hover(self, v):
         self.hover = v
@@ -263,32 +281,19 @@ class ActionTile(tk.Canvas):
         self.selected = v
         self._draw()
 
-    def _description(self):
-        a = self.type
-        if a.description:
-            return a.description
-        if a.controllers == (C.DIAL,):
-            return _("dials only")
-        return a.category.split(":", 1)[-1].strip() if a.category.startswith("Plugin:") else a.category
-
     def _draw(self, force=True):
-        w, h = max(self.winfo_width(), 60), self.H
-        state = (w, self.selected, self.hover)
-        if not force and state == getattr(self, "_drawn", None):
-            return  # <Configure> ohne neue Größe
-        self._drawn = state
         self.delete("all")
-        if w <= 60:
-            return  # noch nicht angeordnet: gleich folgt <Configure> mit der echten Breite
-        out = COL["accent"] if self.selected else (COL["faint"] if self.hover else COL["border"])
-        theme.rounded_rect(self, 0, 0, w - 1, h - 1, 12, fill=COL["panel"], outline=out)
-        self.create_image(11, 11, image=self.img, anchor="nw")
+        w, h = max(self.winfo_width(), 60), self.H
+        if self.selected or self.hover:
+            theme.rounded_rect(self, 0, 1, w - 1, h - 1, 6, outline="",
+                               fill=COL["accent_soft"] if self.selected else COL["nav_on"])
+        self.create_image(24, h / 2, image=self.img, anchor="w")
+        x = 60
+        room = w - x - 24
+        self.create_text(x, h / 2, text=_clip(self.type.name, _measure_font(self, self.f), room), anchor="w",
+                         fill=COL["fg"], font=self.f)
         if C.DIAL in self.type.controllers and C.KEY not in self.type.controllers:
-            self.create_text(w - 10, 12, text="◎", anchor="ne", fill=COL["faint"], font=self.fs)
-        name = _clip(self.type.name, _measure_font(self, self.fb), w - 22)
-        self.create_text(11, 56, text=name, anchor="w", fill=COL["fg"], font=self.fb)
-        desc = _clip_lines(self, self._description(), self.fs, w - 22, 2)
-        self.create_text(11, 68, text=desc, anchor="nw", fill=COL["muted"], font=self.fs, width=w - 20)
+            self.create_text(w - 10, h / 2, text="◎", anchor="e", fill=COL["faint"], font=self.fs)
 
 
 _CLIPPED = {}     # (Text, Schrift, Breite, Zeilen) -> gekürzter Text
@@ -383,19 +388,84 @@ def _autowrap(label):
     label.bind("<Configure>", lambda e: label.configure(wraplength=max(100, e.width - 4)), add="+")
 
 
-def _flow(frame, widgets, width, gap=6, vgap=6):
-    """Widgets (z. B. Chips) zeilenweise umbrechend in `frame` setzen."""
-    x = y = 0
-    rowh = 0
-    for w in widgets:
-        ww, wh = w.winfo_reqwidth(), w.winfo_reqheight()
-        if x and x + ww > width:
-            x, y = 0, y + rowh + vgap
-            rowh = 0
-        w.place(x=x, y=y)
-        x += ww + gap
-        rowh = max(rowh, wh)
-    frame.configure(height=max(1, y + rowh))
+class DropButton(tk.Canvas):
+    """Auswahlfeld der Kopfzeile (Gerät, Profil): Symbol, Text, ⌄ – Klick klappt die Liste darunter auf."""
+
+    def __init__(self, master, icon, text, width=220, command=None, height=36):
+        super().__init__(master, width=width, height=height, bg=_bg(master), highlightthickness=0, bd=0,
+                         cursor="hand2")
+        self.icon, self.text, self.command, self.w, self.h = icon, text, command, width, height
+        self.hover = False
+        self.icons = theme.Icons(self)
+        self.f = theme.font(self, 10)
+        self.bind("<Button-1>", lambda e: self.command and self.command())
+        self.bind("<Enter>", lambda e: self._set_hover(True))
+        self.bind("<Leave>", lambda e: self._set_hover(False))
+        self._draw()
+
+    def _set_hover(self, v):
+        self.hover = v
+        self._draw()
+
+    def set(self, text, icon=None):
+        if (text, icon or self.icon) != (self.text, self.icon):
+            self.text, self.icon = text, icon or self.icon
+            self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        w, h = self.w, self.h
+        theme.rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["raised"] if self.hover else COL["panel2"],
+                           outline=COL["border"])
+        x = 12
+        if self.icon:
+            self.create_image(x + 8, h / 2, image=self.icons.get(self.icon, 16, COL["fg"]))
+            x += 26
+        self.create_text(x, h / 2, text=_clip(self.text, _measure_font(self, self.f), w - x - 30), anchor="w",
+                         fill=COL["fg"], font=self.f)
+        self.create_image(w - 16, h / 2, image=self.icons.get("chevron", 14, COL["muted"]))
+
+
+class DropPanel(tk.Toplevel):
+    """Aufgeklappte Liste unter einem DropButton; schließt bei Klick daneben oder Esc."""
+
+    def __init__(self, root, width=280):
+        super().__init__(root, bg=COL["border"])
+        self.withdraw()
+        self.overrideredirect(True)
+        self.width = width
+        self.body = tk.Frame(self, bg=COL["side"], padx=6, pady=6)
+        self.body.pack(fill="both", expand=True, padx=1, pady=1)
+        self.bind("<Escape>", lambda e: self.hide())
+        self.bind("<ButtonPress>", self._press, add="+")
+
+    def show(self, anchor):
+        self.update_idletasks()
+        w = max(self.width, anchor.winfo_width())
+        h = self.body.winfo_reqheight() + 2
+        x, y = anchor.winfo_rootx(), anchor.winfo_rooty() + anchor.winfo_height() + 4
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.deiconify()
+        self.lift()
+        try:
+            self.attributes("-topmost", True)
+            self.focus_force()
+            self.grab_set()
+        except tk.TclError:
+            pass
+
+    def hide(self):
+        try:
+            self.grab_release()
+        except tk.TclError:
+            pass
+        if self.winfo_ismapped():
+            self.withdraw()
+
+    def _press(self, e):
+        x, y = e.x_root - self.winfo_rootx(), e.y_root - self.winfo_rooty()
+        if not (0 <= x < self.winfo_width() and 0 <= y < self.winfo_height()):
+            self.hide()
 
 
 class EditorApp:
@@ -427,7 +497,6 @@ class EditorApp:
         self._profile_ids = []
         self._types = dict(C.BY_UUID)
         self._insp_tab = "appearance"
-        self._lib_filter = None
         self._lib_selected = None
         self._tiles_by_uuid = {}
 
@@ -567,15 +636,16 @@ class EditorApp:
         for c in self.devbox.winfo_children():
             c.destroy()
         self.device_cards = {}
-        on_img = theme.icon_tile(self.root, "deck", 34, COL["device"], radius=0.24, fg="#c9cfda")
-        off_img = theme.icon_tile(self.root, "deck", 34, theme.mix(COL["device"], COL["muted"], 0.45),
-                                  radius=0.24, fg="#c9cfda")
+        on_img = theme.icon_tile(self.root, "deck", 30, COL["device"], radius=0.2, fg="#c9cfda")
+        off_img = theme.icon_tile(self.root, "deck", 30, theme.mix(COL["device"], COL["muted"], 0.45),
+                                  radius=0.2, fg="#c9cfda")
         if self.daemon is None:
             if self.doc:
                 card = theme.InfoCard(self.devbox, model_name(self.doc.model) if self.doc.model else _("unknown"),
                                       _("Layout of this profile"), image=on_img)
-                card.pack(fill="x", pady=(0, 8))
+                card.pack(fill="x", pady=(0, 2))
                 self.device_cards[""] = card
+            self.dev_dd.set(model_name(self.doc.model) if self.doc and self.doc.model else "FreeDeck")
             return
         from .freedecksettings import config_of, device_title
         cfg = config_of(self)
@@ -584,14 +654,17 @@ class EditorApp:
                                   else _("Connected"), image=on_img, dot=COL["ok"],
                                   command=lambda s=c.serial: self.select_device(s))
             card.selected = c.serial == self.device
-            card.pack(fill="x", pady=(0, 8))
+            card.pack(fill="x", pady=(0, 2))
             self.device_cards[c.serial] = card
         if not ctrls:
             theme.InfoCard(self.devbox, _("No device connected"), "", image=off_img, dim=True).pack(
                 fill="x", pady=(0, 8))
+        cur = next((c for c in ctrls if c.serial == self.device), None)
+        self.dev_dd.set(device_title(cfg, cur) if cur else _("No device connected"))
 
     def select_device(self, serial):
-        """Gerät in der Seitenleiste gewählt: dessen laufendes Profil öffnen."""
+        """Gerät in der Liste gewählt: dessen laufendes Profil öffnen."""
+        self._hide_drops()
         if serial in self._device_ids:
             self.device = serial
             self._device_key = None
@@ -694,7 +767,7 @@ class EditorApp:
             n = len(plugins.installed())
         except Exception:  # noqa: BLE001
             n = ""
-        self.plugins_item.set(count=n if n else "")
+        self.plugins_btn.configure_text(text=_("Plugins") + (f" · {n}" if n else ""))
 
     def _restart(self):
         theme.restart_later("freestream")
@@ -716,68 +789,75 @@ class EditorApp:
         self._small_bold = tkfont.Font(self.root, font=theme.font(self.root, 8, "bold"))
 
     def _build(self):
+        """Aufbau wie in der Deck-Software von Elgato: oben Gerät und Profil, Mitte die Tasten, darunter die
+        Eigenschaften der gewählten Taste, rechts die Aktionen."""
         r = self.root
         self.status_var = tk.StringVar(value="")
         self._model_codes = list(MODELS)
         self.btn = {}
-        self._build_sidebar(r)
-        tk.Frame(r, bg=COL["border"], width=1).pack(side="left", fill="y")
-        right = tk.Frame(r, bg=COL["bg"])
-        right.pack(side="left", fill="both", expand=True)
-        self._build_header(right)
-        tk.Frame(right, bg=COL["border"], height=1).pack(side="top", fill="x")
-        lib = tk.Frame(right, bg=COL["side"], width=300)
+        self._build_topbar(r)
+        tk.Frame(r, bg=COL["border"], height=1).pack(side="top", fill="x")
+        body = tk.Frame(r, bg=COL["bg"])
+        body.pack(side="top", fill="both", expand=True)
+        lib = tk.Frame(body, bg=COL["side"], width=310)
         lib.pack(side="right", fill="y")
         lib.pack_propagate(False)
-        tk.Frame(right, bg=COL["border"], width=1).pack(side="right", fill="y")
+        tk.Frame(body, bg=COL["border"], width=1).pack(side="right", fill="y")
         self._build_library(lib)
-        main = tk.Frame(right, bg=COL["bg"], padx=20, pady=16)
+        main = tk.Frame(body, bg=COL["canvas"])
         main.pack(side="left", fill="both", expand=True)
         self._build_center(main)
 
-    # ---------------------------------------------------------- Seitenleiste
-    def _build_sidebar(self, r):
-        sb = self.sidebar = theme.Sidebar(r, width=240)
-        sb.bottom.configure(padx=5)  # Platz für den Hell/Dunkel/Auto-Umschalter
-        sb.pack(side="left", fill="y")
-        sb.brand("FreeDeck", "deck")
-        sb.section(_("Devices"))
-        self.devbox = tk.Frame(sb.top, bg=COL["side"])
+    # ------------------------------------------------------------- Kopfzeile
+    def _build_topbar(self, r):
+        top = tk.Frame(r, bg=COL["side"], height=58, padx=14)
+        top.pack(side="top", fill="x")
+        top.pack_propagate(False)
+        self._mark = theme.gradient_mark(r, 26, "deck")
+        tk.Label(top, image=self._mark, bg=COL["side"]).pack(side="left", padx=(0, 12))
+        # Gerät und Profil als Auswahlfelder; ihre Listen klappen darunter auf
+        self.dev_dd = DropButton(top, "deck", "FreeDeck", width=230, command=lambda: self._toggle_drop("dev"))
+        self.dev_dd.pack(side="left", padx=(0, 8))
+        self.prof_dd = DropButton(top, None, _("No profile"), width=230, command=lambda: self._toggle_drop("prof"))
+        self.prof_dd.pack(side="left")
+        self.dev_panel = DropPanel(r, 280)
+        self.devbox = tk.Frame(self.dev_panel.body, bg=COL["side"])
         self.devbox.pack(fill="x")
-        sb.section(_("Profiles"))
-        self.profile_list = ScrollFrame(sb.top, bg=COL["side"])
+        self.prof_panel = DropPanel(r, 300)
+        tk.Label(self.prof_panel.body, text=_("Profiles"), bg=COL["side"], fg=COL["muted"],
+                 font=theme.font(r, 9, "bold"), anchor="w").pack(fill="x", padx=8, pady=(4, 6))
+        self.profile_list = ScrollFrame(self.prof_panel.body, bg=COL["side"])
         self.profile_list.pack(fill="both", expand=True)
-        b = tk.Frame(sb.bottom, bg=COL["side"], padx=9)
-        b.pack(fill="x")
-        self.plugins_item = theme.NavItem(b, _("Plugins"), "puzzle", command=self.open_plugins)
-        self.plugins_item.pack(fill="x")
-        self.settings_item = theme.NavItem(b, _("Settings"), "gear", command=self.open_settings)
-        self.settings_item.pack(fill="x", pady=(2, 4))
+        # rechts: Einstellungen, Plugins, Export/Import, Rückgängig
+        self.settings_btn = theme.Button(top, icon="gear", command=self.open_settings)
+        self.settings_btn.pack(side="right", padx=(8, 0))
+        self.plugins_btn = theme.Button(top, _("Plugins"), "puzzle", command=self.open_plugins)
+        self.plugins_btn.pack(side="right", padx=(8, 0))
+        self.btn["exp"] = theme.Button(top, _("Export"), "export", command=self.export_profile)
+        self.btn["exp"].pack(side="right", padx=(8, 0))
+        self.btn["imp"] = theme.Button(top, _("Import"), "import", command=self.import_profiles)
+        self.btn["imp"].pack(side="right", padx=(8, 0))
+        self.btn["redo"] = theme.Button(top, icon="redo", command=self.redo)
+        self.btn["redo"].pack(side="right", padx=(8, 0))
+        self.btn["undo"] = theme.Button(top, icon="undo", command=self.undo)
+        self.btn["undo"].pack(side="right", padx=(8, 0))
         self._update_plugin_count()
 
-    # ------------------------------------------------------------- Kopfzeile
-    def _build_header(self, parent):
-        head = tk.Frame(parent, bg=COL["bg"], height=64, padx=22)
-        head.pack(side="top", fill="x")
-        head.pack_propagate(False)
-        txt = tk.Frame(head, bg=COL["bg"])
-        txt.pack(side="left", fill="y")
-        self.title_lbl = theme.label(txt, "", 15, "bold", anchor="w")
-        self.title_lbl.pack(anchor="w", pady=(10, 0))
-        self.sub_lbl = theme.label(txt, "", 9, color=COL["muted"], anchor="w")
-        self.sub_lbl.pack(anchor="w")
-        # kein „…“-Menü: alles hat seinen Platz in der Seitenleiste oder hier oben
-        self.btn["exp"] = theme.Button(head, _("Export"), "export", command=self.export_profile)
-        self.btn["exp"].pack(side="right", padx=(8, 0))
-        self.btn["imp"] = theme.Button(head, _("Import"), "import", command=self.import_profiles)
-        self.btn["imp"].pack(side="right", padx=(8, 0))
-        self.btn["redo"] = theme.Button(head, icon="redo", command=self.redo)
-        self.btn["redo"].pack(side="right", padx=(8, 0))
-        self.btn["undo"] = theme.Button(head, icon="undo", command=self.undo)
-        self.btn["undo"].pack(side="right", padx=(8, 0))
-        for b in head.winfo_children():
-            if isinstance(b, theme.Button):
-                b.pack_configure(pady=16)
+    def _toggle_drop(self, which):
+        panel, anchor = (self.dev_panel, self.dev_dd) if which == "dev" else (self.prof_panel, self.prof_dd)
+        if panel.winfo_ismapped():
+            panel.hide()
+            return
+        self._hide_drops()
+        if which == "prof":  # Liste so hoch wie nötig, höchstens 420 px
+            n = len(self.profile_items) + 1
+            self.profile_list.canvas.configure(height=min(420, n * 36 + 4))
+        panel.show(anchor)
+
+    def _hide_drops(self):
+        for p in (getattr(self, "dev_panel", None), getattr(self, "prof_panel", None)):
+            if p is not None:
+                p.hide()
 
     def _profile_context(self, pid, x, y):
         """Rechtsklick auf ein Profil in der Seitenleiste."""
@@ -805,41 +885,52 @@ class EditorApp:
     def _update_header(self):
         st = self.status_var.get()
         if not self.doc:
-            self.title_lbl.configure(text="FreeDeck")
-            self.sub_lbl.configure(text=st)
+            self.prof_dd.set(_("No profile"))
+            self._set_sub(st)
             return
-        self.title_lbl.configure(text=self.doc.name)
+        self.prof_dd.set(self.doc.name, profile_glyph(self.doc.name))
         ids = self.doc.page_ids
         parts = [model_name(self.doc.model) if self.doc.model else _("unknown")]
         if self.nav and self.nav[0] in ids:
             parts.append(_("Page {n} of {total}").format(n=ids.index(self.nav[0]) + 1, total=len(ids)))
         parts += [self.doc.folder_title(u) for u in self.nav[1:]]
         sub = "  ›  ".join(parts[1:])
-        text = parts[0] + (" · " + sub if sub else "") + (" · " + st if st else "")
-        self.sub_lbl.configure(text=text)
+        self._set_sub(parts[0] + (" · " + sub if sub else "") + (" · " + st if st else ""))
+
+    def _set_sub(self, text):
+        """Gerät, Seite und letzte Meldung unten links auf der Bühne."""
+        self._sub_text = text
+        try:
+            self.canvas.itemconfigure("subtext", text=text or _("Drag actions onto keys · right-click for more"))
+        except (AttributeError, tk.TclError):
+            pass
 
     # ------------------------------------------------------------------ Mitte
     def _build_center(self, main):
-        self.pagebar = tk.Frame(main, bg=COL["bg"], height=34)
-        self.pagebar.pack(side="top", fill="x")
-        self.canvas = tk.Canvas(main, bg=COL["bg"], highlightthickness=0, height=300)
-        self.canvas.pack(side="top", fill="both", expand=True, pady=(14, 0))
+        insp = tk.Frame(main, bg=COL["panel"], height=250, padx=22, pady=14)
+        insp.pack(side="bottom", fill="x")
+        insp.pack_propagate(False)
+        tk.Frame(main, bg=COL["border"], height=1).pack(side="bottom", fill="x")
+        foot = tk.Frame(main, bg=COL["canvas"], padx=20, pady=10)
+        foot.pack(side="bottom", fill="x")
+        self.pagebar = tk.Frame(foot, bg=COL["canvas"], height=34)
+        self.pagebar.pack(side="left", fill="x", expand=True)
+        self.canvas = tk.Canvas(main, bg=COL["canvas"], highlightthickness=0, height=300)
+        self.canvas.pack(side="top", fill="both", expand=True, padx=12, pady=(12, 0))
         self.canvas.bind("<Configure>", lambda e: self.redraw())
         self.canvas.bind("<ButtonPress-1>", self._canvas_press)
         self.canvas.bind("<B1-Motion>", self._canvas_motion)
         self.canvas.bind("<ButtonRelease-1>", self._canvas_release)
         self.canvas.bind("<Double-Button-1>", self._canvas_double)
         self.canvas.bind("<Button-3>", self._canvas_menu)
-        card = RoundBox(main, height=232, pad=14, padx=18)
-        card.pack(side="top", fill="x", pady=(14, 0))
-        self.insp_head = tk.Frame(card.body, bg=COL["panel"])
+        self.insp_head = tk.Frame(insp, bg=COL["panel"])
         self.insp_head.pack(side="top", fill="x")
-        self.inspector = ScrollFrame(card.body, bg=COL["panel"])
+        self.inspector = ScrollFrame(insp, bg=COL["panel"])
         self.inspector.pack(side="top", fill="both", expand=True, pady=(10, 0))
 
     # ------------------------------------------------------------ Bibliothek
     def _build_library(self, lib):
-        box = tk.Frame(lib, bg=COL["side"], padx=16, pady=16)
+        box = tk.Frame(lib, bg=COL["side"], padx=12, pady=12)
         box.pack(fill="both", expand=True)
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *a: self.fill_catalog())
@@ -863,15 +954,12 @@ class EditorApp:
         self.search_var.trace_add("write", placeholder)
         ph.bind("<Button-1>", lambda e: ent.focus_set())
         self.root.after_idle(placeholder)
-        self.chipbox = tk.Frame(box, bg=COL["side"], height=30)
-        self.chipbox.pack(fill="x", pady=(12, 4))
-        self.chipbox.bind("<Configure>", lambda e: self._flow_chips())
         self.tree_hint = tk.StringVar(value=_("Drag onto a key or double-click"))
-        tk.Label(box, textvariable=self.tree_hint, bg=COL["side"], fg=COL["muted"], wraplength=264, justify="left",
+        tk.Label(box, textvariable=self.tree_hint, bg=COL["side"], fg=COL["muted"], wraplength=274, justify="left",
                  anchor="w", font=theme.font(self.root, 9)).pack(side="bottom", fill="x", pady=(8, 0))
         self.library = ScrollFrame(box, bg=COL["side"])
-        self.library.pack(fill="both", expand=True, pady=(4, 0))
-        self._chips = []
+        self.library.pack(fill="both", expand=True, pady=(10, 0))
+        self._lib_open = None  # aufgeklappte Kategorien (None = Vorgabe: die ersten beiden)
 
     def _bind_keys(self):
         r = self.root
@@ -926,6 +1014,7 @@ class EditorApp:
         self._update_header()
 
     def _on_profile_selected(self, pid):
+        self._hide_drops()
         if pid in self._profile_ids and (not self.doc or self.doc.id != pid):
             self.open_profile(pid)
 
@@ -1359,10 +1448,9 @@ class EditorApp:
         """Bühne: Karte mit Rand, Fußzeile mit Hinweis und Helligkeit."""
         cv = self.canvas
         w, h = cv.winfo_width(), cv.winfo_height()
-        theme.rounded_rect(cv, 0, 0, w - 1, h - 1, 16, fill=COL["panel"], outline=COL["border"])
         f = theme.font(self.root, 9)
-        cv.create_text(18, h - FOOTER_H / 2 - 2, anchor="w", fill=COL["muted"], font=f,
-                       text=_("Drag actions onto keys · right-click for more"))
+        cv.create_text(18, h - FOOTER_H / 2 - 2, anchor="w", fill=COL["muted"], font=f, tags="subtext",
+                       text=getattr(self, "_sub_text", "") or _("Drag actions onto keys · right-click for more"))
         ctrl = self._ctrl()
         bright = getattr(ctrl, "brightness", None) if ctrl is not None else None
         if footer_right is None and isinstance(bright, (int, float)):
@@ -1776,60 +1864,41 @@ class EditorApp:
         return [a for a in catalog if (C.KEY in a.controllers or dials)
                 and a.uuid != "com.elgato.streamdeck.multiactions.delay"]
 
-    @staticmethod
-    def _chip_key(cat):
-        return PLUGINS_CHIP if cat.startswith("Plugin:") else cat
-
     def fill_catalog(self):
-        """Aktionsbibliothek: Filter-Chips und Kacheln nach Kategorien."""
+        """Aktionsliste: Kategorien zum Auf-/Zuklappen, darin je Aktion eine Zeile (wie die Deck-Software)."""
         q = self.search_var.get().strip().lower()
         avail = self._catalog()
         cats = list(dict.fromkeys(a.category for a in avail))
-        keys = list(dict.fromkeys(self._chip_key(c) for c in cats))
-        if self._lib_filter not in keys:
-            self._lib_filter = None
-        for c in self._chips:
-            c.destroy()
-        self._chips = []
-        for key in [None] + keys:
-            text = _("All") if key is None else _("Plugins") if key == PLUGINS_CHIP else chip_label(key)
-            chip = theme.Chip(self.chipbox, text, active=key == self._lib_filter,
-                              command=lambda k=key: self._set_lib_filter(k))
-            self._chips.append(chip)
-        self._flow_chips()
+        if self._lib_open is None:
+            self._lib_open = set(cats[:2])
         self.library.clear()
         f = self.library.inner
         self._tiles_by_uuid = {}
-        first = True
+        shown = False
         for cat in cats:
-            if self._lib_filter is not None and self._chip_key(cat) != self._lib_filter:
-                continue
             items = [a for a in avail if a.category == cat
                      and (not q or q in a.name.lower() or q in a.description.lower() or q in cat.lower())]
             if not items:
                 continue
-            theme.section(f, cat, bg=COL["side"]).pack(fill="x", pady=(0 if first else 14, 8))
-            first = False
-            grid = tk.Frame(f, bg=COL["side"])
-            grid.pack(fill="x")
-            grid.columnconfigure(0, weight=1, uniform="t")
-            grid.columnconfigure(1, weight=1, uniform="t")
-            for i, a in enumerate(items):
-                t = ActionTile(grid, self, a)
-                t.grid(row=i // 2, column=i % 2, sticky="ew", padx=(0, 4) if i % 2 == 0 else (4, 0), pady=(0, 8))
+            shown = True
+            is_open = bool(q) or cat in self._lib_open  # beim Suchen alles Gefundene zeigen
+            CategoryRow(f, self, cat, is_open, len(items)).pack(fill="x", pady=(2, 0))
+            if not is_open:
+                continue
+            for a in items:
+                row = ActionRow(f, self, a)
+                row.pack(fill="x")
                 if a.uuid == self._lib_selected:
-                    t.selected = True
-                self._tiles_by_uuid[a.uuid] = t
-        if first:
+                    row.selected = True
+                self._tiles_by_uuid[a.uuid] = row
+        if not shown:
             tk.Label(f, text=_("No matching actions"), bg=COL["side"], fg=COL["muted"],
-                     font=theme.font(self.root, 9)).pack(anchor="w")
+                     font=theme.font(self.root, 9)).pack(anchor="w", padx=8, pady=6)
 
-    def _flow_chips(self):
-        if self._chips:
-            _flow(self.chipbox, self._chips, max(self.chipbox.winfo_width(), 200))
-
-    def _set_lib_filter(self, key):
-        self._lib_filter = key
+    def toggle_category(self, cat):
+        if self._lib_open is None:
+            self._lib_open = set()
+        self._lib_open ^= {cat}
         self.fill_catalog()
 
     def _lib_select(self, uuid):
