@@ -31,24 +31,24 @@ from . import paths
 # bg: Hauptfläche, side: Seitenleiste, panel: Karten, panel2: Eingabefelder/Chips,
 # raised: Spuren/gedrückt, border: feine Ränder, accent_soft: gewählte Einträge
 # line: Umriss des Geräts in der Vorschau, card/card_edge: Felder des Touchstreifens
-PALETTES = {
+PALETTES = {  # neutrales Grau wie in Wave Link / der Deck-Software von Elgato
     "dark": {
-        "bg": "#0e1015", "side": "#12151b", "panel": "#171a21", "panel2": "#1e222b", "raised": "#272c37",
-        "border": "#262b35", "fg": "#e9ecf2", "muted": "#8b93a3", "faint": "#5b6372",
-        "accent": "#5b7cff", "accent_hi": "#7590ff", "accent_soft": "#1f2745", "on_accent": "#ffffff",
-        "monitor": "#22c3ee", "stream": "#c084fc", "danger": "#f43f5e", "danger_soft": "#3a1a24",
-        "ok": "#22c55e", "warn": "#f5b13d",
-        "device": "#07080b", "slot": "#1a1d24", "drop": "#22c55e", "shadow": "#05060a",
-        "line": "#3e4452", "card": "#1e222b", "card_edge": "#2c323e",
+        "bg": "#262626", "side": "#1c1c1c", "panel": "#323232", "panel2": "#2c2c2c", "raised": "#454545",
+        "border": "#3a3a3a", "fg": "#f2f2f2", "muted": "#a8a8a8", "faint": "#707070",
+        "accent": "#3d9bff", "accent_hi": "#62afff", "accent_soft": "#22364d", "on_accent": "#ffffff", "nav_on": "#2e2e2e",
+        "monitor": "#36c5e8", "stream": "#c084fc", "danger": "#f0484f", "danger_soft": "#3d2224",
+        "ok": "#2bd665", "warn": "#f5b13d",
+        "device": "#111111", "slot": "#2a2a2a", "drop": "#2bd665", "shadow": "#0a0a0a",
+        "line": "#4a4a4a", "card": "#2c2c2c", "card_edge": "#3c3c3c", "canvas": "#171717",
     },
     "light": {
-        "bg": "#f3f5f9", "side": "#eceff5", "panel": "#ffffff", "panel2": "#f2f4f8", "raised": "#e6e9f0",
-        "border": "#e0e4eb", "fg": "#151821", "muted": "#5d6676", "faint": "#9aa2b1",
-        "accent": "#3a5ff0", "accent_hi": "#5175f3", "accent_soft": "#e4e9fd", "on_accent": "#ffffff",
-        "monitor": "#0a9cc4", "stream": "#9341e6", "danger": "#e11d48", "danger_soft": "#fde4ea",
+        "bg": "#f3f3f3", "side": "#ebebeb", "panel": "#fbfbfb", "panel2": "#f5f5f5", "raised": "#d9d9d9",
+        "border": "#e3e3e3", "fg": "#1a1a1a", "muted": "#5f5f5f", "faint": "#9a9a9a",
+        "accent": "#0a6ed1", "accent_hi": "#2b84dc", "accent_soft": "#dbe9f8", "on_accent": "#ffffff", "nav_on": "#e0e0e0",
+        "monitor": "#0a9cc4", "stream": "#9341e6", "danger": "#d42a33", "danger_soft": "#fbe3e4",
         "ok": "#16a34a", "warn": "#d48a06",
-        "device": "#16181e", "slot": "#262a33", "drop": "#16a34a", "shadow": "#c9cfda",
-        "line": "#c9ced8", "card": "#ffffff", "card_edge": "#dadfe8",
+        "device": "#1c1c1c", "slot": "#2a2a2a", "drop": "#16a34a", "shadow": "#c4c4c4",
+        "line": "#c4c4c4", "card": "#ffffff", "card_edge": "#dcdcdc", "canvas": "#e6e6e6",
     },
 }
 MODES = ("auto", "light", "dark")
@@ -557,6 +557,8 @@ def _draw_glyph(name, size, color, bg, circle):
         line((0.44, 0.28), (0.66, 0.5), (0.44, 0.72))
     elif n == "chevron":
         line((0.2, 0.36), (0.5, 0.66), (0.8, 0.36))
+    elif n == "chevron_right":
+        line((0.36, 0.2), (0.66, 0.5), (0.36, 0.8))
     elif n == "folder":
         d.polygon([P(0.04, 0.16), P(0.38, 0.16), P(0.48, 0.28), P(0.96, 0.28), P(0.96, 0.86), P(0.04, 0.86)],
                   fill=c)
@@ -748,7 +750,7 @@ def label(master, text="", size=10, weight="normal", color=None, textvariable=No
 
 
 class Fader(tk.Canvas):
-    """Schieberegler wie in Wave Link: Spur, farbige Füllung, runder Knopf.
+    """Schieberegler wie in Wave Link: dünne graue Spur, weißer runder Knopf, grüner Pegel in der Spur.
 
     command(value) wird bei jeder Bewegung aufgerufen; set() ruft ihn nicht auf.
     """
@@ -765,6 +767,7 @@ class Fader(tk.Canvas):
         self.command = command
         self.enabled = True
         self.dimmed = False
+        self.level = 0.0
         self.bind("<Configure>", lambda e: self._draw())
         self.bind("<ButtonPress-1>", self._press)
         self.bind("<B1-Motion>", self._press)
@@ -794,42 +797,56 @@ class Fader(tk.Canvas):
     def _frac(self):
         return (self.value - self.lo) / ((self.hi - self.lo) or 1)
 
+    def set_level(self, level):
+        """Pegel des Signals (0–1) als grüner Streifen in der Spur (wie Wave Link)."""
+        level = max(0.0, min(1.0, float(level or 0)))
+        if abs(level - self.level) > 0.004:
+            self.level = level
+            self._draw()
+
+    def _knob_size(self, w, h):
+        return min((w if self.orient == "vertical" else h) - 4, 18)
+
     def _draw(self):
         self.delete("all")
         w, h = self._geom()
         f = self._frac()
-        col = mix(self.color, COL["panel2"], 0.65) if self.dimmed else self.color
+        th = 6
+        knob = self._knob_size(w, h)
+        fill = mix(COL["fg"], COL["raised"], 0.78)  # eingestellter Teil: etwas heller als die Spur
         if self.orient == "vertical":
-            tw = max(6, w // 4)
-            x0, x1 = (w - tw) / 2, (w + tw) / 2
-            knob = min(w - 4, 26)
+            x0, x1 = (w - th) / 2, (w + th) / 2
             top, bot = knob / 2 + 2, h - knob / 2 - 2
             y = bot - f * (bot - top)
-            rounded_rect(self, x0, top - tw / 2, x1, bot + tw / 2, tw / 2, fill=COL["raised"], outline="")
-            if f > 0:
-                rounded_rect(self, x0, y, x1, bot + tw / 2, tw / 2, fill=col, outline="")
+            rounded_rect(self, x0, top - th / 2, x1, bot + th / 2, th / 2, fill=COL["raised"], outline="")
+            if f > 0 and not self.dimmed:
+                rounded_rect(self, x0, y, x1, bot + th / 2, th / 2, fill=fill, outline="")
+            if self.level > 0:
+                rounded_rect(self, x0, bot - self.level * (bot - top), x1, bot + th / 2, th / 2, fill=COL["ok"],
+                             outline="")
             cx, cy = w / 2, y
         else:
-            th = max(6, h // 4)
             y0, y1 = (h - th) / 2, (h + th) / 2
-            knob = min(h - 4, 22)
             left, right = knob / 2 + 2, w - knob / 2 - 2
             x = left + f * (right - left)
             rounded_rect(self, left - th / 2, y0, right + th / 2, y1, th / 2, fill=COL["raised"], outline="")
-            if f > 0:
-                rounded_rect(self, left - th / 2, y0, x, y1, th / 2, fill=col, outline="")
+            if f > 0 and not self.dimmed:
+                rounded_rect(self, left - th / 2, y0, x, y1, th / 2, fill=fill, outline="")
+            if self.level > 0:
+                rounded_rect(self, left - th / 2, y0, left + self.level * (right - left), y1, th / 2,
+                             fill=COL["ok"], outline="")
             cx, cy = x, h / 2
-        self._knob = _knob_image(self, int(knob), col, self.enabled)
+        self._knob = _knob_image(self, int(knob), COL["faint"] if self.dimmed else "#f2f2f2", self.enabled)
         self.create_image(cx, cy + 1, image=self._knob)
 
     def _to_value(self, e):
         w, h = self._geom()
         if self.orient == "vertical":
-            knob = min(w - 4, 26)
+            knob = self._knob_size(w, h)
             top, bot = knob / 2 + 2, h - knob / 2 - 2
             f = (bot - e.y) / ((bot - top) or 1)
         else:
-            knob = min(h - 4, 22)
+            knob = self._knob_size(w, h)
             left, right = knob / 2 + 2, w - knob / 2 - 2
             f = (e.x - left) / ((right - left) or 1)
         return self.lo + max(0.0, min(1.0, f)) * (self.hi - self.lo)
@@ -858,7 +875,7 @@ _KNOBS = {}
 
 
 def _knob_image(master, d, color, enabled=True):
-    """Kantengeglätteter Reglerknopf (weiß mit farbigem Punkt und Schatten)."""
+    """Kantengeglätteter Reglerknopf: Kreis in color mit weichem Schatten."""
     cache = _KNOBS.setdefault(master.tk, {})  # Bilder gehören zu genau einem Tk-Interpreter
     key = (d, color, enabled)
     if key not in cache:
@@ -868,11 +885,7 @@ def _knob_image(master, d, color, enabled=True):
         dr = ImageDraw.Draw(im)
         o = 2 * k
         dr.ellipse((o, o + 2 * k, o + d * k, o + d * k + 2 * k - 1), fill=(0, 0, 0, 110))
-        # weißer Knopf mit farbigem Ring (FreeStream-Design)
         dr.ellipse((o, o, o + d * k, o + d * k), fill=rgb(color if enabled else COL["faint"]) + (255,))
-        r = d * k * 0.3
-        c = o + d * k / 2
-        dr.ellipse((c - r, c - r, c + r, c + r), fill=rgb("#ffffff") + (255,))
         cache[key] = ImageTk.PhotoImage(im.resize((d + 4, d + 4), Image.LANCZOS), master=master)
     return cache[key]
 
@@ -1203,14 +1216,15 @@ class Sidebar(tk.Frame):
     def brand(self, name, kind):
         row = tk.Frame(self.top, bg=COL["side"])
         row.pack(fill="x", padx=4, pady=(0, 14))
-        self._mark = gradient_mark(self, 32, kind)
+        self._mark = gradient_mark(self, 24, kind)
         tk.Label(row, image=self._mark, bg=COL["side"]).pack(side="left")
-        tk.Label(row, text=name, bg=COL["side"], fg=COL["fg"], font=font(self, 13, "bold")).pack(side="left", padx=10)
+        tk.Label(row, text=name, bg=COL["side"], fg=COL["fg"], font=font(self, 11, "bold")).pack(side="left", padx=8)
         return row
 
     def section(self, text, parent=None):
-        lb = section(parent or self.top, text, bg=COL["side"])
-        lb.pack(fill="x", padx=6, pady=(12, 6))
+        lb = tk.Label(parent or self.top, text=text, bg=COL["side"], fg=COL["muted"], font=font(self, 9, "bold"),
+                      anchor="w")
+        lb.pack(fill="x", padx=8, pady=(14, 4))
         return lb
 
 
@@ -1252,18 +1266,18 @@ class NavItem(tk.Canvas):
         w = max(self.winfo_width(), 40)
         h = self.h
         if self.active or self.hover:
-            rounded_rect(self, 0, 1, w - 1, h - 1, 9, outline="",
-                         fill=COL["accent_soft"] if self.active else COL["raised"])
-        fg = COL["accent"] if self.accent else (COL["fg"] if self.active else COL["muted"])
+            rounded_rect(self, 0, 1, w - 1, h - 1, 6, outline="", fill=COL["nav_on"])
+        if self.active:  # Akzentstrich links (wie Wave Link)
+            rounded_rect(self, 1, h / 2 - 8, 4, h / 2 + 8, 1.5, outline="", fill=COL["accent"])
+        fg = COL["accent"] if self.accent else (COL["fg"] if self.active or self.hover else COL["muted"])
         if self.dim and not self.active:
             fg = COL["faint"]
-        x = 10
+        x = 12
         if self.icon:
-            ic = COL["accent"] if (self.active or self.accent) else (COL["faint"] if self.dim else COL["muted"])
+            ic = COL["accent"] if self.accent else (COL["faint"] if self.dim and not self.active else fg)
             self.create_image(x + 8, h / 2, image=self.icons.get(self.icon, 16, ic))
-            x += 26
-        self.create_text(x, h / 2, text=self.text, anchor="w", fill=fg,
-                         font=self.fb if self.active else self.f)
+            x += 28
+        self.create_text(x, h / 2, text=self.text, anchor="w", fill=fg, font=self.f)
         if self.count != "":
             self.create_text(w - 10, h / 2, text=str(self.count), anchor="e", fill=COL["faint"], font=self.fs)
 
@@ -1279,7 +1293,7 @@ def elide(widget, text, fnt, width):
 
 
 class InfoCard(tk.Canvas):
-    """Karte mit Bild links, Titel und Untertitel (Geräte, Mikrofon, Ausgänge)."""
+    """Listeneintrag mit Bild links, Titel und Untertitel (Geräte, Mikrofon, Mixe) – flach, gewählt hinterlegt."""
 
     def __init__(self, master, title, subtitle="", image=None, dot=None, dim=False, command=None, height=56):
         bg = _bg_of(master)
@@ -1287,14 +1301,23 @@ class InfoCard(tk.Canvas):
                          cursor="hand2" if command else "")
         self.title, self.subtitle, self.image, self.dot, self.dim = title, subtitle, image, dot, dim
         self.selected = False
+        self.hover = False
         self.h = height
         self.command = command
+        if command:
+            self.bind("<Enter>", lambda e: self._set_hover(True))
+            self.bind("<Leave>", lambda e: self._set_hover(False))
         self.f = font(self, 10, "bold")
         self.fs = font(self, 9, "normal")
         self.bind("<Configure>", lambda e: self._draw())
         if command:
             self.bind("<Button-1>", lambda e: command())
         self._draw()
+
+    def _set_hover(self, v):
+        if v != self.hover:
+            self.hover = v
+            self._draw()
 
     def set(self, title=None, subtitle=None, dot=None, dim=None, image=None, selected=None):
         for k, v in (("title", title), ("subtitle", subtitle), ("dot", dot), ("dim", dim), ("image", image),
@@ -1306,11 +1329,10 @@ class InfoCard(tk.Canvas):
     def _draw(self):
         self.delete("all")
         w, h = max(self.winfo_width(), 60), self.h
-        if not self.dim:
-            rounded_rect(self, 0, 0, w - 1, h - 1, 12, fill=COL["panel"],
-                         outline=COL["accent"] if self.selected else COL["border"])
-        else:
-            rounded_rect(self, 0, 0, w - 1, h - 1, 12, fill="", outline=COL["border"])
+        if self.selected or self.hover:  # flach wie die Liste in Wave Link: nur gewählt/überfahren hinterlegt
+            rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["nav_on"], outline="")
+        if self.selected:
+            rounded_rect(self, 1, h / 2 - 9, 4, h / 2 + 9, 1.5, outline="", fill=COL["accent"])
         x = 12
         if self.image is not None:
             self.create_image(x, h / 2, image=self.image, anchor="w")

@@ -41,6 +41,7 @@ MUTE_ICONS = {"monitor": ("headphones", "headphones_off"), "stream": ("stream", 
 NOT_IN_MIXER = _("– not in mixer –")
 CHANNEL_LOOK = theme.CHANNEL_LOOK
 CH_W, MIX_W, ROW_H, HEAD_H = 360, 194, 64, 72
+MIX_W_MIN, MIX_W_MAX = 176, 300  # Mix-Spalten füllen die Fensterbreite in diesen Grenzen
 CLIP_DB, CLIP_HOLD = -1.0, 1.5  # Mix-Pegel ab −1 dB: „CLIP“ für 1,5 s  # Mixer-Tabelle: Kanalspalte, Mix-Spalten, Zeilenhöhe
 MIC_SHORTCUT = "linewave-mic-mute"
 SCENE_SHORTCUT = "linewave-scene-"
@@ -100,7 +101,7 @@ class _NavIcons(theme.Icons):
 
 
 class MuteToggle(RoundToggle):
-    """Stumm-Knopf der Kanal-Karten: abgerundetes Feld; stumm = rot hinterlegt."""
+    """Stumm-Knopf der Kanal-Karten: schlichtes Symbol (beim Überfahren hinterlegt); stumm = rot."""
 
     W, H = 34, 30
 
@@ -114,12 +115,11 @@ class MuteToggle(RoundToggle):
     def _draw(self):
         self.delete("all")
         w, h = self.W, self.H
-        if self.state_on:
-            fill, out, fg = COL["danger_soft"], "", COL["danger"]
-        else:
-            fill, out, fg = (COL["raised"] if self.hover else COL["panel2"]), COL["border"], COL["muted"]
-        rounded_rect(self, 0, 0, w - 1, h - 1, 9, fill=fill, outline=out)
-        self.create_image(w / 2, h / 2, image=self.icons.get(self.icon_off, 15, fg))
+        if self.hover:
+            rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["raised"], outline="")
+        fg = COL["danger"] if self.state_on else COL["fg"]
+        icon = self.icon_on if self.state_on and self.icon_on != self.icon_off else self.icon_off
+        self.create_image(w / 2, h / 2, image=self.icons.get(icon, 18, fg))
 
 
 class HearToggle(MuteToggle):
@@ -128,12 +128,11 @@ class HearToggle(MuteToggle):
     def _draw(self):
         self.delete("all")
         w, h = self.W, self.H
-        if self.state_on:
-            fill, out, fg = COL["accent"], "", "#ffffff"
-        else:
-            fill, out, fg = (COL["raised"] if self.hover else COL["panel2"]), COL["border"], COL["muted"]
-        rounded_rect(self, 0, 0, w - 1, h - 1, 9, fill=fill, outline=out)
-        self.create_image(w / 2, h / 2, image=self.icons.get(self.icon_off, 15, fg))
+        if self.state_on or self.hover:
+            rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["accent"] if self.state_on else COL["raised"],
+                         outline="")
+        fg = "#ffffff" if self.state_on else COL["fg"]
+        self.create_image(w / 2, h / 2, image=self.icons.get(self.icon_off, 17, fg))
 
 
 class DuckMeter(tk.Canvas):
@@ -253,17 +252,15 @@ class FxButton(FxPill):
     def _draw(self):
         self.delete("all")
         w, h = self.w, self.h
-        if self.active:
-            fill, out, fg = COL["accent_soft"], "", COL["accent_hi"]
-        else:
-            fill, out, fg = (COL["raised"] if self.hover else COL["panel2"]), COL["border"], COL["muted"]
-        rounded_rect(self, 0, 0, w - 1, h - 1, 7, fill=fill, outline=out)
-        self._img = ImageTk.PhotoImage(_sliders_image(15, fg), master=self)
+        if self.hover:
+            rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["raised"], outline="")
+        fg = COL["ok"] if self.active else COL["fg"]  # Effekte an: grün wie in Wave Link
+        self._img = ImageTk.PhotoImage(_sliders_image(16, fg), master=self)
         self.create_image(w / 2, h / 2, image=self._img)
 
 
 class AddRowCard(AddCard):
-    """Gestrichelte Zeile „+ Kanal anlegen“ unter der Mixer-Tabelle."""
+    """Flache Zeile „+ Kanal anlegen“ unter der Mixer-Tabelle (wie Wave Link)."""
 
     def __init__(self, master, text, command, width, height=48):
         self.text = text
@@ -272,13 +269,12 @@ class AddRowCard(AddCard):
     def _draw(self):
         self.delete("all")
         w, h = int(self["width"]), int(self["height"])
-        rounded_rect(self, 1, 1, w - 2, h - 2, 12, fill=COL["panel"] if self.hover else "",
-                     outline=COL["faint"] if self.hover else COL["border"], dash=(5, 4), width=2)
-        f = theme.font(self, 10, "bold")
+        rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["panel"] if self.hover else COL["panel2"], outline="")
+        f = theme.font(self, 10)
         tw = tkfont.Font(self, font=f).measure(self.text)
         x = (w - tw - 24) / 2
-        self.create_image(x + 8, h / 2, image=self.icons.get("plus", 16, COL["accent_hi"]))
-        self.create_text(x + 24, h / 2, text=self.text, anchor="w", font=f, fill=COL["accent_hi"])
+        self.create_image(x + 8, h / 2, image=self.icons.get("plus", 16, COL["fg"]))
+        self.create_text(x + 24, h / 2, text=self.text, anchor="w", font=f, fill=COL["fg"])
 
 
 def _plus_circle(master, size, color):
@@ -325,6 +321,20 @@ class Tooltip:
             self.win = None
 
 
+class _FaderLevel:
+    """Pegel eines Kanals in der Spur seines Reglers anzeigen (gleiche set()-Schnittstelle wie LevelMeter)."""
+
+    def __init__(self, fader):
+        self.fader = fader
+
+    @property
+    def level(self):
+        return self.fader.level
+
+    def set(self, level):
+        self.fader.set_level(level)
+
+
 class EmptyCell(tk.Canvas):
     """Zelle der Mixer-Tabelle, wenn der Kanal nicht im Mix ist: beim Überfahren heller mit ⊕ und Hinweis."""
 
@@ -353,8 +363,7 @@ class EmptyCell(tk.Canvas):
     def _draw(self):
         self.delete("all")
         w, h = self.w, self.h
-        rounded_rect(self, 0, 0, w - 1, h - 1, 12, fill=COL["panel2"] if self.hover else COL["bg"],
-                     outline=COL["border"])
+        rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["raised"] if self.hover else COL["panel2"], outline="")
         if self.hover:
             self.create_image(w / 2, h / 2, image=self.plus)
 
@@ -707,7 +716,6 @@ class WaveWindow:
     def _build(self):
         r = self.root
         self._build_sidebar()
-        tk.Frame(r, bg=COL["border"], width=1).pack(side="left", fill="y")
         main = tk.Frame(r, bg=COL["bg"])
         main.pack(side="left", fill="both", expand=True)
         self.main = main
@@ -717,6 +725,7 @@ class WaveWindow:
                  font=theme.font(r, 9)).pack(fill="x", side="bottom", padx=22, pady=(0, 6))
         self.content = tk.Frame(main, bg=COL["bg"])
         self.content.pack(fill="both", expand=True)
+        self.content.bind("<Configure>", self._content_resized, add="+")
         self.view_mixer = tk.Frame(self.content, bg=COL["bg"])
         self.view_mic = tk.Frame(self.content, bg=COL["bg"])
         self.view_fx = tk.Frame(self.content, bg=COL["bg"])
@@ -734,12 +743,13 @@ class WaveWindow:
         self.sidebar = sb
         sb.brand("FreeWave", "wave")
         self.mic_head = tk.StringVar(self.root, value=_("Looking for microphone …"))
+        sb.section(_("Wave devices"))
         self.mic_card = InfoCard(sb.top, _("Microphone"), _("Looking for microphone …"),
-                                 image=icon_tile(self.root, "mic", 34, COL["device"], radius=0.24, fg="#c9cfda"),
-                                 height=58,
+                                 image=icon_tile(self.root, "mic", 30, COL["fg"], radius=0.2, fg=COL["side"]),
+                                 height=50,
                                  command=lambda: self.show_view("mic"))
         self.mic_card.pack(fill="x", pady=(0, 6))
-        sb.section(_("Mix"))
+        tk.Frame(sb.top, bg=COL["border"], height=1).pack(fill="x", padx=6, pady=(8, 4))
         self.nav = {}
         for key, text, icon in (("mixer", _("Mixer"), "sliders"), ("mic", _("Microphone"), "mic"),
                                 ("effects", _("Effects"), "spark"), ("apps", _("Apps"), "grid")):
@@ -756,7 +766,7 @@ class WaveWindow:
                                "color": COL["monitor"]},
                               {"id": "stream", "name": _("Stream Mix"), "icon": "stream", "color": COL["stream"]}])
 
-        b = tk.Frame(sb.bottom, bg=COL["side"], padx=9)  # wie in FreeDeck
+        b = tk.Frame(sb.bottom, bg=COL["side"])  # wie in FreeDeck
         b.pack(fill="x")
         self.settings_item = theme.NavItem(b, _("Settings"), "gear", command=self.open_settings)
         self.settings_item.pack(fill="x", pady=(2, 4))
@@ -768,9 +778,10 @@ class WaveWindow:
         self.mix_cards = {}
         for m in mixes:
             card = InfoCard(self.mix_list, m["name"], self._mix_sub(m) if m.get("devices_eff") is not None else "–",
-                            image=icon_tile(self.root, m.get("icon") or "wave", 34, m.get("color") or COL["accent"]),
+                            image=icon_tile(self.root, m.get("icon") or "wave", 30, m.get("color") or COL["accent"],
+                                            radius=0.2), height=50,
                             command=lambda mm=m: self._edit_mix(mm) if self.state.get("mixer_active") else None)
-            card.pack(fill="x", pady=(0, 8))
+            card.pack(fill="x", pady=(0, 2))
             card.bind("<Button-3>", lambda e, mid=m["id"]: self._mix_menu(mid, e.x_root, e.y_root))
             self.mix_cards[m["id"]] = card
         self.addmix_item = NavItem(self.mix_list, _("Create mix"), "plus", accent=True, command=self._new_mix)
@@ -811,21 +822,21 @@ class WaveWindow:
 
     # -------------------------------------------------------------- Kopf
     def _build_header(self, parent):
-        head = tk.Frame(parent, bg=COL["bg"], padx=22, pady=9)
+        head = tk.Frame(parent, bg=COL["bg"], padx=24, pady=16)
         head.pack(fill="x")
         left = tk.Frame(head, bg=COL["bg"])
         left.pack(side="left")
         self.title_var = tk.StringVar(self.root, value=_("Mixer"))
         self.sub_var = tk.StringVar(self.root, value="")
-        label(left, textvariable=self.title_var, size=16, weight="bold").pack(anchor="w")
+        label(left, textvariable=self.title_var, size=24, weight="bold").pack(anchor="w")
         label(left, textvariable=self.sub_var, size=9, color=COL["muted"]).pack(anchor="w")
+        self.listen_btn = Button(head, "–", "headphones", command=self._output_menu, height=36)
         self.add_btn = Button(head, _("Add channel"), "plus", kind="primary", command=self._new_channel)
         self.scene_btn = Button(head, _("Scenes"), "layers", command=self._scene_menu)
         self.deck_btn = Button(head, _("Export to FreeDeck"), "export", command=self.open_deck_export)
         self.setup_btn = Button(head, _("Set up mixer"), "wave", kind="primary",
                                 command=lambda: self._mixer_enable(True))
         self.head, self.head_left = head, left
-        tk.Frame(parent, bg=COL["border"], height=1).pack(fill="x")
 
     def _update_header(self):
         st = self.state
@@ -837,7 +848,7 @@ class WaveWindow:
                 n = len(st.get("channels") or [])
                 k = len(st.get("mixes") or [])
                 self.sub_var.set(_("{count} channels · {mixes} mixes · everything is live").format(count=n, mixes=k))
-                shown = ("deck", "scene")
+                shown = ("listen", "deck", "scene")
             else:
                 self.sub_var.set(_("The mixer is off – set it up to give every app its own channel."))
                 shown = ("setup",)
@@ -862,9 +873,10 @@ class WaveWindow:
 
     def _pack_header(self):
         widgets = {"add": (self.add_btn, {}), "deck": (self.deck_btn, {"padx": (0, 8)}),
+                   "listen": (self.listen_btn, {}),
                    "scene": (self.scene_btn, {"padx": (0, 8)}),
                    "setup": (self.setup_btn, {})}
-        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.setup_btn):
+        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.setup_btn, self.listen_btn):
             w.pack_forget()
         for key in self._header_shown:
             w, kw = widgets[key]
@@ -934,7 +946,56 @@ class WaveWindow:
             bits.append("OBS" if m["id"] == "stream" else _("virtual"))
         return " · ".join(bits) or _("no output")
 
+    def _fit_mix_w(self, n):
+        """Breite der Mix-Spalten: so, dass alle Mixe ins Fenster passen (wie Wave Link), in Grenzen."""
+        cw = self.content.winfo_width()
+        if cw < 100:
+            cw = max(self.root.winfo_width(), 1280) - 236
+        avail = cw - 22 - 10 - CH_W - 12 - 30 - LINK_GAP
+        w = int(avail / max(1, n)) - 10
+        return max(MIX_W_MIN, min(MIX_W_MAX, w))
+
+    def _content_resized(self, _e=None):
+        """Fenster breiter/schmaler: Mix-Spalten neu verteilen (verzögert, nur bei echter Änderung)."""
+        job = getattr(self, "_resize_job", None)
+        if job:
+            self.root.after_cancel(job)
+
+        def check():
+            self._resize_job = None
+            n = len(self.mix_heads)
+            w = self._fit_mix_w(n) if n else None
+            if w and w != getattr(self, "mix_w", MIX_W):
+                self._resize_columns(w)
+                self.root.after_idle(self.table_scroll._fit)
+        self._resize_job = self.root.after(300, check)
+
+    def _resize_columns(self, w):
+        """Alle Mix-Spalten auf die Breite w bringen, ohne Zellen neu anzulegen."""
+        self.mix_w = w
+        f = tkfont.Font(self.root, font=theme.font(self.root, 10, "bold"))
+        for mid, head in self.mix_heads.items():
+            card = head["card"]
+            card._fixed_w = w
+            card.configure(width=w)
+            head["name"].configure(text=_fit_text(f, head["mix"]["name"], w - 90))
+            meter = self.mix_meters.get(mid, {}).get("meter")
+            if meter is not None:
+                meter.configure(width=w - 76)
+        for (cid, mid), (widget, _r, _c, _m) in self.cells.items():
+            if isinstance(widget, EmptyCell):
+                widget.w = w
+                widget.configure(width=w)
+                widget._draw()
+                continue
+            widget._fixed_w = w
+            widget.configure(width=w)
+            part = self.strips.get(cid, {}).get(mid)
+            if part:
+                part["fader"].configure(width=w - 100)
+
     def _build_table(self, channels, mixes):
+        self.mix_w = self._fit_mix_w(len(mixes))
         for w in self.table.winfo_children():
             w.destroy()
         self.strips, self.mix_meters, self.mix_heads, self.cells = {}, {}, {}, {}
@@ -942,10 +1003,6 @@ class WaveWindow:
         # oben links: Abhören (welches Gerät, welcher Mix)
         lb = tk.Frame(tb, bg=COL["bg"], width=CH_W, height=HEAD_H)
         lb.grid(row=0, column=0, sticky="nw", padx=(0, 12), pady=(0, 10))
-        lb.pack_propagate(False)
-        theme.section(lb, _("Listen")).pack(anchor="w", pady=(8, 4))
-        self.listen_btn = Button(lb, "–", "headphones", command=self._output_menu)
-        self.listen_btn.pack(anchor="w")
         for col, m in enumerate(mixes, start=1):
             self.mix_heads[m["id"]] = self._mix_head(tb, m, col)
         for row, ch in enumerate(sorted(channels, key=lambda c: c["id"] != "mic"), start=1):
@@ -967,6 +1024,9 @@ class WaveWindow:
         der Rest der Tabelle bleibt stehen. False, wenn ein kompletter Neuaufbau nötig ist."""
         if not hasattr(self, "add_row") or not self.add_row.winfo_exists():
             return False
+        new_w = self._fit_mix_w(len(mixes))
+        if new_w != getattr(self, "mix_w", MIX_W):
+            self._resize_columns(new_w)  # Spalten an Ort und Stelle breiter/schmaler, Regler bleiben
         def no_excl(x):
             return x[:4] + x[5:]
         old_ch, new_ch = {c[0]: c for c in old[0]}, {c[0]: c for c in new[0]}
@@ -1021,15 +1081,17 @@ class WaveWindow:
 
     def _mix_head(self, tb, m, col):
         color = m.get("color") or COL["accent"]
-        card = Card(tb, pad=10, radius=12, width=MIX_W, height=HEAD_H)
+        mw = self.mix_w
+        card = Card(tb, pad=10, radius=6, outline="", width=mw, height=HEAD_H)
         card.grid(row=0, column=col, sticky="nw", padx=(0, 10), pady=(0, 10))
         body = card.body
         body.grid_columnconfigure(1, weight=1)
-        tile = tk.Label(body, image=icon_tile(self.root, m.get("icon") or "wave", 34, color, radius=0.3),
+        tile = tk.Label(body, image=icon_tile(self.root, m.get("icon") or "wave", 36, COL["fg"], radius=0.18,
+                                              fg=COL["panel"]),
                         bg=COL["panel"], cursor="hand2")
         tile.grid(row=0, column=0, rowspan=2, sticky="w", padx=(0, 8))
         f = tkfont.Font(self.root, font=theme.font(self.root, 10, "bold"))
-        name = label(body, _fit_text(f, m["name"], MIX_W - 90), 10, "bold", cursor="hand2", anchor="w")
+        name = label(body, _fit_text(f, m["name"], mw - 90), 10, "bold", cursor="hand2", anchor="w")
         name.grid(row=0, column=1, sticky="w")
         sub = tk.StringVar(self.root, value=self._mix_sub(m))
         label(body, textvariable=sub, size=8, color=COL["muted"], anchor="w").grid(row=1, column=1, sticky="w")
@@ -1040,7 +1102,7 @@ class WaveWindow:
             ear.grid_remove()
         mrow = tk.Frame(body, bg=COL["panel"])  # Pegel des Mixes mit dB-Zahl (rot „CLIP“ bei Übersteuerung)
         mrow.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(6, 0))
-        meter = LevelMeter(mrow, length=MIX_W - 76, thickness=4, orient="horizontal", color=COL["ok"])
+        meter = LevelMeter(mrow, length=mw - 76, thickness=4, orient="horizontal", color=COL["ok"])
         meter.pack(side="left")
         db = tk.StringVar(self.root, value="")
         db_lb = label(mrow, textvariable=db, size=8, color=COL["muted"], anchor="e", width=7)
@@ -1050,16 +1112,16 @@ class WaveWindow:
         for w in (card, body, tile, name):
             w.bind("<Button-3>", lambda e, mid=m["id"]: self._mix_menu(mid, e.x_root, e.y_root))
         self.mix_meters[m["id"]] = {"meter": meter, "db": db, "label": db_lb}
-        return {"card": card, "sub": sub, "ear": ear, "mix": m}
+        return {"card": card, "sub": sub, "ear": ear, "mix": m, "name": name}
 
     def _channel_row(self, tb, ch, mixes, row):
         cid = ch["id"]
         glyph, color = channel_look(ch)
-        card = Card(tb, pad=10, radius=12, width=CH_W, height=ROW_H)
+        card = Card(tb, pad=10, radius=6, outline="", width=CH_W, height=ROW_H)
         card.grid(row=row, column=0, sticky="nw", padx=(0, 12), pady=(0, 8))
         body = card.body
         body.grid_columnconfigure(1, weight=1)
-        tile = tk.Label(body, image=icon_tile(self.root, glyph, 38, color, radius=0.3), bg=COL["panel"],
+        tile = tk.Label(body, image=icon_tile(self.root, glyph, 40, color, radius=0.18), bg=COL["panel"],
                         cursor="hand2")
         tile.grid(row=0, column=0, rowspan=2, sticky="w", padx=(0, 10))
         f = tkfont.Font(self.root, font=theme.font(self.root, 10, "bold"))
@@ -1077,11 +1139,10 @@ class WaveWindow:
         fcol = tk.Frame(body, bg=COL["panel"])
         fcol.grid(row=0, column=3, rowspan=2)
         flen = 50 if cid == "mic" else 74  # Mikrofon: Platz für den Mithören-Knopf
-        fader = Fader(fcol, length=flen, thickness=20, orient="horizontal", color=color,
+        fader = Fader(fcol, length=flen, thickness=22, orient="horizontal", color=color,
                       command=lambda v: self._on_master(cid, v))
         fader.pack()
-        meter = LevelMeter(fcol, length=flen - 12, thickness=3, orient="horizontal", color=COL["ok"])
-        meter.pack(pady=(2, 0))
+        meter = _FaderLevel(fader)  # Pegel läuft grün in der Spur des Reglers (wie Wave Link)
         val = tk.StringVar(self.root, value="–")
         label(body, textvariable=val, size=9, color=COL["muted"], width=5, anchor="e").grid(row=0, column=4,
                                                                                              rowspan=2)
@@ -1112,13 +1173,13 @@ class WaveWindow:
             self._hover_badge(widget, badge)
         else:
             self.strips[cid].pop(mid, None)
-            widget = EmptyCell(tb, MIX_W, ROW_H, command=lambda: self._toggle_member(cid, mid, True))
+            widget = EmptyCell(tb, self.mix_w, ROW_H, command=lambda: self._toggle_member(cid, mid, True))
             widget.grid(row=row, column=col, sticky="nw", padx=(0, 10), pady=(0, 8))
         self.cells[(cid, mid)] = (widget, row, col, m)
 
     def _mix_cell(self, tb, cid, m, row, col):
         mid = m["id"]
-        card = Card(tb, pad=10, radius=12, width=MIX_W, height=ROW_H)
+        card = Card(tb, pad=10, radius=6, outline="", width=self.mix_w, height=ROW_H)
         card.grid(row=row, column=col, sticky="nw", padx=(0, 10), pady=(0, 8))
         body = card.body
         body.grid_columnconfigure(1, weight=1)
@@ -1126,13 +1187,12 @@ class WaveWindow:
         mute.grid(row=0, column=0, rowspan=2, padx=(0, 8))
         fcol = tk.Frame(body, bg=COL["panel"])
         fcol.grid(row=0, column=1, rowspan=2, sticky="w")
-        fader = Fader(fcol, length=MIX_W - 106, thickness=20, orient="horizontal", color=m.get("color"),
+        fader = Fader(fcol, length=self.mix_w - 100, thickness=22, orient="horizontal", color=m.get("color"),
                       command=lambda v: self._on_level(cid, mid, v))
         fader.pack()
-        meter = LevelMeter(fcol, length=MIX_W - 118, thickness=3, orient="horizontal", color=COL["ok"])
-        meter.pack(pady=(2, 0))
+        meter = _FaderLevel(fader)
         val = tk.StringVar(self.root, value="–")
-        lb = label(body, textvariable=val, size=9, color=COL["muted"], width=6, anchor="e")
+        lb = label(body, textvariable=val, size=9, color=COL["muted"], width=5, anchor="e")
         lb.grid(row=0, column=2, rowspan=2)
         for w in (card, body, lb):
             w.bind("<Button-3>", lambda e: self._cell_menu(e, cid, mid))

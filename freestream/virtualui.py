@@ -29,8 +29,8 @@ SLIDE_MS, SLIDE_STEPS = 220, 13  # Hinaus-/Hereingleiten: Dauer und Bilder (≈ 
 GRIP_REACH = 36       # Griff: klickbar 36 px über und unter der Mitte (nicht die ganze Kante)
 RADIUS = 16           # runde Ecken der Randleiste (nach innen)
 # Gehäuse wie ein echtes Deck – dunkel, auch im hellen Design
-CHROME = {"bg": "#16181e", "edge": "#2a2f3a", "fg": "#e9ecf2", "muted": "#8b93a3", "slot": "#0b0c10",
-          "dot": "#3a404d", "pill": "#222630"}
+CHROME = {"bg": "#1c1c1c", "edge": "#333333", "fg": "#f2f2f2", "muted": "#a8a8a8", "slot": "#0d0d0d",
+          "dot": "#4a4a4a", "pill": "#2a2a2a"}
 
 
 def _ease_out(t):
@@ -359,8 +359,8 @@ class VirtualDeckWindow:
         gx = GRIP // 2 if self.edge == "right" else self.width - GRIP // 2
         cy = h // 2
         if self.grip_hover:
-            rounded_rect(cv, gx - 5, cy - 30, gx + 5, cy + 30, 5, fill="#262b36", outline="", tags="grip")
-        col = CHROME["fg"] if self.grip_hover else "#4b5160"
+            rounded_rect(cv, gx - 5, cy - 30, gx + 5, cy + 30, 5, fill="#2e2e2e", outline="", tags="grip")
+        col = CHROME["fg"] if self.grip_hover else "#555555"
         rounded_rect(cv, gx - 2, cy - 20, gx + 2, cy + 20, 2, fill=col, outline="", tags="grip")
         x0, x1 = (0, GRIP) if self.edge == "right" else (self.width - GRIP, self.width)
         self._grip_box = (x0, cy - GRIP_REACH, x1, cy + GRIP_REACH)

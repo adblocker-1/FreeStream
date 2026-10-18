@@ -79,8 +79,10 @@ backups) from USB sticks and Downloads by itself.
 
 ## The window
 
-Like in the Elgato app: the device in the middle, all actions on the right, the
-settings of the selected key at the bottom.
+Laid out like the Elgato app: **device and profile** to choose at the top, the keys in the
+middle, the settings of the selected key at the bottom and all actions on the right – in
+categories you open and close with a click, with a search on top. Both programs use the
+same neutral grey look as the Elgato software.
 
 - **Drag an action onto a key** (or double-click it), drag keys to move them,
   right-click for copy, paste and delete. Changes show up on the deck right away.
@@ -90,8 +92,9 @@ settings of the selected key at the bottom.
 - The device is drawn like your model: touch strip and dials on the Stream Deck +,
   the info bar on the Neo (‹ › turn the pages), pedals on the Pedal. Free keys are
   dashed with a “+”.
-- **Profiles:** **New profile** only asks for a name – FreeDeck knows the connected
-  model. Right-click a profile to rename, duplicate, export or delete it. Profiles
+- **Profiles:** the profile field at the top lists them; **New profile** only asks for a
+  name – FreeDeck knows the connected model. Right-click a profile to rename, duplicate,
+  export or delete it. Profiles
   stay in the Elgato format, so **Export…** takes them back to Windows.
 - **On the deck**, a key briefly shows **Done** or **Error** after its action; a
   Multi Action shows **Step 2 / 5** with a progress bar.
@@ -176,7 +179,7 @@ Turn it on under **Settings → Devices → Virtual deck** and choose how it loo
 
 Also there: the **size** (3 × 2, 4 × 2, 5 × 3 or 8 × 4 keys; FreeDeck creates one empty profile for it and moves it along when you try other sizes), a **keyboard shortcut** to show
 and hide it from anywhere (e.g. Super + D – or run `freedeck virtual-deck`) and the profile.
-Assign keys like on a real deck: choose **Virtual deck** in the sidebar of the FreeDeck window
+Assign keys like on a real deck: choose **Virtual deck** in the device field at the top of the FreeDeck window
 and drag actions onto it. Clicking a key doesn't take the focus away, so hotkeys go to the
 program you are working in. Sizes that match a real deck (Mini, Neo, Original, XL) can use
 its profiles too.
@@ -188,7 +191,7 @@ its profiles too.
 <a id="freedeck-settings"></a>
 ## Settings
 
-**Settings** (gear at the bottom of the sidebar) have tabs, like the Elgato app:
+**Settings** (gear at the top right) have tabs, like the Elgato app:
 
 | Tab | |
 |---|---|
@@ -233,7 +236,9 @@ channels. **Setup wizard** in the window opens it again at any time.
 Programs play into **channels** (System, Music, Browser, Voice Chat, Game, SFX,
 Microphone). The mixer is a table like **Mixes** in Wave Link: one row per
 channel with a **master slider**, one column per **mix** with its own slider and
-mute for every channel.
+mute for every channel. It looks like Wave Link too: flat grey rows, slim sliders with
+the level running green inside, and the mix columns fill the width of the window. The
+device you listen on is chosen at the top right.
 
 - **Personal Mix** – what you hear on your headphones (also on several devices at once).
 - **Stream Mix** – what your audience hears. In OBS, choose the audio source
