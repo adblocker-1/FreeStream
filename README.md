@@ -9,7 +9,7 @@ FreeStream brings the Elgato streaming setup to Linux with **two programs**:
 
 | FreeDeck | FreeWave |
 |---|---|
-| ![FreeDeck window with a Stream Deck +](docs/images/freedeck-window.png) | ![FreeWave mixer](docs/images/freewave-mixer.png) |
+| ![FreeDeck window with a Stream Deck MK.2](docs/images/freedeck-window.png) | ![FreeWave mixer](docs/images/freewave-mixer.png) |
 
 Available in **English, German, Spanish, French and Portuguese (Brazil)**.
 

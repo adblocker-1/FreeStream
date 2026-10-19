@@ -108,7 +108,7 @@ def shot_freedeck(tmp):
     from freestream import editor
     store = tmp / "profiles"
     store.mkdir()
-    doc = E.ProfileDoc(E.create_profile("Streaming", "20GBD9901", store))  # Stream Deck +
+    doc = E.ProfileDoc(E.create_profile("Streaming", "20GBA9901", store))  # Stream Deck MK.2 (5 × 3)
     page = doc.page_ids[0]
     icons = tmp / "icons"
     icons.mkdir()
@@ -122,6 +122,7 @@ def shot_freedeck(tmp):
          {"path": "https://twitch.tv", "openInBrowser": True}),
         (("key", 2, 1), "com.lindeck.discord.voice", "Discord", (88, 101, 242), "chat", {"function": "mute"}),
         (("key", 3, 1), "com.elgato.streamdeck.system.hotkey", "Copy", (255, 159, 10), "copy", None),
+        (("key", 4, 0), "com.lindeck.obs.scene", "Pause", (60, 60, 68), "scene", {"scene": "Pause"}),
     ]
     for slot, uuid, title, color, glyph, settings in keys:
         a = doc.place(page, slot, uuid)
@@ -133,19 +134,22 @@ def shot_freedeck(tmp):
         doc.set_icon(page, slot, 0, path)
         doc.update_state(page, slot, 0, "Title", title)
         doc.update_state(page, slot, 0, "TitleAlignment", "bottom")
-    for i, (uuid, title, settings) in enumerate((
-            ("com.lindeck.mixer.channel", "Music", {"channel": "music", "mix": "stream"}),
-            ("com.lindeck.mixer.channel", "Game", {"channel": "game", "mix": "monitor"}),
-            ("com.lindeck.wavemic.control", "Gain", {"function": "gain"}),
-            ("com.elgato.volume-controller.output-device-control", "Volume", {}))):
-        a = doc.place(page, ("dial", i), uuid)
+    # untere Reihe: Wiedergabe, Website und eine Uhr (zeigt die Zeit live)
+    for slot, uuid, title, color, glyph, settings in (
+            (("key", 0, 2), "com.lindeck.media.player", "Play", (40, 40, 48), "play", {}),
+            (("key", 1, 2), "com.elgato.streamdeck.system.website", "Chat", (255, 69, 58), "web",
+             {"path": "https://twitch.tv/popout/chat", "openInBrowser": True})):
+        a = doc.place(page, slot, uuid)
         a.setdefault("Settings", {}).update(settings)
-        doc.update_state(page, ("dial", i), 0, "Title", title)
+        doc.set_icon(page, slot, 0, icon(icons / f"{glyph}2.png", color, glyph))
+        doc.update_state(page, slot, 0, "Title", title)
+        doc.update_state(page, slot, 0, "TitleAlignment", "bottom")
+    doc.place(page, ("key", 4, 2), "com.lindeck.clock.clock")
     doc.add_page()
     doc.add_page()
     doc.save()
     others = {}
-    for name, code, pages in (("Gaming", "20GBD9901", 2), ("Video editing", "20GBD9901", 1),
+    for name, code, pages in (("Gaming", "20GBA9901", 2), ("Video editing", "20GBA9901", 1),
                               ("Meetings", "20GAI9902", 1)):
         d = E.ProfileDoc(E.create_profile(name, code, store))
         for _i in range(pages - 1):
@@ -161,11 +165,11 @@ def shot_freedeck(tmp):
     paths.CONFIG_DIR, paths.CONFIG_FILE = tmp / "config", tmp / "config" / "config.json"
     profiles = ProfileStore(store)
 
-    class Ctrl(FakeCtrl):  # angeschlossenes Stream Deck + (simuliert), mit allem für Einstellungen › Geräte
+    class Ctrl(FakeCtrl):  # angeschlossenes Stream Deck MK.2 (simuliert), mit allem für Einstellungen › Geräte
         brightness, firmware = 70, "1.02.010"
 
         def candidate_profiles(self):
-            return [p for p in profiles.profiles.values() if p.model == "20GBD9901"]
+            return [p for p in profiles.profiles.values() if p.model == "20GBA9901"]
 
         def set_brightness(self, v):
             self.brightness = v
@@ -175,7 +179,7 @@ def shot_freedeck(tmp):
 
         def set_rotation(self, deg):
             pass
-    ctrl = Ctrl("DL41K1A04321", "20GBD9901", Geometry(4, 2, 4), doc.id)
+    ctrl = Ctrl("DL41K1A04321", "20GBA9901", Geometry(5, 3), doc.id)
     ctrl.profile = profiles.get(doc.id)
     cfg = Config()
     cfg.data.update({"devices": {"DL41K1A04321": {"name": "Desk deck", "sleep_after_minutes": 15},
@@ -307,7 +311,8 @@ def shot_background(tmp, root, app, _doc):
         doc.update_state(pid, ("key", c, r), 0, "Title", title)
         doc.update_state(pid, ("key", c, r), 0, "TitleAlignment", "bottom")
     doc.set_background(pid, wp, dim=15)
-    doc.set_strip_background(pid, strip)
+    if doc.geometry.dials:  # Touchstreifen nur beim Stream Deck +
+        doc.set_strip_background(pid, strip)
     doc.save()
     app.goto_page(pid)
     app.select(("key", 2, 0))
