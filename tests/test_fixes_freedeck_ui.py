@@ -5,9 +5,13 @@ Laufen nur mit Display (xvfb-run python3 -m pytest tests/test_fixes_freedeck_ui.
 """
 import gc
 import os
+import shutil
+import subprocess
+import sys
 import time
 import types
 import weakref
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -17,6 +21,7 @@ from freestream import editdoc as E
 
 store, doc, app = test_editor.store, test_editor.doc, test_editor.app  # Fixtures
 needs_x = pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
+ROOT = Path(__file__).resolve().parent.parent
 HOTKEY = "com.elgato.streamdeck.system.hotkey"
 TEXT = "com.elgato.streamdeck.system.text"
 
@@ -92,10 +97,21 @@ def test_setup_wizard_keeps_edited_profiles(app, store, tmp_path, monkeypatch):
     assert app.doc.id == new.id
     assert E.ProfileDoc(store / f"{pid}.sdProfile").name == "Bearbeitet"
 
+    # noch einmal, nichts Neues dabei (das andere Profil zuerst): das offene bleibt offen, samt Rückgängig
+    before = app.doc
+    dlg = app.open_setup()
+    dlg.found = [old, new_file]
+    dlg.step = 2
+    dlg.render()
+    dlg.next()
+    assert dlg.step == 3 and dlg.imported == [pid, new.id] and dlg.new_ids == []
+    dlg.next()
+    assert app.doc is before
+
 
 # ------------------------------------------------------------ Ausklapplisten
 def test_drop_panel_closes_for_menu_and_hidden_window(app, monkeypatch):
-    from freestream import desktop, theme
+    from freestream import desktop, editor, theme
     monkeypatch.setattr(desktop, "notify", lambda *a, **k: None)
     root, panel = app.root, app.prof_panel
     app._toggle_drop("prof")
@@ -105,6 +121,17 @@ def test_drop_panel_closes_for_menu_and_hidden_window(app, monkeypatch):
     m = app._profile_context(app.doc.id, 200, 200)
     assert not panel.winfo_ismapped() and theme.PopupMenu.current is m
     m.close()
+    # „Neues Profil“ unten in der Liste: die Liste schließt, bevor der Dialog aufgeht
+    app._toggle_drop("prof")
+    _pump(root)
+    seen = []
+
+    def cancel():
+        seen.append(panel.winfo_ismapped())
+        next(w for w in root.winfo_children() if isinstance(w, editor.NewProfileDialog)).destroy()
+    root.after(300, cancel)
+    [w for w in app.profile_list.inner.winfo_children() if isinstance(w, theme.NavItem)][-1].command()
+    assert seen == [0] and not panel.winfo_ismapped()
     # Fenster ausgeblendet/minimiert (<Unmap>): Liste nicht über dem Desktop stehen lassen
     app._toggle_drop("prof")
     _pump(root)
@@ -120,6 +147,88 @@ def test_drop_panel_closes_for_menu_and_hidden_window(app, monkeypatch):
     assert panel.winfo_ismapped()
     app.hide()
     assert not panel.winfo_ismapped()
+
+
+def test_drop_panel_click_outside_closes(app):
+    """Die Liste hält keinen Grab: ein Klick irgendwo im Programm schließt sie, einer in die Liste nicht."""
+    root, prof, dev = app.root, app.prof_panel, app.dev_panel
+    app._toggle_drop("prof")
+    _pump(root)
+    assert prof.winfo_ismapped() and not root.tk.call("grab", "current")
+    prof.body.event_generate("<ButtonPress-1>", x=5, y=5)
+    assert prof.winfo_ismapped()
+    app.canvas.event_generate("<ButtonPress-1>", x=5, y=5)
+    assert not prof.winfo_ismapped()
+    # Klick auf das andere Auswahlfeld: dessen Liste klappt auf, die offene zu; ein zweiter Klick schließt
+    app._toggle_drop("dev")
+    _pump(root)
+    app.prof_dd.event_generate("<Button-1>", x=5, y=5)
+    assert prof.winfo_ismapped() and not dev.winfo_ismapped()
+    app.prof_dd.event_generate("<Button-1>", x=5, y=5)
+    assert not prof.winfo_ismapped()
+
+
+ALT_TAB = """
+import subprocess
+import sys
+import time
+import tkinter as tk
+
+from freestream import editdoc as E
+from freestream import editor
+
+OTHER = ("import tkinter as tk; r = tk.Tk(); r.geometry('200x200+700+600'); "
+         "r.after(200, lambda: print(r.wm_frame(), flush=True)); r.after(8000, r.destroy); r.mainloop()")
+E.create_profile("Test", "20GBD9901", sys.argv[1])
+root = tk.Tk()
+app = editor.EditorApp(root, store_root=sys.argv[1])
+panel = app.prof_panel
+
+
+def pump(secs=0.3):
+    end = time.time() + secs
+    while time.time() < end:
+        root.update()
+        time.sleep(0.02)
+
+
+def xdotool(*args):
+    subprocess.run(["xdotool", *args], check=True, timeout=10)
+
+
+pump()
+root.focus_force()  # wie der Fenstermanager nach dem Klick ins Fenster
+pump()
+app._toggle_drop("prof")
+pump()
+print("open", panel.winfo_ismapped())
+xdotool("key", "Escape")
+pump()
+print("esc", panel.winfo_ismapped())
+app._toggle_drop("prof")
+pump()
+other = subprocess.Popen([sys.executable, "-c", OTHER], stdout=subprocess.PIPE, text=True)
+try:
+    xdotool("windowfocus", "--sync", str(int(other.stdout.readline(), 0)))  # wie Alt+Tab
+    pump()
+    print("other", panel.winfo_ismapped())
+finally:
+    other.kill()
+root.destroy()
+"""
+
+
+@needs_x
+@pytest.mark.skipif(not shutil.which("xdotool"), reason="braucht xdotool")
+def test_drop_panel_closes_when_other_program_gets_focus(store, tmp_path):
+    """Esc (Tastatur geht auch ohne Grab an die Liste) und Alt+Tab in ein anderes Programm schließen sie.
+    Als eigenes Programm: nach einem Fokuswechsel zu einem anderen X-Programm stürzt focus_force in einer
+    späteren Tk-Instanz desselben Prozesses ab (Tk 8.6) – das träfe die folgenden Tests."""
+    script = tmp_path / "alt_tab.py"
+    script.write_text(ALT_TAB)
+    out = subprocess.run([sys.executable, str(script), str(store)], capture_output=True, text=True, timeout=120,
+                         env=dict(os.environ, PYTHONPATH=str(ROOT)))
+    assert out.stdout.splitlines()[:3] == ["open 1", "esc 0", "other 0"], out.stdout + out.stderr
 
 
 # ------------------------------------------------------- auf eine Seite ziehen
@@ -220,6 +329,22 @@ def test_background_tiles_cached(app, tmp_path, monkeypatch):
     monkeypatch.setattr(editor.ImageTk, "PhotoImage", lambda *a, **k: (made.append(1), orig(*a, **k))[1])
     app.redraw()
     assert made == []  # leere Tasten auf dem Hintergrund: gemerkte Kachel, kein neues Tk-Bild
+
+
+def test_background_tiles_one_entry_per_key_when_resizing(app, tmp_path):
+    """Fenster größer ziehen: je Taste bleibt eine gemerkte Kachel, das Tk-Bild der vorigen Größe geht weg."""
+    _with_background(app, tmp_path)
+    root, sizes = app.root, set()
+    for w in range(900, 1300, 40):
+        root.geometry(f"{w}x{w * 3 // 4}")
+        root.update()
+        app.redraw()
+        sizes.add(app._hit[0][2] - app._hit[0][0])
+    assert len(sizes) > 2  # die Tasten wurden wirklich größer
+    g = app.doc.geometry
+    assert 0 < sum(1 for k in app._img_cache if k[0] == "tile") <= g.cols * g.rows
+    cached = {id(v[1]) if isinstance(v, tuple) else id(v) for v in app._img_cache.values()}
+    assert all(k in cached for k in app._tk_cache)  # kein Tk-Bild zu einem nicht mehr gemerkten Bild
 
 
 def test_pedal_ignores_background_tiles(app, store, tmp_path):
@@ -331,6 +456,37 @@ def test_wheel_handlers_bound_once_and_areas_freed(app):
     assert errors == []
 
 
+@needs_x
+def test_pickers_freed_after_close():
+    """Suchfeld der Auswahl-Dialoge (FreeWave): die Beobachtung endet mit dem Dialog – sonst hielte Tcl die
+    Funktion fest und mit ihr den Dialog samt seinen Bildern."""
+    import tkinter as tk
+
+    from freestream import effects
+    from freestream.wavedialogs import AppPicker, PluginPicker
+    apps = {"running": [], "elsewhere": {},
+            "installed": [{"key": "firefox", "cls": "firefox", "name": "Firefox", "icon": "", "icon_path": None},
+                          {"key": "vlc", "cls": "vlc", "name": "VLC", "icon": "", "icon_path": None}]}
+    root = tk.Tk()
+    try:
+        refs = []
+        pk = AppPicker(root, apps, set(), lambda a: None)
+        pk.query.set("fire")  # Suche wirkt weiter
+        assert [a["key"] for _t, items in pk.candidates() for a in items] == ["firefox"]
+        refs.append(weakref.ref(pk))
+        pk.destroy()
+        pk = PluginPicker(root, [effects.lookup("builtin:highpass")], lambda p: None)
+        pk.q.set("high")
+        refs.append(weakref.ref(pk))
+        pk.destroy()
+        del pk
+        root.update()
+        gc.collect()
+        assert [r() for r in refs] == [None, None]
+    finally:
+        root.destroy()
+
+
 # --------------------------------------------------------- virtuelles Deck
 @needs_x
 def test_virtual_deck_does_not_cover_its_menu():
@@ -391,5 +547,8 @@ def test_virtual_deck_does_not_cover_its_menu():
         root.tk.call("ttk::combobox::Unpost", str(cb))
         root.update()
         assert ticks()
+        # aufgeklappte Liste der FreeDeck-Kopfzeile (hält keinen Grab)
+        w.editor = types.SimpleNamespace(drop_open=lambda: True)
+        assert ticks() == 0
     finally:
         root.destroy()

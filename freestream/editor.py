@@ -492,20 +492,30 @@ class DropButton(tk.Canvas):
 
 
 class DropPanel(tk.Toplevel):
-    """Aufgeklappte Liste unter einem DropButton; schließt bei Klick daneben oder Esc."""
+    """Aufgeklappte Liste unter einem DropButton; schließt bei Klick daneben, Esc oder wenn ein anderes
+    Programm den Fokus bekommt (Alt+Tab)."""
 
     def __init__(self, root, width=280):
         super().__init__(root, bg=COL["border"])
         self.withdraw()
         self.overrideredirect(True)
         self.width = width
+        self.anchor = None
         self.body = tk.Frame(self, bg=COL["side"], padx=6, pady=6)
         self.body.pack(fill="both", expand=True, padx=1, pady=1)
         self.bind("<Escape>", lambda e: self.hide())
-        self.bind("<ButtonPress>", self._press, add="+")
         self.bind("<FocusOut>", lambda e: self.after(100, self._check_focus), add="+")
+        # Klick daneben: ein Handler je Tk an „all“ statt eines Grabs. Der Grab hielte das FocusOut des
+        # Hauptfensters zurück (die Liste selbst bekommt als Fenster ohne Rahmen nie den X-Fokus), und nach
+        # Alt+Tab stünde sie über dem anderen Programm
+        top = self._root()
+        if "_drop_panels" not in top.__dict__:
+            top._drop_panels = []
+            top.bind_all("<ButtonPress>", lambda e: _drop_press(top, e), add="+")
+        top._drop_panels.append(self)
 
     def show(self, anchor):
+        self.anchor = anchor
         self.update_idletasks()
         w = max(self.width, anchor.winfo_width())
         h = self.body.winfo_reqheight() + 2
@@ -515,14 +525,12 @@ class DropPanel(tk.Toplevel):
         self.lift()
         try:
             self.attributes("-topmost", True)
-            self.focus_force()
-            self.grab_set()
+            self.focus_force()  # für Esc
         except tk.TclError:
             pass
 
     def hide(self):
         try:
-            self.grab_release()
             # Fokus zurück ans Hauptfenster (sonst gehen Tastenkürzel ins Leere, bis man hineinklickt);
             # roher Tcl-Aufruf: focus_get() scheitert an Tk-internen Fenstern
             focus = str(self.tk.call("focus"))
@@ -542,10 +550,20 @@ class DropPanel(tk.Toplevel):
         except tk.TclError:
             pass
 
-    def _press(self, e):
-        x, y = e.x_root - self.winfo_rootx(), e.y_root - self.winfo_rooty()
-        if not (0 <= x < self.winfo_width() and 0 <= y < self.winfo_height()):
-            self.hide()
+    def _inside(self, x_root, y_root):
+        x, y = x_root - self.winfo_rootx(), y_root - self.winfo_rooty()
+        return 0 <= x < self.winfo_width() and 0 <= y < self.winfo_height()
+
+
+def _drop_press(top, e):
+    """Mausklick irgendwo im Programm: offene Listen schließen, die er nicht trifft. Ein Klick auf ihr
+    Auswahlfeld bleibt außen vor – das klappt sie selbst auf und zu (Widget-Bindungen laufen vor „all“)."""
+    for p in top._drop_panels:
+        try:
+            if p.winfo_ismapped() and e.widget is not p.anchor and not p._inside(e.x_root, e.y_root):
+                p.hide()
+        except tk.TclError:
+            pass
 
 
 class EditorApp:
@@ -671,9 +689,13 @@ class EditorApp:
 
         def done(ids):
             self.refresh_profiles()
-            if ids and not (self.doc and self.doc.id == ids[0]):  # schon offen: Rückgängig-Verlauf behalten
+            # ein neu übernommenes Profil öffnen; sonst bleibt das offene offen (samt Rückgängig-Verlauf)
+            if dlg.new_ids:
+                self.open_profile(dlg.new_ids[0])
+            elif ids and not self.doc:
                 self.open_profile(ids[0])
-        return DeckSetup(self, on_done=done)
+        dlg = DeckSetup(self, on_done=done)
+        return dlg
 
     # ================================================================ Geräte
     def _controllers(self):
@@ -943,9 +965,16 @@ class EditorApp:
             if p is not None:
                 p.hide()
 
+    def drop_open(self):
+        """Ist eine Liste der Kopfzeile aufgeklappt? (das virtuelle Deck hebt sich dann nicht darüber)"""
+        try:
+            return any(p.winfo_ismapped() for p in (self.dev_panel, self.prof_panel))
+        except tk.TclError:
+            return False
+
     def _profile_context(self, pid, x, y):
-        """Rechtsklick auf ein Profil in der Liste. Die Liste schließt vorher: das Menü nimmt ihr den Grab,
-        danach bliebe sie offen, ohne auf Klicks daneben oder Esc zu reagieren (und läge über den Dialogen)."""
+        """Rechtsklick auf ein Profil in der Liste. Die Liste schließt vorher: das Menü nimmt den Fokus und den
+        Grab, sie bliebe sonst offen, ohne auf Esc zu reagieren (und läge über den Dialogen danach)."""
         self._hide_drops()
         m = theme.PopupMenu(self.root, width=220)
         m.add(_("Open"), lambda: self._on_profile_selected(pid), icon="folder")
@@ -1183,6 +1212,7 @@ class EditorApp:
         return (max(set(models), key=models.count) if models else "20GBA9901"), False
 
     def new_profile(self):
+        self._hide_drops()  # „Neues Profil“ steht in der Liste: sie läge sonst über dem Dialog
         code, plugged = self.auto_model()
         dlg = NewProfileDialog(self.root, code, plugged)
         if not dlg.result:
@@ -1480,6 +1510,12 @@ class EditorApp:
             hit = self._tk_cache[id(img)] = (img, ImageTk.PhotoImage(img, master=self.root))
         return hit[1]
 
+    def _tk_forget(self, img):
+        """Tk-Bild eines PIL-Bildes verwerfen, das nicht mehr gezeichnet wird."""
+        hit = self._tk_cache.get(id(img))
+        if hit is not None and hit[0] is img:
+            del self._tk_cache[id(img)]
+
     def _device_page(self):
         """Gerät, das gerade genau die bearbeitete Seite zeigt (sonst None)."""
         ctrl = self._ctrl()
@@ -1513,9 +1549,8 @@ class EditorApp:
         self._live_keys[tuple(slot)] = key
         if old is not None and old != key and old not in self._live_keys.values():
             gone = self._img_cache.pop(old, None)
-            tk_hit = self._tk_cache.get(id(gone[1])) if gone is not None else None
-            if tk_hit is not None and tk_hit[0] is gone[1]:
-                del self._tk_cache[id(gone[1])]
+            if gone is not None:
+                self._tk_forget(gone[1])
         return hit[1]
 
     def _render(self, slot, data, size):
@@ -1775,10 +1810,14 @@ class EditorApp:
         cv = self.canvas
         tile = self._tiles.get((slot[1], slot[2])) if slot[0] == "key" and getattr(self, "_tiles", None) else None
         if data is None and tile is not None:
-            # leere Taste auf dem Seiten-Hintergrund: gerundete Kachel merken statt bei jedem Neuzeichnen neu
-            key = ("tile", self._tiles_id, tuple(slot[1:]), w)
+            # leere Taste auf dem Seiten-Hintergrund: gerundete Kachel merken statt bei jedem Neuzeichnen neu –
+            # ein Eintrag je Taste (die Kachel wechselt mit Größe und Bild), sonst sammelt das Ziehen am Fenster
+            # für jede Größe neue Einträge
+            key = ("tile", tuple(slot[1:]))
             hit = self._img_cache.get(key)
             if hit is None or hit[0] is not tile:
+                if hit is not None:
+                    self._tk_forget(hit[1])
                 hit = self._img_cache[key] = (tile, _rounded(tile, max(6, w // 8)))
             cv.create_image(x, y, image=self._tk_image(hit[1]), anchor="nw")
         elif data is None:

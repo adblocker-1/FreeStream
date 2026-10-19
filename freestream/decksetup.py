@@ -87,6 +87,7 @@ class DeckSetup(tk.Toplevel):
         self.found = None          # gefundene Profil-Dateien (Suche im Hintergrund)
         self.picked = []           # selbst gewählte Dateien
         self.imported = []
+        self.new_ids = []          # davon neu übernommen (nicht schon vorhanden)
         self._job = None
         result = self._search_result = []  # der Such-Thread bekommt nur diese Liste, nicht das Fenster
         threading.Thread(target=_search, args=(result,), daemon=True).start()
@@ -328,7 +329,7 @@ class DeckSetup(tk.Toplevel):
     def apply(self):
         """Profile anlegen bzw. übernehmen. False: auf dieser Seite bleiben (Fehlermeldung steht da)."""
         store = self.app.store_root
-        self.imported = []
+        self.imported, self.new_ids = [], []
         if self.choice.get() == "import":
             sources = self.picked or self.found or []
             if not sources:
@@ -342,7 +343,8 @@ class DeckSetup(tk.Toplevel):
                     kept += k
                 except Exception as e:  # noqa: BLE001
                     errors.append(f"{f}: {e}")
-            self.imported = list(dict.fromkeys(new + kept))  # die neuen zuerst – das erste wird geöffnet
+            self.imported = list(dict.fromkeys(new + kept))
+            self.new_ids = new
             if not self.imported:
                 self.error.configure(text=errors[0] if errors else _("No profiles found in these files."))
                 return False
@@ -350,6 +352,7 @@ class DeckSetup(tk.Toplevel):
             name = self.name.get().strip() or _("My profile")
             root = E.create_profile(name, self.model.get() or "20GBA9901", store)
             self.imported = [root.name[: -len(".sdProfile")]]
+            self.new_ids = list(self.imported)
         return True
 
     def _step_3(self):

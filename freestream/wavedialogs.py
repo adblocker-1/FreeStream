@@ -309,6 +309,13 @@ class ChannelDialog(Dialog):
             self.on_delete()
 
 
+def _trace(dlg, var, fn):
+    """var beobachten, solange der Dialog offen ist. Beim Schließen die Beobachtung lösen – Tcl hielte die
+    Funktion sonst für immer fest und mit ihr den Dialog samt seinen Bildern."""
+    tid = var.trace_add("write", lambda *a: fn())
+    dlg.bind("<Destroy>", lambda e: var.trace_remove("write", tid) if e.widget is dlg else None, add="+")
+
+
 class AppPicker(Dialog):
     """Programm für einen Kanal wählen: gerade spielende oben, darunter alle installierten, mit Suche.
     Steht ein Programm nicht in der Liste, übernimmt „… hinzufügen“ den eingegebenen Namen."""
@@ -327,7 +334,7 @@ class AppPicker(Dialog):
         self.area.pack(fill="both", expand=True)
         footer(self)
         Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right")
-        self.query.trace_add("write", lambda *a: self._fill())
+        _trace(self, self.query, self._fill)
         self._fill()
         self.search.focus_set()
         self.bind("<Return>", lambda e: self._enter())
@@ -722,7 +729,7 @@ class PluginPicker(Dialog):
                      relief="flat", highlightthickness=0, font=font(sb, 10))
         e.pack(side="left", fill="x", expand=True, ipady=7)
         e.focus_set()
-        self.q.trace_add("write", lambda *a: self._fill())
+        _trace(self, self.q, self._fill)
 
         chips = tk.Frame(self.body, bg=COL["bg"])
         chips.pack(fill="x", pady=(0, 12))

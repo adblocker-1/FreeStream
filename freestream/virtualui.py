@@ -209,11 +209,12 @@ class VirtualDeckWindow:
             self.draw()
 
     def _menu_open(self):
-        """Hält gerade ein Menü oder eine aufgeklappte Liste den Grab (etwa die Profilwahl aus der Fußzeile)?
-        Dann nicht anheben – das Deck läge sonst über dem Menü. Roher Tcl-Aufruf: grab_current() scheitert,
-        solange die Liste einer Combobox offen ist."""
+        """Ist gerade ein Menü oder eine aufgeklappte Liste offen (etwa die Profilwahl aus der Fußzeile oder eine
+        Liste der FreeDeck-Kopfzeile)? Dann nicht anheben – das Deck läge sonst darüber. Roher Tcl-Aufruf:
+        grab_current() scheitert, solange die Liste einer Combobox offen ist."""
         try:
-            return PopupMenu.current is not None or bool(self.root.tk.call("grab", "current"))
+            return (PopupMenu.current is not None or bool(self.root.tk.call("grab", "current"))
+                    or bool(self.editor is not None and self.editor.drop_open()))
         except tk.TclError:
             return False
 
