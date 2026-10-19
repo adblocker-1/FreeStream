@@ -89,9 +89,14 @@ class ScrollArea(tk.Frame):
         self._win = self.cv.create_window(0, 0, window=self.inner, anchor="nw")
         self.inner.bind("<Configure>", lambda e: self.cv.configure(scrollregion=self.cv.bbox("all")))
         self.cv.bind("<Configure>", lambda e: self.cv.itemconfigure(self._win, width=e.width))
-        for seq, d in (("<Button-4>", -2), ("<Button-5>", 2)):
-            self.bind_all(seq, lambda e, d=d: self._wheel(e, d), add="+")
-        self.bind_all("<MouseWheel>", lambda e: self._wheel(e, -1 if e.delta > 0 else 1), add="+")
+        # Mausrad: ein Handler für alle Bereiche, nur einmal je Tk gebunden – ein eigener je Bereich bliebe
+        # nach dem Schließen des Dialogs für immer an „all“ hängen (samt Dialog und seinen Bildern)
+        root = self._root()
+        if not root.__dict__.get("_scrollarea_wheel"):
+            root._scrollarea_wheel = True
+            for seq, d in (("<Button-4>", -2), ("<Button-5>", 2)):
+                root.bind_all(seq, lambda e, d=d: _scrollarea_wheel(e, d), add="+")
+            root.bind_all("<MouseWheel>", lambda e: _scrollarea_wheel(e, -1 if e.delta > 0 else 1), add="+")
 
     def _on_scroll(self, lo, hi):
         if float(lo) <= 0 and float(hi) >= 1:
@@ -101,14 +106,23 @@ class ScrollArea(tk.Frame):
         self.bar.set(lo, hi)
 
     def _wheel(self, e, d):
-        if self.bar.winfo_manager() == "":
+        """Ein Rad-Schritt; False, wenn der Inhalt ganz hineinpasst (dann darf ein äußerer Bereich scrollen)."""
+        try:
+            if self.bar.winfo_manager() == "":
+                return False
+            self.cv.yview_scroll(d, "units")
+            return True
+        except tk.TclError:
+            return False
+
+
+def _scrollarea_wheel(e, d):
+    """Mausrad: den innersten ScrollArea unter dem Zeiger scrollen, der eine Leiste hat."""
+    w = e.widget  # Tk-interne Fenster (z. B. Liste einer Combobox) kommen als Text an
+    while w is not None and not isinstance(w, str):
+        if isinstance(w, ScrollArea) and w._wheel(e, d):
             return
-        w = e.widget
-        while w is not None:
-            if w is self:
-                self.cv.yview_scroll(d, "units")
-                return
-            w = getattr(w, "master", None)
+        w = getattr(w, "master", None)
 
 
 def draw_steps(cv, steps, step, icons):

@@ -7,8 +7,11 @@ Erscheint, wenn es noch keine Profile gibt (und die Einrichtung nicht übersprun
   4. Fertig – Hinweise zum Fenster, zu Verbindungen und Icons
 """
 import os
+import shutil
+import tempfile
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk
 
 from . import editdoc as E
@@ -37,6 +40,26 @@ def find_profiles():
     for base in autoimport.search_dirs():
         found += [p for kind, p in autoimport.candidates(base) if kind == "profile"]
     return found
+
+
+def import_keep(src, store):
+    """Wie import_path, ersetzt aber keine vorhandenen Profile: Der Assistent läuft auch aus den Einstellungen,
+    und die gefundenen Dateien sind dann meist die alten Exporte der inzwischen bearbeiteten Profile.
+    Gibt (neu übernommene IDs, schon vorhandene IDs) zurück."""
+    store = Path(store)
+    tmp = Path(tempfile.mkdtemp(prefix="freestream-setup-"))
+    try:
+        new, kept = [], []
+        for pid in import_path(src, tmp):
+            dst = store / f"{pid}.sdProfile"
+            if dst.exists():
+                kept.append(pid)
+            else:
+                shutil.move(str(tmp / dst.name), str(dst))
+                new.append(pid)
+        return new, kept
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _search(result):
@@ -311,12 +334,15 @@ class DeckSetup(tk.Toplevel):
             if not sources:
                 self.error.configure(text=_("Choose the profile files first – or start with an empty profile."))
                 return False
-            errors = []
+            errors, new, kept = [], [], []
             for f in sources:
                 try:
-                    self.imported += import_path(f, store)
+                    n, k = import_keep(f, store)  # vorhandene (bearbeitete) Profile bleiben, wie sie sind
+                    new += n
+                    kept += k
                 except Exception as e:  # noqa: BLE001
                     errors.append(f"{f}: {e}")
+            self.imported = list(dict.fromkeys(new + kept))  # die neuen zuerst – das erste wird geöffnet
             if not self.imported:
                 self.error.configure(text=errors[0] if errors else _("No profiles found in these files."))
                 return False
