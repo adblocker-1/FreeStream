@@ -119,11 +119,12 @@ class SetupWizard(tk.Toplevel):
         self.mic = tk.StringVar(self, value=mx.get("mic") or wave_src or data.get("default_source") or
                                 (ins[0][0] if ins else ""))
         outs = data.get("outputs") or []
-        self.out = tk.StringVar(self, value=mx.get("monitor_output") or data.get("default_sink") or
-                                (outs[0][0] if outs else ""))
+        # zuerst das Gerät, auf dem der Persönliche Mix gerade läuft (collect) – sonst verlegt ihn „Fertig“
+        self.out = tk.StringVar(self, value=data.get("monitor_output") or mx.get("monitor_output") or
+                                data.get("default_sink") or (outs[0][0] if outs else ""))
         have = {c.get("id") for c in (mx.get("channels") or DEFAULT_CHANNELS)}
         self.channels = {c["id"]: tk.BooleanVar(self, value=c["id"] in have) for c in DEFAULT_CHANNELS}
-        sound = self._current_sound(cfg, mx)
+        sound = self._current_sound(mx)
         self.lowcut = tk.BooleanVar(self, value=sound["lowcut"])
         self.clipguard = tk.BooleanVar(self, value=sound["clipguard"])
         self.fx_choice = {k: tk.BooleanVar(self, value=sound[k]) for k in ("noise", "gate", "sc4m")}
@@ -388,12 +389,14 @@ class SetupWizard(tk.Toplevel):
             label(t, text, 9, color=COL["muted"], wraplength=580, justify="left").pack(anchor="w", pady=(2, 0))
 
     # -------------------------------------------------------------- Helfer
-    def _current_sound(self, cfg, mx):
+    def _current_sound(self, mx):
         """Anfangswerte des Schritts „Klang“: beim ersten Mal die Empfehlung. Wird der Assistent erneut
         aufgerufen, der jetzige Stand – „Fertig“ ändert dann nur, was man umschaltet (self._fx_on)."""
         self._fx_on = None  # None: erste Einrichtung – alle Effekte des Assistenten setzen
         self._noise_on = False
-        if not ((cfg.get("linewave") or {}).get("setup_done") or mx.get("enabled")):
+        # erneut aufgerufen heißt: der Mixer war schon eingerichtet. setup_done allein genügt nicht, das setzt
+        # auch „Später einrichten“ (skip) – danach gilt beim Öffnen aus den Einstellungen noch die Empfehlung
+        if not (mx.get("enabled") or (mx.get("effects") or {}).get("mic") or (mx.get("noise") or {}).get("enabled")):
             return self.recommended()
         chain = (mx.get("effects") or {}).get("mic") or []
         on = self._fx_on = {fx.get("plugin") for fx in chain if fx.get("enabled", True)} - {None}
@@ -589,6 +592,13 @@ def collect(host):
             out[key] = "" if v.startswith(("linewave_", "lindeck_")) else v
         except Exception:  # noqa: BLE001
             out[key] = ""
+    # Gerät des laufenden Persönlichen Mix: Ausgabe-Wahl im Fenster, Deck-Taste und CLI (set_monitor_output)
+    # ändern nur den Stand des Mixers, nicht config.json; der Standard-Sink ist bei laufendem Mixer der eigene
+    try:
+        cur = mx._state().get("monitor_output", "") if mx.is_active() else ""
+    except Exception:  # noqa: BLE001
+        cur = ""
+    out["monitor_output"] = cur if cur in {n for n, _d in out["outputs"]} else ""
     if out["wave3"]:
         try:
             out["gain_pct"] = host.mic.gain()[0]
