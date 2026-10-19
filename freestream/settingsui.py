@@ -17,7 +17,7 @@ from .i18n import _
 from .theme import COL, Button, Card, Dialog, Switch, choose_language, label, mode_switch
 
 
-def open_settings(master, app, restart, mixer=None, freedeck=None, tab=None):
+def open_settings(master, app, restart, mixer=None, freedeck=None, tab=None, setup=None):
     """Fenster öffnen; ist es schon offen, nach vorne holen (tab: gleich diesen Reiter zeigen)."""
     top = master.winfo_toplevel()
     dlg = getattr(top, "_settings_dialog", None)
@@ -28,7 +28,7 @@ def open_settings(master, app, restart, mixer=None, freedeck=None, tab=None):
         if tab and dlg.freedeck is not None:
             dlg.show_tab(tab)
         return dlg
-    top._settings_dialog = SettingsDialog(master, app, restart, mixer=mixer, freedeck=freedeck)
+    top._settings_dialog = SettingsDialog(master, app, restart, mixer=mixer, freedeck=freedeck, setup=setup)
     if tab and freedeck is not None:
         top._settings_dialog.show_tab(tab)
     return top._settings_dialog
@@ -37,8 +37,9 @@ def open_settings(master, app, restart, mixer=None, freedeck=None, tab=None):
 class SettingsDialog(Dialog):
     TABS = ("general", "devices", "profiles", "plugins", "connections", "style")
 
-    def __init__(self, master, app, restart, mixer=None, freedeck=None):
+    def __init__(self, master, app, restart, mixer=None, freedeck=None, setup=None):
         """mixer: (eingerichtet, enable(bool)) – nur in FreeWave: Mixer einrichten/entfernen.
+        setup: öffnet den Einrichtungsassistenten des Programms (Knopf „Einrichtung starten“).
         freedeck: das FreeDeck-Fenster (EditorApp) – dann mit den Reitern Geräte, Profile, Plugins, Verbindungen, Stil."""
         super().__init__(master, _("Settings"), width=820 if freedeck is not None else 500)
         self.app, self.restart, self.freedeck = app, restart, freedeck
@@ -112,6 +113,16 @@ class SettingsDialog(Dialog):
             Button(card, _("Remove mixer") if active else _("Set up mixer"), icon="close" if active else "wave",
                    kind="danger" if active else "primary", height=30,
                    command=lambda: (self.destroy(), enable(not active))).pack(anchor="w", pady=(10, 0))
+
+        # ---------------------------------------------------------- Einrichtung
+        if setup is not None:
+            card = self._card(_("Setup wizard"))
+            label(card, _("Goes through the first-start setup again – your current settings are shown and kept "
+                          "until you change them."), 9, color=COL["muted"], wraplength=wrap,
+                  justify="left").pack(anchor="w")
+            self.setup_btn = Button(card, _("Open setup wizard"), icon="check", height=30,
+                                    command=lambda: (self.destroy(), setup()))
+            self.setup_btn.pack(anchor="w", pady=(10, 0))
 
         # ---------------------------------------------------------- Hilfe
         card = self._card(_("Help"))

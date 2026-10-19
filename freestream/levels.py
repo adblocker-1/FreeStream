@@ -45,6 +45,13 @@ def peak_level(data):
     return max(0.0, min(1.0, (db - FLOOR_DB) / -FLOOR_DB))
 
 
+def post_fader(level, volume, muted):
+    """Pegel nach dem Regler: Lautstärke in dB auf die Anzeige (−60…0 dB) umgerechnet."""
+    if muted or not volume or volume <= 0 or level <= 0:
+        return 0.0
+    return max(0.0, min(1.0, level + 20 * math.log10(min(volume, 150) / 100) / -FLOOR_DB))
+
+
 def level_db(level):
     """Anzeigewert 0..1 zurück in dB (None bei Stille)."""
     if level <= 0:

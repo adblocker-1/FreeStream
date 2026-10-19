@@ -16,7 +16,6 @@ Mixer-Szenen (Knopf „Szenen“ im Kopf des Mixers), Auto-Ducking und globale
 Tastenkürzel (Ansicht Mikrofon) kommen aus mixer.py, ducking.py und shortcuts.py.
 """
 import logging
-import math
 import queue
 import threading
 import time
@@ -55,11 +54,7 @@ def mix_color(mix):
 channel_look = theme.channel_look
 
 
-def post_fader(level, volume, muted):
-    """Pegel nach dem Regler: Lautstärke in dB auf die Anzeige (−60…0 dB) umgerechnet."""
-    if muted or volume <= 0 or level <= 0:
-        return 0.0
-    return max(0.0, min(1.0, level + 20 * math.log10(min(volume, 150) / 100) / -levels.FLOOR_DB))
+post_fader = levels.post_fader
 
 
 def _fit_text(fnt, text, width):
@@ -319,20 +314,6 @@ class Tooltip:
             except tk.TclError:
                 pass
             self.win = None
-
-
-class _FaderLevel:
-    """Pegel eines Kanals in der Spur seines Reglers anzeigen (gleiche set()-Schnittstelle wie LevelMeter)."""
-
-    def __init__(self, fader):
-        self.fader = fader
-
-    @property
-    def level(self):
-        return self.fader.level
-
-    def set(self, level):
-        self.fader.set_level(level)
 
 
 class EmptyCell(tk.Canvas):
@@ -668,7 +649,7 @@ class WaveWindow:
         """Design, Sprache und Updates."""
         from .settingsui import open_settings
         return open_settings(self.root, "FreeWave", self._restart,
-                             mixer=(self.state.get("mixer_active"), self._mixer_enable))
+                             mixer=(self.state.get("mixer_active"), self._mixer_enable), setup=self.open_setup)
 
     def _restart(self):
         theme.restart_later("freestream.freewave")
@@ -758,7 +739,6 @@ class WaveWindow:
             item._draw()
             item.pack(fill="x", pady=1)
             self.nav[key] = item
-        NavItem(sb.top, _("Setup wizard"), "check", command=self.open_setup).pack(fill="x", pady=1)
         sb.section(_("Mixes"))
         self.mix_list = tk.Frame(sb.top, bg=COL["side"])
         self.mix_list.pack(fill="x")
@@ -993,6 +973,7 @@ class WaveWindow:
             part = self.strips.get(cid, {}).get(mid)
             if part:
                 part["fader"].configure(width=w - 100)
+                part["meter"].configure(width=w - 112)
 
     def _build_table(self, channels, mixes):
         self.mix_w = self._fit_mix_w(len(mixes))
@@ -1102,7 +1083,7 @@ class WaveWindow:
             ear.grid_remove()
         mrow = tk.Frame(body, bg=COL["panel"])  # Pegel des Mixes mit dB-Zahl (rot „CLIP“ bei Übersteuerung)
         mrow.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(6, 0))
-        meter = LevelMeter(mrow, length=mw - 76, thickness=4, orient="horizontal", color=COL["ok"])
+        meter = LevelMeter(mrow, length=mw - 76, thickness=5, orient="horizontal")
         meter.pack(side="left")
         db = tk.StringVar(self.root, value="")
         db_lb = label(mrow, textvariable=db, size=8, color=COL["muted"], anchor="e", width=7)
@@ -1138,14 +1119,16 @@ class WaveWindow:
         mute.grid(row=0, column=2, rowspan=2, padx=(4, 6))
         fcol = tk.Frame(body, bg=COL["panel"])
         fcol.grid(row=0, column=3, rowspan=2)
-        flen = 50 if cid == "mic" else 74  # Mikrofon: Platz für den Mithören-Knopf
+        flen = 74
         fader = Fader(fcol, length=flen, thickness=22, orient="horizontal", color=color,
                       command=lambda v: self._on_master(cid, v))
         fader.pack()
-        meter = _FaderLevel(fader)  # Pegel läuft grün in der Spur des Reglers (wie Wave Link)
+        meter = LevelMeter(fcol, length=flen - 12, thickness=5, orient="horizontal")
+        meter.pack(pady=(3, 0))  # Live-Pegel unter dem Regler
         val = tk.StringVar(self.root, value="–")
-        label(body, textvariable=val, size=9, color=COL["muted"], width=5, anchor="e").grid(row=0, column=4,
-                                                                                             rowspan=2)
+        if cid != "mic":  # Mikrofon: dort sitzt der Mithören-Knopf (Prozentwert steht unter „Mikrofon“)
+            label(body, textvariable=val, size=9, color=COL["muted"], width=5, anchor="e").grid(row=0, column=4,
+                                                                                                 rowspan=2)
         fx = FxButton(body, command=lambda c=ch: self._open_effects(c))
         fx.grid(row=0, column=5, rowspan=2, padx=(6, 0))
         hear = None
@@ -1190,7 +1173,8 @@ class WaveWindow:
         fader = Fader(fcol, length=self.mix_w - 100, thickness=22, orient="horizontal", color=m.get("color"),
                       command=lambda v: self._on_level(cid, mid, v))
         fader.pack()
-        meter = _FaderLevel(fader)
+        meter = LevelMeter(fcol, length=self.mix_w - 112, thickness=5, orient="horizontal")
+        meter.pack(pady=(3, 0))
         val = tk.StringVar(self.root, value="–")
         lb = label(body, textvariable=val, size=9, color=COL["muted"], width=5, anchor="e")
         lb.grid(row=0, column=2, rowspan=2)

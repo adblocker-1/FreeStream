@@ -757,7 +757,7 @@ def label(master, text="", size=10, weight="normal", color=None, textvariable=No
 
 
 class Fader(tk.Canvas):
-    """Schieberegler wie in Wave Link: dünne graue Spur, weißer runder Knopf, grüner Pegel in der Spur.
+    """Schieberegler wie in Wave Link: dünne graue Spur, weißer runder Knopf.
 
     command(value) wird bei jeder Bewegung aufgerufen; set() ruft ihn nicht auf.
     """
@@ -774,7 +774,6 @@ class Fader(tk.Canvas):
         self.command = command
         self.enabled = True
         self.dimmed = False
-        self.level = 0.0
         self.bind("<Configure>", lambda e: self._draw())
         self.bind("<ButtonPress-1>", self._press)
         self.bind("<B1-Motion>", self._press)
@@ -804,13 +803,6 @@ class Fader(tk.Canvas):
     def _frac(self):
         return (self.value - self.lo) / ((self.hi - self.lo) or 1)
 
-    def set_level(self, level):
-        """Pegel des Signals (0–1) als grüner Streifen in der Spur (wie Wave Link)."""
-        level = max(0.0, min(1.0, float(level or 0)))
-        if abs(level - self.level) > 0.004:
-            self.level = level
-            self._draw()
-
     def _knob_size(self, w, h):
         return min((w if self.orient == "vertical" else h) - 4, 18)
 
@@ -828,9 +820,6 @@ class Fader(tk.Canvas):
             rounded_rect(self, x0, top - th / 2, x1, bot + th / 2, th / 2, fill=COL["raised"], outline="")
             if f > 0 and not self.dimmed:
                 rounded_rect(self, x0, y, x1, bot + th / 2, th / 2, fill=fill, outline="")
-            if self.level > 0:
-                rounded_rect(self, x0, bot - self.level * (bot - top), x1, bot + th / 2, th / 2, fill=COL["ok"],
-                             outline="")
             cx, cy = w / 2, y
         else:
             y0, y1 = (h - th) / 2, (h + th) / 2
@@ -839,9 +828,6 @@ class Fader(tk.Canvas):
             rounded_rect(self, left - th / 2, y0, right + th / 2, y1, th / 2, fill=COL["raised"], outline="")
             if f > 0 and not self.dimmed:
                 rounded_rect(self, left - th / 2, y0, x, y1, th / 2, fill=fill, outline="")
-            if self.level > 0:
-                rounded_rect(self, left - th / 2, y0, left + self.level * (right - left), y1, th / 2,
-                             fill=COL["ok"], outline="")
             cx, cy = x, h / 2
         self._knob = _knob_image(self, int(knob), COL["faint"] if self.dimmed else "#f2f2f2", self.enabled)
         self.create_image(cx, cy + 1, image=self._knob)
@@ -1541,8 +1527,11 @@ class Chip(tk.Canvas):
         self.create_text(x, h / 2, text=self.text, anchor="w", font=self.f, fill=fg)
 
 
+METER_ZONES = ((0.0, 0.7, "#2bd665"), (0.7, 0.9, "#f5c542"), (0.9, 1.0, "#f0484f"))
+
+
 class LevelMeter(tk.Canvas):
-    """Pegelanzeige: senkrecht als schmaler Streifen (grün → gelb → rot) oder waagerecht in einer Farbe."""
+    """Pegelanzeige grün → gelb → rot (senkrecht oder waagerecht); waagerecht mit color: einfarbig."""
 
     def __init__(self, master, length=200, thickness=4, orient="vertical", color=None):
         w, h = (thickness, length) if orient == "vertical" else (length, thickness)
@@ -1573,9 +1562,13 @@ class LevelMeter(tk.Canvas):
                         self.create_rectangle(0, a, w, b, fill=col, outline="")
         else:
             rounded_rect(self, 0, 0, w, h, h / 2, fill=COL["raised"], outline="")
-            if self.level > 0:
-                rounded_rect(self, 0, 0, max(h, self.level * w), h, h / 2, fill=self.color or COL["accent"],
-                             outline="")
+            if self.level > 0 and self.color:
+                rounded_rect(self, 0, 0, max(h, self.level * w), h, h / 2, fill=self.color, outline="")
+            elif self.level > 0:  # wie ein Pegelmesser: grün, ab 70 % gelb, ab 90 % rot
+                for a, b, col in METER_ZONES:
+                    lo, hi = a * w, min(b, self.level) * w
+                    if hi > lo:
+                        self.create_rectangle(lo, 0, hi, h, fill=col, outline="")
 
 
 class PopupMenu:

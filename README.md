@@ -75,7 +75,7 @@ choose – or starts you off with an empty profile.
 ![FreeDeck setup](docs/images/freedeck-setup.png)
 
 Later, FreeDeck still imports new profiles (`.streamDeckProfile` files and
-backups) from USB sticks and Downloads by itself.
+backups) from USB sticks and Downloads by itself. **Settings → Setup wizard** runs the setup again.
 
 ## The window
 
@@ -229,7 +229,7 @@ mixes, effects and support for Elgato Wave microphones.
 ## First start
 
 A short wizard asks for your microphone, your headphones, the sound and your
-channels. **Setup wizard** in the window opens it again at any time.
+channels. **Settings → Setup wizard** opens it again at any time.
 
 ## The mixer
 
@@ -237,7 +237,8 @@ Programs play into **channels** (System, Music, Browser, Voice Chat, Game, SFX,
 Microphone). The mixer is a table like **Mixes** in Wave Link: one row per
 channel with a **master slider**, one column per **mix** with its own slider and
 mute for every channel. It looks like Wave Link too: flat grey rows, slim sliders with
-the level running green inside, and the mix columns fill the width of the window. The
+the live level as a bar below – green, yellow from 70 %, red from 90 % – and the mix columns fill
+the width of the window. The
 device you listen on is chosen at the top right.
 
 - **Personal Mix** – what you hear on your headphones (also on several devices at once).
@@ -295,10 +296,14 @@ it up to date when you add or delete channels:
 - top row: mix keys (All and every mix) and “Channels 1–7” – choosing a mix shows only
   the channels in that mix, one after the other; the remaining keys stay dark
 - per channel: a tile with icon and volume (press = mute) and a fader over two
-  keys (upper = louder, lower = quieter – hold the key to keep going)
+  keys (upper = louder, lower = quieter – hold the key to keep going); the bar next to the
+  fader shows the **live level** of the channel after its volume, so you can set it by ear
+  and by eye (yellow/red at the top = loud)
 - on the Stream Deck +: the dials
 - **Look**: *Transparent keys* and a *background image* for all pages – kept when
   FreeWave updates the profile (also a background you set in FreeDeck)
+
+![FreeWave keys on a deck: mix choice, channel tiles and faders with live level](docs/images/freewave-deck.png)
 
 The actions **Mixer Channel**, **Mixer Scene** and **Wave Microphone** work even
 when the FreeWave window is closed.

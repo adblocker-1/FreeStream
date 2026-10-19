@@ -451,6 +451,84 @@ class DiscordAction(NativeAction):
 # ==========================================================================
 # Audio-Mixer (Wave-Link-Ersatz)
 # ==========================================================================
+class DeckMeters:
+    """Live-Pegel für die FreeWave-Fader auf dem Deck – gemessen wie im FreeWave-Fenster (parec).
+
+    Läuft nur, solange Fader-Tasten sichtbar sind, etwa 12× pro Sekunde. Eine Taste wird nur neu
+    gezeichnet, wenn sich die Zahl der leuchtenden Segmente ändert (jede Taste ist eine USB-Übertragung)."""
+
+    HZ = 12
+    STEPS = 24  # so fein wird der Pegel für die Anzeige gerundet
+    ENABLED = True
+
+    def __init__(self, monitor_factory=None):
+        self.actions = set()
+        self.lock = threading.Lock()
+        self.thread = None
+        self.monitor_factory = monitor_factory
+        self.monitor = None
+
+    def add(self, action):
+        if not self.ENABLED:
+            return
+        if self.monitor_factory is None:
+            from . import levels
+            if not levels.parec_available():
+                return  # ohne parec: die Leiste folgt wie bisher der Lautstärke
+        with self.lock:
+            self.actions.add(action)
+            if self.thread is None:
+                self.thread = threading.Thread(target=self._loop, name="deck-meters", daemon=True)
+                self.thread.start()
+
+    def remove(self, action):
+        with self.lock:
+            self.actions.discard(action)
+
+    def _sources(self, action):
+        """PipeWire-Quellen aller Kanäle (alle 10 s neu nachgesehen – eine Abfrage für alle Tasten)."""
+        now = time.monotonic()
+        if now - getattr(self, "_src_at", -99) > 10:
+            self._src_at = now
+            try:
+                from . import levels
+                mx = action.mixer
+                self._srcs = levels.channel_sources(mx, mx.channels())
+            except Exception as e:  # noqa: BLE001 - nur Anzeige
+                log.debug("meter sources: %s", e)
+                self._srcs = {}
+        return self._srcs
+
+    def _new_monitor(self):
+        from . import levels
+        return (self.monitor_factory or levels.LevelMonitor)()
+
+    def _loop(self):
+        self.monitor = self._new_monitor()
+        try:
+            while True:
+                with self.lock:
+                    acts = list(self.actions)
+                    if not acts:
+                        self.thread = None
+                        return
+                srcs = self._sources(acts[0])
+                targets = {a.channel: srcs[a.channel] for a in acts if srcs.get(a.channel)}
+                self.monitor.watch(targets)
+                lv = self.monitor.read()
+                for a in acts:
+                    try:
+                        a.set_meter(lv.get(a.channel, 0.0))
+                    except Exception as e:  # noqa: BLE001 - nur Anzeige
+                        log.debug("meter: %s", e)
+                time.sleep(1 / self.HZ)
+        finally:
+            self.monitor.stop()
+
+
+DECK_METERS = DeckMeters()
+
+
 class MixerAction(NativeAction):
     @property
     def mixer(self):
@@ -527,6 +605,24 @@ class MixerAction(NativeAction):
         d = str(self.settings.get("display") or "").lower()
         return d if d in ("tile", "fader_top", "fader_bottom") and self.func != "output" else ""
 
+    # ------------------------------------------------------------ Live-Pegel (Fader)
+    def _metered(self):
+        ctrl = getattr(getattr(self, "ctx", None), "ctrl", None)
+        return self.display.startswith("fader") and not getattr(ctrl, "preview", False)
+
+    def will_appear(self):
+        if self._metered():
+            DECK_METERS.add(self)
+
+    def set_meter(self, raw):
+        """Gemessener Pegel des Kanals → Anzeige nach dem Regler dieser Taste; neu zeichnen bei Änderung."""
+        from . import levels
+        vol, mute = getattr(self, "_lv", (None, False))
+        live = round(levels.post_fader(raw, vol, mute) * DeckMeters.STEPS) / DeckMeters.STEPS
+        if live != getattr(self, "_live", None):
+            self._live = live
+            self.redraw()
+
     def frames(self, size):
         if not getattr(self.ctx.ctrl, "preview", False) and self.empty:
             self.title_override = ""
@@ -545,7 +641,8 @@ class MixerAction(NativeAction):
             return [(mixkeys.tile(size, icon, color, vol, mute, self.mix, label=label,
                                   bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
         return [(mixkeys.fader(size, self.display[6:], icon, color, vol, mute, self.mix, label=label,
-                               bg_alpha=mixkeys.bg_alpha(self.state_dict())), 0)]
+                               bg_alpha=mixkeys.bg_alpha(self.state_dict()),
+                               live=getattr(self, "_live", None)), 0)]
 
     @property
     def key_action(self):
@@ -692,6 +789,7 @@ class MixerAction(NativeAction):
 
     def will_disappear(self):
         self.stop_repeat()
+        DECK_METERS.remove(self)
 
     def dial_rotate(self, ticks):
         if not self.empty:
