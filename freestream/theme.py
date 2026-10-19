@@ -302,6 +302,19 @@ def font(root, size=10, weight="normal"):
     return (_family(root), size, weight)
 
 
+_FONT_HOLD = {}  # (Tk-Interpreter, Schrift) -> nie angezeigtes Label, das die Schrift geladen hält
+
+
+def measure(widget, fnt, text):
+    """Breite von text in Pixeln (fnt wie font()). Eine Schrift, die gerade kein Widget benutzt, lädt Tk bei
+    jedem Messen neu (fontconfig, ~0,5 ms) – auch über ein tkfont.Font. Ein unsichtbares Label hält sie fest,
+    dann kostet das Messen nur Mikrosekunden."""
+    key = (widget.tk, fnt)
+    if key not in _FONT_HOLD:
+        _FONT_HOLD[key] = tk.Label(widget._root(), font=fnt)
+    return widget.tk.getint(widget.tk.call("font", "measure", fnt, text))
+
+
 # ===================================================================== Symbole
 EXTRA_GLYPHS = {}  # Name -> fn(size, color) -> RGBA-Bild (von Programmteilen eingetragen)
 
@@ -778,7 +791,7 @@ class Fader(tk.Canvas):
         self.bind("<ButtonPress-1>", self._press)
         self.bind("<B1-Motion>", self._press)
         self.bind("<MouseWheel>", self._wheel)
-        self.bind("<Button-4>", lambda e: self._step(+2))
+        self.bind("<Button-4>", lambda e: self._step(+2))  # gibt „break“ zurück (kein Scrollen der Seite)
         self.bind("<Button-5>", lambda e: self._step(-2))
         self._draw()
 
@@ -859,9 +872,11 @@ class Fader(tk.Canvas):
     def _step(self, delta):
         if self.enabled:
             self._changed(self.value + delta * (self.hi - self.lo) / 100)
+            return "break"  # das Mausrad gehört dem Regler: die Seite darunter nicht mitscrollen
+        return None
 
     def _wheel(self, e):
-        self._step(2 if e.delta > 0 else -2)
+        return self._step(2 if e.delta > 0 else -2)
 
 
 _KNOBS = {}
@@ -1023,8 +1038,7 @@ class PillButton(tk.Canvas):
 
     def _draw(self):
         self.delete("all")
-        fnt = tkfont.Font(self, font=self.f)
-        tw = fnt.measure(self.text) if self.text else 0
+        tw = measure(self, self.f, self.text) if self.text else 0
         iw = 14 if self.icon else 0
         w = self.padx * 2 + tw + iw + (6 if tw and iw else 0)
         self.configure(width=w)
@@ -1116,8 +1130,7 @@ class Segmented(tk.Frame):
     def _draw(self):
         cv = self.cv
         cv.delete("all")
-        fnt = tkfont.Font(self, font=self.f)
-        widths = [fnt.measure(t) + 36 for _k, t in self.items]
+        widths = [measure(self, self.f, t) + 36 for _k, t in self.items]
         total = sum(widths) + 8
         cv.configure(width=total)
         rounded_rect(cv, 0, 0, total, 34, 17, fill=COL["panel2"], outline="")
@@ -1277,12 +1290,17 @@ class NavItem(tk.Canvas):
 
 def elide(widget, text, fnt, width):
     """Text auf width Pixel kürzen („…“ am Ende)."""
-    f = tkfont.Font(widget, font=fnt)
-    if not text or f.measure(text) <= width:
+    if not text or measure(widget, fnt, text) <= width:
         return text
-    while text and f.measure(text + "…") > width:
-        text = text[:-1]
-    return text.rstrip() + "…"
+    # längster Anfang, der mit „…“ passt – halbieren statt Zeichen für Zeichen (wenige Messungen)
+    lo, hi = 0, len(text) - 1
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if measure(widget, fnt, text[:mid] + "…") <= width:
+            lo = mid
+        else:
+            hi = mid - 1
+    return text[:lo].rstrip() + "…"
 
 
 class InfoCard(tk.Canvas):
@@ -1313,11 +1331,14 @@ class InfoCard(tk.Canvas):
             self._draw()
 
     def set(self, title=None, subtitle=None, dot=None, dim=None, image=None, selected=None):
+        changed = False
         for k, v in (("title", title), ("subtitle", subtitle), ("dot", dot), ("dim", dim), ("image", image),
                      ("selected", selected)):
-            if v is not None:
+            if v is not None and v != getattr(self, k):
                 setattr(self, k, v)
-        self._draw()
+                changed = True
+        if changed:  # FreeWave setzt die Karten bei jeder Aktualisierung: nur bei einer Änderung neu zeichnen
+            self._draw()
 
     def _draw(self):
         self.delete("all")
@@ -1361,13 +1382,14 @@ class SoftSegmented(tk.Canvas):
         self._draw()
 
     def set(self, key):
+        if key == self.value:
+            return  # unverändert (z. B. bei jeder Aktualisierung in FreeWave): nicht neu zeichnen
         self.value = key
         self._draw()
 
     def _draw(self):
         self.delete("all")
-        fnt = tkfont.Font(self, font=self.f)
-        nat = [fnt.measure(t) + (22 if ic else 0) + 22 for _k, t, ic in self.items]
+        nat = [measure(self, self.f, t) + (22 if ic else 0) + 22 for _k, t, ic in self.items]
         show_icons = True
         if self.fill:
             total = max(self.winfo_width(), 60)
@@ -1389,7 +1411,7 @@ class SoftSegmented(tk.Canvas):
                              outline="")
             fg = COL["fg"] if on else COL["muted"]
             ic = ic if show_icons else None
-            tw = fnt.measure(t) + (20 if ic else 0)
+            tw = measure(self, self.f, t) + (20 if ic else 0)
             cx = x + (w - tw) / 2
             if ic:
                 self.create_image(cx + 7, h / 2, image=self.icons.get(ic, 13, fg))
@@ -1464,8 +1486,7 @@ class Button(tk.Canvas):
 
     def _draw(self):
         self.delete("all")
-        fnt = tkfont.Font(self, font=self.f)
-        tw = fnt.measure(self.text) if self.text else 0
+        tw = measure(self, self.f, self.text) if self.text else 0
         iw = 16 if self.icon else 0
         pad = self.padx if self.text else (self.h - iw) / 2
         w = int(pad * 2 + tw + iw + (7 if tw and iw else 0))
@@ -1509,9 +1530,8 @@ class Chip(tk.Canvas):
 
     def _draw(self):
         self.delete("all")
-        fnt = tkfont.Font(self, font=self.f)
         iw = 18 if self.icon else 0
-        w = fnt.measure(self.text) + 22 + iw
+        w = measure(self, self.f, self.text) + 22 + iw
         self.configure(width=w)
         h = self.h
         if self.active:

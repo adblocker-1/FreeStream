@@ -20,7 +20,6 @@ import queue
 import threading
 import time
 import tkinter as tk
-from tkinter import font as tkfont
 
 from PIL import Image, ImageDraw, ImageTk
 
@@ -46,6 +45,7 @@ CLIP_DB, CLIP_HOLD = -1.0, 1.5  # Mix-Pegel ab −1 dB: „CLIP“ für 1,5 s  #
 MIC_SHORTCUT = "linewave-mic-mute"
 SCENE_SHORTCUT = "linewave-scene-"
 DUCK_MS = 80
+DRAG_STALE = 10  # s ohne Mausbewegung: Ziehen gilt als abgebrochen (Loslassen ging verloren)
 
 
 def mix_color(mix):
@@ -58,12 +58,9 @@ channel_look = theme.channel_look
 post_fader = levels.post_fader
 
 
-def _fit_text(fnt, text, width):
-    if fnt.measure(text) <= width:
-        return text
-    while text and fnt.measure(text + "…") > width:
-        text = text[:-1]
-    return text + "…"
+def _fit_text(widget, fnt, text, width):
+    """Text auf width Pixel kürzen; fnt wie theme.font() – gemessen wird mit der geladenen Schrift."""
+    return theme.elide(widget, text, fnt, width)
 
 
 # ============================================================ kleine Bausteine
@@ -188,9 +185,12 @@ class FxPill(tk.Canvas):
 
     def set(self, names):
         """names: Namen der eingeschalteten Effekte."""
+        text = " · ".join(names) if names else _("Effects")
+        if (len(names), bool(names), text) == (self.count, self.active, self.text):
+            return  # bei jeder Aktualisierung gesetzt: nur bei einer Änderung neu zeichnen
         self.count = len(names)
         self.active = bool(names)
-        self.text = " · ".join(names) if names else _("Effects")
+        self.text = text
         self._draw()
 
     def _draw(self):
@@ -203,10 +203,9 @@ class FxPill(tk.Canvas):
         rounded_rect(self, 0, 0, w - 1, h - 1, 9, fill=fill, outline=out)
         self.create_image(13, h / 2, image=self.icons.get("spark", 12, fg))
         right = str(self.count) if self.active else "+"
-        fnt = tkfont.Font(self, font=self.f)
         self.create_text(w - 9, h / 2, text=right, anchor="e", font=self.f, fill=fg)
-        avail = w - 24 - 10 - fnt.measure(right) - 8
-        self.create_text(23, h / 2, text=_fit_text(fnt, self.text, avail), anchor="w", font=self.f, fill=fg)
+        avail = w - 24 - 10 - theme.measure(self, self.f, right) - 8
+        self.create_text(23, h / 2, text=_fit_text(self, self.f, self.text, avail), anchor="w", font=self.f, fill=fg)
 
 
 class AddCard(tk.Canvas):
@@ -251,8 +250,11 @@ class FxButton(FxPill):
         if self.hover:
             rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["raised"], outline="")
         fg = COL["ok"] if self.active else COL["fg"]  # Effekte an: grün wie in Wave Link
-        self._img = ImageTk.PhotoImage(_sliders_image(16, fg), master=self)
-        self.create_image(w / 2, h / 2, image=self._img)
+        cache = theme._img_cache(self)  # je Farbe einmal gebaut, nicht bei jedem Überfahren/Aktualisieren
+        key = ("sliders", 16, fg)
+        if key not in cache:
+            cache[key] = ImageTk.PhotoImage(_sliders_image(16, fg), master=self)
+        self.create_image(w / 2, h / 2, image=cache[key])
 
 
 class AddRowCard(AddCard):
@@ -267,7 +269,7 @@ class AddRowCard(AddCard):
         w, h = int(self["width"]), int(self["height"])
         rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["panel"] if self.hover else COL["panel2"], outline="")
         f = theme.font(self, 10)
-        tw = tkfont.Font(self, font=f).measure(self.text)
+        tw = theme.measure(self, f, self.text)
         x = (w - tw - 24) / 2
         self.create_image(x + 8, h / 2, image=self.icons.get("plus", 16, COL["fg"]))
         self.create_text(x + 24, h / 2, text=self.text, anchor="w", font=f, fill=COL["fg"])
@@ -468,9 +470,8 @@ class AppChip(tk.Canvas):
 
     def _draw(self):
         self.delete("all")
-        f, fs = tkfont.Font(self, font=self.f), tkfont.Font(self, font=self.fs)
-        app = _fit_text(f, self.app, 150)
-        aw, tw = f.measure(app), fs.measure(self.target)
+        app = _fit_text(self, self.f, self.app, 150)
+        aw, tw = theme.measure(self, self.f, app), theme.measure(self, self.fs, self.target)
         w = 6 + 24 + 8 + aw + 10 + 1 + 8 + 12 + 5 + tw + 10
         self.configure(width=w)
         h = self.h
@@ -761,7 +762,7 @@ class WaveWindow:
             card = InfoCard(self.mix_list, m["name"], self._mix_sub(m) if m.get("devices_eff") is not None else "–",
                             image=icon_tile(self.root, m.get("icon") or "wave", 30, m.get("color") or COL["accent"],
                                             radius=0.2), height=50,
-                            command=lambda mm=m: self._edit_mix(mm) if self.state.get("mixer_active") else None)
+                            command=lambda mid=m["id"]: self._edit_mix_id(mid))
             card.pack(fill="x", pady=(0, 2))
             card.bind("<Button-3>", lambda e, mid=m["id"]: self._mix_menu(mid, e.x_root, e.y_root))
             self.mix_cards[m["id"]] = card
@@ -954,12 +955,12 @@ class WaveWindow:
     def _resize_columns(self, w):
         """Alle Mix-Spalten auf die Breite w bringen, ohne Zellen neu anzulegen."""
         self.mix_w = w
-        f = tkfont.Font(self.root, font=theme.font(self.root, 10, "bold"))
+        f = theme.font(self.root, 10, "bold")
         for mid, head in self.mix_heads.items():
             card = head["card"]
             card._fixed_w = w
             card.configure(width=w)
-            head["name"].configure(text=_fit_text(f, head["mix"]["name"], w - 90))
+            head["name"].configure(text=_fit_text(self.root, f, head["mix"]["name"], w - 90))
             meter = self.mix_meters.get(mid, {}).get("meter")
             if meter is not None:
                 meter.configure(width=w - 76)
@@ -1072,8 +1073,8 @@ class WaveWindow:
                                               fg=COL["panel"]),
                         bg=COL["panel"], cursor="hand2")
         tile.grid(row=0, column=0, rowspan=2, sticky="w", padx=(0, 8))
-        f = tkfont.Font(self.root, font=theme.font(self.root, 10, "bold"))
-        name = label(body, _fit_text(f, m["name"], mw - 90), 10, "bold", cursor="hand2", anchor="w")
+        name = label(body, _fit_text(self.root, theme.font(self.root, 10, "bold"), m["name"], mw - 90), 10, "bold",
+                     cursor="hand2", anchor="w")
         name.grid(row=0, column=1, sticky="w")
         sub = tk.StringVar(self.root, value=self._mix_sub(m))
         label(body, textvariable=sub, size=8, color=COL["muted"], anchor="w").grid(row=1, column=1, sticky="w")
@@ -1090,7 +1091,7 @@ class WaveWindow:
         db_lb = label(mrow, textvariable=db, size=8, color=COL["muted"], anchor="e", width=7)
         db_lb.pack(side="right")
         for w in (tile, name):
-            w.bind("<Button-1>", lambda e, mm=m: self._edit_mix(mm))
+            w.bind("<Button-1>", lambda e, mid=m["id"]: self._edit_mix_id(mid))
         for w in (card, body, tile, name):
             w.bind("<Button-3>", lambda e, mid=m["id"]: self._mix_menu(mid, e.x_root, e.y_root))
         self.mix_meters[m["id"]] = {"meter": meter, "db": db, "label": db_lb}
@@ -1106,8 +1107,8 @@ class WaveWindow:
         tile = tk.Label(body, image=icon_tile(self.root, glyph, 40, color, radius=0.18), bg=COL["panel"],
                         cursor="hand2")
         tile.grid(row=0, column=0, rowspan=2, sticky="w", padx=(0, 10))
-        f = tkfont.Font(self.root, font=theme.font(self.root, 10, "bold"))
-        name = label(body, _fit_text(f, ch["name"], 112), 10, "bold", cursor="hand2", anchor="w")
+        name = label(body, _fit_text(self.root, theme.font(self.root, 10, "bold"), ch["name"], 112), 10, "bold",
+                     cursor="hand2", anchor="w")
         name.grid(row=0, column=1, sticky="sw")
         apps = tk.StringVar(self.root, value=" ")
         label(body, textvariable=apps, size=8, color=COL["muted"], anchor="w", width=1).grid(row=1, column=1,
@@ -1115,7 +1116,7 @@ class WaveWindow:
         name.configure(width=1)
         name.grid_configure(sticky="sew")
         for w in (tile, name):
-            w.bind("<Button-1>", lambda e, c=ch: self._edit_channel(c))
+            w.bind("<Button-1>", lambda e: self._edit_channel_id(cid))
         mute = MuteToggle(body, "speaker", "speaker_off", command=lambda: self._on_master_mute(cid), width=28)
         mute.grid(row=0, column=2, rowspan=2, padx=(4, 6))
         fcol = tk.Frame(body, bg=COL["panel"])
@@ -1256,9 +1257,7 @@ class WaveWindow:
             anchor = strip[members[0]]["card"] if len(members) > 1 else None
             btn = btns.get(cid)
             if btn is not None and (anchor is None or btn.anchor is not anchor or not btn.winfo_exists()):
-                if btn.winfo_exists():
-                    btn.destroy()
-                btn = btns.pop(cid)
+                self._drop_link(btns.pop(cid))
                 btn = None
             if anchor is None:
                 continue
@@ -1275,9 +1274,16 @@ class WaveWindow:
             if not self._held(f"link:{cid}"):
                 btn.set(cid in linked)
         for cid in [c for c in btns if c not in self.strips]:
-            if btns[cid].winfo_exists():
-                btns[cid].destroy()
-            btns.pop(cid)
+            self._drop_link(btns.pop(cid))
+
+    @staticmethod
+    def _drop_link(btn):
+        """Kette entfernen und die breite Lücke hinter ihrer Zelle zurücknehmen – sonst bleibt die ganze
+        Mix-Spalte breiter (die Spaltenbreite richtet sich nach der breitesten Zelle)."""
+        if _alive(btn):
+            btn.destroy()
+        if _alive(btn.anchor):
+            btn.anchor.grid_configure(padx=(0, 10))
 
     def _on_link(self, cid, on):
         self._touch(f"link:{cid}")
@@ -1377,6 +1383,17 @@ class WaveWindow:
     def _edit_mix(self, m):
         self._mix_dialog(m)
 
+    def _current(self, key, xid):
+        """Mix oder Kanal (key "mixes"/"channels") im aktuellen Zustand. Klicks merken sich nur die id: die
+        Tabelle wird bei geänderten Ausgängen oder Geräten nicht neu gebaut, ein beim Aufbau gemerkter Stand
+        wäre veraltet – und Speichern nähme spätere Änderungen wieder zurück."""
+        return next((x for x in self.state.get(key) or [] if x["id"] == xid), None)
+
+    def _edit_mix_id(self, mid):
+        m = self._current("mixes", mid) if self.state.get("mixer_active") else None
+        if m is not None:  # Mixer aus oder Mix gerade gelöscht: nichts zu bearbeiten
+            self._edit_mix(m)
+
     def _mix_dialog(self, m):
         from .wavedialogs import MixDialog
         outs = self.state.get("outputs") or []
@@ -1453,14 +1470,16 @@ class WaveWindow:
         return None, None
 
     def _drag_app(self, s, chip, phase, x, y):
-        ghost = getattr(self, "_drag_ghost", None)
         if phase == "start":
+            self._drag_reset()  # ein übrig gebliebenes Geisterbild nicht überschreiben (bliebe für immer stehen)
             ghost = self._drag_ghost = tk.Toplevel(self.root)
             ghost.overrideredirect(True)
             ghost.attributes("-topmost", True)
             tk.Label(ghost, text=s["app"], bg=COL["accent"], fg="#ffffff", padx=10, pady=4,
                      font=theme.font(self.root, 10, "bold")).pack()
+        ghost = getattr(self, "_drag_ghost", None)
         if ghost is not None and phase in ("start", "move"):
+            self._touch("drag")
             ghost.geometry(f"+{x + 12}+{y + 8}")
         cid, card = self._drop_target(x, y) if ghost is not None else (None, None)
         old = getattr(self, "_drag_over", None)
@@ -1481,12 +1500,29 @@ class WaveWindow:
             if cid and cid != s.get("channel"):
                 self._on_stream(s, cid)
 
+    def _dragging(self):
+        """Wird gerade ein Programm gezogen? Dann die Ansicht „Apps“ nicht neu bauen – das gezogene Feld
+        verschwände samt seinem Loslassen. Ohne Bewegung seit DRAG_STALE s gilt das Ziehen als abgebrochen."""
+        return (getattr(self, "_drag_ghost", None) is not None
+                and time.time() - self._touched.get("drag", 0) < DRAG_STALE)
+
+    def _drag_reset(self):
+        """Ziehen beenden: Geisterbild schließen, hervorgehobene Karte zurücksetzen."""
+        ghost, self._drag_ghost = getattr(self, "_drag_ghost", None), None
+        if ghost is not None and _alive(ghost):
+            ghost.destroy()
+        old, self._drag_over = getattr(self, "_drag_over", None), None
+        if old is not None and _alive(old):
+            old.outline = COL["border"]
+            old._draw()
+
     def _build_apps_view(self):
         t = self.view_apps
         self.apps_list = tk.Frame(t, bg=COL["bg"])
         self.apps_list.pack(fill="both", expand=True, padx=22, pady=18)
 
     def _fill_apps_view(self, streams, channels):
+        self._drag_reset()  # die Felder werden neu gebaut: ein angefangenes Ziehen ist vorbei
         for w in self.apps_list.winfo_children():
             w.destroy()
         self._drop_targets = {w: c for w, c in getattr(self, "_drop_targets", {}).items() if _alive(w)}
@@ -1568,18 +1604,26 @@ class WaveWindow:
     def _edit_channel(self, ch):
         self._channel_dialog(ch)
 
+    def _edit_channel_id(self, cid):
+        ch = self._current("channels", cid)
+        if ch is not None:
+            self._edit_channel(ch)
+
     def _channel_dialog(self, ch):
         from .wavedialogs import ChannelDialog
         with_apps = ch is None or (ch.get("kind", "apps") == "apps" and ch["id"] != "mic")
 
         def gather():
-            return self.mixer.inputs(), (self._app_choices(ch) if with_apps else None)
+            c = ch
+            if ch is not None and ch["id"] == "mic":  # das Gerät des Mikrofon-Kanals steht in mixer.mic
+                c = dict(ch, source=self.mixer.conf.get("mic") or "")
+            return c, self.mixer.inputs(), (self._app_choices(ch) if with_apps else None)
 
         def opened(res, err):
             if err is not None:
                 return
-            inputs, apps = res
-            ChannelDialog(self.root, inputs or [], channel=ch, default_look=channel_look(ch or {"id": ""}),
+            c, inputs, apps = res
+            ChannelDialog(self.root, inputs or [], channel=c, default_look=channel_look(ch or {"id": ""}),
                           on_save=lambda v: self._save_channel(ch, v),
                           on_delete=(lambda: self._delete_channel(ch)) if ch else None, apps=apps)
         self.worker.submit(gather, opened)
@@ -1612,14 +1656,17 @@ class WaveWindow:
 
         def work():
             if ch is None:
-                # neuer Kanal startet in keinem Mix: Zuordnung wählt man selbst in der Tabelle
+                # neuer Kanal startet in keinem Mix: Zuordnung wählt man selbst in der Tabelle – außer er bekommt
+                # gleich Programme; deren laufende Streams wandern sofort hinein und wären sonst stumm
                 res = self.mixer.add_channel(v["name"], v["kind"], v["source"], v["icon"], v["color"],
-                                             in_mixes=False)
+                                             in_mixes=bool(v.get("apps_add")))
             else:
                 changes = {"icon": v["icon"], "color": v["color"]}
                 if ch["id"] != "mic":
                     changes["name"] = v["name"]
-                if ch.get("kind") == "input" or ch["id"] == "mic":
+                # Gerät nur, wenn man ein anderes gewählt hat – sonst würde z. B. „automatisch“ beim Mikrofon
+                # auf das erste Gerät der Liste festgelegt
+                if (ch.get("kind") == "input" or ch["id"] == "mic") and v.get("source_changed"):
                     changes["source"] = v["source"]
                 res = self.mixer.update_channel(ch["id"], **changes)
             if v.get("apps_add") or v.get("apps_remove"):
@@ -2013,7 +2060,10 @@ class WaveWindow:
         self._debounced("duck:threshold_db", lambda v: self._on_duck("threshold_db", v), db, delay=300)
 
     def _toggle_duck_channel(self, cid):
-        chans = list(self._duck_conf().get("channels") or [])
+        # vom Gezeigten ausgehen: die Einstellung schreibt erst der Arbeits-Thread – ist er noch beschäftigt,
+        # stünde dort die Auswahl vor dem letzten Klick, und der ginge verloren
+        chans = (list(self._duck_chip_ids[1]) if self._duck_chip_ids
+                 else list(self._duck_conf().get("channels") or []))
         chans = [c for c in chans if c != cid] if cid in chans else chans + [cid]
         self._on_duck("channels", chans)
         self._fill_duck_chips(self.state.get("channels") or self._duck_channels_fallback(), chans)
@@ -2447,10 +2497,10 @@ class WaveWindow:
                 if s["channel"]:
                     apps.setdefault(s["channel"], []).append(s["app"])
             by_id = {c["id"]: c for c in st["channels"]}
-            sub_font = tkfont.Font(self.root, font=theme.font(self.root, 8))
+            sub_font = theme.font(self.root, 8)
             for cid, strip in self.strips.items():
                 ch = by_id.get(cid, strip["channel"])
-                strip["apps"].set(_fit_text(sub_font, self._channel_sub(ch, apps.get(cid, []), st), 112))
+                strip["apps"].set(_fit_text(self.root, sub_font, self._channel_sub(ch, apps.get(cid, []), st), 112))
                 strip["fx"].set(ch.get("fx_names") or [])
             listen = st.get("listen") or "monitor"
             if not self._held("listen"):
@@ -2488,7 +2538,7 @@ class WaveWindow:
                 self._fx_ids = fx_ids
                 self._fill_fx_view(st["channels"])
             apps_ids = (keys, ids)
-            if apps_ids != self._apps_ids and not self._held("streams"):
+            if apps_ids != self._apps_ids and not self._held("streams") and not self._dragging():
                 self._apps_ids = apps_ids
                 self._fill_apps_view(st.get("streams") or [], st["channels"])
             self.nav["effects"].set(count=sum(c.get("fx", 0) for c in st["channels"]) or "")
@@ -2556,8 +2606,8 @@ class WaveWindow:
             lowcut = bool(mic["lowcut"]) if hw and "lowcut" in mic else bool(cfg.get("lowcut"))
             clip = bool(mic["clipguard"]) if hw and "clipguard" in mic else bool(cfg.get("clipguard"))
             parts += (["Low Cut"] if lowcut else []) + (["Clipguard"] if clip else [])
-            fnt = tkfont.Font(self.root, font=theme.font(self.root, 9))
-            self.mic_card.set(title=name, subtitle=_fit_text(fnt, " · ".join(parts), 150) or " ",
+            fnt = theme.font(self.root, 9)
+            self.mic_card.set(title=name, subtitle=_fit_text(self.root, fnt, " · ".join(parts), 150) or " ",
                               dot=COL["danger"] if muted else COL["ok"], dim=False)
         else:
             self.mic_card.set(title=_("Microphone"), subtitle=_("No Wave microphone"), dot="", dim=True)
