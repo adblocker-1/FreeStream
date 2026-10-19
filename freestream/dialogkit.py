@@ -62,6 +62,17 @@ def entry(master, textvariable, size=11):
     return ent
 
 
+def trace(owner, var, fn):
+    """var beobachten (fn() bei jeder Änderung), solange owner lebt – der Dialog oder die Zeile mit dem Feld.
+
+    Mit owner endet die Beobachtung: Tcl hielte die Funktion sonst für immer fest und mit ihr den Dialog
+    oder das Formular samt seinen Bildern.
+    """
+    tid = var.trace_add("write", lambda *a: fn())
+    owner.bind("<Destroy>", lambda e: var.trace_remove("write", tid) if e.widget is owner else None, add="+")
+    return tid
+
+
 def slim_scrollbar(widget):
     """Schmale Bildlaufleiste ohne Pfeile (Stilname zum Übergeben an ttk.Scrollbar)."""
     name = "Slim.Vertical.TScrollbar"

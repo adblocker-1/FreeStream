@@ -127,7 +127,7 @@ class _ColorBox:
     """Farbfelder, Hex-Eingabe und Vorschau; result = „#rrggbb“ oder None."""
 
     def __init__(self, parent, title, color):
-        from .dialogkit import entry, footer, header
+        from .dialogkit import entry, footer, header, trace
         from .theme import COL, Button, Dialog
         self.result = None
         self.color = _norm(color) or "#ffffff"
@@ -151,7 +151,7 @@ class _ColorBox:
         self.var = tk.StringVar(dlg, value=self.color)
         self.entry = entry(row, self.var)
         self.entry.box.pack(side="left", fill="x", expand=True)
-        self.var.trace_add("write", lambda *a: self._typed())
+        trace(dlg, self.var, self._typed)
         footer(dlg)
         Button(dlg.buttons, _("OK"), kind="primary", command=self.ok).pack(side="right", padx=(8, 0))
         Button(dlg.buttons, _("Cancel"), command=self.close).pack(side="right")

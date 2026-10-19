@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import hass
-from .dialogkit import ScrollArea, entry
+from .dialogkit import ScrollArea, entry, trace
 from .hassui import _Async
 from .i18n import _, ngettext
 from .freedecksettings import _fill, _Page
@@ -116,7 +116,7 @@ class ConnectionsPage(_Page):
         if secret:
             ent.configure(show="•")
         ent.box.pack(side="left")
-        var.trace_add("write", lambda *a: on_change(var.get()))
+        trace(r, var, lambda: on_change(var.get()))
         if secret:
             eye = Button(r, "", "search", kind="ghost",
                          command=lambda: ent.configure(show="" if ent.cget("show") else "•"))
@@ -375,7 +375,7 @@ class ConnectionsPage(_Page):
                 store()
             Button(r, "", "trash", kind="ghost", command=remove).pack(side="left", padx=(6, 0))
             for var in pair:
-                var.trace_add("write", lambda *x: store())
+                trace(r, var, store)
             if not k:
                 ea.focus_set()
         for k, v in data.items():

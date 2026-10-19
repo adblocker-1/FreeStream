@@ -11,7 +11,7 @@ from PIL import Image, ImageTk
 
 from . import msgbox as messagebox
 from . import plugins, system, virtualdeck
-from .dialogkit import ScrollArea, ShortcutField, entry
+from .dialogkit import ScrollArea, ShortcutField, entry, trace
 from .i18n import _, ngettext
 from .models import VIRTUAL_MODELS, VIRTUAL_SIZES, VIRTUAL_UPRIGHT, model_name
 from .theme import COL, Button, Card, Fader, Icons, Segmented, Switch, font, icon_tile, label, rounded_rect, section
@@ -171,7 +171,7 @@ class DevicesPage(_Page):
         ent = entry(r, self.name)
         ent.configure(width=16)
         ent.box.pack(side="left")
-        self.name.trace_add("write", lambda *a: self._set_name())
+        trace(r, self.name, self._set_name)
         self.enabled = Switch(r, command=self._set_enabled)
         self.enabled.set(dcfg.get("enabled", True) is not False)
         self.enabled.pack(side="left", padx=(14, 6))
@@ -914,7 +914,7 @@ class StylePage(_Page):
         self.family.pack(side="left")
         self.size = tk.StringVar(self, value=str(self.key["FontSize"]))
         ttk.Spinbox(r, from_=6, to=40, width=4, textvariable=self.size).pack(side="left", padx=(8, 0))
-        self.size.trace_add("write", lambda *a: self._set_size())
+        trace(r, self.size, self._set_size)
         label(r, "px", 9, color=COL["muted"]).pack(side="left", padx=(4, 0))
 
         r = self.row(grid, _("Style"))

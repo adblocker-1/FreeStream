@@ -2325,6 +2325,7 @@ class ActionForm:
     # ------------------------------------------------------- Darstellung
     def build_appearance(self):
         """Titel, Schrift, Farbe, Position und Symbol – zweispaltig."""
+        from .dialogkit import trace
         f = self.app_frame
         for c in f.winfo_children():
             c.destroy()
@@ -2356,7 +2357,7 @@ class ActionForm:
         sty.pack(side="left", fill="x", expand=True)
         size = tk.StringVar(value=str(st.get("FontSize") or 12))
         ttk.Spinbox(frow, from_=6, to=40, width=4, textvariable=size).pack(side="left", padx=(8, 0))
-        size.trace_add("write", lambda *a: self._set_int_state("FontSize", size.get()))
+        trace(frow, size, lambda: self._set_int_state("FontSize", size.get()))
         lab(_("Icon"), 2, 0)
         irow = tk.Frame(f, bg=COL["panel"])
         irow.grid(row=2, column=1, sticky="w", pady=4)
@@ -2499,6 +2500,8 @@ class ActionForm:
         self.doc.update_settings(self.page_uuid, self.slot, key, value, action=self.data)
 
     def build_field(self, grid, row, fld: C.Field, col=0, span=1):
+        # Beobachtung der Felder endet mit ihrer Zelle – sonst hielte Tcl jedes ersetzte Formular fest
+        from .dialogkit import trace
         s = self.data.setdefault("Settings", {})
         ttk.Label(grid, text=fld.label, style="Muted.TLabel").grid(row=row, column=col, sticky="nw",
                                                                    padx=(0 if col == 0 else 24, 14), pady=4)
@@ -2509,7 +2512,7 @@ class ActionForm:
             var = tk.StringVar(value=str(s.get(k) or ""))
             ent = ttk.Entry(cell, textvariable=var)
             ent.pack(side="left", fill="x", expand=True)
-            var.trace_add("write", lambda *a: self._set(k, var.get()))
+            trace(cell, var, lambda: self._set(k, var.get()))
             if fld.kind == "file":
                 ttk.Button(cell, text="…", width=3, command=lambda: self._browse(var)).pack(side="left", padx=(4, 0))
             if fld.hint:
@@ -2525,14 +2528,14 @@ class ActionForm:
             var = tk.StringVar(value=str(s.get(k) if s.get(k) is not None else fld.min))
             ttk.Spinbox(cell, from_=fld.min, to=fld.max, textvariable=var, width=10).pack(side="left")
 
-            def on_int(*a, var=var):
+            def on_int(var=var):
                 try:
                     v = int(var.get())
                 except ValueError:
                     return
                 if fld.min <= v <= fld.max:
                     self._set(k, v)
-            var.trace_add("write", on_int)
+            trace(cell, var, on_int)
         elif fld.kind == "bool":
             var = tk.BooleanVar(value=bool(s.get(k)) if k in s else True if k == "bring_to_front" else False)
             ttk.Checkbutton(cell, variable=var, command=lambda: self._set(k, var.get())).pack(side="left")

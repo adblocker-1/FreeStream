@@ -8,7 +8,7 @@ import tkinter as tk
 from PIL import ImageTk
 
 from . import iconlib, theme
-from .dialogkit import ScrollArea, entry, footer
+from .dialogkit import ScrollArea, entry, footer, trace
 from .i18n import _
 from .theme import COL, Button, Dialog, Icons
 
@@ -41,7 +41,7 @@ class IconLibrary(Dialog):
                              font=theme.font(self, 11))
         self.hint.place(x=2, rely=0.5, anchor="w")
         self.hint.bind("<Button-1>", lambda e: self.search.focus_set())
-        self.query.trace_add("write", lambda *a: self._refresh())
+        trace(self, self.query, self._refresh)
         tk.Frame(b, bg=COL["border"], height=1).pack(fill="x")
         self.area = ScrollArea(b, bg=COL["bg"])
         self.area.pack(fill="both", expand=True)

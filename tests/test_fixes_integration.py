@@ -1,9 +1,18 @@
-"""Fehler aus der Integrations-Prüfung – je Bereich ein Block, je Test der festgehaltene Fehler."""
+"""Regressionstests zur Integrations-Prüfung nach dem Code-Review – je Bereich ein eigener Block
+(test_duck_, test_wizard_, test_trace_).
+
+Die Oberflächentests laufen nur mit Display (xvfb-run python3 -m pytest tests/test_fixes_integration.py).
+"""
+import gc
 import json
+import os
 import time
 import types
+import weakref
 
 import pytest
+
+from freestream import editdoc as E
 
 import test_waveapp
 from test_waveapp import _config
@@ -148,10 +157,6 @@ import types as _wizard_types  # noqa: E402
 
 import pytest as _wizard_pytest  # noqa: E402
 
-import test_waveapp  # noqa: E402
-
-env = test_waveapp.env  # Fixtures
-pactl = test_waveapp.pactl
 
 _wizard_needs_x = _wizard_pytest.mark.skipif(not _wizard_os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
 _WIZARD_CAT = [{"id": "ladspa:gate_1410.so:gate", "label": "gate", "name": "Gate"},
@@ -310,3 +315,263 @@ def test_wizard_after_skip_opened_from_settings_shows_recommendation(env, pactl)
     lim = _WIZARD_CAT[2]["id"]
     assert [f["plugin"] for f in mx["effects"]["mic"]] == ["builtin:highpass", _WIZARD_CAT[0]["id"], lim]
     assert mx["noise"]["enabled"] is True and mx["enabled"] is True
+
+
+# ===================================================================================== traces
+# Beobachtete Tk-Variablen (trace_add mit einer Funktion, die den Dialog kennt): Tcl hält die Funktion fest.
+# dialogkit.trace löst die Beobachtung mit der Zeile oder dem Dialog – sonst lebten geschlossene Dialoge
+# und jedes ersetzte Formular der Eigenschaften samt ihren Bildern weiter.
+_trace_needs_x = pytest.mark.skipif(not os.environ.get("DISPLAY"), reason="braucht X (xvfb-run)")
+_TRACE_WEBSITE = "com.elgato.streamdeck.system.website"  # zwei Textfelder
+_TRACE_TIMER = "com.elgato.streamdeck.system.timer"  # Zahl und Datei
+_TRACE_HA_STATE = "com.lindeck.homeassistant.state"  # Entität (hassui.entity_field), Text, Zahl
+
+
+def _trace_pump(root, n=10):
+    for _i in range(n):
+        root.update()
+        time.sleep(0.02)
+
+
+def _trace_fields(widget, cls):
+    """Namen der Tk-Variablen aller Eingabefelder der Klasse cls („Entry“, „TEntry“, „TSpinbox“) unter widget."""
+    out = []
+    for w in widget.winfo_children():
+        if w.winfo_class() == cls and str(w.cget("textvariable")):
+            out.append(str(w.cget("textvariable")))
+        out += _trace_fields(w, cls)
+    return out
+
+
+def _trace_observed(root, name):
+    """Beobachtet Tcl die Variable noch?"""
+    return bool(root.tk.call("trace", "info", "variable", name))
+
+
+def _trace_alive(cls):
+    gc.collect()
+    return [o for o in gc.get_objects() if isinstance(o, cls)]
+
+
+@pytest.fixture
+def _trace_app(tmp_path, monkeypatch):
+    """FreeDeck-Fenster mit Konfiguration im Testordner und drei Tasten mit Text-, Zahl- und Entitätsfeldern."""
+    tk = pytest.importorskip("tkinter")
+    if not os.environ.get("DISPLAY"):
+        pytest.skip("kein Display (xvfb-run verwenden)")
+    from freestream import catalog, editor, paths
+    monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path / "cfg")
+    monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "cfg" / "config.json")
+    monkeypatch.setattr(catalog, "_title_defaults", dict(catalog._title_defaults))  # Stil-Reiter ändert sie
+    monkeypatch.setattr(editor.messagebox, "askyesno", lambda *a, **k: True)
+    store = tmp_path / "profiles"
+    store.mkdir()
+    doc = E.ProfileDoc(E.create_profile("Test", "20GBD9901", store))
+    p0 = doc.page_ids[0]
+    for i, uuid in enumerate((_TRACE_WEBSITE, _TRACE_TIMER, _TRACE_HA_STATE)):
+        doc.place(p0, ("key", i, 0), uuid)
+    doc.save()
+    root = tk.Tk()
+    app = editor.EditorApp(root, store_root=store)
+    root.update()
+    yield app
+    if root.winfo_exists():
+        app.close()
+
+
+@_trace_needs_x
+def test_trace_icon_library_freed_after_close():
+    """Icon-Bibliothek dreimal öffnen und schließen: jede wird samt ihren rund 100 Kachelbildern freigegeben."""
+    import tkinter as tk
+
+    from freestream.iconlibui import IconLibrary
+    root = tk.Tk()
+    try:
+        refs, images = [], []
+        for _i in range(3):
+            dlg = IconLibrary(root, on_pick=lambda n, s: None, on_file=lambda: None)
+            _trace_pump(root)
+            assert len(dlg._photos) > 50  # Kacheln gezeichnet
+            dlg.query.set("kopf")  # die Suche wirkt, solange das Fenster offen ist
+            root.update()
+            assert dlg.grids and all(found == ["headphones", "headphones_off"] for _g, found in dlg.grids.values())
+            refs.append(weakref.ref(dlg))
+            dlg.destroy()
+            del dlg
+            root.update()
+            gc.collect()
+            images.append(len(root.tk.call("image", "names")))
+        assert [r() for r in refs] == [None, None, None]
+        assert images[2] == images[0]  # keine Bilder je Öffnen übrig
+    finally:
+        root.destroy()
+
+
+@_trace_needs_x
+def test_trace_settings_connections_and_style_freed_after_close(_trace_app, monkeypatch, tmp_path):
+    """Einstellungen mit den Reitern Geräte, Verbindungen (alle Dienste, Zuordnungs-Paare) und Stil: Felder wirken,
+    beim Wechsel des Dienstes endet die Beobachtung der alten Felder, das geschlossene Fenster wird freigegeben."""
+    from test_settings_tabs import FakeCtrl
+
+    from freestream import desktop, plugins
+    from freestream.config import Config
+    from freestream.settingsui import open_settings
+    app = _trace_app
+    root = app.root
+    monkeypatch.setattr(desktop, "SYSTEM_AUTOSTART", tmp_path / "sys-autostart")
+    monkeypatch.setattr(desktop, "installed_apps", lambda: [])
+    monkeypatch.setattr(plugins, "installed", lambda: {})
+    cfg = Config()
+    ctrl = FakeCtrl("CL12K1A01234", "20GAT9901", app.store)
+    app.daemon = types.SimpleNamespace(controllers={"a": ctrl}, cfg=cfg, plugin_host=None, store=app.store)
+    app.device = ctrl.serial
+    refs = []
+    try:
+        for n in range(2):
+            cfg.data["app_map"] = {"obs64.exe": "obs"}
+            dlg = open_settings(root, "FreeDeck", lambda: None, freedeck=app)
+            _trace_pump(root, 5)
+            dlg.show_tab("devices")
+            dlg.pages["devices"].name.set(f"Studio {n}")
+            assert cfg.device(ctrl.serial)["name"] == f"Studio {n}"
+            dlg.show_tab("connections")
+            page = dlg.pages["connections"]
+            page.select("obs")
+            page.obs_host.set(f"10.0.0.{n + 2}")
+            assert cfg.data["obs"]["host"] == f"10.0.0.{n + 2}"
+            old = str(page.obs_host)
+            for key, *_r in page.services():
+                page.select(key)
+                root.update()
+            assert not _trace_observed(root, old)  # Zeile neu aufgebaut: alte Beobachtung beendet
+            pair = [v for v in _trace_fields(page, "Entry") if root.getvar(v) == "obs"]
+            assert len(pair) == 1  # Erweitert: Zuordnung obs64.exe → obs
+            root.setvar(pair[0], "obs --minimize")
+            assert cfg.data["app_map"] == {"obs64.exe": "obs --minimize"}
+            dlg.show_tab("style")
+            style = dlg.pages["style"]
+            style.size.set(str(15 + n))
+            assert cfg.data["title_style"]["FontSize"] == 15 + n
+            refs.append(weakref.ref(dlg))
+            dlg.destroy()
+            del dlg, page, style
+            root._settings_dialog = None  # merkt sich das zuletzt geöffnete Fenster
+            _trace_pump(root, 3)
+        gc.collect()
+        assert [r() for r in refs] == [None, None]
+    finally:
+        app.daemon = None
+
+
+@_trace_needs_x
+def test_trace_action_forms_freed_on_select(_trace_app):
+    """Tasten nacheinander wählen (Darstellung und Aktion): die Felder schreiben in die Taste, und jedes
+    ersetzte Formular wird freigegeben – nur das gerade gezeigte lebt."""
+    from freestream import editor
+    app = _trace_app
+    root, page = app.root, app.page_uuid
+    slots = [("key", i, 0) for i in range(3)]
+    old = []
+    for tab in ("appearance", "action"):
+        app.set_inspector_tab(tab)
+        for i in range(9):
+            app.select(slots[i % 3])
+            root.update()
+            old += [weakref.ref(f) for f in _trace_alive(editor.ActionForm)]
+    assert len(_trace_alive(editor.ActionForm)) == 1
+    assert sum(r() is not None for r in old) == 1  # das gezeigte Formular
+
+    # Aktion: Text- und Zahlenfelder samt Entität schreiben weiter in die gewählte Taste
+    app.select(slots[0])
+    root.setvar(_trace_fields(app.inspector.inner, "TEntry")[0], "https://example.org")
+    assert app.doc.get(page, slots[0])["Settings"]["path"] == "https://example.org"
+    app.select(slots[1])
+    root.setvar(_trace_fields(app.inspector.inner, "TSpinbox")[0], "42")
+    assert app.doc.get(page, slots[1])["Settings"]["duration"] == 42
+    app.select(slots[2])
+    root.setvar(_trace_fields(app.inspector.inner, "TEntry")[0], " light.kueche ")
+    assert app.doc.get(page, slots[2])["Settings"]["entity_id"] == "light.kueche"
+    names = _trace_fields(app.inspector.inner, "TEntry") + _trace_fields(app.inspector.inner, "TSpinbox")
+    assert names and all(_trace_observed(root, v) for v in names)
+    app.select(slots[0])
+    assert not any(_trace_observed(root, v) for v in names)  # Formular ersetzt: Beobachtung beendet
+    # Darstellung: Schriftgröße
+    app.set_inspector_tab("appearance")
+    size = _trace_fields(app.inspector.inner, "TSpinbox")
+    assert len(size) == 1
+    root.setvar(size[0], "17")
+    assert app.doc.get(page, slots[0])["States"][0]["FontSize"] == 17
+    app.select(slots[1])
+    assert not _trace_observed(root, size[0])
+    gc.collect()
+    assert len(_trace_alive(editor.ActionForm)) == 1
+
+
+@_trace_needs_x
+def test_trace_child_dialogs_freed_after_close(_trace_app):
+    """Verschachtelte Aktion (Multi-Aktion) mit Text- und Zahlenfeld bearbeiten und schließen: freigegeben."""
+    from freestream import catalog as C
+    from freestream import editor
+    app = _trace_app
+    refs = []
+    for uuid, cls, key, text, value in ((_TRACE_WEBSITE, "TEntry", "path", "https://example.org", "https://example.org"),
+                                        ("com.elgato.streamdeck.multiactions.delay", "TSpinbox", "delay", "250", 250)):
+        data = C.new_action(uuid)
+        dlg = editor.ChildDialog(app, data, app.page_uuid, ("key", 0, 0))
+        app.root.update()
+        app.root.setvar(_trace_fields(dlg, cls)[0], text)
+        assert data["Settings"][key] == value
+        refs.append(weakref.ref(dlg))
+        dlg.done()
+        del dlg
+        app.root.update()
+    gc.collect()
+    assert [r() for r in refs] == [None, None]
+
+
+@_trace_needs_x
+def test_trace_entity_picker_and_colour_box_freed_after_close(tmp_path, monkeypatch):
+    """Entitätsauswahl (Home Assistant) und Farbwahl: Suche bzw. Hex-Feld wirken, geschlossen freigegeben."""
+    import tkinter as tk
+
+    from freestream import hassui, msgbox, paths
+    monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path / "cfg")  # Home Assistant nicht eingerichtet
+    monkeypatch.setattr(paths, "CONFIG_FILE", tmp_path / "cfg" / "config.json")
+    root = tk.Tk()
+    try:
+        dlg = hassui.EntityPicker(root, None, ["light"])
+        dlg.items = [("light.kueche", "Küche", "an"), ("light.flur", "Flur", "aus")]
+        dlg.query.set("kü")
+        assert [s[0] for s in dlg.shown] == ["light.kueche"]
+        ref = weakref.ref(dlg)
+        dlg.destroy()
+        del dlg
+
+        boxes = []
+        orig = msgbox._ColorBox.__init__
+
+        def spy(self, *a, **k):
+            boxes.append(weakref.ref(self))
+            orig(self, *a, **k)
+        monkeypatch.setattr(msgbox._ColorBox, "__init__", spy)
+
+        seen = []
+
+        def typed():
+            box = boxes[-1]() if boxes else None
+            if box is None or not getattr(box, "dlg", None) or not box.dlg.winfo_exists():
+                root.after(20, typed)
+                return
+            try:
+                box.var.set("#123abc")  # Hex-Feld: Farbe übernommen
+                seen.append(box.color)
+            finally:  # nie hängen bleiben
+                box.ok()
+        root.after(20, typed)
+        assert msgbox.askcolor(color="#ffffff", parent=root) == ((0x12, 0x3a, 0xbc), "#123abc")
+        assert seen == ["#123abc"]
+        root.update()
+        gc.collect()
+        assert ref() is None and [b() for b in boxes] == [None]
+    finally:
+        root.destroy()

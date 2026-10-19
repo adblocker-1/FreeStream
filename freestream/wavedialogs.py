@@ -8,6 +8,7 @@ from tkinter import ttk
 
 from . import effects
 from .dialogkit import ScrollArea, ShortcutField, entry, field, footer, header
+from .dialogkit import trace as _trace  # Suchfelder: Beobachtung endet mit dem Dialog
 from .i18n import _, ngettext
 from .theme import COL, Button, Card, Chip, Dialog, Fader, Icons, SoftSegmented, Switch, font, icon_tile, \
     label, rounded_rect
@@ -307,13 +308,6 @@ class ChannelDialog(Dialog):
         self.destroy()
         if self.on_delete:
             self.on_delete()
-
-
-def _trace(dlg, var, fn):
-    """var beobachten, solange der Dialog offen ist. Beim Schließen die Beobachtung lösen – Tcl hielte die
-    Funktion sonst für immer fest und mit ihr den Dialog samt seinen Bildern."""
-    tid = var.trace_add("write", lambda *a: fn())
-    dlg.bind("<Destroy>", lambda e: var.trace_remove("write", tid) if e.widget is dlg else None, add="+")
 
 
 class AppPicker(Dialog):
