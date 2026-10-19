@@ -75,7 +75,10 @@ def running_instance(name):
         return None
     if info.get("start") is not None:
         return pid if _start_time(pid) == info["start"] else None
-    return pid if is_ours(pid) else None  # Datei einer älteren Version (ohne Startzeit)
+    # Datei einer älteren Version (ohne Startzeit): nur das Programm, dem die Datei gehört – is_ours passt
+    # auch auf FreeWave und die Effektketten, die die Pid nach einem Absturz bekommen haben können
+    strict = {"app.json": _is_freedeck, "freewave.json": _is_freewave}.get(name, is_ours)
+    return pid if strict(pid) else None
 
 
 # Pid-Datei von FreeDeck (freestream.pid): „<pid> <startzeit>“, ältere Versionen schrieben nur die Pid
@@ -100,6 +103,18 @@ def _is_freedeck(pid):
             cmd = next((b for b in args[i + 1:] if b and not b.startswith("-")), "")
             return cmd not in ("freewave", "wave-app", "linewave")
     return False
+
+
+def _is_freewave(pid):
+    """Strenge Prüfung für freewave.json ohne Startzeit: nur FreeWave (-m freestream.freewave, …/bin/freewave,
+    „freedeck freewave“) – nicht FreeDeck selbst und nicht die Effektketten."""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            args = f.read().decode(errors="ignore").split("\0")
+    except OSError:
+        return False
+    return any(a.endswith((".freewave", ".linewave")) or os.path.basename(a) in ("freewave", "wave-app", "linewave")
+               for a in args)
 
 
 def freedeck_pid():

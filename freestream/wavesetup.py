@@ -100,7 +100,8 @@ def test_tone_file():
 class SetupWizard(tk.Toplevel):
     def __init__(self, win, data, on_done=None):
         """data: {"inputs": [(name, desc)], "outputs": [(name, desc)], "default_source", "default_sink",
-        "wave3": bool, "catalog": [...]} – im Arbeits-Thread gesammelt."""
+        "monitor_output" (Gerät des laufenden Persönlichen Mix oder ""), "wave3": bool, "catalog": [...]}
+        – im Arbeits-Thread gesammelt."""
         super().__init__(win.root)
         self.win, self.data, self.on_done = win, data, on_done
         self.title(_("Set up FreeWave"))
@@ -394,9 +395,11 @@ class SetupWizard(tk.Toplevel):
         aufgerufen, der jetzige Stand – „Fertig“ ändert dann nur, was man umschaltet (self._fx_on)."""
         self._fx_on = None  # None: erste Einrichtung – alle Effekte des Assistenten setzen
         self._noise_on = False
-        # erneut aufgerufen heißt: der Mixer war schon eingerichtet. setup_done allein genügt nicht, das setzt
-        # auch „Später einrichten“ (skip) – danach gilt beim Öffnen aus den Einstellungen noch die Empfehlung
-        if not (mx.get("enabled") or (mx.get("effects") or {}).get("mic") or (mx.get("noise") or {}).get("enabled")):
+        # erneut aufgerufen heißt: der Mixer war schon eingerichtet (auch „Fertig“ mit allem aus schreibt die
+        # Kanäle). setup_done allein genügt nicht, das setzt auch „Später einrichten“ (skip) – danach gilt beim
+        # Öffnen aus den Einstellungen noch die Empfehlung
+        if not (mx.get("enabled") or mx.get("channels") or (mx.get("effects") or {}).get("mic")
+                or (mx.get("noise") or {}).get("enabled")):
             return self.recommended()
         chain = (mx.get("effects") or {}).get("mic") or []
         on = self._fx_on = {fx.get("plugin") for fx in chain if fx.get("enabled", True)} - {None}

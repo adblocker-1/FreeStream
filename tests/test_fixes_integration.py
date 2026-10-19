@@ -322,6 +322,30 @@ def test_wizard_after_skip_opened_from_settings_shows_recommendation(env, pactl)
     assert mx["noise"]["enabled"] is True and mx["enabled"] is True
 
 
+
+def test_wizard_rerun_after_finishing_with_everything_off_stays_off(env, pactl):
+    """„Fertig“ mit allem aus (keine Effekte, Rauschunterdrückung aus), danach den Mixer ausgeschaltet: erneut
+    geöffnet ist das ein erneuter Aufruf (die Kanäle sind geschrieben) – nicht wieder die Empfehlung."""
+    import tkinter as tk
+
+    from freestream import wavesetup
+    from freestream.mixer import DEFAULT_CHANNELS
+    from freestream.wavehost import WaveHost
+    host = WaveHost(test_waveapp._config(env, {"linewave": {"setup_done": True}, "mixer": {
+        "enabled": False, "channels": [dict(c) for c in DEFAULT_CHANNELS], "noise": {"enabled": False}}}))
+    data = {"inputs": [("alsa_input.usb-capture", "USB Capture")], "outputs": [("alsa_output.headphones", "Kopfhörer")],
+            "catalog": _WIZARD_CAT, "wave3": False, "noise": ["rnnoise"]}
+    root = tk.Tk()
+    try:
+        wiz = wavesetup.SetupWizard(_wizard_types.SimpleNamespace(root=root, host=host, worker=_WIZARD_SYNC), data)
+        assert (wiz.lowcut.get(), wiz.clipguard.get()) == (False, False)
+        assert not any(v.get() for v in wiz.fx_choice.values())
+        ch = wiz.choices()
+        assert ch["mic_fx_set"] == {} and "noise" not in ch
+        wiz.destroy()
+    finally:
+        root.destroy()
+
 # ===================================================================================== traces
 # Beobachtete Tk-Variablen (trace_add mit einer Funktion, die den Dialog kennt): Tcl hält die Funktion fest.
 # dialogkit.trace löst die Beobachtung mit der Zeile oder dem Dialog – sonst lebten geschlossene Dialoge
@@ -663,6 +687,35 @@ def test_pidfile_legacy_file_accepts_only_freedeck_command_line(_pidfile_home):
             paths.PID_FILE.write_text(str(p.pid))  # Datei einer älteren Version (ohne Startzeit)
             expected = p.pid if ours else None
             assert _pidfile_readers() == (expected, expected, expected), extra
+    finally:
+        _pidfile_stop(procs)
+
+
+def test_pidfile_legacy_status_files_accept_only_their_own_program(_pidfile_home):
+    """app.json/freewave.json einer älteren Version (ohne Startzeit) nach einem Absturz: die Pid hat jetzt das
+    jeweils andere Programm oder eine Effektkette – kein Leser hält es für sein Programm."""
+    import json
+
+    from freestream import app, backup, desktop
+    freedeck = _pidfile_proc("-m", "freestream", "--hidden")
+    freewave = _pidfile_proc("-m", "freestream.freewave", "--hidden")
+    chain = _pidfile_proc("-c", str(paths.STATE_DIR / "effects-mic.conf"))
+    procs = [freedeck, freewave, chain]
+
+    def legacy(name, proc):
+        (paths.STATE_DIR / name).write_text(json.dumps({"pid": proc.pid, "gui": False}))
+    try:
+        for other in (freewave, chain):
+            legacy("app.json", other)
+            assert app.running_instance() is None and backup._lindeck_pid()[0] is None
+        for other in (freedeck, chain):
+            legacy("freewave.json", other)
+            assert desktop.running_instance("freewave.json") is None
+        legacy("app.json", freedeck)
+        legacy("freewave.json", freewave)
+        assert app.running_instance() == freedeck.pid
+        assert desktop.running_instance("freewave.json") == freewave.pid
+        assert backup.running_programs() == [("freedeck", freedeck.pid, False), ("freewave", freewave.pid, False)]
     finally:
         _pidfile_stop(procs)
 
