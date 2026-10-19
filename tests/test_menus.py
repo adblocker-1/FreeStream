@@ -237,6 +237,8 @@ def test_freewave_mix_columns_fit_window(env, pactl):
         root.geometry("1700x800")
         assert _pump(root, lambda: win.mix_w > w0)
         assert win.strips["system"]["monitor"]["fader"] is fader and int(fader["width"]) == win.mix_w - 100
+        from freestream.waveui import METER_INSET  # Pegel genau so breit wie die Spur des Reglers
+        assert int(win.strips["system"]["monitor"]["meter"]["width"]) == win.mix_w - 100 - METER_INSET
         assert int(win.mix_heads["monitor"]["card"]["width"]) == win.mix_w
     finally:
         win.quitting = True
