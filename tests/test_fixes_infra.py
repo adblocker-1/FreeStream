@@ -57,7 +57,7 @@ BROKEN = '{"mixer": {"channels": [{"id": "music"}]}, "obs": {"password": "geheim
 
 
 def test_invalid_config_is_kept_and_not_overwritten_by_single_keys():
-    from freestream import i18n, updater
+    from freestream import i18n, theme, updater
     from freestream.config import Config
     f = paths.CONFIG_FILE
     f.write_text(BROKEN)
@@ -72,11 +72,33 @@ def test_invalid_config_is_kept_and_not_overwritten_by_single_keys():
     # Updater und Sprache schrieben bisher {} + ihren Schlüssel über die Datei
     updater.set_enabled(False)
     assert i18n.save_language("fr") is False
+    assert theme.save_appearance("light") is False  # Hell/Dunkel/Auto in den Einstellungen
     assert f.read_text() == BROKEN
     # Config.save (z. B. nach dem Einrichtungsassistenten) darf schreiben – die Kopie bleibt
     cfg.save()
     assert "mixer" not in json.loads(f.read_text())
     assert backups[0].read_text() == BROKEN
+
+
+def test_broken_config_copy_is_private_from_the_start(monkeypatch):
+    """Die Kopie entsteht gleich mit den Rechten der Datei – bisher copy2: erst 0644 samt Inhalt, dann chmod."""
+    from freestream import config
+    f = paths.CONFIG_FILE
+    f.write_text(BROKEN)
+    os.chmod(f, 0o600)
+    created = []
+    real_open = config.os.open
+
+    def os_open(path, flags, mode=0o777, **kw):
+        fd = real_open(path, flags, mode, **kw)
+        if ".broken-" in str(path):
+            created.append(stat.S_IMODE(os.fstat(fd).st_mode))  # noch leer: Rechte beim Anlegen
+        return fd
+    monkeypatch.setattr(config.os, "open", os_open)
+    config.Config()
+    config.Config()  # schon gesichert: keine zweite Kopie
+    assert created == [0o600]
+    assert [p.read_text() for p in f.parent.glob("config.json.broken-*")] == [BROKEN]
 
 
 def test_config_that_is_not_an_object():
@@ -88,7 +110,7 @@ def test_config_that_is_not_an_object():
 
 
 def test_single_key_writes_keep_private_mode():
-    from freestream import i18n, updater
+    from freestream import i18n, theme, updater
     from freestream.config import Config, save_keys
     f = paths.CONFIG_FILE
     cfg = Config()
@@ -98,9 +120,12 @@ def test_single_key_writes_keep_private_mode():
     updater.set_enabled(False)
     assert stat.S_IMODE(f.stat().st_mode) == 0o600
     i18n.save_language("de")
+    assert stat.S_IMODE(f.stat().st_mode) == 0o600
+    assert theme.save_appearance("dark")  # bisher 0644 nach einem Klick auf Hell/Dunkel/Auto
     data = json.loads(f.read_text())
     assert stat.S_IMODE(f.stat().st_mode) == 0o600
     assert data["homeassistant"]["token"] == "geheim" and data["check_updates"] is False and data["language"] == "de"
+    assert data["appearance"] == "dark" and theme.configured_appearance() == "dark"
     # ohne Zugangsdaten: Rechte bleiben, wie der Benutzer sie gesetzt hat
     f.write_text('{"language": "fr"}')
     os.chmod(f, 0o640)
@@ -325,6 +350,30 @@ def test_plugin_context_kept_while_settings_page_is_open(host, monkeypatch):
     assert ctx not in host.contexts  # nach dem Schließen vergessen
 
 
+def test_plugin_contexts_in_multi_action_are_forgotten(host, monkeypatch):
+    """Plugin-Aktionen in einer Multi-Aktion bekommen kein willAppear/willDisappear, nur keyDown/keyUp."""
+    from freestream import actions as A
+    from freestream import plugins
+    ctrl = _Ctrl()
+    ctrl.plugin_host = host
+
+    def press():  # Seite neu gezeigt (neue Aktionen), dann die Multi-Aktion gedrückt
+        ma = A.create_action({"UUID": "com.elgato.streamdeck.multiactions.routine", "Actions": [{"Actions": [
+            {"UUID": "com.t.act", "Settings": {}, "States": [{}]}]}]}, None, A.Context(ctrl, {}, None, None))
+        ma.slot = ("key", 0)
+        ma.key_down()
+        assert wait_for(lambda: not ma._running)
+        return ma.groups[0][0]
+    child = press()
+    assert host.contexts.get(child.sdk_context) is child  # kurz danach gilt der Kontext noch (setImage)
+    monkeypatch.setattr(plugins, "HIDDEN_GRACE", -1)
+    for __ in range(20):
+        press()
+    sent = [m["event"] for m in host.procs["com.t"].sent]
+    assert sent.count("keyDown") == 21 and sent.count("keyUp") == 21
+    assert host.contexts == {}  # bisher je Seitenwechsel und Druck eine Aktion mehr
+
+
 def test_raw_base64_image_with_plugin_dir(tmp_path):
     from freestream import plugins
     img = Image.frombytes("RGB", (144, 144), random.Random(1).randbytes(144 * 144 * 3))
@@ -362,6 +411,53 @@ def test_updated_plugin_is_restarted(tmp_path):
         assert h.procs["com.up"] is not new
     finally:
         h.stop()
+
+
+def test_concurrent_plugin_syncs_start_one_process(tmp_path, monkeypatch):
+    """Dienst (alle 2 s) und Plugin-Seite im Fenster rufen sync() gleichzeitig auf."""
+    from freestream import plugins
+
+    class Daemon:
+        controllers = {}
+        cfg = None
+    started = []
+    real_start = plugins.PluginProcess.start
+
+    def start(self):
+        started.append(self)
+        time.sleep(0.05)  # Zeit für einen zweiten sync()
+        return real_start(self)
+    monkeypatch.setattr(plugins.PluginProcess, "start", start)
+    plugins.install(_plugin_src(tmp_path, "com.up", "1.0"))
+    h = plugins.PluginHost(Daemon(), publish=False)
+
+    class Slow(dict):  # Thread-Wechsel zwischen Prüfung und pop (wie unter Last)
+        def __contains__(self, key):
+            found = super().__contains__(key)
+            time.sleep(0.01)
+            return found
+    h.procs = Slow(h.procs)
+    errors = []
+
+    def sync():
+        try:
+            h.sync()
+        except Exception as e:  # noqa: BLE001
+            errors.append(e)
+    try:
+        plugins.install(_plugin_src(tmp_path, "com.up", "2.0"))
+        threads = [threading.Thread(target=sync) for __ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert not errors  # bisher KeyError aus dem zweiten pop (beendet die Schleife des Dienstes)
+        assert len(started) == 2 and h.procs["com.up"] is started[1]  # 2.0 genau einmal gestartet
+        assert started[0].stopping and started[1].info.version == "2.0"
+    finally:
+        h.stop()
+        for p in started:
+            p.stop()
 
 
 # ==========================================================================
@@ -639,5 +735,39 @@ def test_neo_idle_image_clears_info_bar_and_touch_keys(tmp_path, monkeypatch):
         ctrl.render_infobar()  # später Sekundentakt
         ctrl.update_touch_keys()
         assert len(calls) == n
+    finally:
+        real_close()
+
+
+
+def test_late_page_switch_after_stop_registers_nothing(tmp_path, monkeypatch):
+    """Tastendruck, der auf die Sperre wartet, während stop() läuft (z. B. virtuelles Deck entfernt)."""
+    from freestream import editdoc
+    ctrl, calls, real_close = _deck_ctrl(tmp_path, monkeypatch, "Stream Deck Original")
+    doc = editdoc.ProfileDoc(editdoc.create_profile("Test", ctrl.model, paths.PROFILES_DIR))
+    doc.place(doc.page_ids[0], ("key", 0, 0), "com.elgato.streamdeck.system.hotkey")
+    doc.save()
+    ctrl.store.reload()
+    pid = next(iter(ctrl.store.profiles))
+    seen = []
+
+    class Host:
+        def will_appear(self, c, a):
+            seen.append(("appear", a))
+
+        def will_disappear(self, c, a):
+            seen.append(("disappear", a))
+    ctrl.plugin_host = Host()
+    try:
+        ctrl.load_profile(pid)
+        assert ctrl.keys and seen == [("appear", ctrl.keys[0])]
+        with ctrl.lock:  # stop() hält die Sperre, der Ereignis-Thread wartet auf sie
+            late = threading.Thread(target=ctrl.goto_page, args=(0,))
+            late.start()
+            ctrl.stop()
+        late.join(5)
+        assert not ctrl.keys and seen[-1][0] == "disappear"  # bisher neue Aktionen am beendeten Gerät
+        ctrl.switch_profile(pid)
+        assert not ctrl.keys and seen[-1][0] == "disappear"
     finally:
         real_close()

@@ -2,7 +2,6 @@
 import json
 import logging
 import os
-import shutil
 import stat
 import threading
 import time
@@ -61,10 +60,22 @@ def _keep_broken(f):
     """Unlesbare config.json einmal daneben sichern, bevor das nächste save() Standardwerte darüber
     schreibt (Tippfehler beim Bearbeiten von Hand). Gibt den Pfad der Kopie zurück oder None."""
     try:
-        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(f.stat().st_mtime))
+        st = f.stat()
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(st.st_mtime))
         backup = f.with_name(f"{f.name}.broken-{stamp}")
-        if not backup.exists():
-            shutil.copy2(f, backup)  # mit denselben Rechten (Zugangsdaten)
+        raw, mode = f.read_bytes(), stat.S_IMODE(st.st_mode)
+        try:
+            # gleich mit den Rechten der Datei anlegen (Zugangsdaten), nicht erst nach dem Kopieren
+            fd = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+        except FileExistsError:
+            return backup  # diese Fassung ist schon gesichert
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                os.fchmod(fh.fileno(), mode)
+                fh.write(raw)
+        except OSError:
+            backup.unlink(missing_ok=True)  # keine halbe Kopie, die als gesichert gälte
+            raise
         return backup
     except OSError:
         return None
@@ -96,7 +107,7 @@ def read_section(name) -> dict:
 
 
 def save_keys(**changes) -> bool:
-    """Einzelne Einstellungen direkt in config.json schreiben (Updater, Sprache), ohne Config.
+    """Einzelne Einstellungen direkt in config.json schreiben (Updater, Sprache, Aussehen), ohne Config.
 
     Ist die Datei nicht lesbar, bleibt sie unverändert – sonst stünde danach nur noch dieser Schlüssel
     darin. Die Rechte der Datei bleiben erhalten (0600, solange Zugangsdaten darin stehen)."""

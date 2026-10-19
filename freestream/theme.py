@@ -100,15 +100,10 @@ def configured_appearance():
 
 
 def save_appearance(mode):
-    try:
-        data = json.loads(paths.CONFIG_FILE.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        data = {}
-    data["appearance"] = mode
-    paths.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = paths.CONFIG_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(paths.CONFIG_FILE)
+    """„appearance“ in config.json speichern – wie Sprache und Updater über config.save_keys: behält die
+    Rechte der Datei (Zugangsdaten) und schreibt nie über eine unlesbare Datei."""
+    from .config import save_keys
+    return save_keys(appearance=mode)
 
 
 def _run(cmd):

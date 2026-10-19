@@ -340,6 +340,7 @@ class PluginHost:
         self._stamps = {}         # Plugin-UUID -> _stamp() der laufenden Fassung
         self.token = secrets.token_urlsafe(18)
         self._lock = threading.RLock()
+        self._sync_lock = threading.Lock()  # nur für sync(): stop() eines Plugins wartet bis zu 3 s
         self.server = ws.Server(self._on_connect, on_http=self._on_http)
         self.port = self.server.port
         self.publish = daemon is not None if publish is None else publish
@@ -354,30 +355,34 @@ class PluginHost:
     # ------------------------------------------------------------ Plugins
     def sync(self):
         """Startet neu installierte Plugins, startet aktualisierte neu und beendet entfernte."""
-        plugins = installed(self.plugins_dir)
-        for uid, info in plugins.items():
-            stamp = _stamp(info)
-            if uid in self.procs and self._stamps.get(uid) != stamp:
-                # neue Fassung über die laufende installiert: das alte Programm liefe sonst im ersetzten
-                # Ordner weiter (veraltetes Manifest, neue Dateien in altem Code)
-                old = self.procs.pop(uid)
-                if old:
-                    old.stop()
-            self._stamps[uid] = stamp
-            if uid in self.procs or not info.runnable:
-                if not info.runnable and uid not in self.procs:
-                    log.info(_("Plugin {name} will not be started: {reason}").format(name=info.name, reason=info.reason))
-                    self.procs[uid] = None
-                continue
-            p = PluginProcess(self, info)
-            self.procs[uid] = p
-            p.start()
-        for uid in list(self.procs):
-            if uid not in plugins:
-                p = self.procs.pop(uid)
-                self._stamps.pop(uid, None)
-                if p:
-                    p.stop()
+        # Dienst (alle 2 s) und Plugin-Seiten im Fenster rufen das gleichzeitig auf: sonst zwei Prozesse
+        # je Plugin oder KeyError beim zweiten pop
+        with self._sync_lock:
+            plugins = installed(self.plugins_dir)
+            for uid, info in plugins.items():
+                stamp = _stamp(info)
+                if uid in self.procs and self._stamps.get(uid) != stamp:
+                    # neue Fassung über die laufende installiert: das alte Programm liefe sonst im ersetzten
+                    # Ordner weiter (veraltetes Manifest, neue Dateien in altem Code)
+                    old = self.procs.pop(uid, None)
+                    if old:
+                        old.stop()
+                self._stamps[uid] = stamp
+                if uid in self.procs or not info.runnable:
+                    if not info.runnable and uid not in self.procs:
+                        log.info(_("Plugin {name} will not be started: {reason}").format(
+                            name=info.name, reason=info.reason))
+                        self.procs[uid] = None
+                    continue
+                p = PluginProcess(self, info)
+                self.procs[uid] = p
+                p.start()
+            for uid in list(self.procs):
+                if uid not in plugins:
+                    p = self.procs.pop(uid, None)
+                    self._stamps.pop(uid, None)
+                    if p:
+                        p.stop()
 
     def info_for(self, info: PluginInfo):
         devices = []
@@ -463,7 +468,11 @@ class PluginHost:
         else:
             base["controller"] = "Keypad"
         base.update(payload or {})
-        p.send({"event": event, "action": action.uuid, "context": self.context(action),
+        ctx = self.context(action)
+        if ctx not in self.visible:
+            # z. B. Plugin-Aktion in einer Multi-Aktion: bekommt kein willDisappear, das sie vergessen ließe
+            self._forget_later(ctx)
+        p.send({"event": event, "action": action.uuid, "context": ctx,
                 "device": getattr(ctrl, "serial", ""), "payload": base})
         return True
 

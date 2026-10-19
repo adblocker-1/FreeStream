@@ -300,6 +300,10 @@ class DeckController:
     def show_current(self):
         # eine pactl-Abfrage für alle Tasten der Seite statt einer je Taste und Mix
         with self.lock, system.pactl_snapshot():
+            if not self.running:
+                # nach stop()/detach(): ein Tastendruck, der auf die Sperre gewartet hat, meldet sonst neue
+                # Aktionen beim beendeten Gerät an (Pegel-Thread, Plugin-Kontexte)
+                return
             self._unload_actions()
             pg = self.current_page()
             cols = self.geometry.cols
