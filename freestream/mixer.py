@@ -150,6 +150,7 @@ WRITTEN_S = 1.5  # so lange gilt ein selbst geschriebener Wert mehr als eine Abf
 _WRITTEN = {}    # Loopback-Index -> {"volume"/"mute": Wert, "at": Zeit}
 _CHANGE_LOCK = threading.RLock()  # Tastendrücke (Halten = Wiederholung) lesen-rechnen-schreiben nacheinander
 _LOCK = threading.Lock()  # _WRITTEN und _WATCH: Schreib-Threads je Mix, Beobachter und Deck-Takt gleichzeitig
+_DUCK_LOCK = threading.Lock()  # ducking-user.json lesen-ändern-schreiben: Schreib-Threads je Mix, zwei Decks
 
 
 def _wrote(index, **values):
@@ -284,19 +285,27 @@ class DuckFile:
         v = (self.data.get("bases") or {}).get(key)
         return None if v is None else int(v)
 
-    def user_set(self, key, pct):
-        self.data.setdefault("bases", {})[key] = pct
-        f = paths.STATE_DIR / DUCK_USER_FILE
-        try:
-            req = json.loads(f.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            req = {}
-        req[key] = pct
-        try:
-            f.write_text(json.dumps(req), encoding="utf-8")
-        except OSError:
-            pass
+    def volume(self, pct):
+        """Abgesenkte Lautstärke zu einem Nutzerwert."""
         return duck_volume(pct, float(self.data.get("factor") or 1.0))
+
+    def user_set(self, values):
+        """Nutzerwerte {"music_monitor": Prozent} merken und dem Host melden – erst, wenn sie
+        (abgesenkt) geschrieben sind."""
+        self.data.setdefault("bases", {}).update(values)
+        f = paths.STATE_DIR / DUCK_USER_FILE
+        with _DUCK_LOCK:  # sonst überschreibt ein Schreib-Thread den Wert des anderen (Mix „Alle“)
+            try:
+                req = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                req = {}
+            req.update(values)
+            tmp = f.with_name(f"{f.name}.{os.getpid()}.tmp")
+            try:
+                tmp.write_text(json.dumps(req), encoding="utf-8")
+                os.replace(tmp, f)  # der Host liest nie eine halb geschriebene Datei
+            except OSError:
+                pass
 
 
 def duck_volume(base, factor):
@@ -1178,23 +1187,32 @@ class Mixer:
         for m, b in self._loops(cid, mix, hint):
             self._write_volume(b["index"], f"{cid}_{m}", pct, duck)
 
-    def _write_volume(self, index, key, pct, duck=None):
+    def _write_volume(self, index, key, pct, duck=None, later=None):
+        """Während Auto-Ducking abgesenkt schreiben und den Nutzerwert erst danach merken – ein
+        Fehlversuch (veralteter Index) verschiebt ihn nicht. later: Nutzerwerte hier sammeln und
+        gemeinsam merken (alle Mixe eines Tastendrucks)."""
         pct = max(0, min(MAX_VOLUME, int(pct)))
-        if duck is not None and duck.base(key) is not None:
-            pct = duck.user_set(key, pct)  # abgesenkt schreiben, Nutzerwert merken
-        self.run(["set-sink-input-volume", index, f"{pct}%"])
+        if duck is None or duck.base(key) is None:
+            self.run(["set-sink-input-volume", index, f"{pct}%"])
+            return
+        self.run(["set-sink-input-volume", index, f"{duck.volume(pct)}%"])
+        if later is None:
+            duck.user_set({key: pct})
+        else:
+            later[key] = pct
 
     def _write_all(self, cid, mix, write, recent=False, loops=None):
         """write(Mix, Block) für alle Mixe hinter mix – gleichzeitig (je ein pactl-Aufruf). Stimmt ein
-        gemerkter Index nicht mehr (Loopback neu angelegt), einmal frisch auslesen und wiederholen."""
+        gemerkter Index nicht mehr (Loopback neu angelegt), einmal frisch auslesen und nur die
+        fehlgeschlagenen Mixe wiederholen (die anderen haben ihren Schritt schon)."""
         loops = loops if loops is not None else self._loops(cid, mix, recent=recent)
-        errors = []
+        errors = {}
 
         def one(m, b):
             try:
                 write(m, b)
             except RuntimeError as e:
-                errors.append(e)
+                errors[m] = e
         if len(loops) == 1:
             one(*loops[0])
         else:
@@ -1206,8 +1224,9 @@ class Mixer:
         if errors:
             if recent:
                 _RECENT["at"] = 0.0
-                return self._write_all(cid, mix, write, recent=False)
-            raise errors[0]
+                again = [(m, b) for m, b in self._loops(cid, mix) if m in errors]
+                return self._write_all(cid, mix, write, loops=again)
+            raise next(iter(errors.values()))
         return loops
 
     def change_volume(self, cid, mix, delta, recent=False):
@@ -1215,7 +1234,7 @@ class Mixer:
         recent: zuletzt gelesene Loopbacks genügen (Tasten am Deck – sofort schreiben).
         Gekoppelte Kanäle ändern sich in allen ihren Mixen."""
         duck = self._duck()
-        out = {}
+        out, bases = {}, {}
         if mix not in ("both", "all") and self.is_linked(cid):
             mix = "both"
 
@@ -1223,11 +1242,15 @@ class Mixer:
             key = f"{cid}_{m}"
             base = duck.base(key) if duck else None
             pct = max(0, min(MAX_VOLUME, int((b.get("volume", 0) if base is None else base) + delta)))
-            self._write_volume(b["index"], key, pct, duck)
+            self._write_volume(b["index"], key, pct, duck, later=bases)
             b["volume"] = pct if base is None else b.get("volume", 0)  # gemerkten Stand nachführen
             out[m] = pct
         with _CHANGE_LOCK:
-            self._write_all(cid, mix, write, recent=recent)
+            try:
+                self._write_all(cid, mix, write, recent=recent)
+            finally:
+                if bases:  # Ducking: alle geschriebenen Mixe auf einmal melden, der Host übernimmt sie zusammen
+                    duck.user_set(bases)
         return out
 
     def set_mute(self, cid, mix, mute, recent=False):

@@ -116,14 +116,19 @@ class Ducker:
         with self._lock:
             return self.bases.get(key)
 
-    def user_set(self, key, pct):
-        """Nutzer stellt während des Absenkens eine Lautstärke ein: merken, abgesenkt zurückgeben."""
+    def volume(self, pct):
+        """Abgesenkte Lautstärke zu einem Nutzerwert."""
         with self._lock:
-            self.bases[key] = int(pct)
-            vol = duck_volume(pct, self.factor)
-            self.applied[key] = vol
+            return duck_volume(pct, self.factor)
+
+    def user_set(self, values):
+        """Nutzer hat während des Absenkens Lautstärken eingestellt (schon abgesenkt geschrieben): merken."""
+        with self._lock:
+            for key, pct in values.items():
+                self.bases[key] = int(pct)
+                # nächster Schritt schreibt neu – auch wenn er dazwischen noch den alten Wert gesetzt hat
+                self.applied.pop(key, None)
             self._write_file(force=True)
-            return vol
 
     @property
     def depth(self):
@@ -337,16 +342,23 @@ class Ducker:
         """Lautstärken, die FreeDeck/Kommandozeile während des Absenkens gesetzt haben. True, wenn eine
         übernommen wurde."""
         f = paths.STATE_DIR / DUCK_USER_FILE
+        taken = f.with_name(f.name + ".host")
         try:
-            req = json.loads(f.read_text(encoding="utf-8"))
-            f.unlink()
-        except (OSError, ValueError):
+            f.replace(taken)  # erst wegnehmen, dann lesen: was FreeDeck danach schreibt, landet in einer neuen Datei
+        except OSError:
             return False
+        try:
+            req = json.loads(taken.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False  # kaputte Anfrage verwerfen
+        finally:
+            taken.unlink(missing_ok=True)
         took = False
         for key, pct in (req or {}).items():
             if key in self.bases:
                 self.bases[key] = max(0, min(MAX_VOLUME, int(pct)))
-                self.applied[key] = duck_volume(self.bases[key], self.factor)
+                # FreeDeck hat mit dem Faktor aus ducking.json geschrieben (kann veraltet sein): neu schreiben
+                self.applied.pop(key, None)
                 took = True
         return took
 
