@@ -166,8 +166,13 @@ class ScrollFrame(tk.Frame):
         self.canvas.pack(side="left", fill="both", expand=True)
         self.inner.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         self.canvas.bind("<Configure>", lambda e: self.canvas.itemconfigure(self._win, width=e.width))
-        for seq in ("<Button-4>", "<Button-5>", "<MouseWheel>"):
-            self.canvas.bind_all(seq, self._wheel, add="+")
+        # Mausrad: ein Handler für alle Bereiche, nur einmal je Tk gebunden – ein eigener je Bereich bliebe
+        # nach dem Schließen des Dialogs für immer an „all“ hängen (und mit ihm der ganze Dialog)
+        root = self._root()
+        if not root.__dict__.get("_scrollframe_wheel"):
+            root._scrollframe_wheel = True
+            for seq in ("<Button-4>", "<Button-5>", "<MouseWheel>"):
+                root.bind_all(seq, _scrollframe_wheel, add="+")
 
     def _on_scroll(self, lo, hi):
         if float(lo) <= 0 and float(hi) >= 1:
@@ -178,25 +183,31 @@ class ScrollFrame(tk.Frame):
         self.bar.set(lo, hi)
 
     def _wheel(self, e):
-        w = e.widget
-        while w is not None:
-            if w is self.canvas:
-                break
-            w = getattr(w, "master", None)
-        else:
-            return
+        """Ein Rad-Schritt; False, wenn der Inhalt ganz hineinpasst (dann darf ein äußerer Bereich scrollen)."""
         try:
             if not self.bar.winfo_manager():
-                return
+                return False
             step = -1 if (e.num == 4 or getattr(e, "delta", 0) > 0) else 1
             self.canvas.yview_scroll(step * 2, "units")
+            return True
         except tk.TclError:
-            pass
+            return False
 
-    def clear(self):
+    def clear(self, keep_scroll=False):
         for c in self.inner.winfo_children():
             c.destroy()
-        self.canvas.yview_moveto(0)
+        if not keep_scroll:
+            self.canvas.yview_moveto(0)
+
+
+def _scrollframe_wheel(e):
+    """Mausrad über einem ScrollFrame: den innersten Bereich unter dem Zeiger scrollen, der eine Leiste hat."""
+    w = e.widget  # Tk-interne Fenster (z. B. Liste einer Combobox) kommen als Text an
+    while w is not None and not isinstance(w, str):
+        sf = getattr(w, "master", None)
+        if isinstance(sf, ScrollFrame) and w is sf.canvas and sf._wheel(e):
+            return
+        w = sf
 
 
 class RoundBox(tk.Canvas):
@@ -481,19 +492,30 @@ class DropButton(tk.Canvas):
 
 
 class DropPanel(tk.Toplevel):
-    """Aufgeklappte Liste unter einem DropButton; schließt bei Klick daneben oder Esc."""
+    """Aufgeklappte Liste unter einem DropButton; schließt bei Klick daneben, Esc oder wenn ein anderes
+    Programm den Fokus bekommt (Alt+Tab)."""
 
     def __init__(self, root, width=280):
         super().__init__(root, bg=COL["border"])
         self.withdraw()
         self.overrideredirect(True)
         self.width = width
+        self.anchor = None
         self.body = tk.Frame(self, bg=COL["side"], padx=6, pady=6)
         self.body.pack(fill="both", expand=True, padx=1, pady=1)
         self.bind("<Escape>", lambda e: self.hide())
-        self.bind("<ButtonPress>", self._press, add="+")
+        self.bind("<FocusOut>", lambda e: self.after(100, self._check_focus), add="+")
+        # Klick daneben: ein Handler je Tk an „all“ statt eines Grabs. Der Grab hielte das FocusOut des
+        # Hauptfensters zurück (die Liste selbst bekommt als Fenster ohne Rahmen nie den X-Fokus), und nach
+        # Alt+Tab stünde sie über dem anderen Programm
+        top = self._root()
+        if "_drop_panels" not in top.__dict__:
+            top._drop_panels = []
+            top.bind_all("<ButtonPress>", lambda e: _drop_press(top, e), add="+")
+        top._drop_panels.append(self)
 
     def show(self, anchor):
+        self.anchor = anchor
         self.update_idletasks()
         w = max(self.width, anchor.winfo_width())
         h = self.body.winfo_reqheight() + 2
@@ -503,23 +525,45 @@ class DropPanel(tk.Toplevel):
         self.lift()
         try:
             self.attributes("-topmost", True)
-            self.focus_force()
-            self.grab_set()
+            self.focus_force()  # für Esc
         except tk.TclError:
             pass
 
     def hide(self):
         try:
-            self.grab_release()
+            # Fokus zurück ans Hauptfenster (sonst gehen Tastenkürzel ins Leere, bis man hineinklickt);
+            # roher Tcl-Aufruf: focus_get() scheitert an Tk-internen Fenstern
+            focus = str(self.tk.call("focus"))
+            had_focus = focus == str(self) or focus.startswith(str(self) + ".")
+            if self.winfo_ismapped():
+                self.withdraw()
+            if had_focus:
+                self.master.focus_set()
         except tk.TclError:
             pass
-        if self.winfo_ismapped():
-            self.withdraw()
 
-    def _press(self, e):
-        x, y = e.x_root - self.winfo_rootx(), e.y_root - self.winfo_rooty()
-        if not (0 <= x < self.winfo_width() and 0 <= y < self.winfo_height()):
-            self.hide()
+    def _check_focus(self):
+        """Fokus ging an ein anderes Programm (Alt+Tab): Liste schließen, sonst schwebt sie darüber."""
+        try:
+            if self.winfo_ismapped() and not self.tk.call("focus"):
+                self.hide()
+        except tk.TclError:
+            pass
+
+    def _inside(self, x_root, y_root):
+        x, y = x_root - self.winfo_rootx(), y_root - self.winfo_rooty()
+        return 0 <= x < self.winfo_width() and 0 <= y < self.winfo_height()
+
+
+def _drop_press(top, e):
+    """Mausklick irgendwo im Programm: offene Listen schließen, die er nicht trifft. Ein Klick auf ihr
+    Auswahlfeld bleibt außen vor – das klappt sie selbst auf und zu (Widget-Bindungen laufen vor „all“)."""
+    for p in top._drop_panels:
+        try:
+            if p.winfo_ismapped() and e.widget is not p.anchor and not p._inside(e.x_root, e.y_root):
+                p.hide()
+        except tk.TclError:
+            pass
 
 
 class EditorApp:
@@ -543,6 +587,8 @@ class EditorApp:
         self._photos = []
         self._img_cache = {}
         self._tk_cache = {}    # id(PIL-Bild) -> (Bild, PhotoImage)
+        self._live_keys = {}   # Slot -> Schlüssel seines Live-Bildes in _img_cache
+        self._tiles, self._tiles_id = {}, None  # Hintergrund-Kacheln der gezeichneten Seite
         self._hit = []
         self._drag = None
         self._save_job = None
@@ -569,6 +615,7 @@ class EditorApp:
         self._bind_keys()
         root.protocol("WM_DELETE_WINDOW", self.close)
         root.bind("<FocusIn>", lambda e: self._check_disk() if e.widget is root else None, add="+")
+        root.bind("<Unmap>", lambda e: self._hide_drops() if e.widget is root else None, add="+")  # minimiert
 
         self.refresh_profiles()
         target = self.store.get(profile) if profile else None
@@ -642,9 +689,13 @@ class EditorApp:
 
         def done(ids):
             self.refresh_profiles()
-            if ids:
+            # ein neu übernommenes Profil öffnen; sonst bleibt das offene offen (samt Rückgängig-Verlauf)
+            if dlg.new_ids:
+                self.open_profile(dlg.new_ids[0])
+            elif ids and not self.doc:
                 self.open_profile(ids[0])
-        return DeckSetup(self, on_done=done)
+        dlg = DeckSetup(self, on_done=done)
+        return dlg
 
     # ================================================================ Geräte
     def _controllers(self):
@@ -793,6 +844,7 @@ class EditorApp:
 
     def hide(self):
         self.save_now()
+        self._hide_drops()  # offene Liste nicht über dem Desktop stehen lassen
         self.root.withdraw()
         if not self._hidden_once:
             self._hidden_once = True
@@ -913,8 +965,17 @@ class EditorApp:
             if p is not None:
                 p.hide()
 
+    def drop_open(self):
+        """Ist eine Liste der Kopfzeile aufgeklappt? (das virtuelle Deck hebt sich dann nicht darüber)"""
+        try:
+            return any(p.winfo_ismapped() for p in (self.dev_panel, self.prof_panel))
+        except tk.TclError:
+            return False
+
     def _profile_context(self, pid, x, y):
-        """Rechtsklick auf ein Profil in der Seitenleiste."""
+        """Rechtsklick auf ein Profil in der Liste. Die Liste schließt vorher: das Menü nimmt den Fokus und den
+        Grab, sie bliebe sonst offen, ohne auf Esc zu reagieren (und läge über den Dialogen danach)."""
+        self._hide_drops()
         m = theme.PopupMenu(self.root, width=220)
         m.add(_("Open"), lambda: self._on_profile_selected(pid), icon="folder")
         m.add(_("Rename…"), lambda: self._with_profile(pid, self.rename_profile), icon="edit")
@@ -1102,6 +1163,7 @@ class EditorApp:
         self.selected = None
         self._img_cache.clear()
         self._tk_cache.clear()
+        self._live_keys.clear()
         self.refresh_profiles()
         self.root.title(f"FreeDeck – {self.doc.name}")
         if self.daemon is None:
@@ -1150,6 +1212,7 @@ class EditorApp:
         return (max(set(models), key=models.count) if models else "20GBA9901"), False
 
     def new_profile(self):
+        self._hide_drops()  # „Neues Profil“ steht in der Liste: sie läge sonst über dem Dialog
         code, plugged = self.auto_model()
         dlg = NewProfileDialog(self.root, code, plugged)
         if not dlg.result:
@@ -1323,6 +1386,7 @@ class EditorApp:
             if not self._save_job and self.doc.reload_external():
                 self._img_cache.clear()
                 self._tk_cache.clear()
+                self._live_keys.clear()
                 self.redraw()
                 focus = self.root.focus_get()
                 if not (focus and focus.winfo_class() in TEXT_WIDGETS):
@@ -1434,6 +1498,7 @@ class EditorApp:
         if len(self._img_cache) > 600:
             self._img_cache.clear()
             self._tk_cache.clear()
+            self._live_keys.clear()
 
     def _tk_image(self, img):
         """Tk-Bild zu einem (zwischengespeicherten) PIL-Bild – die Umwandlung kostet bei jedem Neuzeichnen
@@ -1444,6 +1509,12 @@ class EditorApp:
                 self._tk_cache.clear()
             hit = self._tk_cache[id(img)] = (img, ImageTk.PhotoImage(img, master=self.root))
         return hit[1]
+
+    def _tk_forget(self, img):
+        """Tk-Bild eines PIL-Bildes verwerfen, das nicht mehr gezeichnet wird."""
+        hit = self._tk_cache.get(id(img))
+        if hit is not None and hit[0] is img:
+            del self._tk_cache[id(img)]
 
     def _device_page(self):
         """Gerät, das gerade genau die bearbeitete Seite zeigt (sonst None)."""
@@ -1472,6 +1543,14 @@ class EditorApp:
             self._img_cache_trim()
             hit = self._img_cache[key] = (img, _rounded(img.convert("RGBA").resize(size, Image.LANCZOS),
                                                         max(6, size[0] // 8)))
+        # das vorige Bild dieser Taste kommt nie wieder: aus beiden Speichern nehmen – sonst sammeln Live-Tasten
+        # (Pegel, Uhr) alle 300 ms neue Einträge, bis _img_cache_trim auch alle festen Tastenbilder verwirft
+        old = self._live_keys.get(tuple(slot))
+        self._live_keys[tuple(slot)] = key
+        if old is not None and old != key and old not in self._live_keys.values():
+            gone = self._img_cache.pop(old, None)
+            if gone is not None:
+                self._tk_forget(gone[1])
         return hit[1]
 
     def _render(self, slot, data, size):
@@ -1514,6 +1593,7 @@ class EditorApp:
         self._photos = []
         self._hit = []
         self._rings = {}
+        self._tiles, self._tiles_id = {}, None  # vor jedem frühen return: das Pedal hat keinen Hintergrund
         if not self.doc:
             self._draw_stage()
             cv.create_text(cv.winfo_width() / 2, (cv.winfo_height() - FOOTER_H) / 2, anchor="center",
@@ -1730,7 +1810,16 @@ class EditorApp:
         cv = self.canvas
         tile = self._tiles.get((slot[1], slot[2])) if slot[0] == "key" and getattr(self, "_tiles", None) else None
         if data is None and tile is not None:
-            cv.create_image(x, y, image=self._photo(_rounded(tile, max(6, w // 8))), anchor="nw")
+            # leere Taste auf dem Seiten-Hintergrund: gerundete Kachel merken statt bei jedem Neuzeichnen neu –
+            # ein Eintrag je Taste (die Kachel wechselt mit Größe und Bild), sonst sammelt das Ziehen am Fenster
+            # für jede Größe neue Einträge
+            key = ("tile", tuple(slot[1:]))
+            hit = self._img_cache.get(key)
+            if hit is None or hit[0] is not tile:
+                if hit is not None:
+                    self._tk_forget(hit[1])
+                hit = self._img_cache[key] = (tile, _rounded(tile, max(6, w // 8)))
+            cv.create_image(x, y, image=self._tk_image(hit[1]), anchor="nw")
         elif data is None:
             _round_rect(cv, x, y, x + w, y + h, max(6, w // 8), fill="", outline=COL["line"], width=2, dash=(5, 4))
             cv.create_text(x + w / 2, y + h / 2, text="+", fill=COL["faint"], font=(self._fam, max(10, w // 5)))
@@ -1799,9 +1888,14 @@ class EditorApp:
             return
         target = self.slot_at(e.x, e.y)
         if target is None:
-            # auf eine Seitenschaltfläche gezogen?
+            # auf die Seitenpunkte gezogen? (‹ › = Nachbarseite)
             w = self.root.winfo_containing(e.x_root, e.y_root)
             pid = getattr(w, "_page", None)
+            if isinstance(w, PageDots):
+                hit = w._index_at(e.x_root - w.winfo_rootx())
+                cur = w.ids.index(w.current) if w.current in w.ids else 0
+                hit = cur - 1 if hit == "prev" else cur + 1 if hit == "next" else hit
+                pid = w.ids[hit] if isinstance(hit, int) and 0 <= hit < len(w.ids) else None
             if pid and pid != self.nav[0]:
                 self._move_to_page(d["slot"], pid)
             return
@@ -1911,14 +2005,14 @@ class EditorApp:
         return [a for a in catalog if (C.KEY in a.controllers or dials)
                 and a.uuid != "com.elgato.streamdeck.multiactions.delay"]
 
-    def fill_catalog(self):
+    def fill_catalog(self, keep_scroll=False):
         """Aktionsliste: Kategorien zum Auf-/Zuklappen, darin je Aktion eine Zeile (wie die Deck-Software)."""
         q = self.search_var.get().strip().lower()
         avail = self._catalog()
         cats = list(dict.fromkeys(a.category for a in avail))
         if self._lib_open is None:
             self._lib_open = set(cats[:2])
-        self.library.clear()
+        self.library.clear(keep_scroll)
         f = self.library.inner
         self._tiles_by_uuid = {}
         shown = False
@@ -1946,7 +2040,7 @@ class EditorApp:
         if self._lib_open is None:
             self._lib_open = set()
         self._lib_open ^= {cat}
-        self.fill_catalog()
+        self.fill_catalog(keep_scroll=True)  # an der Stelle bleiben – sonst springt die Liste nach oben
 
     def _lib_select(self, uuid):
         old = self._tiles_by_uuid.get(self._lib_selected)
@@ -2231,6 +2325,7 @@ class ActionForm:
     # ------------------------------------------------------- Darstellung
     def build_appearance(self):
         """Titel, Schrift, Farbe, Position und Symbol – zweispaltig."""
+        from .dialogkit import trace
         f = self.app_frame
         for c in f.winfo_children():
             c.destroy()
@@ -2262,7 +2357,7 @@ class ActionForm:
         sty.pack(side="left", fill="x", expand=True)
         size = tk.StringVar(value=str(st.get("FontSize") or 12))
         ttk.Spinbox(frow, from_=6, to=40, width=4, textvariable=size).pack(side="left", padx=(8, 0))
-        size.trace_add("write", lambda *a: self._set_int_state("FontSize", size.get()))
+        trace(frow, size, lambda: self._set_int_state("FontSize", size.get()))
         lab(_("Icon"), 2, 0)
         irow = tk.Frame(f, bg=COL["panel"])
         irow.grid(row=2, column=1, sticky="w", pady=4)
@@ -2341,10 +2436,16 @@ class ActionForm:
             self.app.root.after_cancel(job)
 
         def apply():
+            # ein Rückgängig-Schritt und ein Neuzeichnen für alle Zustände (update_state je Zustand gäbe
+            # mehrere, und Strg+Z ließe die Zustände halb geändert zurück)
             self._opacity_job = None
-            states = self.data.get("States") or [{}]
-            for i in range(len(states)):
-                self.doc.update_state(self.page_uuid, self.slot, i, "IconOpacity", v, action=self.data)
+            self.doc.checkpoint(("state-all", self.page_uuid, tuple(self.slot), id(self.data), "IconOpacity"))
+            states = self.data.setdefault("States", [])
+            if not states:
+                states.append(C.default_state())
+            for st in states:
+                st["IconOpacity"] = v
+            self.doc.changed()
         self._opacity_job = self.app.root.after(60, apply)
 
     def _set_int_state(self, key, text):
@@ -2399,6 +2500,8 @@ class ActionForm:
         self.doc.update_settings(self.page_uuid, self.slot, key, value, action=self.data)
 
     def build_field(self, grid, row, fld: C.Field, col=0, span=1):
+        # Beobachtung der Felder endet mit ihrer Zelle – sonst hielte Tcl jedes ersetzte Formular fest
+        from .dialogkit import trace
         s = self.data.setdefault("Settings", {})
         ttk.Label(grid, text=fld.label, style="Muted.TLabel").grid(row=row, column=col, sticky="nw",
                                                                    padx=(0 if col == 0 else 24, 14), pady=4)
@@ -2409,7 +2512,7 @@ class ActionForm:
             var = tk.StringVar(value=str(s.get(k) or ""))
             ent = ttk.Entry(cell, textvariable=var)
             ent.pack(side="left", fill="x", expand=True)
-            var.trace_add("write", lambda *a: self._set(k, var.get()))
+            trace(cell, var, lambda: self._set(k, var.get()))
             if fld.kind == "file":
                 ttk.Button(cell, text="…", width=3, command=lambda: self._browse(var)).pack(side="left", padx=(4, 0))
             if fld.hint:
@@ -2425,14 +2528,14 @@ class ActionForm:
             var = tk.StringVar(value=str(s.get(k) if s.get(k) is not None else fld.min))
             ttk.Spinbox(cell, from_=fld.min, to=fld.max, textvariable=var, width=10).pack(side="left")
 
-            def on_int(*a, var=var):
+            def on_int(var=var):
                 try:
                     v = int(var.get())
                 except ValueError:
                     return
                 if fld.min <= v <= fld.max:
                     self._set(k, v)
-            var.trace_add("write", on_int)
+            trace(cell, var, on_int)
         elif fld.kind == "bool":
             var = tk.BooleanVar(value=bool(s.get(k)) if k in s else True if k == "bring_to_front" else False)
             ttk.Checkbutton(cell, variable=var, command=lambda: self._set(k, var.get())).pack(side="left")

@@ -28,6 +28,7 @@ import urllib.request
 from pathlib import Path
 
 from . import __version__, paths
+from .config import save_keys
 
 log = logging.getLogger("freestream.updater")
 
@@ -59,12 +60,8 @@ def _read_config():
 
 
 def _write_config(key, value):
-    data = _read_config()
-    data[key] = value
-    paths.CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = paths.CONFIG_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    tmp.replace(paths.CONFIG_FILE)
+    # wie Config: behält die Rechte (Zugangsdaten) und schreibt nie über eine unlesbare Datei
+    return save_keys(**{key: value})
 
 
 def configured():

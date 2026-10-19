@@ -7,8 +7,11 @@ Erscheint, wenn es noch keine Profile gibt (und die Einrichtung nicht übersprun
   4. Fertig – Hinweise zum Fenster, zu Verbindungen und Icons
 """
 import os
+import shutil
+import tempfile
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk
 
 from . import editdoc as E
@@ -39,6 +42,26 @@ def find_profiles():
     return found
 
 
+def import_keep(src, store):
+    """Wie import_path, ersetzt aber keine vorhandenen Profile: Der Assistent läuft auch aus den Einstellungen,
+    und die gefundenen Dateien sind dann meist die alten Exporte der inzwischen bearbeiteten Profile.
+    Gibt (neu übernommene IDs, schon vorhandene IDs) zurück."""
+    store = Path(store)
+    tmp = Path(tempfile.mkdtemp(prefix="freestream-setup-"))
+    try:
+        new, kept = [], []
+        for pid in import_path(src, tmp):
+            dst = store / f"{pid}.sdProfile"
+            if dst.exists():
+                kept.append(pid)
+            else:
+                shutil.move(str(tmp / dst.name), str(dst))
+                new.append(pid)
+        return new, kept
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def _search(result):
     try:
         found = find_profiles()
@@ -64,6 +87,7 @@ class DeckSetup(tk.Toplevel):
         self.found = None          # gefundene Profil-Dateien (Suche im Hintergrund)
         self.picked = []           # selbst gewählte Dateien
         self.imported = []
+        self.new_ids = []          # davon neu übernommen (nicht schon vorhanden)
         self._job = None
         result = self._search_result = []  # der Such-Thread bekommt nur diese Liste, nicht das Fenster
         threading.Thread(target=_search, args=(result,), daemon=True).start()
@@ -305,18 +329,22 @@ class DeckSetup(tk.Toplevel):
     def apply(self):
         """Profile anlegen bzw. übernehmen. False: auf dieser Seite bleiben (Fehlermeldung steht da)."""
         store = self.app.store_root
-        self.imported = []
+        self.imported, self.new_ids = [], []
         if self.choice.get() == "import":
             sources = self.picked or self.found or []
             if not sources:
                 self.error.configure(text=_("Choose the profile files first – or start with an empty profile."))
                 return False
-            errors = []
+            errors, new, kept = [], [], []
             for f in sources:
                 try:
-                    self.imported += import_path(f, store)
+                    n, k = import_keep(f, store)  # vorhandene (bearbeitete) Profile bleiben, wie sie sind
+                    new += n
+                    kept += k
                 except Exception as e:  # noqa: BLE001
                     errors.append(f"{f}: {e}")
+            self.imported = list(dict.fromkeys(new + kept))
+            self.new_ids = new
             if not self.imported:
                 self.error.configure(text=errors[0] if errors else _("No profiles found in these files."))
                 return False
@@ -324,6 +352,7 @@ class DeckSetup(tk.Toplevel):
             name = self.name.get().strip() or _("My profile")
             root = E.create_profile(name, self.model.get() or "20GBA9901", store)
             self.imported = [root.name[: -len(".sdProfile")]]
+            self.new_ids = list(self.imported)
         return True
 
     def _step_3(self):

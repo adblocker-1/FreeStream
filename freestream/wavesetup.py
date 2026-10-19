@@ -24,6 +24,7 @@ from .i18n import _
 from .mixer import DEFAULT_CHANNELS
 from .theme import COL, Button, Card, Fader, Icons, Switch, gradient_mark, icon_tile, label, rounded_rect
 
+HIGHPASS = "builtin:highpass"  # Low Cut ohne Wave:3: Effekt am Mikrofon-Kanal
 STEPS = [_("Welcome"), _("Microphone"), _("Headphones"), _("Sound"), _("Channels"), _("Done")]
 CHANNEL_ICONS = {"system": ("system", "#8e9bb0"), "music": ("music", "#30d158"), "browser": ("browser", "#2f7bff"),
                  "voice": ("chat", "#6b74ff"), "game": ("game", "#ffb020"), "sfx": ("sfx", "#ff6bd5")}
@@ -99,7 +100,8 @@ def test_tone_file():
 class SetupWizard(tk.Toplevel):
     def __init__(self, win, data, on_done=None):
         """data: {"inputs": [(name, desc)], "outputs": [(name, desc)], "default_source", "default_sink",
-        "wave3": bool, "catalog": [...]} – im Arbeits-Thread gesammelt."""
+        "monitor_output" (Gerät des laufenden Persönlichen Mix oder ""), "wave3": bool, "catalog": [...]}
+        – im Arbeits-Thread gesammelt."""
         super().__init__(win.root)
         self.win, self.data, self.on_done = win, data, on_done
         self.title(_("Set up FreeWave"))
@@ -118,13 +120,15 @@ class SetupWizard(tk.Toplevel):
         self.mic = tk.StringVar(self, value=mx.get("mic") or wave_src or data.get("default_source") or
                                 (ins[0][0] if ins else ""))
         outs = data.get("outputs") or []
-        self.out = tk.StringVar(self, value=mx.get("monitor_output") or data.get("default_sink") or
-                                (outs[0][0] if outs else ""))
+        # zuerst das Gerät, auf dem der Persönliche Mix gerade läuft (collect) – sonst verlegt ihn „Fertig“
+        self.out = tk.StringVar(self, value=data.get("monitor_output") or mx.get("monitor_output") or
+                                data.get("default_sink") or (outs[0][0] if outs else ""))
         have = {c.get("id") for c in (mx.get("channels") or DEFAULT_CHANNELS)}
         self.channels = {c["id"]: tk.BooleanVar(self, value=c["id"] in have) for c in DEFAULT_CHANNELS}
-        self.fx_choice = {}
-        self.lowcut = tk.BooleanVar(self, value=True)
-        self.clipguard = tk.BooleanVar(self, value=True)
+        sound = self._current_sound(mx)
+        self.lowcut = tk.BooleanVar(self, value=sound["lowcut"])
+        self.clipguard = tk.BooleanVar(self, value=sound["clipguard"])
+        self.fx_choice = {k: tk.BooleanVar(self, value=sound[k]) for k in ("noise", "gate", "sc4m")}
 
         self.head = tk.Frame(self, bg=COL["bg"], padx=22, pady=16)
         self.head.pack(fill="x")
@@ -319,7 +323,7 @@ class SetupWizard(tk.Toplevel):
         fx.pack(fill="x")
         # Rauschunterdrückung: eigene Stufe vor den Effekten (noise.py, RNNoise oder PipeWire WebRTC)
         have = self.data.get("noise") or []
-        var = self.fx_choice.setdefault("noise", tk.BooleanVar(self, value=bool(have)))
+        var = self.fx_choice["noise"]
         if have:
             text = _("Filters out keyboard, fans and background noise ({backend})").format(
                 backend=noise.backend_name(have[0]))
@@ -331,7 +335,7 @@ class SetupWizard(tk.Toplevel):
                 ("gate", "gate", _("Noise Gate"), _("Mutes the microphone while you pause speaking")),
                 ("sc4m", "comp", _("Compressor"), _("Evens out loud and quiet passages"))):
             p = self._plugin(key)
-            var = self.fx_choice.setdefault(key, tk.BooleanVar(self, value=bool(p) and key != "sc4m"))
+            var = self.fx_choice[key]
             if not p:
                 var.set(False)
                 text = _("{text} – package “{package}” is missing").format(text=text, package="swh-plugins")
@@ -386,6 +390,33 @@ class SetupWizard(tk.Toplevel):
             label(t, text, 9, color=COL["muted"], wraplength=580, justify="left").pack(anchor="w", pady=(2, 0))
 
     # -------------------------------------------------------------- Helfer
+    def _current_sound(self, mx):
+        """Anfangswerte des Schritts „Klang“: beim ersten Mal die Empfehlung. Wird der Assistent erneut
+        aufgerufen, der jetzige Stand – „Fertig“ ändert dann nur, was man umschaltet (self._fx_on)."""
+        self._fx_on = None  # None: erste Einrichtung – alle Effekte des Assistenten setzen
+        self._noise_on = False
+        # erneut aufgerufen heißt: der Mixer war schon eingerichtet (auch „Fertig“ mit allem aus schreibt die
+        # Kanäle). setup_done allein genügt nicht, das setzt auch „Später einrichten“ (skip) – danach gilt beim
+        # Öffnen aus den Einstellungen noch die Empfehlung
+        if not (mx.get("enabled") or mx.get("channels") or (mx.get("effects") or {}).get("mic")
+                or (mx.get("noise") or {}).get("enabled")):
+            return self.recommended()
+        chain = (mx.get("effects") or {}).get("mic") or []
+        on = self._fx_on = {fx.get("plugin") for fx in chain if fx.get("enabled", True)} - {None}
+        self._noise_on = bool((mx.get("noise") or {}).get("enabled"))
+        wave3 = self._wave3_0 = bool(self.data.get("wave3")) and is_wave(self.mic.get())
+        # Low Cut/Clipguard im Wave:3 oder als alter Mikrofonfilter (ohne Wave:3) – sonst als Effekt der Kette
+        filters = self.win.host.mic.settings if wave3 or not self.data.get("wave3") else {}
+        lim, gate, comp = ((self._plugin(k) or {}).get("id") for k in ("fastLookaheadLimiter", "gate", "sc4m"))
+        return {"lowcut": bool(filters.get("lowcut")) or (not wave3 and HIGHPASS in on),
+                "clipguard": bool(filters.get("clipguard")) or (not wave3 and lim in on),
+                "noise": self._noise_on, "gate": gate in on, "sc4m": comp in on}
+
+    def recommended(self):
+        """Empfehlung für den Schritt „Klang“ beim ersten Einrichten."""
+        return {"lowcut": True, "clipguard": True, "noise": bool(self.data.get("noise")),
+                "gate": bool(self._plugin("gate")), "sc4m": False}
+
     def _plugin(self, label_):
         return next((p for p in self.data.get("catalog") or [] if p.get("label") == label_), None)
 
@@ -435,23 +466,30 @@ class SetupWizard(tk.Toplevel):
 
     # ----------------------------------------------------------- Übernehmen
     def choices(self):
-        chain = []
         wave3 = bool(self.data.get("wave3")) and is_wave(self.mic.get())
-        if self.lowcut.get() and not wave3:
-            chain.append(effects.new_effect(effects.lookup("builtin:highpass")))
-        for key in ("gate", "sc4m"):
-            p = self._plugin(key)
-            if p and self.fx_choice.get(key) and self.fx_choice[key].get():
-                chain.append(effects.new_effect(p))
-        lim = self._plugin("fastLookaheadLimiter")
-        if self.clipguard.get() and not wave3 and lim:
-            chain.append(effects.new_effect(lim))
-        return {"mic": self.mic.get(), "output": self.out.get(), "wave3": wave3,
-                "lowcut": self.lowcut.get(), "clipguard": self.clipguard.get(),
-                "gain": self.gain.get() if wave3 and hasattr(self, "gain") else None,
-                "channels": [cid for cid, v in self.channels.items() if v.get()], "mic_fx": chain,
-                "noise": bool(self.data.get("noise")) and bool(self.fx_choice.get("noise") and
-                                                               self.fx_choice["noise"].get())}
+        # Effekte des Assistenten in seiner Reihenfolge, je (Plugin, gewünscht); beim Wave:3 filtert das
+        # Mikrofon selbst (Low Cut, Clipguard)
+        offer = [] if wave3 else [(effects.lookup(HIGHPASS), self.lowcut.get())]
+        offer += [(self._plugin(key), self.fx_choice[key].get()) for key in ("gate", "sc4m")]
+        if not wave3:
+            offer.append((self._plugin("fastLookaheadLimiter"), self.clipguard.get()))
+        offer = [(p, bool(on)) for p, on in offer if p]
+        # nur Umgeschaltetes ändern (erneut aufgerufen): eigene Effekte und eingestellte Regler bleiben
+        fx_set = {p["id"]: on for p, on in offer if self._fx_on is None or on != (p["id"] in self._fx_on)}
+        if self._fx_on is not None and wave3 and not getattr(self, "_wave3_0", False):
+            # erneut aufgerufen und jetzt das Wave:3 gewählt: dessen Low Cut/Clipguard ersetzen die Effekte
+            for pid in (HIGHPASS, (self._plugin("fastLookaheadLimiter") or {}).get("id")):
+                if pid and pid in self._fx_on:
+                    fx_set[pid] = False
+        out = {"mic": self.mic.get(), "output": self.out.get(), "wave3": wave3,
+               "lowcut": self.lowcut.get(), "clipguard": self.clipguard.get(),
+               "gain": self.gain.get() if wave3 and hasattr(self, "gain") else None,
+               "channels": [cid for cid, v in self.channels.items() if v.get()],
+               "mic_fx": [effects.new_effect(p) for p, on in offer if on], "mic_fx_set": fx_set}
+        noise = bool(self.data.get("noise")) and bool(self.fx_choice["noise"].get())
+        if self._fx_on is None or (self.data.get("noise") and noise != self._noise_on):
+            out["noise"] = noise
+        return out
 
     def apply(self):
         ch = self.choices()
@@ -480,14 +518,22 @@ def apply_choices(host, ch):
         mx["mic"] = ch["mic"]
     if ch.get("output"):
         mx["monitor_output"] = ch["output"]
-    keep = [c for c in (mx.get("channels") or []) if c.get("id") not in {d["id"] for d in DEFAULT_CHANNELS}]
-    chosen = [dict(c) for c in DEFAULT_CHANNELS if c["id"] in ch.get("channels", [])]
-    if not chosen and not any(c.get("kind", "apps") == "apps" for c in keep):
-        chosen = [dict(DEFAULT_CHANNELS[0])]  # mindestens ein Kanal für Programme
-    mx["channels"] = chosen + keep
+    # bestehende Kanäle bleiben, wie sie sind (Name, Symbol, Farbe, Reihenfolge); abgewählte Standardkanäle
+    # gehen, neu gewählte kommen hinten dazu
+    defaults = {d["id"] for d in DEFAULT_CHANNELS}
+    want = set(ch.get("channels", []))
+    chans = [c for c in (mx.get("channels") or []) if c.get("id") not in defaults or c.get("id") in want]
+    have = {c.get("id") for c in chans}
+    chans += [dict(c) for c in DEFAULT_CHANNELS if c["id"] in want and c["id"] not in have]
+    if not any(c.get("kind", "apps") == "apps" for c in chans):
+        chans.insert(0, dict(DEFAULT_CHANNELS[0]))  # mindestens ein Kanal für Programme
+    mx["channels"] = chans
     fx = mx.setdefault("effects", {})
-    if ch.get("mic_fx"):
-        fx["mic"] = ch["mic_fx"]
+    chain = ch.get("mic_fx") or []
+    if ch.get("mic_fx_set") is not None:
+        chain = merge_chain(fx.get("mic") or [], chain, ch["mic_fx_set"])
+    if chain:
+        fx["mic"] = chain
     else:
         fx.pop("mic", None)
     if "noise" in ch:
@@ -515,6 +561,29 @@ def apply_choices(host, ch):
     return True
 
 
+def merge_chain(old, new, changes):
+    """Effekte des Assistenten in die Kette des Mikrofons übernehmen.
+
+    new: die gewünschten Effekte des Assistenten in seiner Reihenfolge; changes: {Plugin-id: an/aus} nur für
+    umgeschaltete. Abgeschaltete gehen, eingeschaltete bleiben samt ihren Reglern (und sind an) oder kommen vor
+    den ersten Effekt, der beim Assistenten danach kommt. Alles andere bleibt, wie und wo es ist."""
+    out = []
+    for fx in old:
+        on = changes.get(fx.get("plugin"))
+        if on is False:
+            continue
+        out.append(dict(fx, enabled=True) if on else fx)
+    have = {fx.get("plugin") for fx in out}
+    for i, fx in enumerate(new):
+        pid = fx.get("plugin")
+        if not changes.get(pid) or pid in have:
+            continue
+        later = {f.get("plugin") for f in new[i + 1:]}
+        out.insert(next((k for k, f in enumerate(out) if f.get("plugin") in later), len(out)), fx)
+        have.add(pid)
+    return out
+
+
 def collect(host):
     """Daten für den Assistenten (Geräte, Standardgeräte, Plugins) – im Arbeits-Thread."""
     mx = host.mixer
@@ -526,6 +595,13 @@ def collect(host):
             out[key] = "" if v.startswith(("linewave_", "lindeck_")) else v
         except Exception:  # noqa: BLE001
             out[key] = ""
+    # Gerät des laufenden Persönlichen Mix: Ausgabe-Wahl im Fenster, Deck-Taste und CLI (set_monitor_output)
+    # ändern nur den Stand des Mixers, nicht config.json; der Standard-Sink ist bei laufendem Mixer der eigene
+    try:
+        cur = mx._state().get("monitor_output", "") if mx.is_active() else ""
+    except Exception:  # noqa: BLE001
+        cur = ""
+    out["monitor_output"] = cur if cur in {n for n, _d in out["outputs"]} else ""
     if out["wave3"]:
         try:
             out["gain_pct"] = host.mic.gain()[0]

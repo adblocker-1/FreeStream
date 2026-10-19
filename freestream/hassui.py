@@ -9,7 +9,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import hass
-from .dialogkit import entry, field, footer, header
+from .dialogkit import entry, field, footer, header, trace
 from .i18n import _
 from .theme import COL, Button, Dialog, Switch, font, label
 
@@ -158,7 +158,7 @@ class EntityPicker(Dialog):
         e.box.pack(fill="x")
         e.focus_set()
         self.search_entry = e
-        self.query.trace_add("write", lambda *a: self._fill())
+        trace(self, self.query, self._fill)
         self.only = tk.BooleanVar(self, value=bool(self.domains))
         if self.domains:
             row = tk.Frame(b, bg=COL["bg"])
@@ -249,7 +249,7 @@ def entity_field(cell, form, key, fld):
     var = tk.StringVar(cell, value=str(s.get(key) or ""))
     ent = ttk.Entry(cell, textvariable=var)
     ent.pack(side="left", fill="x", expand=True)
-    var.trace_add("write", lambda *a: form._set(key, var.get().strip()))
+    trace(cell, var, lambda: form._set(key, var.get().strip()))
 
     def pick():
         EntityPicker(_root(form.app), form.app, fld.options, on_pick=var.set, current=var.get().strip())

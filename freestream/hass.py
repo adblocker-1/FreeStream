@@ -134,6 +134,7 @@ class HAClient:
         self._poller = None
         self._worker = None
         self._entities = (0.0, [])        # Zeit, Liste für die Entitätsauswahl
+        self._ctx = None                  # TLS-Kontext (siehe _ssl)
         if not self.url or not self._token:
             self._set_error(_("Home Assistant is not set up yet"), CONFIG)
 
@@ -143,12 +144,18 @@ class HAClient:
         return bool(self.url and self._token)
 
     def _ssl(self):
-        if self.url.startswith("https") and not self.verify_ssl:
+        """TLS-Kontext für https, einmal je Client: ein neuer lädt jedes Mal die CA-Zertifikate des Systems
+        (rund 20 ms Rechenzeit je Abfrage, bei mehreren Entitäten alle 2 s)."""
+        if not self.url.startswith("https"):
+            return None
+        if self._ctx is None:
             ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            return ctx
-        return None
+            ctx.set_alpn_protocols(["http/1.1"])  # wie urllib ohne eigenen Kontext
+            if not self.verify_ssl:
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+            self._ctx = ctx
+        return self._ctx
 
     def request(self, method, path, body=None, timeout=None):
         """Eine Anfrage an die REST-API; Fehler als HAError mit verständlicher Meldung."""

@@ -24,7 +24,8 @@ def _app_info(name):
 
 def _write_app_info(gui, name):
     paths.ensure_dirs()
-    (paths.STATE_DIR / name).write_text(json.dumps({"pid": os.getpid(), "gui": gui}), encoding="utf-8")
+    info = {"pid": os.getpid(), "gui": gui, "start": _start_time(os.getpid())}
+    (paths.STATE_DIR / name).write_text(json.dumps(info), encoding="utf-8")
 
 
 def _clear_app_info(name):
@@ -43,12 +44,95 @@ def _alive(pid):
         return False
 
 
+def _start_time(pid):
+    """Startzeit des Prozesses (Takte seit dem Systemstart) oder None – unterscheidet ihn von einem
+    späteren Prozess, der dieselbe Pid bekommen hat."""
+    try:
+        with open(f"/proc/{pid}/stat", "rb") as f:
+            return int(f.read().rsplit(b")", 1)[1].split()[19])  # Feld 22, nach dem Namen in Klammern
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def is_ours(pid):
+    """Gehört die Pid zu FreeDeck/FreeWave (auch unter den früheren Namen)?"""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            cmd = f.read().decode(errors="ignore")
+    except OSError:
+        return False
+    return any(n in cmd for n in ("freestream", "freedeck", "freewave", "streamlin", "lindeck", "linewave"))
+
+
 def running_instance(name):
-    """Pid einer laufenden Instanz laut Statusdatei oder None."""
-    pid = _app_info(name).get("pid")
-    if pid and pid != os.getpid() and _alive(pid):
-        return pid
-    return None
+    """Pid einer laufenden Instanz laut Statusdatei oder None.
+
+    Nach einem Absturz bleibt die Statusdatei liegen; ihre Pid kann inzwischen ein fremder Prozess haben,
+    der sonst SIGUSR1/SIGTERM bekäme."""
+    info = _app_info(name)
+    pid = info.get("pid")
+    if not pid or pid == os.getpid() or not _alive(pid):
+        return None
+    if info.get("start") is not None:
+        return pid if _start_time(pid) == info["start"] else None
+    # Datei einer älteren Version (ohne Startzeit): nur das Programm, dem die Datei gehört – is_ours passt
+    # auch auf FreeWave und die Effektketten, die die Pid nach einem Absturz bekommen haben können
+    strict = {"app.json": _is_freedeck, "freewave.json": _is_freewave}.get(name, is_ours)
+    return pid if strict(pid) else None
+
+
+# Pid-Datei von FreeDeck (freestream.pid): „<pid> <startzeit>“, ältere Versionen schrieben nur die Pid
+def _write_pid_file():
+    pid = os.getpid()
+    start = _start_time(pid)
+    paths.PID_FILE.write_text(str(pid) if start is None else f"{pid} {start}")
+
+
+def _is_freedeck(pid):
+    """Strenge Prüfung für Pid-Dateien ohne Startzeit: nur FreeDeck selbst (python3 -m freestream …,
+    …/bin/freedeck …) – nicht FreeWave (-m freestream.freewave, „freedeck freewave“) und nicht die
+    Effektketten (pipewire -c …/freestream/effects-*.conf), auch wenn „freestream“ darin vorkommt."""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            args = f.read().decode(errors="ignore").split("\0")
+    except OSError:
+        return False
+    for i, a in enumerate(args):
+        if (i and args[i - 1] == "-m" and a in ("freestream", "streamlin", "lindeck")
+                or os.path.basename(a) in ("freedeck", "lindeck")):
+            cmd = next((b for b in args[i + 1:] if b and not b.startswith("-")), "")
+            return cmd not in ("freewave", "wave-app", "linewave")
+    return False
+
+
+def _is_freewave(pid):
+    """Strenge Prüfung für freewave.json ohne Startzeit: nur FreeWave (-m freestream.freewave, …/bin/freewave,
+    „freedeck freewave“) – nicht FreeDeck selbst und nicht die Effektketten."""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            args = f.read().decode(errors="ignore").split("\0")
+    except OSError:
+        return False
+    return any(a.endswith((".freewave", ".linewave")) or os.path.basename(a) in ("freewave", "wave-app", "linewave")
+               for a in args)
+
+
+def freedeck_pid():
+    """Pid des laufenden FreeDeck laut Pid-Datei (nie dieser Prozess) oder None.
+
+    Nach einem Absturz bleibt die Datei liegen; ihre Pid kann inzwischen FreeWave, eine Effektkette
+    oder ein fremder Prozess haben, der sonst SIGTERM/SIGHUP bekäme."""
+    try:
+        fields = paths.PID_FILE.read_text().split()
+        pid = int(fields[0])
+        start = int(fields[1]) if len(fields) > 1 else None
+    except (OSError, ValueError, IndexError):
+        return None
+    if pid <= 0 or pid == os.getpid():
+        return None
+    if start is not None:
+        return pid if _start_time(pid) == start else None
+    return pid if _is_freedeck(pid) else None  # Datei einer älteren Version (ohne Startzeit)
 
 
 class Tray:

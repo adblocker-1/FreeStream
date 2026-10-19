@@ -647,7 +647,7 @@ class Effects:
         self._save(st)
         node = self.node_name(cid)
         for _i in range(30):  # bis die neue Quelle bei PipeWire angemeldet ist
-            if any(b.get("name") == node for b in system._pactl_blocks("sources")):
+            if system.source_exists(node):
                 break
             if proc.poll() is not None:
                 raise RuntimeError(_("Effect chain could not start (plugin missing or invalid setting)"))

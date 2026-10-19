@@ -102,14 +102,19 @@ class DeckController:
             profile=self.profile.name if self.profile else pgettext("profile", "none")))
 
     def stop(self):
-        self.running = False
+        # unter der Sperre: kein show_current() dazwischen, das Aktionen (Pegel, Plugins) neu anmeldet
+        with self.lock:
+            self.running = False
+            self._unload_actions()
         self._tick_wake.set()
         self.events.put(("stop",))
-        self._unload_actions()
         try:
             if not self.show_idle_image():
                 self.deck.reset()  # zeigt das Elgato-Logo
-            self.deck.close()
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            self.deck.close()  # auch nach einem Fehler oben (beendet den Lese-Thread der Bibliothek)
         except Exception:  # noqa: BLE001
             pass
 
@@ -133,19 +138,27 @@ class DeckController:
             r, c = divmod(k, cols)
             tile = tiles.get((c, r))
             if tile is not None:
-                self._set_key(k, tile)
+                self._set_key(k, tile, force=True)
         if self.touch and self.ts_size[0]:
-            from PIL import ImageOps
-            with Image.open(path) as src:
-                img = ImageOps.fit(ImageOps.exif_transpose(src).convert("RGB"), self.ts_size, Image.LANCZOS)
-            if self.rotated:
-                img = img.rotate(180)
-            native = PILHelper.to_native_touchscreen_format(self.deck, img)
+            native = PILHelper.to_native_touchscreen_format(self.deck, self._idle_fit(path, self.ts_size))
             with self.deck:
                 self.deck.set_touchscreen_image(native, 0, 0, self.ts_size[0], self.ts_size[1])
+        if self.screen_size[0]:  # Neo: sonst bliebe die Uhr der Infoleiste stehen
+            native = PILHelper.to_native_screen_format(self.deck, self._idle_fit(path, self.screen_size))
+            with self.deck:
+                self.deck.set_screen_image(native)
         with self.deck:
+            for i in range(self.touch_key_count):  # Neo-Touchtasten aus
+                self.deck.set_key_color(self.key_count + i, 0, 0, 0)
             self.deck.set_brightness(self.brightness if self.enabled else 0)  # auch aus dem Ruhezustand heraus
         return True
+
+    def _idle_fit(self, path, size):
+        """Inaktiv-Bild auf die Größe des Touchstreifens bzw. der Infoleiste zugeschnitten."""
+        from PIL import ImageOps
+        with Image.open(path) as src:
+            img = ImageOps.fit(ImageOps.exif_transpose(src).convert("RGB"), size, Image.LANCZOS)
+        return img.rotate(180) if self.rotated else img
 
     def detach(self):
         """Gerät wurde abgezogen: Aktionen beenden und Verbindung schließen (ohne Bilder zu senden)."""
@@ -287,6 +300,10 @@ class DeckController:
     def show_current(self):
         # eine pactl-Abfrage für alle Tasten der Seite statt einer je Taste und Mix
         with self.lock, system.pactl_snapshot():
+            if not self.running:
+                # nach stop()/detach(): ein Tastendruck, der auf die Sperre gewartet hat, meldet sonst neue
+                # Aktionen beim beendeten Gerät an (Pegel-Thread, Plugin-Kontexte)
+                return
             self._unload_actions()
             pg = self.current_page()
             cols = self.geometry.cols
@@ -377,7 +394,7 @@ class DeckController:
             self.overlays.pop(id(action), None)
         return None
 
-    def _set_key(self, k, img):
+    def _set_key(self, k, img, force=False):
         if self.rotated:  # Taste k liegt auf dem gedrehten Gerät gegenüber
             k, img = self.key_count - 1 - k, img.rotate(180)
         if self.virtual:  # virtuelles Deck: das Fenster zeigt das Bild selbst
@@ -385,6 +402,10 @@ class DeckController:
         else:
             native = PILHelper.to_native_key_format(self.deck, img.convert("RGB"))
         with self.deck:
+            # nach stop(): späte Bilder aus Takt und Pegel-Thread verwerfen, sonst überschreiben sie das
+            # Inaktiv-Bild (Prüfung unter der Gerätesperre, also nach dessen Schreiben)
+            if not (self.running or force):
+                return
             self.deck.set_key_image(k, native)
 
     def _bg_tile(self, k):
@@ -482,7 +503,8 @@ class DeckController:
         native = PILHelper.to_native_touchscreen_format(self.deck, img.convert("RGB"))
         try:
             with self.deck:
-                self.deck.set_touchscreen_image(native, 0, 0, self.ts_size[0], self.ts_size[1])
+                if self.running:  # nach stop() nichts mehr senden (siehe _set_key)
+                    self.deck.set_touchscreen_image(native, 0, 0, self.ts_size[0], self.ts_size[1])
         except Exception as e:  # noqa: BLE001
             log.debug("Touchscreen: %s", e)
 
@@ -505,7 +527,8 @@ class DeckController:
         try:
             native = PILHelper.to_native_screen_format(self.deck, img.convert("RGB"))
             with self.deck:
-                self.deck.set_screen_image(native)
+                if self.running:
+                    self.deck.set_screen_image(native)
         except Exception as e:  # noqa: BLE001
             log.debug("Infobar: %s", e)
 
@@ -515,7 +538,8 @@ class DeckController:
             on = self.page_count > 1 and not self.folder_stack
             try:
                 with self.deck:
-                    self.deck.set_key_color(self.key_count + i, *((255, 255, 255) if on else (0, 0, 0)))
+                    if self.running:
+                        self.deck.set_key_color(self.key_count + i, *((255, 255, 255) if on else (0, 0, 0)))
             except Exception:  # noqa: BLE001
                 pass
 
@@ -534,7 +558,8 @@ class DeckController:
         self.sleeping = True
         try:
             with self.deck:
-                self.deck.set_brightness(0)
+                if self.running:  # später Takt nach stop(): Inaktiv-Bild nicht abdunkeln
+                    self.deck.set_brightness(0)
         except Exception:  # noqa: BLE001
             pass
 

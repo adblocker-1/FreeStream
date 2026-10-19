@@ -8,6 +8,7 @@ from tkinter import ttk
 
 from . import effects
 from .dialogkit import ScrollArea, ShortcutField, entry, field, footer, header
+from .dialogkit import trace as _trace  # Suchfelder: Beobachtung endet mit dem Dialog
 from .i18n import _, ngettext
 from .theme import COL, Button, Card, Chip, Dialog, Fader, Icons, SoftSegmented, Switch, font, icon_tile, \
     label, rounded_rect
@@ -114,7 +115,7 @@ class ChannelDialog(Dialog):
         c = channel or {}
         is_mic = c.get("id") == "mic"
         super().__init__(master, (_("Edit channel") if edit else _("New channel")), width=520)
-        self.inputs = inputs
+        self.inputs, self.edit = inputs, edit
         self.on_save, self.on_delete = on_save, on_delete
         b = self.body
         icon, color = c.get("icon") or default_look[0], c.get("color") or default_look[1]
@@ -154,7 +155,10 @@ class ChannelDialog(Dialog):
         self.dev_box = ttk.Combobox(self.dev_frame, textvariable=self.dev, values=names, state="readonly")
         self.dev_box.pack(fill="x", pady=(0, 14))
         cur = c.get("source") or ""
-        self.dev.set(next((d for n, d in inputs if n == cur), names[0] if inputs else names[0]))
+        # beim Bearbeiten ohne passendes Gerät (Mikrofon „automatisch“, Gerät nicht angeschlossen) leer lassen
+        # statt das erste der Liste vorzutäuschen – so lässt sich auch genau das wählen
+        self.dev.set(next((d for n, d in inputs if n == cur), "" if edit else names[0]))
+        self._dev0 = self.dev.get()  # zuerst gezeigt: beim Bearbeiten zählt nur ein anders gewähltes Gerät
 
         field(cb, _("ICON"))
         self.icon = _Picker(cb, ICONS, icon, "icon", color=color)
@@ -279,7 +283,8 @@ class ChannelDialog(Dialog):
     def values(self):
         src = next((n for n, d in self.inputs if d == self.dev.get()), "")
         v = {"name": self.name.get().strip(), "kind": self.kind, "source": src, "icon": self.icon.value,
-             "color": self.color.value, "apps_add": [], "apps_remove": []}
+             "color": self.color.value, "apps_add": [], "apps_remove": [],
+             "source_changed": self.dev.get() != self._dev0}
         if self.apps is not None and self.kind == "apps":
             v["apps_add"] = sorted(self.added.items())
             v["apps_remove"] = sorted(self.removed)
@@ -292,7 +297,7 @@ class ChannelDialog(Dialog):
             if hasattr(self, "tabs"):
                 self.show_tab("general")
             return
-        if v["kind"] == "input" and not v["source"]:
+        if v["kind"] == "input" and not v["source"] and (not self.edit or v["source_changed"]):
             self.error.configure(text=_("Please choose an input device"))
             return
         self.destroy()
@@ -323,7 +328,7 @@ class AppPicker(Dialog):
         self.area.pack(fill="both", expand=True)
         footer(self)
         Button(self.buttons, _("Cancel"), command=self.destroy).pack(side="right")
-        self.query.trace_add("write", lambda *a: self._fill())
+        _trace(self, self.query, self._fill)
         self._fill()
         self.search.focus_set()
         self.bind("<Return>", lambda e: self._enter())
@@ -718,7 +723,7 @@ class PluginPicker(Dialog):
                      relief="flat", highlightthickness=0, font=font(sb, 10))
         e.pack(side="left", fill="x", expand=True, ipady=7)
         e.focus_set()
-        self.q.trace_add("write", lambda *a: self._fill())
+        _trace(self, self.q, self._fill)
 
         chips = tk.Frame(self.body, bg=COL["bg"])
         chips.pack(fill="x", pady=(0, 12))

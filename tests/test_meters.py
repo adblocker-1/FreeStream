@@ -36,6 +36,9 @@ class FakeMixer:
     def channels(self):
         return [{"id": "music"}]
 
+    def all_channels(self):
+        return self.channels()
+
     def sink_name(self, cid):
         return "freewave_" + cid
 
@@ -75,13 +78,14 @@ def test_deck_meters_feed_visible_faders_and_stop(monkeypatch):
 
 def test_mixer_fader_redraws_only_on_visible_change(monkeypatch):
     act = native.MixerAction.__new__(native.MixerAction)
+    act.uuid, act.settings = "com.lindeck.mixer.channel", {"display": "fader_top"}
     act._lv = (100, False)
     drawn = []
     monkeypatch.setattr(act, "redraw", lambda: drawn.append(act._live), raising=False)
     act.set_meter(0.5)
     act.set_meter(0.501)   # gleiche Segmentzahl: nicht neu zeichnen
     act.set_meter(0.9)
-    assert drawn == [0.5, round(0.9 * native.DeckMeters.STEPS) / native.DeckMeters.STEPS]
+    assert drawn == [mixkeys.fader_live("top", 0.5), mixkeys.fader_live("top", 0.9)]
 
 
 def test_window_meter_green_yellow_red():

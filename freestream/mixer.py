@@ -95,13 +95,17 @@ READ_ONLY = ("get-default-sink", "get-default-source", "info", "list")
 
 
 def _run(args):
+    read = bool(args) and args[0] in READ_ONLY
+
     def run():
-        r = subprocess.run(["pactl"] + args, capture_output=True, text=True, timeout=5)
+        # Abfragen englisch (werden ausgewertet), Fehlermeldungen beim Schreiben in der Sprache des Nutzers
+        r = subprocess.run(["pactl"] + args, capture_output=True, text=True, timeout=5,
+                           env=system.pactl_env() if read else None)
         if r.returncode != 0:
             raise RuntimeError((r.stderr or r.stdout or _("pactl error")).strip())
         return r.stdout.strip()
     # lesende Abfragen innerhalb von system.pactl_snapshot() nur einmal, schreibende leeren den Speicher
-    return system.pactl_cached(("run", *args), run, write=not args or args[0] not in READ_ONLY)
+    return system.pactl_cached(("run", *args), run, write=not read)
 
 
 def _props(raw=None, **props):
@@ -145,12 +149,14 @@ _RECENT = {"at": 0.0, "loops": {}}
 WRITTEN_S = 1.5  # so lange gilt ein selbst geschriebener Wert mehr als eine Abfrage von PipeWire
 _WRITTEN = {}    # Loopback-Index -> {"volume"/"mute": Wert, "at": Zeit}
 _CHANGE_LOCK = threading.RLock()  # Tastendrücke (Halten = Wiederholung) lesen-rechnen-schreiben nacheinander
+_LOCK = threading.Lock()  # _WRITTEN und _WATCH: Schreib-Threads je Mix, Beobachter und Deck-Takt gleichzeitig
+_DUCK_LOCK = threading.Lock()  # ducking-user.json lesen-ändern-schreiben: Schreib-Threads je Mix, zwei Decks
 
 
 def _wrote(index, **values):
     """Eigenen Schreibvorgang merken (siehe _apply_written)."""
-    w = _WRITTEN.setdefault(str(index), {})
-    w.update(values, at=time.monotonic())
+    with _LOCK:
+        _WRITTEN[str(index)] = {**_WRITTEN.get(str(index), {}), **values, "at": time.monotonic()}
 
 
 def _note_write(args):
@@ -163,9 +169,11 @@ def _note_write(args):
         elif cmd == "set-sink-input-mute" and value in ("0", "1"):
             _wrote(index, mute=value == "1")
         else:
-            _WRITTEN.pop(index, None)
+            with _LOCK:
+                _WRITTEN.pop(index, None)
     except ValueError:
-        _WRITTEN.pop(index, None)
+        with _LOCK:
+            _WRITTEN.pop(index, None)
 
 
 def _apply_written(blocks, asked_at=None):
@@ -177,15 +185,16 @@ def _apply_written(blocks, asked_at=None):
     if not _WRITTEN:
         return
     now = time.monotonic()
-    for idx in [i for i, w in _WRITTEN.items()
-                if now - w["at"] > WRITTEN_S or (asked_at is not None and w["at"] <= asked_at)]:
-        _WRITTEN.pop(idx, None)
-    for b in blocks:
-        w = _WRITTEN.get(str(b.get("index")))
-        if w:
-            for k in ("volume", "mute"):
-                if k in w:
-                    b[k] = w[k]
+    with _LOCK:
+        for idx in [i for i, w in _WRITTEN.items()
+                    if now - w["at"] > WRITTEN_S or (asked_at is not None and w["at"] <= asked_at)]:
+            _WRITTEN.pop(idx, None)
+        for b in blocks:
+            w = _WRITTEN.get(str(b.get("index")))
+            if w:
+                for k in ("volume", "mute"):
+                    if k in w:
+                        b[k] = w[k]
 
 
 def _remember_loops(blocks, asked_at=None):
@@ -237,9 +246,13 @@ def _watch_loops():
                 _remember_loops(system._pactl_blocks("sink-inputs"), asked_at=asked)
             except Exception as e:  # noqa: BLE001
                 log.debug("loopbacks neu lesen: %s", e)
-        _WATCH.pop("thread", None)
-    _WATCH["thread"] = threading.Thread(target=loop, name="freewave-loops-watch", daemon=True)
-    _WATCH["thread"].start()
+        with _LOCK:
+            _WATCH.pop("thread", None)
+    with _LOCK:  # zwei Decks (je ein Engine-Thread) fragen gleichzeitig: nur ein Beobachter
+        if "thread" in _WATCH:
+            return
+        t = _WATCH["thread"] = threading.Thread(target=loop, name="freewave-loops-watch", daemon=True)
+    t.start()
 
 
 def _is_ours(props):
@@ -272,19 +285,27 @@ class DuckFile:
         v = (self.data.get("bases") or {}).get(key)
         return None if v is None else int(v)
 
-    def user_set(self, key, pct):
-        self.data.setdefault("bases", {})[key] = pct
-        f = paths.STATE_DIR / DUCK_USER_FILE
-        try:
-            req = json.loads(f.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            req = {}
-        req[key] = pct
-        try:
-            f.write_text(json.dumps(req), encoding="utf-8")
-        except OSError:
-            pass
+    def volume(self, pct):
+        """Abgesenkte Lautstärke zu einem Nutzerwert."""
         return duck_volume(pct, float(self.data.get("factor") or 1.0))
+
+    def user_set(self, values):
+        """Nutzerwerte {"music_monitor": Prozent} merken und dem Host melden – erst, wenn sie
+        (abgesenkt) geschrieben sind."""
+        self.data.setdefault("bases", {}).update(values)
+        f = paths.STATE_DIR / DUCK_USER_FILE
+        with _DUCK_LOCK:  # sonst überschreibt ein Schreib-Thread den Wert des anderen (Mix „Alle“)
+            try:
+                req = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                req = {}
+            req.update(values)
+            tmp = f.with_name(f"{f.name}.{os.getpid()}.tmp")
+            try:
+                tmp.write_text(json.dumps(req), encoding="utf-8")
+                os.replace(tmp, f)  # der Host liest nie eine halb geschriebene Datei
+            except OSError:
+                pass
 
 
 def duck_volume(base, factor):
@@ -922,10 +943,25 @@ class Mixer:
         if c is None:
             raise RuntimeError(_("Channel {id} not found").format(id=cid))
         masters = {k: v for k, v in self.masters().items() if k == cid}
+        # Programme im Kanal: mit dem Null-Sink verschwindet ihr Ziel, PipeWire legt sie auf das
+        # Standardgerät (System) – und route_streams kennt sie schon. Danach selbst zurückholen.
+        apps = [s["index"] for s in self.streams() if s["channel"] == cid] if c.get("kind", "apps") == "apps" else []
         levels = self._unload_channel(cid)
         self.fx.stop(cid)
         self._add_live(c, levels)
         self._restore_masters(masters)
+        for attempt in range(2):
+            for idx in apps:
+                try:
+                    self.run(["move-sink-input", idx, self.sink_name(cid)])
+                except RuntimeError as e:  # Stream inzwischen beendet
+                    log.debug("move %s: %s", idx, e)
+            if not apps or attempt:
+                break
+            # PipeWire verliert bei mehreren Verschiebungen kurz nacheinander manchmal eine (meldet aber
+            # Erfolg) – einmal nachsehen; route_streams holt sie nicht mehr, der Index ist schon bekannt
+            time.sleep(0.3)
+            apps = [s["index"] for s in self.streams() if s["index"] in apps and s["channel"] != cid]
 
     def _add_mix_live(self, m):
         """Nur den neuen Mix einrichten; alle anderen Verbindungen laufen ungestört weiter."""
@@ -1120,7 +1156,10 @@ class Mixer:
         mixes = self._mixes_of(cid, mix)
         known = _recent_loops() if recent else None
         if known is not None and all(self.loop_name(cid, m) in known for m in mixes):
-            return [(m, known[self.loop_name(cid, m)]) for m in mixes]
+            out = [(m, known[self.loop_name(cid, m)]) for m in mixes]
+            # der Beobachter kann eine Abfrage gemerkt haben, die vor unserem letzten Schreiben gestellt war
+            _apply_written([b for _m, b in out])
+            return out
         with system.pactl_snapshot():
             out = [(m, self._loop_input(cid, m)) for m in mixes]
         for m, b in out:
@@ -1148,23 +1187,32 @@ class Mixer:
         for m, b in self._loops(cid, mix, hint):
             self._write_volume(b["index"], f"{cid}_{m}", pct, duck)
 
-    def _write_volume(self, index, key, pct, duck=None):
+    def _write_volume(self, index, key, pct, duck=None, later=None):
+        """Während Auto-Ducking abgesenkt schreiben und den Nutzerwert erst danach merken – ein
+        Fehlversuch (veralteter Index) verschiebt ihn nicht. later: Nutzerwerte hier sammeln und
+        gemeinsam merken (alle Mixe eines Tastendrucks)."""
         pct = max(0, min(MAX_VOLUME, int(pct)))
-        if duck is not None and duck.base(key) is not None:
-            pct = duck.user_set(key, pct)  # abgesenkt schreiben, Nutzerwert merken
-        self.run(["set-sink-input-volume", index, f"{pct}%"])
+        if duck is None or duck.base(key) is None:
+            self.run(["set-sink-input-volume", index, f"{pct}%"])
+            return
+        self.run(["set-sink-input-volume", index, f"{duck.volume(pct)}%"])
+        if later is None:
+            duck.user_set({key: pct})
+        else:
+            later[key] = pct
 
     def _write_all(self, cid, mix, write, recent=False, loops=None):
         """write(Mix, Block) für alle Mixe hinter mix – gleichzeitig (je ein pactl-Aufruf). Stimmt ein
-        gemerkter Index nicht mehr (Loopback neu angelegt), einmal frisch auslesen und wiederholen."""
+        gemerkter Index nicht mehr (Loopback neu angelegt), einmal frisch auslesen und nur die
+        fehlgeschlagenen Mixe wiederholen (die anderen haben ihren Schritt schon)."""
         loops = loops if loops is not None else self._loops(cid, mix, recent=recent)
-        errors = []
+        errors = {}
 
         def one(m, b):
             try:
                 write(m, b)
             except RuntimeError as e:
-                errors.append(e)
+                errors[m] = e
         if len(loops) == 1:
             one(*loops[0])
         else:
@@ -1176,8 +1224,9 @@ class Mixer:
         if errors:
             if recent:
                 _RECENT["at"] = 0.0
-                return self._write_all(cid, mix, write, recent=False)
-            raise errors[0]
+                again = [(m, b) for m, b in self._loops(cid, mix) if m in errors]
+                return self._write_all(cid, mix, write, loops=again)
+            raise next(iter(errors.values()))
         return loops
 
     def change_volume(self, cid, mix, delta, recent=False):
@@ -1185,7 +1234,7 @@ class Mixer:
         recent: zuletzt gelesene Loopbacks genügen (Tasten am Deck – sofort schreiben).
         Gekoppelte Kanäle ändern sich in allen ihren Mixen."""
         duck = self._duck()
-        out = {}
+        out, bases = {}, {}
         if mix not in ("both", "all") and self.is_linked(cid):
             mix = "both"
 
@@ -1193,11 +1242,15 @@ class Mixer:
             key = f"{cid}_{m}"
             base = duck.base(key) if duck else None
             pct = max(0, min(MAX_VOLUME, int((b.get("volume", 0) if base is None else base) + delta)))
-            self._write_volume(b["index"], key, pct, duck)
+            self._write_volume(b["index"], key, pct, duck, later=bases)
             b["volume"] = pct if base is None else b.get("volume", 0)  # gemerkten Stand nachführen
             out[m] = pct
         with _CHANGE_LOCK:
-            self._write_all(cid, mix, write, recent=recent)
+            try:
+                self._write_all(cid, mix, write, recent=recent)
+            finally:
+                if bases:  # Ducking: alle geschriebenen Mixe auf einmal melden, der Host übernimmt sie zusammen
+                    duck.user_set(bases)
         return out
 
     def set_mute(self, cid, mix, mute, recent=False):
@@ -1516,7 +1569,9 @@ class Mixer:
     # ------------------------------------------------------------- Routing
     def route_streams(self):
         """Neue Wiedergabe-Streams anhand der Regeln in Kanäle verschieben."""
-        routes = self.routes()
+        # eigene Zuordnungen vor den eingebauten, genauere vor kürzeren („firefox-esr“ vor „firefox“)
+        own = {k.lower() for k in (self.conf.get("routes") or {})}
+        routes = sorted(self.routes().items(), key=lambda kv: (kv[0] not in own, -len(kv[0])))
         chans = {c["id"] for c in self.app_channels()}
         moved = 0
         for b in system._pactl_blocks("sink-inputs"):
@@ -1527,7 +1582,7 @@ class Mixer:
             self._moved.add(idx)
             names = " ".join(filter(None, (p.get("application.name"), p.get("application.process.binary"),
                                            p.get("application.id"), p.get("node.name")))).lower()
-            for key, cid in routes.items():
+            for key, cid in routes:
                 if cid in chans and re.search(r"\b" + re.escape(key), names):
                     try:
                         self.run(["move-sink-input", idx, self.sink_name(cid)])

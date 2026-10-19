@@ -27,6 +27,7 @@ und die globalen Einstellungen. Der Editor öffnet die Seite in einem
 Browserfenster. Port und Schlüssel stehen in ~/.local/state/freestream/plugin-host.json.
 """
 import base64
+import collections
 import io
 import json
 import logging
@@ -55,6 +56,9 @@ SDK_APP_VERSION = "6.7.0"
 DEVICE_TYPES = {"20GAA": 0, "20GBA": 0, "20GAI": 1, "20GAT": 2, "20GBF": 5, "20GBD": 7, "20GBX": 7,
                 "20GBJ": 9, "20GBO": 10}
 NODE_EXT = (".js", ".mjs", ".cjs")
+# So lange nach willDisappear gelten Befehle eines Plugins für die Taste noch (z. B. setSettings nach
+# keyDown, Einstellungsseite gerade im Aufbau); danach wird der Kontext vergessen
+HIDDEN_GRACE = 60.0
 
 
 # ==========================================================================
@@ -107,9 +111,21 @@ def _is_elf(p: Path) -> bool:
 def _image_file(base: Path):
     for ext in ("", ".png", "@2x.png", ".svg", ".gif", ".jpg"):
         p = Path(str(base) + ext)
-        if p.is_file():
-            return p
+        try:
+            if p.is_file():
+                return p
+        except OSError:  # z. B. Name zu lang (Base64-Daten statt Dateiname)
+            return None
     return None
+
+
+def _stamp(info):
+    """Kennung der installierten Fassung: ändert sich, wenn das Plugin neu installiert wird (copytree legt
+    manifest.json neu an), aber nicht, wenn das Plugin in seinem Ordner Protokolle oder Zwischenspeicher schreibt."""
+    try:
+        return info.version, (info.dir / "manifest.json").stat().st_ctime_ns
+    except OSError:
+        return info.version, None
 
 
 _cache = {"mtime": None, "plugins": {}}
@@ -201,7 +217,7 @@ def decode_image(data: str, plugin_dir: Path = None, size=144):
         raw = base64.b64decode(body) if ";base64" in header else urllib.parse.unquote(body).encode()
     elif data.lstrip().startswith("<svg") or data.lstrip().startswith("<?xml"):
         raw, is_svg = data.encode(), True
-    elif plugin_dir is not None and _image_file(plugin_dir / data):
+    elif plugin_dir is not None and len(data) < 1024 and _image_file(plugin_dir / data):  # Base64 ist länger
         p = _image_file(plugin_dir / data)
         raw, is_svg = p.read_bytes(), p.suffix == ".svg"
     else:
@@ -320,8 +336,11 @@ class PluginHost:
         self.contexts = {}        # Kontext -> Aktion
         self.visible = set()      # Kontexte, die gerade angezeigt werden
         self.pis = {}             # Kontext -> Verbindung des Property Inspectors
+        self._hidden = collections.OrderedDict()  # Kontext -> seit wann ausgeblendet (älteste zuerst), _prune
+        self._stamps = {}         # Plugin-UUID -> _stamp() der laufenden Fassung
         self.token = secrets.token_urlsafe(18)
         self._lock = threading.RLock()
+        self._sync_lock = threading.Lock()  # nur für sync(): stop() eines Plugins wartet bis zu 3 s
         self.server = ws.Server(self._on_connect, on_http=self._on_http)
         self.port = self.server.port
         self.publish = daemon is not None if publish is None else publish
@@ -335,22 +354,35 @@ class PluginHost:
 
     # ------------------------------------------------------------ Plugins
     def sync(self):
-        """Startet neu installierte Plugins und beendet entfernte."""
-        plugins = installed(self.plugins_dir)
-        for uid, info in plugins.items():
-            if uid in self.procs or not info.runnable:
-                if not info.runnable and uid not in self.procs:
-                    log.info(_("Plugin {name} will not be started: {reason}").format(name=info.name, reason=info.reason))
-                    self.procs[uid] = None
-                continue
-            p = PluginProcess(self, info)
-            self.procs[uid] = p
-            p.start()
-        for uid in list(self.procs):
-            if uid not in plugins:
-                p = self.procs.pop(uid)
-                if p:
-                    p.stop()
+        """Startet neu installierte Plugins, startet aktualisierte neu und beendet entfernte."""
+        # Dienst (alle 2 s) und Plugin-Seiten im Fenster rufen das gleichzeitig auf: sonst zwei Prozesse
+        # je Plugin oder KeyError beim zweiten pop
+        with self._sync_lock:
+            plugins = installed(self.plugins_dir)
+            for uid, info in plugins.items():
+                stamp = _stamp(info)
+                if uid in self.procs and self._stamps.get(uid) != stamp:
+                    # neue Fassung über die laufende installiert: das alte Programm liefe sonst im ersetzten
+                    # Ordner weiter (veraltetes Manifest, neue Dateien in altem Code)
+                    old = self.procs.pop(uid, None)
+                    if old:
+                        old.stop()
+                self._stamps[uid] = stamp
+                if uid in self.procs or not info.runnable:
+                    if not info.runnable and uid not in self.procs:
+                        log.info(_("Plugin {name} will not be started: {reason}").format(
+                            name=info.name, reason=info.reason))
+                        self.procs[uid] = None
+                    continue
+                p = PluginProcess(self, info)
+                self.procs[uid] = p
+                p.start()
+            for uid in list(self.procs):
+                if uid not in plugins:
+                    p = self.procs.pop(uid, None)
+                    self._stamps.pop(uid, None)
+                    if p:
+                        p.stop()
 
     def info_for(self, info: PluginInfo):
         devices = []
@@ -436,7 +468,11 @@ class PluginHost:
         else:
             base["controller"] = "Keypad"
         base.update(payload or {})
-        p.send({"event": event, "action": action.uuid, "context": self.context(action),
+        ctx = self.context(action)
+        if ctx not in self.visible:
+            # z. B. Plugin-Aktion in einer Multi-Aktion: bekommt kein willDisappear, das sie vergessen ließe
+            self._forget_later(ctx)
+        p.send({"event": event, "action": action.uuid, "context": ctx,
                 "device": getattr(ctrl, "serial", ""), "payload": base})
         return True
 
@@ -444,6 +480,7 @@ class PluginHost:
     def will_appear(self, ctrl, action):
         if not self.handles(action):
             return False
+        self._prune()
         self.visible.add(self.context(action))
         return self._event("willAppear", action)
 
@@ -451,7 +488,29 @@ class PluginHost:
         ctx = getattr(action, "sdk_context", None)
         if ctx:
             self.visible.discard(ctx)
-        return self._event("willDisappear", action) if self.handles(action) else False
+        sent = self._event("willDisappear", action) if self.handles(action) else False
+        if ctx:
+            # Die Engine legt bei jedem Seitenwechsel neue Aktionen an: die alte samt Bild nicht ewig behalten
+            action.image_override = None
+            vars(action).pop("encoder_icon_image", None)  # von setFeedback (bei manchen eine Property)
+            self._forget_later(ctx)
+        return sent
+
+    def _forget_later(self, ctx):
+        with self._lock:
+            self._hidden[ctx] = time.time()
+            self._hidden.move_to_end(ctx)
+        self._prune()
+
+    def _prune(self):
+        """Ausgeblendete Kontexte nach HIDDEN_GRACE vergessen – nicht, solange sie zu sehen sind oder ihre
+        Einstellungsseite offen ist (die meldet sie beim Schließen wieder an)."""
+        limit = time.time() - HIDDEN_GRACE
+        with self._lock:
+            while self._hidden and next(iter(self._hidden.values())) < limit:
+                ctx, __ = self._hidden.popitem(last=False)
+                if ctx not in self.visible and ctx not in self.pis:
+                    self.contexts.pop(ctx, None)
 
     def key_down(self, action):
         if not self._event("keyDown", action):
@@ -689,18 +748,24 @@ class PluginHost:
             data, coords = page.keypad.get((c, r)), {"column": c, "row": r}
         if not data:
             raise LookupError(_("No action in this slot"))
-        # Läuft die Aktion schon auf einem Gerät? Dann denselben Kontext nehmen
+        # Läuft die Aktion schon auf einem Gerät? Dann denselben Kontext nehmen (einen sichtbaren zuerst)
         with self._lock:
+            same = []
             for ctx, a in self.contexts.items():
                 pg = getattr(a, "page", None)
                 if pg is not None and Path(pg.dir) == Path(page.dir) and a.uuid == data.get("UUID") and (
                         (data.get("ActionID") and a.data.get("ActionID") == data.get("ActionID")) or a.data == data):
-                    return a
+                    same.append((ctx, a))
+            if same:
+                ctx, a = next((x for x in same if x[0] in self.visible), same[-1])
+                if ctx not in self.visible:
+                    self._forget_later(ctx)  # Frist neu: die Einstellungsseite verbindet gleich
+                return a
         a = A.create_action(data, page, A.Context(None, getattr(self.daemon, "cfg", None) or {}, None, None))
         a.slot = ("dial", int(pos)) if kind == "dial" else None
         a.sdk_coords = coords
         a.sdk_detached = True
-        self.context(a)
+        self._forget_later(self.context(a))  # falls die Einstellungsseite nie verbindet
         return a
 
     def _on_http(self, path, headers):
@@ -730,8 +795,9 @@ class PluginHost:
                 return 404, "text/plain; charset=utf-8", _("File not found").encode(), {}
             body = f.read_bytes()
             ctype = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
-            if f.suffix.lower() in (".html", ".htm") and q.get("ctx") in self.contexts:
-                body = self._inject(body, info, self.contexts[q["ctx"]])
+            a = self.contexts.get(q.get("ctx"))
+            if f.suffix.lower() in (".html", ".htm") and a is not None:
+                body = self._inject(body, info, a)
                 ctype = "text/html; charset=utf-8"
             elif ctype.startswith("text/") or ctype in ("application/javascript", "application/json"):
                 ctype += "; charset=utf-8"
@@ -794,8 +860,10 @@ class PluginHost:
             del self.pis[ctx]
         proc.send({"event": "propertyInspectorDidDisappear", "action": a.uuid, "context": ctx,
                    "device": getattr(self._ctrl(a), "serial", "")})
-        if detached and ctx not in self.visible:
-            self._event("willDisappear", a)
+        if ctx not in self.visible:
+            if detached:
+                self._event("willDisappear", a)
+            self._forget_later(ctx)
 
     def _pi_handle(self, proc, a, ctx, conn, msg):
         ev = msg.get("event")

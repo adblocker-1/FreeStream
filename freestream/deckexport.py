@@ -23,7 +23,7 @@ import signal
 
 from PIL import Image, ImageOps
 
-from . import paths
+from . import desktop, paths
 from .editdoc import EditError, ProfileDoc, create_profile, init_profile
 from .i18n import _
 from .models import MODELS, connected_models, model_geometry, model_name
@@ -127,9 +127,9 @@ def _selectors(mixes, room):
 def linewave_mixes():
     """Mix-ids aus der FreeWave-Konfiguration (Persönlicher Mix, Stream-Mix, eigene)."""
     try:
-        from .config import Config
+        from .config import read_section
         from .mixer import Mixer
-        return Mixer(Config()).mix_ids()
+        return Mixer({"mixer": read_section("mixer")}).mix_ids()  # ohne Schlüsselbund-Abfrage
     except Exception:  # noqa: BLE001 - FreeWave nicht installiert
         return list(DEFAULT_MIXES)
 
@@ -224,9 +224,9 @@ def managed_profiles(store_root=None):
 def _membership():
     """fn(Kanal, Mix) -> bool aus der FreeWave-Konfiguration ("both": in irgendeinem Mix) oder None."""
     try:
-        from .config import Config
+        from .config import read_section
         from .mixer import Mixer
-        mx = Mixer(Config())
+        mx = Mixer({"mixer": read_section("mixer")})
         mix_of = {c["id"]: set(mx.channel_mixes(c["id"])) for c in mx.all_channels()}
     except Exception:  # noqa: BLE001 - FreeWave nicht installiert
         return None
@@ -336,6 +336,15 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None, 
         raise ExportError(mix)
     model = _base(model)
     plan(geometry_of(model), channels, mixes=mixes)  # vorher prüfen, damit kein halbes Profil entsteht
+    bg_img = None
+    if background is not None and background is not KEEP:
+        # Bild ebenfalls vorher lesen: ist es kaputt, bleibt das bisherige Profil unangetastet
+        try:
+            with Image.open(background) as im:
+                bg_img = ImageOps.exif_transpose(im).convert("RGB")
+            bg_img.thumbnail((1600, 1600), Image.LANCZOS)
+        except (OSError, ValueError, Image.DecompressionBombError) as e:
+            raise ExportError(_("Image not readable: {error}").format(error=e)) from e
     store_root = store_root or paths.PROFILES_DIR
     existing = managed_profile(model, store_root)
     if existing is not None:
@@ -359,12 +368,9 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None, 
     if background is None:
         lk["background"] = None
         (root / BG_FILE).unlink(missing_ok=True)
-    elif background is not KEEP:
+    elif bg_img is not None:
         try:
-            with Image.open(background) as im:
-                im = ImageOps.exif_transpose(im).convert("RGB")
-                im.thumbnail((1600, 1600), Image.LANCZOS)
-                im.save(root / BG_FILE)
+            bg_img.save(root / BG_FILE)
         except (OSError, ValueError) as e:
             raise ExportError(_("Image not readable: {error}").format(error=e)) from e
         lk["background"] = BG_FILE
@@ -384,13 +390,8 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None, 
 def notify_freedeck():
     """Laufendem FreeDeck Bescheid geben (SIGHUP): es lädt die Profile neu und zeigt das Profil
     sofort in der Liste – ohne dass FreeDeck danach suchen muss. Gibt True zurück, wenn FreeDeck lief."""
-    try:
-        pid = int(paths.PID_FILE.read_text())
-        with open(f"/proc/{pid}/cmdline", "rb") as f:
-            cmd = f.read().decode(errors="ignore")
-    except (OSError, ValueError):
-        return False
-    if pid == os.getpid() or not any(n in cmd for n in ("freedeck", "freestream", "lindeck", "streamlin")):
+    pid = desktop.freedeck_pid()  # nicht FreeWave oder eine Effektkette, die die Pid inzwischen hat
+    if not pid:
         return False
     try:
         os.kill(pid, signal.SIGHUP)

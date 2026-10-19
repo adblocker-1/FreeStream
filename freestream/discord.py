@@ -19,6 +19,7 @@ import socket
 import struct
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid as uuidlib
@@ -36,6 +37,10 @@ TOKEN_URL = "https://discord.com/api/oauth2/token"
 
 class DiscordError(Exception):
     pass
+
+
+class DiscordAuthError(DiscordError):
+    """Discord lehnt die Zugangsdaten ab (Zugang widerrufen, abgelaufen, andere App) – nicht: offline."""
 
 
 def socket_paths():
@@ -114,6 +119,10 @@ class DiscordClient:
         s, self.sock = self.sock, None
         if s:
             try:
+                s.shutdown(socket.SHUT_RDWR)  # weckt den Lese-Thread in recv (close allein tut das nicht)
+            except OSError:
+                pass
+            try:
                 s.close()
             except OSError:
                 pass
@@ -167,13 +176,16 @@ class DiscordClient:
             else:
                 raise DiscordError(_("Discord not reachable: {error}").format(error=last))
             self.sock = s
-            self._send(OP_HANDSHAKE, {"v": 1, "client_id": self.client_id})
-            op, msg = self._recv()
-            if op == OP_CLOSE or msg.get("evt") != "READY":
-                self._disconnect(s)
-                raise DiscordError((msg or {}).get("message") or _("Discord refused the connection"))
-            threading.Thread(target=self._reader, args=(s,), name="discord", daemon=True).start()
-            self._authenticate()
+            try:
+                self._send(OP_HANDSHAKE, {"v": 1, "client_id": self.client_id})
+                op, msg = self._recv()
+                if op == OP_CLOSE or msg.get("evt") != "READY":
+                    raise DiscordError((msg or {}).get("message") or _("Discord refused the connection"))
+                threading.Thread(target=self._reader, args=(s,), name="discord", daemon=True).start()
+                self._authenticate()
+            except BaseException:
+                self._disconnect(s)  # Socket zu, der Lese-Thread endet damit (sonst je Versuch einer mehr)
+                raise
             self.ready = True
             try:
                 self._voice(self.command("GET_VOICE_SETTINGS"))
@@ -185,7 +197,12 @@ class DiscordClient:
     def _authenticate(self):
         tok = self._load_token()
         if tok and tok.get("expires_at", 0) < time.time() + 60 and tok.get("refresh_token"):
-            tok = self._token_request({"grant_type": "refresh_token", "refresh_token": tok["refresh_token"]})
+            try:
+                tok = self._token_request({"grant_type": "refresh_token", "refresh_token": tok["refresh_token"]})
+            except DiscordAuthError as e:  # Zugang widerrufen: neu anmelden statt bei jedem Druck zu scheitern
+                log.info(_("Saved Discord access is invalid ({error}) – logging in again").format(error=e))
+                self.token_file.unlink(missing_ok=True)
+                tok = None
         if tok:
             try:
                 self.command("AUTHENTICATE", {"access_token": tok["access_token"]})
@@ -214,6 +231,9 @@ class DiscordClient:
         try:
             with urllib.request.urlopen(req, timeout=10) as r:
                 tok = json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            err = DiscordAuthError if e.code in (400, 401) else DiscordError  # invalid_grant, invalid_client
+            raise err(_("Discord login failed: {error}").format(error=e)) from e
         except Exception as e:  # noqa: BLE001
             raise DiscordError(_("Discord login failed: {error}").format(error=e)) from e
         tok["expires_at"] = time.time() + int(tok.get("expires_in", 0))
@@ -256,5 +276,7 @@ def client(cfg) -> DiscordClient:
     c = (cfg.get("discord") if cfg else None) or {}
     key = (str(c.get("client_id") or ""), c.get("client_secret") or "")
     if _client["key"] != key:
+        if _client["obj"] is not None:
+            _client["obj"]._disconnect()  # alte Verbindung (und ihren Lese-Thread) nicht liegen lassen
         _client.update(key=key, obj=DiscordClient(*key))
     return _client["obj"]

@@ -309,7 +309,7 @@ class NoiseSuppression:
                                 stderr=subprocess.DEVNULL, start_new_session=True)
         self._save({"pid": proc.pid, "conf": str(path), "backend": backend, "source": source, "control": control})
         for _i in range(30):  # bis die neue Quelle bei PipeWire angemeldet ist
-            if any(b.get("name") == NODE for b in system._pactl_blocks("sources")):
+            if system.source_exists(NODE):
                 break
             if proc.poll() is not None:
                 self._save({})

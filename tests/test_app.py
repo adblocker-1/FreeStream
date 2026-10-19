@@ -23,11 +23,13 @@ def env(tmp_path, monkeypatch):
 
 
 def test_single_instance_detection(env):
-    from freestream import app
+    from freestream import app, desktop
     assert app.running_instance() is None
     sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
     try:
-        (env / "state" / "app.json").write_text(json.dumps({"pid": sleeper.pid, "gui": True}))
+        # wie _write_app_info: mit Startzeit, sonst zählt die Pid nur, wenn sie nach FreeDeck aussieht
+        (env / "state" / "app.json").write_text(json.dumps({"pid": sleeper.pid, "gui": True,
+                                                            "start": desktop._start_time(sleeper.pid)}))
         assert app.running_instance() == sleeper.pid
     finally:
         sleeper.kill()

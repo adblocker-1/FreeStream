@@ -200,13 +200,23 @@ class VirtualDeckWindow:
             self._place(s)
             self._seq = -1
         self._ticks += 1
-        if (s["topmost"] or s["mode"] == "edge") and self._ticks % 25 == 0:
+        if (s["topmost"] or s["mode"] == "edge") and self._ticks % 25 == 0 and not self._menu_open():
             self.win.lift()  # Fenster ohne Rahmen: der Fenstermanager hält sie nicht oben
         footer = self._footer_state(ctrl)
         seq = ctrl.deck.seq
         if seq != self._seq or footer != self._footer:
             self._seq, self._footer = seq, footer
             self.draw()
+
+    def _menu_open(self):
+        """Ist gerade ein Menü oder eine aufgeklappte Liste offen (etwa die Profilwahl aus der Fußzeile oder eine
+        Liste der FreeDeck-Kopfzeile)? Dann nicht anheben – das Deck läge sonst darüber. Roher Tcl-Aufruf:
+        grab_current() scheitert, solange die Liste einer Combobox offen ist."""
+        try:
+            return (PopupMenu.current is not None or bool(self.root.tk.call("grab", "current"))
+                    or bool(self.editor is not None and self.editor.drop_open()))
+        except tk.TclError:
+            return False
 
     @staticmethod
     def _footer_state(ctrl):
