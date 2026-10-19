@@ -317,6 +317,10 @@ def shot_background(tmp, root, app, _doc):
     app.goto_page(pid)
     app.select(("key", 2, 0))
     pump(root, 1.5)
+    app.save_now()  # Status wie nach dem automatischen Speichern statt „Speichern …“ im Bild
+    from freestream.i18n import _
+    app.status(_("saved"))
+    pump(root, 0.3)
     grab(root, "freedeck-background.png")
     dlg = BackgroundDialog(root, app, pid)
     pump(root, 1)
@@ -401,12 +405,13 @@ def shot_freewave(tmp):
     fake.inputs["10"] = {"index": "10", "sink": "1", "volume": 80, "mute": False,
                          "props": {"application.name": "Discord", "application.process.binary": "discord"}}
     blocks = fake.blocks
+    own_sources = []  # Quellen, die FreeWave selbst anlegt (z. B. die Effektkette des Mikrofons)
 
     def blocks_with_sources(what):
         if what == "sources":
             return [{"name": "alsa_input.usb-Elgato_Wave_3", "description": "Elgato Wave:3 Mono"},
                     {"name": "alsa_input.usb-capture", "description": "USB Capture HDMI – Digital Stereo"},
-                    {"name": "alsa_input.pci-analog", "description": "Built-in Audio Analog Stereo"}]
+                    {"name": "alsa_input.pci-analog", "description": "Built-in Audio Analog Stereo"}] + own_sources
         return blocks(what)
     system._pactl_blocks = blocks_with_sources
     system.have = lambda c: True
@@ -419,6 +424,9 @@ def shot_freewave(tmp):
     from freestream.waveui import WaveWindow
     host = WaveHost()
     host.start()
+    known = {b["name"] for b in blocks_with_sources("sources")}
+    own_sources.extend({"name": n, "description": n, "volume": 100}  # Mikrofon-Regler voll wie die anderen
+                       for n in set((host.mixer._state().get("sources") or {}).values()) - known)
     host.tick()
     for cid, mix, vol in (("music", "stream", 35), ("music", "monitor", 70), ("podcast", "stream", 85),
                           ("voice", "stream", 0), ("browser", "monitor", 55), ("capture", "monitor", 40)):
@@ -434,6 +442,7 @@ def shot_freewave(tmp):
         return types.SimpleNamespace(level=demo.get(key, .5) if "Wave" in device or key else .6, stop=lambda: None)
     root = tk.Tk(className="freewave")
     win = WaveWindow(root, host, tray=False, level_factory=fake_level)
+    root.geometry("1280x830")  # etwas höher, damit der OBS-Hinweis unter den Kanälen ganz ins Bild passt
     pump(root, 3)
     for strip in win.strips.values():  # ✕ nur beim Überfahren – der Mauszeiger von Xvfb steht mitten im Bild
         for part in strip.values():
