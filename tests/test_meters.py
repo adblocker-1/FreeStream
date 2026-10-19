@@ -82,3 +82,28 @@ def test_mixer_fader_redraws_only_on_visible_change(monkeypatch):
     act.set_meter(0.501)   # gleiche Segmentzahl: nicht neu zeichnen
     act.set_meter(0.9)
     assert drawn == [0.5, round(0.9 * native.DeckMeters.STEPS) / native.DeckMeters.STEPS]
+
+
+def test_window_meter_green_yellow_red():
+    """Pegel im FreeWave-Fenster: grün, ab 70 % gelb, ab 90 % rot."""
+    import os
+
+    import pytest
+    if not os.environ.get("DISPLAY"):
+        pytest.skip("braucht X (xvfb-run)")
+    import tkinter as tk
+
+    from freestream.theme import METER_ZONES, LevelMeter
+    root = tk.Tk()
+    try:
+        m = LevelMeter(root, length=200, thickness=5, orient="horizontal")
+        m.pack()
+        m.set(0.95)
+        root.update()
+        fills = [m.itemcget(i, "fill") for i in m.find_all()]
+        assert [z[2] for z in METER_ZONES] == [f for f in fills if f in [z[2] for z in METER_ZONES]]
+        m.set(0.5)
+        fills = [m.itemcget(i, "fill") for i in m.find_all()]
+        assert METER_ZONES[1][2] not in fills and METER_ZONES[2][2] not in fills
+    finally:
+        root.destroy()

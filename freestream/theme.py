@@ -1527,8 +1527,11 @@ class Chip(tk.Canvas):
         self.create_text(x, h / 2, text=self.text, anchor="w", font=self.f, fill=fg)
 
 
+METER_ZONES = ((0.0, 0.7, "#2bd665"), (0.7, 0.9, "#f5c542"), (0.9, 1.0, "#f0484f"))
+
+
 class LevelMeter(tk.Canvas):
-    """Pegelanzeige: senkrecht als schmaler Streifen (grün → gelb → rot) oder waagerecht in einer Farbe."""
+    """Pegelanzeige grün → gelb → rot (senkrecht oder waagerecht); waagerecht mit color: einfarbig."""
 
     def __init__(self, master, length=200, thickness=4, orient="vertical", color=None):
         w, h = (thickness, length) if orient == "vertical" else (length, thickness)
@@ -1559,9 +1562,13 @@ class LevelMeter(tk.Canvas):
                         self.create_rectangle(0, a, w, b, fill=col, outline="")
         else:
             rounded_rect(self, 0, 0, w, h, h / 2, fill=COL["raised"], outline="")
-            if self.level > 0:
-                rounded_rect(self, 0, 0, max(h, self.level * w), h, h / 2, fill=self.color or COL["accent"],
-                             outline="")
+            if self.level > 0 and self.color:
+                rounded_rect(self, 0, 0, max(h, self.level * w), h, h / 2, fill=self.color, outline="")
+            elif self.level > 0:  # wie ein Pegelmesser: grün, ab 70 % gelb, ab 90 % rot
+                for a, b, col in METER_ZONES:
+                    lo, hi = a * w, min(b, self.level) * w
+                    if hi > lo:
+                        self.create_rectangle(lo, 0, hi, h, fill=col, outline="")
 
 
 class PopupMenu:

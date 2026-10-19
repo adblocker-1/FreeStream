@@ -162,7 +162,7 @@ def fader(size, half, icon, color, vol, muted, mix, label=None, bg_alpha=255, li
         pos = (i + 0.5) / n
         if live is not None:
             lit = not muted and pos <= live
-            seg = RED if pos > 0.9 else YELLOW if pos > 0.75 else col
+            seg = RED if pos > 0.9 else YELLOW if pos > 0.7 else col
         else:
             lit = not muted and vol is not None and pos * 100 <= level
             seg = col

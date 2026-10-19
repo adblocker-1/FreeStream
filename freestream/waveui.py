@@ -1083,7 +1083,7 @@ class WaveWindow:
             ear.grid_remove()
         mrow = tk.Frame(body, bg=COL["panel"])  # Pegel des Mixes mit dB-Zahl (rot „CLIP“ bei Übersteuerung)
         mrow.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(6, 0))
-        meter = LevelMeter(mrow, length=mw - 76, thickness=4, orient="horizontal", color=COL["ok"])
+        meter = LevelMeter(mrow, length=mw - 76, thickness=5, orient="horizontal")
         meter.pack(side="left")
         db = tk.StringVar(self.root, value="")
         db_lb = label(mrow, textvariable=db, size=8, color=COL["muted"], anchor="e", width=7)
@@ -1123,7 +1123,7 @@ class WaveWindow:
         fader = Fader(fcol, length=flen, thickness=22, orient="horizontal", color=color,
                       command=lambda v: self._on_master(cid, v))
         fader.pack()
-        meter = LevelMeter(fcol, length=flen - 12, thickness=3, orient="horizontal", color=COL["ok"])
+        meter = LevelMeter(fcol, length=flen - 12, thickness=5, orient="horizontal")
         meter.pack(pady=(3, 0))  # Live-Pegel unter dem Regler
         val = tk.StringVar(self.root, value="–")
         if cid != "mic":  # Mikrofon: dort sitzt der Mithören-Knopf (Prozentwert steht unter „Mikrofon“)
@@ -1173,7 +1173,7 @@ class WaveWindow:
         fader = Fader(fcol, length=self.mix_w - 100, thickness=22, orient="horizontal", color=m.get("color"),
                       command=lambda v: self._on_level(cid, mid, v))
         fader.pack()
-        meter = LevelMeter(fcol, length=self.mix_w - 112, thickness=3, orient="horizontal", color=COL["ok"])
+        meter = LevelMeter(fcol, length=self.mix_w - 112, thickness=5, orient="horizontal")
         meter.pack(pady=(3, 0))
         val = tk.StringVar(self.root, value="–")
         lb = label(body, textvariable=val, size=9, color=COL["muted"], width=5, anchor="e")

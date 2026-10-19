@@ -237,7 +237,8 @@ Programs play into **channels** (System, Music, Browser, Voice Chat, Game, SFX,
 Microphone). The mixer is a table like **Mixes** in Wave Link: one row per
 channel with a **master slider**, one column per **mix** with its own slider and
 mute for every channel. It looks like Wave Link too: flat grey rows, slim sliders with
-the live level as a green bar below, and the mix columns fill the width of the window. The
+the live level as a bar below – green, yellow from 70 %, red from 90 % – and the mix columns fill
+the width of the window. The
 device you listen on is chosen at the top right.
 
 - **Personal Mix** – what you hear on your headphones (also on several devices at once).
