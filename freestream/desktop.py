@@ -24,7 +24,8 @@ def _app_info(name):
 
 def _write_app_info(gui, name):
     paths.ensure_dirs()
-    (paths.STATE_DIR / name).write_text(json.dumps({"pid": os.getpid(), "gui": gui}), encoding="utf-8")
+    info = {"pid": os.getpid(), "gui": gui, "start": _start_time(os.getpid())}
+    (paths.STATE_DIR / name).write_text(json.dumps(info), encoding="utf-8")
 
 
 def _clear_app_info(name):
@@ -43,12 +44,38 @@ def _alive(pid):
         return False
 
 
+def _start_time(pid):
+    """Startzeit des Prozesses (Takte seit dem Systemstart) oder None – unterscheidet ihn von einem
+    späteren Prozess, der dieselbe Pid bekommen hat."""
+    try:
+        with open(f"/proc/{pid}/stat", "rb") as f:
+            return int(f.read().rsplit(b")", 1)[1].split()[19])  # Feld 22, nach dem Namen in Klammern
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def is_ours(pid):
+    """Gehört die Pid zu FreeDeck/FreeWave (auch unter den früheren Namen)?"""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            cmd = f.read().decode(errors="ignore")
+    except OSError:
+        return False
+    return any(n in cmd for n in ("freestream", "freedeck", "freewave", "streamlin", "lindeck", "linewave"))
+
+
 def running_instance(name):
-    """Pid einer laufenden Instanz laut Statusdatei oder None."""
-    pid = _app_info(name).get("pid")
-    if pid and pid != os.getpid() and _alive(pid):
-        return pid
-    return None
+    """Pid einer laufenden Instanz laut Statusdatei oder None.
+
+    Nach einem Absturz bleibt die Statusdatei liegen; ihre Pid kann inzwischen ein fremder Prozess haben,
+    der sonst SIGUSR1/SIGTERM bekäme."""
+    info = _app_info(name)
+    pid = info.get("pid")
+    if not pid or pid == os.getpid() or not _alive(pid):
+        return None
+    if info.get("start") is not None:
+        return pid if _start_time(pid) == info["start"] else None
+    return pid if is_ours(pid) else None  # Datei einer älteren Version (ohne Startzeit)
 
 
 class Tray:

@@ -187,8 +187,8 @@ def _mix_list():
     """[(id, Name)] aller Mixe aus der FreeWave-Konfiguration (feste zuerst)."""
     names = {"monitor": _("Personal Mix"), "stream": _("Stream Mix")}
     try:
-        from .config import Config
-        conf = [m for m in ((Config().get("mixer") or {}).get("mixes") or []) if isinstance(m, dict) and m.get("id")]
+        from .config import read_section  # ohne Schlüsselbund-Abfrage (läuft im Tk-Thread)
+        conf = [m for m in (read_section("mixer").get("mixes") or []) if isinstance(m, dict) and m.get("id")]
     except Exception:  # noqa: BLE001
         conf = []
     for m in conf:
@@ -215,8 +215,8 @@ HA_TOGGLE_DOMAINS = ["light", "switch", "fan", "cover", "input_boolean", "automa
 def _scene_choices():
     """Mixer-Szenen aus der FreeWave-Konfiguration (für das Auswahlfeld im Editor)."""
     try:
-        from .config import Config
-        scenes = [s for s in ((Config().get("mixer") or {}).get("scenes") or []) if isinstance(s, dict) and s.get("id")]
+        from .config import read_section
+        scenes = [s for s in (read_section("mixer").get("scenes") or []) if isinstance(s, dict) and s.get("id")]
     except Exception:  # noqa: BLE001
         scenes = []
     return [(s["id"], s.get("name") or s["id"]) for s in scenes] or [("", _("(no scenes saved in FreeWave yet)"))]

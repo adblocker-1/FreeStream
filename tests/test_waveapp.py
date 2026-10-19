@@ -144,7 +144,7 @@ def test_host_reload_applies_mic_settings(env, pactl):
 
 
 def test_stream_deck_app_delegates_filter_to_wave_app(env, monkeypatch):
-    from freestream import app, wave3hw, wavemic
+    from freestream import app, desktop, wave3hw, wavemic
     monkeypatch.setattr(wave3hw, "present", lambda: False)
     flag = env / "hup"
     code = ("import signal, sys, time\n"
@@ -153,7 +153,8 @@ def test_stream_deck_app_delegates_filter_to_wave_app(env, monkeypatch):
     proc = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
     try:
         assert proc.stdout.readline().strip() == "ok"
-        (env / "state" / wavemic.WAVE_APP_FILE).write_text(json.dumps({"pid": proc.pid, "gui": True}))
+        (env / "state" / wavemic.WAVE_APP_FILE).write_text(json.dumps({"pid": proc.pid, "gui": True,
+                                                                     "start": desktop._start_time(proc.pid)}))
         assert app.running_instance(wavemic.WAVE_APP_FILE) == proc.pid
         mic = wavemic.WaveMic({})
         mic.settings.update(lowcut=True)

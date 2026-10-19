@@ -680,11 +680,14 @@ def cmd_virtual_deck(args):
 
 
 def _signal_daemon():
+    from .daemon import Daemon
+    pid = Daemon.already_running()  # nur, wenn die Pid noch FreeDeck gehört (Datei nach einem Absturz)
+    if not pid:
+        return False
     try:
-        pid = int(paths.PID_FILE.read_text())
         os.kill(pid, signal.SIGHUP)
         return True
-    except (OSError, ValueError):
+    except OSError:
         return False
 
 
