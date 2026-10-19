@@ -9,9 +9,13 @@ sie mit sanftem Abfall (wie ein Peak-Meter).
 Läuft nur, solange das Fenster sichtbar ist – `stop()` beendet alle
 Prozesse. Ohne `parec` (pulseaudio-utils) bleiben alle Pegel bei 0.
 
+`parec` hängt fest an seiner Quelle: verschwindet sie (Kanal neu angelegt,
+PipeWire neu gestartet), beendet er sich, statt zur Standardquelle zu
+wechseln – `watch()` startet ihn dann neu (höchstens alle RESTART_S Sekunden).
+
 Zum Testen lässt sich statt `parec` eine eigene Quelle einsetzen:
 `LevelMonitor(factory=lambda device: obj)` – obj braucht `.level` (0..1)
-und `.stop()`.
+und `.stop()`, optional `.ended` (True = neu starten).
 """
 import array
 import logging
@@ -29,6 +33,7 @@ HZ = 25
 CHUNK = RATE // HZ * 2  # Bytes je Messung (s16 mono)
 FLOOR_DB = -60.0
 FALL_PER_S = 1.6  # so viel (von 0..1) fällt die Anzeige pro Sekunde höchstens
+RESTART_S = 2.0  # beendetes parec frühestens so lange nach dem Start neu starten (Quelle fehlt noch)
 
 
 def peak_level(data):
@@ -46,10 +51,12 @@ def peak_level(data):
 
 
 def post_fader(level, volume, muted):
-    """Pegel nach dem Regler: Lautstärke in dB auf die Anzeige (−60…0 dB) umgerechnet."""
+    """Pegel nach dem Regler: Lautstärke in dB auf die Anzeige (−60…0 dB) umgerechnet.
+
+    PipeWire/PulseAudio-Prozent sind kubisch (Amplitude = (pct/100)³): 50 % = −18 dB, 10 % = −60 dB."""
     if muted or not volume or volume <= 0 or level <= 0:
         return 0.0
-    return max(0.0, min(1.0, level + 20 * math.log10(min(volume, 150) / 100) / -FLOOR_DB))
+    return max(0.0, min(1.0, level + 60 * math.log10(min(volume, 150) / 100) / -FLOOR_DB))
 
 
 def level_db(level):
@@ -70,8 +77,10 @@ class ParecSource:
         if not exe or not device:
             return
         try:
+            # dont-reconnect: wird die Quelle entfernt, endet parec, statt still die Standardquelle zu messen
             self.proc = popen([exe, f"--device={device}", "--raw", "--format=s16le", f"--rate={RATE}",
-                               "--channels=1", f"--latency-msec={1000 // HZ}"],
+                               "--channels=1", f"--latency-msec={1000 // HZ}",
+                               "--property=node.dont-reconnect=true"],
                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
         except OSError as e:
             log.debug("parec %s: %s", device, e)
@@ -90,6 +99,12 @@ class ParecSource:
         except (OSError, ValueError):
             pass
         self.level = 0.0
+
+    @property
+    def ended(self):
+        """parec hat sich beendet (Quelle entfernt oder noch nicht da, PipeWire neu gestartet)."""
+        proc = self.proc
+        return proc is not None and proc.poll() is not None
 
     def stop(self):
         proc, self.proc = self.proc, None
@@ -114,6 +129,7 @@ class LevelMonitor:
         self.clock = clock
         self.fall = fall_per_s
         self.sources = {}  # key -> (device, source)
+        self.started = {}  # key -> Startzeit der Quelle (clock)
         self.shown = {}
         self._last = None
 
@@ -126,11 +142,15 @@ class LevelMonitor:
         if not self.available:
             return
         targets = {k: d for k, d in (targets or {}).items() if d}
+        now = self.clock()
         for key in list(self.sources):
             dev, src = self.sources[key]
-            if targets.get(key) != dev:
+            # beendetes parec neu starten – fehlt die Quelle noch, nur alle RESTART_S Sekunden
+            if targets.get(key) != dev or (now - self.started.get(key, now) >= RESTART_S
+                                           and getattr(src, "ended", False)):
                 src.stop()
                 del self.sources[key]
+                self.started.pop(key, None)
                 self.shown.pop(key, None)
         for key, dev in targets.items():
             if key not in self.sources:
@@ -141,6 +161,7 @@ class LevelMonitor:
                     continue
                 if src is not None:
                     self.sources[key] = (dev, src)
+                    self.started[key] = now
 
     def read(self):
         """{key: level 0..1} – steigt sofort, fällt höchstens um fall_per_s pro Sekunde."""
@@ -164,6 +185,7 @@ class LevelMonitor:
             except Exception:  # noqa: BLE001
                 pass
         self.sources.clear()
+        self.started.clear()
         self.shown.clear()
         self._last = None
 

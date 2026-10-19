@@ -23,6 +23,9 @@ YELLOW = (245, 177, 61)
 GREY = (150, 150, 160)
 SS = 3  # Überabtastung für glatte Kanten
 MIX_ICON = {"both": "wave", "monitor": "headphones", "stream": "stream"}
+# Pegel-Leiste der Fader: Segmente über beide Tasten ((1,6 − 0,14) / 0,085 Tastenhöhen, siehe fader())
+FADER_SEGMENTS = 17
+FADER_SPLIT = 7  # dieses Segment liegt auf der Grenze: die obere Taste zeigt 7–16, die untere 0–7
 
 
 _CACHE = OrderedDict()
@@ -156,7 +159,7 @@ def fader(size, half, icon, color, vol, muted, mix, label=None, bg_alpha=255, li
                         fill=RED if muted else (245, 245, 248))
     # Pegel-Leiste rechts: Live-Pegel (oder ohne Messung: Segmente bis zur Lautstärke)
     mx, mw, step = W * 0.66, W * 0.1, H * 0.085
-    n = int((bottom - top) / step)
+    n = FADER_SEGMENTS  # = int((bottom - top) / step)
     for i in range(n):
         sy = bottom - (i + 1) * step
         pos = (i + 0.5) / n
@@ -180,6 +183,17 @@ def fader(size, half, icon, color, vol, muted, mix, label=None, bg_alpha=255, li
     d.text((x + gs + W * 0.05, ly), text, font=f, fill=RED if muted else GREY, anchor="lm")
     part = im.crop((0, 0, W, H)) if half == "top" else im.crop((0, H, W, 2 * H))
     return _done(part, w, h)
+
+
+def fader_live(half, live):
+    """Live-Pegel so gerundet, wie ihn diese Hälfte des Faders zeigt: auf ganze Segmente, und was nur auf
+    der anderen Taste zu sehen ist, zählt nicht. Gleicher Wert = gleiches Bild – das Deck sendet eine Taste
+    nur neu, wenn sich der Wert ändert (sonst wäre über die Hälfte der Bilder unverändert)."""
+    if live is None:
+        return None
+    lit = int(max(0.0, min(1.0, live)) * FADER_SEGMENTS + 0.5)  # so viele Segmente leuchten (pos ≤ live)
+    lit = max(lit, FADER_SPLIT) if half == "top" else min(lit, FADER_SPLIT + 1)
+    return lit / FADER_SEGMENTS
 
 
 @_cached

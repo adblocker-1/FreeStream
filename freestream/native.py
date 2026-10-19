@@ -451,14 +451,17 @@ class DiscordAction(NativeAction):
 # ==========================================================================
 # Audio-Mixer (Wave-Link-Ersatz)
 # ==========================================================================
+_METER = threading.local()  # .drawing: dieser Thread zeichnet gerade für den Live-Pegel neu (set_meter)
+
+
 class DeckMeters:
     """Live-Pegel für die FreeWave-Fader auf dem Deck – gemessen wie im FreeWave-Fenster (parec).
 
     Läuft nur, solange Fader-Tasten sichtbar sind, etwa 12× pro Sekunde. Eine Taste wird nur neu
-    gezeichnet, wenn sich die Zahl der leuchtenden Segmente ändert (jede Taste ist eine USB-Übertragung)."""
+    gezeichnet, wenn sich auf ihr die Zahl der leuchtenden Segmente ändert (jede Taste ist eine
+    USB-Übertragung); die Lautstärke dafür liest der Sekundentakt, nicht dieser Thread."""
 
     HZ = 12
-    STEPS = 24  # so fein wird der Pegel für die Anzeige gerundet
     ENABLED = True
 
     def __init__(self, monitor_factory=None):
@@ -486,14 +489,15 @@ class DeckMeters:
             self.actions.discard(action)
 
     def _sources(self, action):
-        """PipeWire-Quellen aller Kanäle (alle 10 s neu nachgesehen – eine Abfrage für alle Tasten)."""
+        """PipeWire-Quellen aller Kanäle samt Mikrofon (alle 10 s neu nachgesehen – eine Abfrage für alle
+        Tasten)."""
         now = time.monotonic()
         if now - getattr(self, "_src_at", -99) > 10:
             self._src_at = now
             try:
                 from . import levels
                 mx = action.mixer
-                self._srcs = levels.channel_sources(mx, mx.channels())
+                self._srcs = levels.channel_sources(mx, mx.all_channels())
             except Exception as e:  # noqa: BLE001 - nur Anzeige
                 log.debug("meter sources: %s", e)
                 self._srcs = {}
@@ -504,26 +508,39 @@ class DeckMeters:
         return (self.monitor_factory or levels.LevelMonitor)()
 
     def _loop(self):
-        self.monitor = self._new_monitor()
+        mon = None
         try:
+            # eigener Monitor je Thread: endet dieser Thread erst, wenn schon ein neuer läuft (Seite weg und
+            # gleich wieder da), beendet er nur seine eigenen parec-Prozesse
+            mon = self.monitor = self._new_monitor()
             while True:
                 with self.lock:
                     acts = list(self.actions)
                     if not acts:
                         self.thread = None
                         return
-                srcs = self._sources(acts[0])
-                targets = {a.channel: srcs[a.channel] for a in acts if srcs.get(a.channel)}
-                self.monitor.watch(targets)
-                lv = self.monitor.read()
-                for a in acts:
-                    try:
-                        a.set_meter(lv.get(a.channel, 0.0))
-                    except Exception as e:  # noqa: BLE001 - nur Anzeige
-                        log.debug("meter: %s", e)
+                try:
+                    with system.pactl_snapshot():
+                        srcs = self._sources(acts[0])
+                        chans = [(a, a.channel) for a in acts]
+                        targets = {ch: srcs[ch] for _a, ch in chans if srcs.get(ch)}
+                        mon.watch(targets)
+                        lv = mon.read()
+                        for a, ch in chans:
+                            try:
+                                # None: Kanal ohne Messung (leerer Platz, keine Quelle) – Leiste nach der Lautstärke
+                                a.set_meter(lv.get(ch))
+                            except Exception as e:  # noqa: BLE001 - nur Anzeige
+                                log.debug("meter: %s", e)
+                except Exception as e:  # noqa: BLE001 - nur Anzeige: weiter messen, der Thread bleibt
+                    log.debug("meters: %s", e)
                 time.sleep(1 / self.HZ)
         finally:
-            self.monitor.stop()
+            if mon is not None:
+                mon.stop()
+            with self.lock:
+                if self.thread is threading.current_thread():
+                    self.thread = None  # unerwartet beendet: add() startet die Messung wieder
 
 
 DECK_METERS = DeckMeters()
@@ -615,13 +632,20 @@ class MixerAction(NativeAction):
             DECK_METERS.add(self)
 
     def set_meter(self, raw):
-        """Gemessener Pegel des Kanals → Anzeige nach dem Regler dieser Taste; neu zeichnen bei Änderung."""
-        from . import levels
-        vol, mute = getattr(self, "_lv", (None, False))
-        live = round(levels.post_fader(raw, vol, mute) * DeckMeters.STEPS) / DeckMeters.STEPS
+        """Gemessener Pegel des Kanals → Anzeige nach dem Regler dieser Taste; neu zeichnen, wenn sich das Bild
+        ändert. raw None: keine Messung – die Leiste folgt der Lautstärke."""
+        from . import levels, mixkeys
+        live = None
+        if raw is not None:
+            vol, mute = getattr(self, "_lv", (None, False))
+            live = mixkeys.fader_live(self.display[6:], levels.post_fader(raw, vol, mute))
         if live != getattr(self, "_live", None):
             self._live = live
-            self.redraw()
+            _METER.drawing = True  # nur der Pegel ist neu: Lautstärke nicht bei PipeWire nachfragen (_level)
+            try:
+                self.redraw()
+            finally:
+                _METER.drawing = False
 
     def frames(self, size):
         if not getattr(self.ctx.ctrl, "preview", False) and self.empty:
@@ -651,6 +675,10 @@ class MixerAction(NativeAction):
     def _level(self):
         if self.empty:
             return (None, False)
+        if getattr(_METER, "drawing", False) and getattr(self, "_lv", None) is not None:
+            # Neuzeichnen für den Live-Pegel (12× pro Sekunde, unter der Deck-Sperre): den bekannten Stand
+            # zeigen – nachgelesen wird im Sekundentakt (eine pactl-Abfrage für alle Tasten)
+            return self._lv
         now = time.time()
         at0 = getattr(self, "_lv_at", 0)
         if now - at0 > 1.0:
