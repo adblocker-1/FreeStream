@@ -1,18 +1,23 @@
 """Regressionstests zur Integrations-Prüfung nach dem Code-Review – je Bereich ein eigener Block
-(test_duck_, test_wizard_, test_trace_).
+(test_duck_, test_wizard_, test_trace_, test_pidfile_).
 
 Die Oberflächentests laufen nur mit Display (xvfb-run python3 -m pytest tests/test_fixes_integration.py).
 """
 import gc
 import json
 import os
+import signal
+import subprocess
+import sys
 import time
 import types
 import weakref
+from pathlib import Path
 
 import pytest
 
 from freestream import editdoc as E
+from freestream import paths
 
 import test_waveapp
 from test_waveapp import _config
@@ -575,3 +580,107 @@ def test_trace_entity_picker_and_colour_box_freed_after_close(tmp_path, monkeypa
         assert ref() is None and [b() for b in boxes] == [None]
     finally:
         root.destroy()
+
+
+# ==========================================================================
+# pidfile: liegengebliebene freestream.pid (Startzeit statt Name in der Befehlszeile)
+# ==========================================================================
+@pytest.fixture
+def _pidfile_home(tmp_path, monkeypatch):
+    state = tmp_path / "state" / "freestream"  # wie ~/.local/state/freestream: „freestream“ im Pfad
+    for name, sub in (("CONFIG_DIR", "cfg"), ("DATA_DIR", "data"), ("PROFILES_DIR", "data/profiles")):
+        monkeypatch.setattr(paths, name, tmp_path / sub)
+    monkeypatch.setattr(paths, "STATE_DIR", state)
+    monkeypatch.setattr(paths, "PID_FILE", state / "freestream.pid")
+    state.mkdir(parents=True)
+    return tmp_path
+
+
+def _pidfile_proc(*extra):
+    return subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)", *extra])
+
+
+def _pidfile_readers():
+    """Was jeder Leser der Pid-Datei für FreeDeck hält (ohne Signale zu schicken)."""
+    from freestream import app, backup
+    from freestream.daemon import Daemon
+    return Daemon.already_running(), app.running_instance(), backup._lindeck_pid()[0]
+
+
+def _pidfile_stop(procs):
+    for p in procs:
+        p.kill()
+        p.wait()
+
+
+def test_pidfile_daemon_start_writes_start_time(_pidfile_home, monkeypatch):
+    from freestream import desktop, plugins
+    from freestream.daemon import Daemon
+    monkeypatch.setattr(plugins, "PluginHost", lambda daemon: None)
+    fake = types.SimpleNamespace(_auto_import=lambda: None,
+                                 store=types.SimpleNamespace(reload=lambda: None, profiles={}))
+    Daemon.start(fake)
+    pid = os.getpid()
+    assert paths.PID_FILE.read_text().split() == [str(pid), str(desktop._start_time(pid))]
+    assert _pidfile_readers() == (None, None, None)  # nie der eigene Prozess
+
+
+def test_pidfile_stale_file_does_not_hit_freewave_or_effect_chain(_pidfile_home):
+    from freestream import app, backup, deckexport, desktop
+    from freestream.__main__ import _signal_daemon
+    procs = [_pidfile_proc("-m", "freestream.freewave", "--hidden"),  # FreeWave, wie der Starter des Pakets
+             _pidfile_proc("-c", str(paths.STATE_DIR / "effects-mic.conf"))]  # wie pipewire -c …/effects-*.conf
+    try:
+        for p in procs:
+            start = desktop._start_time(p.pid)
+            assert start
+            # FreeDeck abgestürzt, seine Pid hat jetzt FreeWave/die Effektkette: alte und neue Datei
+            for content in (str(p.pid), f"{p.pid} {start - 1}"):
+                paths.PID_FILE.write_text(content)
+                assert _pidfile_readers() == (None, None, None)
+                assert backup.running_programs() == []
+                assert not deckexport.notify_freedeck()
+                assert not _signal_daemon()
+                assert not app.quit_running()
+        for p in procs:
+            with pytest.raises(subprocess.TimeoutExpired):
+                p.wait(0.3)  # weder SIGHUP noch SIGTERM bekommen
+    finally:
+        _pidfile_stop(procs)
+
+
+def test_pidfile_legacy_file_accepts_only_freedeck_command_line(_pidfile_home):
+    cases = [(("-m", "freestream", "--hidden"), True),  # Starter des Pakets: python3 -m freestream
+             (("/usr/local/bin/freedeck", "run", "--no-gui"), True),  # pip: …/bin/freedeck
+             (("-m", "freestream", "freewave", "--hidden"), False),  # „freedeck freewave“ startet FreeWave
+             (("/usr/local/bin/lindeck", "-v", "linewave"), False),  # alter Befehl, ebenfalls FreeWave
+             (("/usr/local/bin/freewave", "--hidden"), False),
+             (("-m", "freestream.freewave"), False),
+             (("-c", str(paths.STATE_DIR / "effects-mic.conf")), False)]
+    procs = [_pidfile_proc(*extra) for extra, __ in cases]
+    try:
+        for p, (extra, ours) in zip(procs, cases):
+            paths.PID_FILE.write_text(str(p.pid))  # Datei einer älteren Version (ohne Startzeit)
+            expected = p.pid if ours else None
+            assert _pidfile_readers() == (expected, expected, expected), extra
+    finally:
+        _pidfile_stop(procs)
+
+
+def test_pidfile_running_freedeck_found_by_start_time(_pidfile_home):
+    from freestream import app, backup, deckexport, desktop
+    code = ("import sys, time; from pathlib import Path; from freestream import desktop, paths; "
+            "paths.PID_FILE = Path(sys.argv[1]); desktop._write_pid_file(); print('ok', flush=True); time.sleep(30)")
+    proc = subprocess.Popen([sys.executable, "-c", code, str(paths.PID_FILE)], stdout=subprocess.PIPE,
+                            cwd=Path(__file__).resolve().parents[1], text=True)
+    try:
+        assert proc.stdout.readline().strip() == "ok"
+        assert paths.PID_FILE.read_text() == f"{proc.pid} {desktop._start_time(proc.pid)}"
+        assert _pidfile_readers() == (proc.pid, proc.pid, proc.pid)  # Befehlszeile egal, die Startzeit passt
+        assert backup.running_programs() == [("freedeck", proc.pid, False)]
+        assert deckexport.notify_freedeck()
+        assert proc.wait(5) == -signal.SIGHUP  # SIGHUP kam an (der Hilfsprozess fängt es nicht ab)
+        assert _pidfile_readers() == (None, None, None)  # Datei liegt noch, der Prozess ist weg
+        assert not app.quit_running()
+    finally:
+        _pidfile_stop([proc])

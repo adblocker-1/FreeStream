@@ -436,14 +436,7 @@ def _lindeck_pid():
     pid = desktop.running_instance("app.json")
     if pid:
         return pid, bool(desktop._app_info("app.json").get("gui"))
-    try:
-        pid = int(Path(paths.PID_FILE).read_text())
-        cmd = open(f"/proc/{pid}/cmdline", "rb").read().decode(errors="ignore")
-        if pid != os.getpid() and any(n in cmd for n in ("freestream", "freedeck", "streamlin", "lindeck")):
-            return pid, False
-    except (OSError, ValueError):
-        pass
-    return None, False
+    return desktop.freedeck_pid(), False  # nur Dienst (Pid-Datei, mit Startzeit geprüft)
 
 
 def running_programs():

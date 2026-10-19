@@ -181,14 +181,7 @@ class Daemon:
 
     @staticmethod
     def already_running():
-        try:
-            pid = int(paths.PID_FILE.read_text())
-            if pid != os.getpid() and any(n in open(f"/proc/{pid}/cmdline", "rb").read().decode(errors="ignore")
-                                            for n in ("freestream", "freedeck", "streamlin", "lindeck")):
-                return pid
-        except (OSError, ValueError):
-            pass
-        return None
+        return desktop.freedeck_pid()  # prüft die Startzeit (liegengebliebene Datei nach einem Absturz)
 
     def _auto_import(self):
         try:
@@ -211,7 +204,7 @@ class Daemon:
 
     def start(self):
         """Pid-Datei, Auto-Import, Plugin-Host und Hintergrunddienste (ohne Signale, ohne Schleife)."""
-        paths.PID_FILE.write_text(str(os.getpid()))
+        desktop._write_pid_file()  # mit Startzeit, siehe desktop.freedeck_pid
         self._auto_import()
         self.store.reload()
         try:

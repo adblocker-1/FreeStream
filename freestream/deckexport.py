@@ -23,7 +23,7 @@ import signal
 
 from PIL import Image, ImageOps
 
-from . import paths
+from . import desktop, paths
 from .editdoc import EditError, ProfileDoc, create_profile, init_profile
 from .i18n import _
 from .models import MODELS, connected_models, model_geometry, model_name
@@ -390,13 +390,8 @@ def export(model, channels, mix="selected", all_channels=True, store_root=None, 
 def notify_freedeck():
     """Laufendem FreeDeck Bescheid geben (SIGHUP): es lädt die Profile neu und zeigt das Profil
     sofort in der Liste – ohne dass FreeDeck danach suchen muss. Gibt True zurück, wenn FreeDeck lief."""
-    try:
-        pid = int(paths.PID_FILE.read_text())
-        with open(f"/proc/{pid}/cmdline", "rb") as f:
-            cmd = f.read().decode(errors="ignore")
-    except (OSError, ValueError):
-        return False
-    if pid == os.getpid() or not any(n in cmd for n in ("freedeck", "freestream", "lindeck", "streamlin")):
+    pid = desktop.freedeck_pid()  # nicht FreeWave oder eine Effektkette, die die Pid inzwischen hat
+    if not pid:
         return False
     try:
         os.kill(pid, signal.SIGHUP)

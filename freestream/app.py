@@ -46,8 +46,7 @@ def _clear_app_info(name=APP_FILE):
 def running_instance(name=APP_FILE):
     """Pid einer laufenden Instanz (FreeDeck: Dienst oder App; sonst nach Statusdatei) oder None."""
     if name == APP_FILE:
-        from .daemon import Daemon
-        pid = Daemon.already_running()
+        pid = desktop.freedeck_pid()  # wie Daemon.already_running: Pid-Datei, mit Startzeit geprüft
         if pid:
             return pid
     return desktop.running_instance(name)

@@ -78,6 +78,48 @@ def running_instance(name):
     return pid if is_ours(pid) else None  # Datei einer älteren Version (ohne Startzeit)
 
 
+# Pid-Datei von FreeDeck (freestream.pid): „<pid> <startzeit>“, ältere Versionen schrieben nur die Pid
+def _write_pid_file():
+    pid = os.getpid()
+    start = _start_time(pid)
+    paths.PID_FILE.write_text(str(pid) if start is None else f"{pid} {start}")
+
+
+def _is_freedeck(pid):
+    """Strenge Prüfung für Pid-Dateien ohne Startzeit: nur FreeDeck selbst (python3 -m freestream …,
+    …/bin/freedeck …) – nicht FreeWave (-m freestream.freewave, „freedeck freewave“) und nicht die
+    Effektketten (pipewire -c …/freestream/effects-*.conf), auch wenn „freestream“ darin vorkommt."""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            args = f.read().decode(errors="ignore").split("\0")
+    except OSError:
+        return False
+    for i, a in enumerate(args):
+        if (i and args[i - 1] == "-m" and a in ("freestream", "streamlin", "lindeck")
+                or os.path.basename(a) in ("freedeck", "lindeck")):
+            cmd = next((b for b in args[i + 1:] if b and not b.startswith("-")), "")
+            return cmd not in ("freewave", "wave-app", "linewave")
+    return False
+
+
+def freedeck_pid():
+    """Pid des laufenden FreeDeck laut Pid-Datei (nie dieser Prozess) oder None.
+
+    Nach einem Absturz bleibt die Datei liegen; ihre Pid kann inzwischen FreeWave, eine Effektkette
+    oder ein fremder Prozess haben, der sonst SIGTERM/SIGHUP bekäme."""
+    try:
+        fields = paths.PID_FILE.read_text().split()
+        pid = int(fields[0])
+        start = int(fields[1]) if len(fields) > 1 else None
+    except (OSError, ValueError, IndexError):
+        return None
+    if pid <= 0 or pid == os.getpid():
+        return None
+    if start is not None:
+        return pid if _start_time(pid) == start else None
+    return pid if _is_freedeck(pid) else None  # Datei einer älteren Version (ohne Startzeit)
+
+
 class Tray:
     """Symbol in der Taskleiste (optional, über pystray)."""
 
