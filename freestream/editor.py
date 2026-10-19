@@ -396,8 +396,8 @@ class PageDots(tk.Canvas):
     def __init__(self, master, app, ids, current):
         self.app, self.ids, self.current = app, list(ids), current
         n = min(len(self.ids), 12)
-        super().__init__(master, width=72 + max(0, n - 1) * self.GAP, height=self.H, bg=_bg(master), highlightthickness=0,
-                         bd=0, cursor="hand2")
+        super().__init__(master, width=72 + max(0, n - 1) * self.GAP, height=self.H, bg=_bg(master),
+                         highlightthickness=0, bd=0, cursor="hand2")
         self.f = theme.font(app.root, 12, "bold")
         self.bind("<Button-1>", self._click)
         self.bind("<Button-3>", self._menu)
@@ -809,7 +809,7 @@ class EditorApp:
     def open_plugins(self):
         """Plugin-Verwaltung: Einstellungen › Plugins."""
         from .settingsui import open_settings
-        return open_settings(self.root, "FreeDeck", self._restart, freedeck=self, tab="plugins")
+        return open_settings(self.root, "FreeDeck", self._restart, freedeck=self, tab="plugins", setup=self.open_setup)
 
     def _plugins_changed(self):
         self.fill_catalog()
@@ -934,7 +934,7 @@ class EditorApp:
     def open_settings(self):
         """Design, Sprache und Updates."""
         from .settingsui import open_settings
-        return open_settings(self.root, "FreeDeck", self._restart, freedeck=self)
+        return open_settings(self.root, "FreeDeck", self._restart, freedeck=self, setup=self.open_setup)
 
     def _update_header(self):
         st = self.status_var.get()

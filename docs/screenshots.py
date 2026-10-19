@@ -511,6 +511,32 @@ def shot_freewave(tmp):
     root.destroy()
 
 
+# ------------------------------------------------------------ FreeWave-Tasten
+def deck_keys():
+    """FreeWave-Profil auf einem XL: Mix-Wahl, Kanal-Kacheln und Fader mit Live-Pegel."""
+    from freestream import mixkeys
+    from freestream.theme import CHANNEL_LOOK
+    k, gap, pad = 96, 14, 24
+    chans = [("mic", 80, 0.94), ("system", 100, 0.35), ("music", 45, 0.42), ("browser", 70, 0.0),
+             ("voice", 90, 0.82), ("game", 30, 0.3), ("sfx", 100, 0.2)]  # Lautstärke, Live-Pegel
+    cols = len(chans) + 1
+    im = Image.new("RGB", (pad * 2 + cols * k + (cols - 1) * gap, pad * 2 + 4 * k + 3 * gap), (20, 20, 22))
+
+    def put(c, r, key):
+        im.paste(key.convert("RGB"), (pad + c * (k + gap), pad + r * (k + gap)))
+    for c, (mid, sel) in enumerate((("both", True), ("monitor", False), ("stream", False))):
+        put(c, 0, mixkeys.mix_key((k, k), mid, sel))
+    for c, (cid, vol, live) in enumerate(chans):
+        icon, color = CHANNEL_LOOK[cid]
+        put(c, 1, mixkeys.tile((k, k), icon, color, vol, False, "both"))
+        for r, half in ((2, "top"), (3, "bottom")):
+            put(c, r, mixkeys.fader((k, k), half, icon, color, vol, False, "both", live=live))
+    put(cols - 1, 0, mixkeys.pages_key((k, k), 1, 7))
+    OUT.mkdir(parents=True, exist_ok=True)
+    im.save(OUT / "freewave-deck.png", optimize=True)
+    print("geschrieben:", (OUT / "freewave-deck.png").relative_to(ROOT))
+
+
 # ------------------------------------------------------------ Schaubild
 def diagram():
     """Schaubild: Programme → Kanäle → Persönlicher Mix / Stream-Mix."""
@@ -579,6 +605,8 @@ if __name__ == "__main__":
     only = sys.argv[1:]
     if not only or "diagram" in only:
         diagram()
+    if not only or "deck" in only:
+        deck_keys()
     if not only or "freedeck" in only:
         shot_freedeck(tmp)
     if not only or "freewave" in only:

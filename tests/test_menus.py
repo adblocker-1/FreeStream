@@ -241,3 +241,27 @@ def test_freewave_mix_columns_fit_window(env, pactl):
     finally:
         win.quitting = True
         root.destroy()
+
+
+def test_freewave_setup_wizard_in_settings_and_meters(env, pactl, monkeypatch):
+    """Einrichtung über Einstellungen (nicht mehr in der Seitenleiste); Live-Pegel als eigene Anzeige."""
+    import tkinter as tk
+    from freestream.theme import LevelMeter
+    from freestream.wavehost import WaveHost
+    from freestream.waveui import WaveWindow
+    host = WaveHost(_config(env, {"mixer": {"enabled": True}}))
+    host.start()
+    root = tk.Tk()
+    try:
+        win = WaveWindow(root, host, tray=False)
+        assert _pump(root, lambda: bool(win.strips))
+        assert isinstance(win.strips["system"]["monitor"]["meter"], LevelMeter)
+        assert isinstance(win.strips["system"]["master"]["meter"], LevelMeter)
+        opened = []
+        monkeypatch.setattr(win, "open_setup", lambda: opened.append(1))
+        dlg = win.open_settings()
+        dlg.setup_btn.command()
+        assert opened == [1] and not dlg.winfo_exists()
+    finally:
+        win.quitting = True
+        root.destroy()

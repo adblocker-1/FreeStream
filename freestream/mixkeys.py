@@ -19,6 +19,7 @@ BG = (16, 16, 20)
 TRACK = (52, 52, 60)
 GREEN = (46, 204, 113)
 RED = (229, 72, 77)
+YELLOW = (245, 177, 61)
 GREY = (150, 150, 160)
 SS = 3  # Überabtastung für glatte Kanten
 MIX_ICON = {"both": "wave", "monitor": "headphones", "stream": "stream"}
@@ -132,8 +133,11 @@ def tile(size, icon, color, vol, muted, mix, label=None, bg_alpha=255):
 
 
 @_cached
-def fader(size, half, icon, color, vol, muted, mix, label=None, bg_alpha=255):
-    """Hälfte („top“ oder „bottom“) eines Faders, der über zwei übereinanderliegende Tasten geht."""
+def fader(size, half, icon, color, vol, muted, mix, label=None, bg_alpha=255, live=None):
+    """Hälfte („top“ oder „bottom“) eines Faders, der über zwei übereinanderliegende Tasten geht.
+
+    live: Pegel 0..1 nach dem Regler (wie im FreeWave-Fenster) – dann zeigt die Leiste rechts das Signal,
+    oben gelb/rot bei lauten Stellen; None = die Leiste folgt der Lautstärke."""
     w, h = size
     W, H = w * SS, h * SS
     im = Image.new("RGBA", (W, 2 * H), BG + (bg_alpha,))
@@ -150,14 +154,20 @@ def fader(size, half, icon, color, vol, muted, mix, label=None, bg_alpha=255):
     kw, kh = W * 0.4, H * 0.13
     d.rounded_rectangle((tx - kw / 2, y - kh / 2, tx + kw / 2, y + kh / 2), radius=kh / 2,
                         fill=RED if muted else (245, 245, 248))
-    # Pegel-Leiste rechts: Segmente bis zur Lautstärke leuchten
+    # Pegel-Leiste rechts: Live-Pegel (oder ohne Messung: Segmente bis zur Lautstärke)
     mx, mw, step = W * 0.66, W * 0.1, H * 0.085
     n = int((bottom - top) / step)
     for i in range(n):
         sy = bottom - (i + 1) * step
-        lit = not muted and vol is not None and (i + 0.5) / n * 100 <= level
+        pos = (i + 0.5) / n
+        if live is not None:
+            lit = not muted and pos <= live
+            seg = RED if pos > 0.9 else YELLOW if pos > 0.75 else col
+        else:
+            lit = not muted and vol is not None and pos * 100 <= level
+            seg = col
         d.rounded_rectangle((mx, sy + step * 0.22, mx + mw, sy + step), radius=step * 0.2,
-                            fill=col if lit else _dim(col) if not muted else TRACK)
+                            fill=seg if lit else _dim(seg) if not muted else TRACK)
     # unten: kleines Kanal-Symbol und Mix
     ly = 2 * H - H * 0.18
     f = render.font(int(H * 0.15), "bold")

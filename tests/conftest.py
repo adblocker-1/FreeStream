@@ -36,6 +36,8 @@ def _forget_recent_loops():
     mixer._RECENT["at"] = 0.0
     mixer._WRITTEN.clear()
     mixer.WATCH = False  # kein pactl subscribe im Hintergrund (eigener Test in test_deckgui)
+    from freestream import native
+    native.DeckMeters.ENABLED = False  # keine parec-Messung im Hintergrund (eigene Tests in test_meters)
     yield
     mixer._RECENT["at"] = 0.0
     mixer._WRITTEN.clear()
