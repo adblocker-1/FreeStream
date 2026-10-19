@@ -72,9 +72,19 @@ def run_bg(cmd, shell=False):
         return False
 
 
+def pactl_env():
+    """Umgebung für pactl, dessen Ausgabe gelesen wird: immer englisch. Übersetzt hieße es
+    „Stumm: nein“ statt „Mute: no“ – keine Lautstärke, kein Stumm und kein Ereignis würde erkannt."""
+    env = dict(os.environ)
+    env["LC_ALL"] = "C"
+    env.pop("LANGUAGE", None)
+    return env
+
+
 def run_out(cmd, timeout=2):
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                           env=pactl_env() if cmd and cmd[0] == "pactl" else None)
         return r.stdout
     except (OSError, subprocess.SubprocessError):
         return ""
@@ -521,7 +531,7 @@ class PulseWatch:
             started = time.monotonic()
             try:
                 self._proc = subprocess.Popen(["pactl", "subscribe"], stdout=subprocess.PIPE,
-                                              stderr=subprocess.DEVNULL, text=True, bufsize=1)
+                                              stderr=subprocess.DEVNULL, text=True, bufsize=1, env=pactl_env())
                 self.available = True
                 for line in self._proc.stdout:
                     self._event(line)
@@ -598,8 +608,22 @@ def pactl_cached(key, fn, write=False):
 
 
 def _pactl_blocks(what):
-    """pactl list <what> -> Liste von dicts mit index, name, description, sink, props, volume, mute."""
-    out = pactl_cached(("list", what), lambda: run_out(["pactl", "list", what], timeout=3))
+    """pactl list <what> -> Liste von dicts mit index, name, description, sink, props, volume, mute.
+    Innerhalb von pactl_snapshot() wird auch nur einmal zerlegt (eine FreeWave-Seite am Deck fragt
+    im Sekundentakt dutzende Male nach)."""
+    return pactl_cached(("list", what), lambda: _parse_blocks(run_out(["pactl", "list", what], timeout=3)))
+
+
+def source_exists(name):
+    """Gibt es die Quelle name? Fragt PipeWire jedes Mal neu, auch innerhalb von pactl_snapshot() –
+    zum Warten auf die Quelle eines eben gestarteten Filter-Prozesses."""
+    cache = getattr(_SNAP, "cache", None)
+    if cache:
+        cache.pop(("list", "sources"), None)
+    return any(b.get("name") == name for b in _pactl_blocks("sources"))
+
+
+def _parse_blocks(out):
     blocks, cur = [], None
     for line in out.splitlines():
         if re.match(r"^\S.*#\d+", line):

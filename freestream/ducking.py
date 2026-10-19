@@ -217,7 +217,7 @@ class Ducker:
         depth = self.env.step(levels.level_db(self.level), dt)
         keys = {f"{c}_{m}" for c in st["channels"] or [] if c != "mic" for m in self._mix_ids(now)}
         with self._lock:
-            self._take_user_requests()
+            took = self._take_user_requests()
             for key in [k for k in self.bases if k not in keys]:  # Kanal abgewählt: zurückstellen
                 self._restore_key(key)
             if depth <= 0:
@@ -233,7 +233,8 @@ class Ducker:
             for key in keys:
                 if key in self.bases:
                     self._apply(key, duck_volume(self.bases[key], self.factor))
-            self._write_file()
+            # neuer Nutzerwert sofort in ducking.json: FreeDeck rechnet beim nächsten Tastendruck davon aus
+            self._write_file(force=took)
         return depth
 
     def _mix_ids(self, now):
@@ -333,17 +334,21 @@ class Ducker:
         self._file_at = -1e9
 
     def _take_user_requests(self):
-        """Lautstärken, die FreeDeck/Kommandozeile während des Absenkens gesetzt haben."""
+        """Lautstärken, die FreeDeck/Kommandozeile während des Absenkens gesetzt haben. True, wenn eine
+        übernommen wurde."""
         f = paths.STATE_DIR / DUCK_USER_FILE
         try:
             req = json.loads(f.read_text(encoding="utf-8"))
             f.unlink()
         except (OSError, ValueError):
-            return
+            return False
+        took = False
         for key, pct in (req or {}).items():
             if key in self.bases:
                 self.bases[key] = max(0, min(MAX_VOLUME, int(pct)))
                 self.applied[key] = duck_volume(self.bases[key], self.factor)
+                took = True
+        return took
 
     def _recover(self):
         """Nach einem Absturz noch abgesenkte Kanäle zurückstellen (alte ducking.json)."""
