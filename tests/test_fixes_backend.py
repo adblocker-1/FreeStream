@@ -6,6 +6,8 @@ import threading
 import time
 import types
 
+import pytest
+
 import test_waveapp
 from test_waveapp import FakePactl, _config
 
@@ -34,6 +36,10 @@ case "$1" in
     fi ;;
   get-sink-volume) echo "Volume: front-left: 52429 /  80% / -5,81 dB" ;;
   get-sink-mute) if [ -n "$en" ]; then echo "Mute: yes"; else echo "Stumm: ja"; fi ;;
+  info) if [ -n "$en" ]; then echo "Server Name: PulseAudio"; else echo "Server-Name: PulseAudio"; fi ;;
+  set-sink-mute)
+    if [ -n "$en" ]; then echo "Failure: Access denied" >&2; else echo "Fehler: Zugriff verweigert" >&2; fi
+    exit 1 ;;
   subscribe)
     if [ -n "$en" ]; then echo "Event 'new' on sink-input #5"; else echo "Ereignis »neu« auf Ziel-Eingabe #5"; fi
     sleep 5 ;;
@@ -53,7 +59,9 @@ def test_pactl_output_is_read_in_english_on_a_german_desktop(tmp_path, monkeypat
     b = system._pactl_blocks("sink-inputs")[0]
     assert (b["index"], b.get("sink"), b.get("volume"), b.get("mute")) == ("87", "39", 80, True)
     assert system.device_volume("sink", "x") == (80, True)
-    assert mixer._run(["get-sink-mute", "x"]) == "Mute: yes"
+    assert mixer._run(["info"]) == "Server Name: PulseAudio"
+    with pytest.raises(RuntimeError, match="^Fehler: Zugriff verweigert$"):  # Statuszeile: Sprache des Nutzers
+        mixer._run(["set-sink-mute", "x", "1"])
     w = system.PulseWatch().start()
     try:
         end = time.time() + 3
@@ -92,11 +100,13 @@ def test_snapshot_parses_each_listing_once(env, monkeypatch):
 # Kanal neu aufbauen behält seine Programme (rebuild-dumps-apps)
 # ==========================================================================
 class MovingPactl(FakePactl):
-    """Wie PipeWire: verschwindet ein Sink, landen seine Streams auf dem Standardgerät."""
+    """Wie PipeWire: verschwindet ein Sink, landen seine Streams auf dem Standardgerät. Verschiebungen
+    der Streams in drop gehen einmal still verloren (mehrere kurz nacheinander, PipeWire 1.0)."""
 
     def __init__(self):
         super().__init__()
         self.default = "alsa_output.headphones"
+        self.drop = set()
 
     def __call__(self, args):
         if args[0] == "set-default-sink":
@@ -105,6 +115,10 @@ class MovingPactl(FakePactl):
             for b in self.inputs.values():
                 if b.get("sink") == args[1]:
                     b["sink"] = self._sink(self.default)
+        if args[0] == "move-sink-input" and args[1] in self.drop:
+            self.drop.discard(args[1])
+            self.cmds.append(args)
+            return ""  # meldet Erfolg, der Stream bleibt aber, wo er ist
         return super().__call__(args)
 
 
@@ -114,16 +128,23 @@ def test_rebuild_channel_keeps_its_apps(env, monkeypatch):
     monkeypatch.setattr(system, "_pactl_blocks", fake.blocks)
     monkeypatch.setattr(system, "have", lambda c: True)
     monkeypatch.setattr(mixer.time, "sleep", lambda s: None)
+    fake.inputs["9"] = {"index": "9", "sink": "1", "volume": 80, "mute": False,
+                        "props": {"application.name": "Rhythmbox", "application.process.binary": "rhythmbox"}}
     mx = mixer.Mixer(_config(env, {"mixer": {"enabled": True}}), run=fake)
     mx.setup()
     assert fake.default == "linewave_system"
     mx.route_streams()
     mx.move_stream("8", "system")
-    assert _channels(mx) == {"Spotify": "music", "Mein Spiel": "system"}
+    want = {"Spotify": "music", "Rhythmbox": "music", "Mein Spiel": "system"}
+    assert _channels(mx) == want
     mx.rebuild_channel("music")  # neue Effekte, umbenannt, abgestürzte Effektkette
-    assert _channels(mx) == {"Spotify": "music", "Mein Spiel": "system"}
+    assert _channels(mx) == want
     mx.rebuild_channel("system")
-    assert _channels(mx) == {"Spotify": "music", "Mein Spiel": "system"}
+    assert _channels(mx) == want
+    fake.drop = {"9"}  # PipeWire verliert eine der Verschiebungen zurück in den Kanal
+    mx.rebuild_channel("music")
+    assert not fake.drop and _channels(mx) == want
+    assert mx.route_streams() == 0  # hätte ihn nicht mehr zurückgeholt
     mx.remove_channel("music")  # Löschen: Programme gehen bewusst aufs Standardgerät
     assert _channels(mx)["Spotify"] == "system"
 

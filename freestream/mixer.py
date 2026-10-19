@@ -95,13 +95,17 @@ READ_ONLY = ("get-default-sink", "get-default-source", "info", "list")
 
 
 def _run(args):
+    read = bool(args) and args[0] in READ_ONLY
+
     def run():
-        r = subprocess.run(["pactl"] + args, capture_output=True, text=True, timeout=5, env=system.pactl_env())
+        # Abfragen englisch (werden ausgewertet), Fehlermeldungen beim Schreiben in der Sprache des Nutzers
+        r = subprocess.run(["pactl"] + args, capture_output=True, text=True, timeout=5,
+                           env=system.pactl_env() if read else None)
         if r.returncode != 0:
             raise RuntimeError((r.stderr or r.stdout or _("pactl error")).strip())
         return r.stdout.strip()
     # lesende Abfragen innerhalb von system.pactl_snapshot() nur einmal, schreibende leeren den Speicher
-    return system.pactl_cached(("run", *args), run, write=not args or args[0] not in READ_ONLY)
+    return system.pactl_cached(("run", *args), run, write=not read)
 
 
 def _props(raw=None, **props):
@@ -937,11 +941,18 @@ class Mixer:
         self.fx.stop(cid)
         self._add_live(c, levels)
         self._restore_masters(masters)
-        for idx in apps:
-            try:
-                self.run(["move-sink-input", idx, self.sink_name(cid)])
-            except RuntimeError as e:  # Stream inzwischen beendet
-                log.debug("move %s: %s", idx, e)
+        for attempt in range(2):
+            for idx in apps:
+                try:
+                    self.run(["move-sink-input", idx, self.sink_name(cid)])
+                except RuntimeError as e:  # Stream inzwischen beendet
+                    log.debug("move %s: %s", idx, e)
+            if not apps or attempt:
+                break
+            # PipeWire verliert bei mehreren Verschiebungen kurz nacheinander manchmal eine (meldet aber
+            # Erfolg) – einmal nachsehen; route_streams holt sie nicht mehr, der Index ist schon bekannt
+            time.sleep(0.3)
+            apps = [s["index"] for s in self.streams() if s["index"] in apps and s["channel"] != cid]
 
     def _add_mix_live(self, m):
         """Nur den neuen Mix einrichten; alle anderen Verbindungen laufen ungestört weiter."""
