@@ -40,6 +40,7 @@ MUTE_ICONS = {"monitor": ("headphones", "headphones_off"), "stream": ("stream", 
 NOT_IN_MIXER = _("– not in mixer –")
 CHANNEL_LOOK = theme.CHANNEL_LOOK
 CH_W, MIX_W, ROW_H, HEAD_H = 360, 194, 64, 72
+METER_INSET = 16  # Pegel unter einem Regler: so viel schmaler wie dessen Spur (Knopf 18 px, Spur 6 px)
 MIX_W_MIN, MIX_W_MAX = 176, 300  # Mix-Spalten füllen die Fensterbreite in diesen Grenzen
 CLIP_DB, CLIP_HOLD = -1.0, 1.5  # Mix-Pegel ab −1 dB: „CLIP“ für 1,5 s  # Mixer-Tabelle: Kanalspalte, Mix-Spalten, Zeilenhöhe
 MIC_SHORTCUT = "linewave-mic-mute"
@@ -973,7 +974,7 @@ class WaveWindow:
             part = self.strips.get(cid, {}).get(mid)
             if part:
                 part["fader"].configure(width=w - 100)
-                part["meter"].configure(width=w - 112)
+                part["meter"].configure(width=w - 100 - METER_INSET)
 
     def _build_table(self, channels, mixes):
         self.mix_w = self._fit_mix_w(len(mixes))
@@ -1123,8 +1124,8 @@ class WaveWindow:
         fader = Fader(fcol, length=flen, thickness=22, orient="horizontal", color=color,
                       command=lambda v: self._on_master(cid, v))
         fader.pack()
-        meter = LevelMeter(fcol, length=flen - 12, thickness=5, orient="horizontal")
-        meter.pack(pady=(3, 0))  # Live-Pegel unter dem Regler
+        meter = LevelMeter(fcol, length=flen - METER_INSET, thickness=5, orient="horizontal")
+        meter.pack(pady=(3, 0))  # Live-Pegel unter dem Regler, genau so breit wie dessen Spur
         val = tk.StringVar(self.root, value="–")
         if cid != "mic":  # Mikrofon: dort sitzt der Mithören-Knopf (Prozentwert steht unter „Mikrofon“)
             label(body, textvariable=val, size=9, color=COL["muted"], width=5, anchor="e").grid(row=0, column=4,
@@ -1173,7 +1174,7 @@ class WaveWindow:
         fader = Fader(fcol, length=self.mix_w - 100, thickness=22, orient="horizontal", color=m.get("color"),
                       command=lambda v: self._on_level(cid, mid, v))
         fader.pack()
-        meter = LevelMeter(fcol, length=self.mix_w - 112, thickness=5, orient="horizontal")
+        meter = LevelMeter(fcol, length=self.mix_w - 100 - METER_INSET, thickness=5, orient="horizontal")
         meter.pack(pady=(3, 0))
         val = tk.StringVar(self.root, value="–")
         lb = label(body, textvariable=val, size=9, color=COL["muted"], width=5, anchor="e")
