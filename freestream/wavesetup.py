@@ -394,18 +394,22 @@ class SetupWizard(tk.Toplevel):
         self._fx_on = None  # None: erste Einrichtung – alle Effekte des Assistenten setzen
         self._noise_on = False
         if not ((cfg.get("linewave") or {}).get("setup_done") or mx.get("enabled")):
-            return {"lowcut": True, "clipguard": True, "noise": bool(self.data.get("noise")),
-                    "gate": bool(self._plugin("gate")), "sc4m": False}
+            return self.recommended()
         chain = (mx.get("effects") or {}).get("mic") or []
         on = self._fx_on = {fx.get("plugin") for fx in chain if fx.get("enabled", True)} - {None}
         self._noise_on = bool((mx.get("noise") or {}).get("enabled"))
-        wave3 = bool(self.data.get("wave3")) and is_wave(self.mic.get())
+        wave3 = self._wave3_0 = bool(self.data.get("wave3")) and is_wave(self.mic.get())
         # Low Cut/Clipguard im Wave:3 oder als alter Mikrofonfilter (ohne Wave:3) – sonst als Effekt der Kette
         filters = self.win.host.mic.settings if wave3 or not self.data.get("wave3") else {}
         lim, gate, comp = ((self._plugin(k) or {}).get("id") for k in ("fastLookaheadLimiter", "gate", "sc4m"))
         return {"lowcut": bool(filters.get("lowcut")) or (not wave3 and HIGHPASS in on),
                 "clipguard": bool(filters.get("clipguard")) or (not wave3 and lim in on),
                 "noise": self._noise_on, "gate": gate in on, "sc4m": comp in on}
+
+    def recommended(self):
+        """Empfehlung für den Schritt „Klang“ beim ersten Einrichten."""
+        return {"lowcut": True, "clipguard": True, "noise": bool(self.data.get("noise")),
+                "gate": bool(self._plugin("gate")), "sc4m": False}
 
     def _plugin(self, label_):
         return next((p for p in self.data.get("catalog") or [] if p.get("label") == label_), None)
@@ -466,6 +470,11 @@ class SetupWizard(tk.Toplevel):
         offer = [(p, bool(on)) for p, on in offer if p]
         # nur Umgeschaltetes ändern (erneut aufgerufen): eigene Effekte und eingestellte Regler bleiben
         fx_set = {p["id"]: on for p, on in offer if self._fx_on is None or on != (p["id"] in self._fx_on)}
+        if self._fx_on is not None and wave3 and not getattr(self, "_wave3_0", False):
+            # erneut aufgerufen und jetzt das Wave:3 gewählt: dessen Low Cut/Clipguard ersetzen die Effekte
+            for pid in (HIGHPASS, (self._plugin("fastLookaheadLimiter") or {}).get("id")):
+                if pid and pid in self._fx_on:
+                    fx_set[pid] = False
         out = {"mic": self.mic.get(), "output": self.out.get(), "wave3": wave3,
                "lowcut": self.lowcut.get(), "clipguard": self.clipguard.get(),
                "gain": self.gain.get() if wave3 and hasattr(self, "gain") else None,

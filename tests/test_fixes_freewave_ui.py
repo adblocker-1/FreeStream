@@ -446,6 +446,61 @@ def test_wizard_rerun_keeps_channels_effects_and_noise(env, pactl, monkeypatch):
         root.destroy()
 
 
+@needs_x
+def test_wizard_rerun_switching_to_wave3_drops_software_lowcut_and_limiter(env, pactl, monkeypatch):
+    """Erneut aufgerufen, USB-Mikrofon mit [Low Cut, Gate, Limiter] -> Wave:3 gewählt: dessen eigener Low Cut
+    und Clipguard ersetzen die Effekte, die der Assistent dafür angelegt hatte; das Gate bleibt."""
+    import tkinter as tk
+
+    from freestream import wavesetup
+    from freestream.wavehost import WaveHost
+    wave = "alsa_input.usb-Elgato_Systems_Elgato_Wave_3-00.mono-fallback"
+    hp = {"plugin": "builtin:highpass", "name": "Low Cut", "enabled": True, "controls": {}}
+    gate = {"plugin": GATE, "name": "Gate", "enabled": True, "controls": {}}
+    lim = {"plugin": LIM, "name": "Limiter", "enabled": True, "controls": {}}
+    host = WaveHost(_config(env, {"linewave": {"setup_done": True}, "mixer": {
+        "enabled": True, "mic": "alsa_input.usb-capture", "effects": {"mic": [hp, gate, lim]}}}))
+    monkeypatch.setattr(host, "enable_mixer", lambda on: None)
+    data = {"inputs": [("alsa_input.usb-capture", "USB"), (wave, "Elgato Wave:3")],
+            "outputs": [("alsa_output.headphones", "Kopfhörer")], "catalog": CAT, "wave3": True, "noise": []}
+    root = tk.Tk()
+    try:
+        wiz = wavesetup.SetupWizard(types.SimpleNamespace(root=root, host=host, worker=None), data)
+        wiz.mic.set(wave)
+        ch = wiz.choices()
+        assert ch["wave3"] and ch["mic_fx_set"] == {"builtin:highpass": False, LIM: False}
+        wavesetup.apply_choices(host, ch)
+        assert host.cfg.data["mixer"]["effects"]["mic"] == [gate]
+        wiz.destroy()
+    finally:
+        root.destroy()
+
+
+@needs_x
+def test_colour_edit_of_unplugged_input_keeps_its_device(env, pactl, monkeypatch):
+    """Ist das Gerät eines Eingangs-Kanals ausgesteckt, bleibt das Feld leer – nur die Farbe zu ändern darf das
+    eingestellte Gerät trotzdem nicht löschen (_save_channel übernimmt source nur, wenn umgestellt)."""
+    from freestream import wavedialogs
+    from freestream.mixer import DEFAULT_CHANNELS
+    _sources(monkeypatch, pactl, [("alsa_input.capture", "Capture")])
+    chans = [dict(c) for c in DEFAULT_CHANNELS] + [{"id": "cam", "name": "Cam", "kind": "input",
+                                                    "source": "alsa_input.gone"}]
+    host, root, win = _window(env, {"mixer": {"enabled": True, "channels": chans}})
+    try:
+        dlgs = _spy(monkeypatch, wavedialogs, "ChannelDialog")
+        win._edit_channel_id("cam")
+        assert _pump(root, lambda: bool(dlgs))
+        d = dlgs[0]
+        assert d.dev.get() == ""
+        d.color.set(wavedialogs.COLORS[0], notify=True)
+        d._save()
+        assert _pump(root, lambda: host.mixer.channel("cam").get("color") == wavedialogs.COLORS[0], 10)
+        assert host.mixer.channel("cam")["source"] == "alsa_input.gone"
+        _settle(root, win)
+    finally:
+        _close(root, win)
+
+
 def test_merge_chain_inserts_in_wizard_order_and_keeps_own_effects():
     from freestream.wavesetup import merge_chain
     reverb = {"plugin": "lv2:reverb", "enabled": True}

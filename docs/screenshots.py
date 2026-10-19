@@ -449,6 +449,8 @@ def shot_freewave(tmp):
     data = wavesetup.collect(host)
     data["catalog"] = effects.catalog()
     wiz = wavesetup.SetupWizard(win, data)
+    for key, on in wiz.recommended().items():  # die Bilder zeigen die erste Einrichtung, nicht die Demo-Konfiguration
+        (wiz.fx_choice.get(key) or getattr(wiz, key)).set(on)
     for step, name in ((1, "freewave-setup-microphone.png"), (3, "freewave-setup-sound.png")):
         wiz.step = step
         wiz.render()
