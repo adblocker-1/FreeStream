@@ -10,8 +10,10 @@ Start: freedeck edit [Profil]
 """
 import json
 import logging
+import subprocess
 import time
 import tkinter as tk
+import weakref
 from pathlib import Path
 from tkinter import ttk
 from tkinter import font as tkfont
@@ -25,7 +27,7 @@ from . import msgbox as colorchooser
 from . import msgbox as filedialog
 from . import msgbox as messagebox
 from . import msgbox as simpledialog
-from . import livekeys, paths, render, theme
+from . import livekeys, paths, render, system, theme
 from .i18n import _, ngettext
 from .models import MODELS, connected_models, model_geometry, model_name
 from .profiles import ProfileStore, delete_profile, import_path
@@ -231,16 +233,16 @@ class RoundBox(tk.Canvas):
 
 
 class CategoryRow(tk.Canvas):
-    """Kopf einer Kategorie in der Aktionsliste: Pfeil, Name, Anzahl; Klick klappt auf/zu."""
+    """Kopf einer Kategorie in der Aktionsliste wie in der Deck-Software: Pfeil, Symbol, Name, Trennlinie;
+    Klick klappt auf/zu."""
 
-    H = 34
+    H = 50
 
-    def __init__(self, master, app, cat, is_open, count):
+    def __init__(self, master, app, cat, is_open, count, glyph="grid"):
         super().__init__(master, bg=_bg(master), highlightthickness=0, bd=0, height=self.H, cursor="hand2")
-        self.app, self.cat, self.open, self.count = app, cat, is_open, count
+        self.app, self.cat, self.open, self.count, self.glyph = app, cat, is_open, count, glyph
         self.hover = False
         self.fb = theme.font(app.root, 10, "bold")
-        self.fs = theme.font(app.root, 9)
         self.bind("<Configure>", lambda e: self._draw())
         self.bind("<Button-1>", lambda e: app.toggle_category(cat))
         self.bind("<Enter>", lambda e: self._set_hover(True))
@@ -254,13 +256,14 @@ class CategoryRow(tk.Canvas):
         self.delete("all")
         w, h = max(self.winfo_width(), 60), self.H
         if self.hover:
-            theme.rounded_rect(self, 0, 1, w - 1, h - 1, 6, fill=COL["nav_on"], outline="")
-        self.create_image(14, h / 2, image=self.app.icons.get("chevron" if self.open else "chevron_right", 13,
+            self.create_rectangle(0, 0, w, h - 1, fill=COL["nav_on"], outline="")
+        self.create_line(0, h - 1, w, h - 1, fill=COL["border"])
+        self.create_image(12, h / 2, image=self.app.icons.get("chevron" if self.open else "chevron_right", 13,
                                                                COL["muted"]))
+        self.create_image(44, h / 2, image=self.app.icons.get(self.glyph, 22, COL["fg"]))
         name = self.cat.split(":", 1)[-1].strip() if self.cat.startswith("Plugin:") else self.cat
-        self.create_text(28, h / 2, text=_clip(name, _measure_font(self, self.fb), w - 70), anchor="w",
+        self.create_text(68, h / 2, text=_clip(name, _measure_font(self, self.fb), w - 80), anchor="w",
                          fill=COL["fg"], font=self.fb)
-        self.create_text(w - 10, h / 2, text=str(self.count), anchor="e", fill=COL["faint"], font=self.fs)
 
 
 class ActionRow(tk.Canvas):
@@ -399,52 +402,74 @@ def _autowrap(label):
     label.bind("<Configure>", lambda e: label.configure(wraplength=max(100, e.width - 4)), add="+")
 
 
-class PageDots(tk.Canvas):
-    """Seitenwahl unter den Tasten: ‹ Punkte › – Klick wählt, Rechtsklick öffnet das Seitenmenü."""
+def _clipboard_image_tool():
+    """Befehl, der ein Bild aus der Zwischenablage als PNG ausgibt (Wayland: wl-paste, X11: xclip) oder None."""
+    if system.wayland() and system.have("wl-paste"):
+        return ["wl-paste", "--type", "image/png"]
+    if system.have("xclip"):
+        return ["xclip", "-selection", "clipboard", "-t", "image/png", "-o"]
+    return None
 
-    GAP, H = 18, 28
+
+def _clipboard_image():
+    cmd = _clipboard_image_tool()
+    if not cmd:
+        return None
+    try:
+        out = subprocess.run(cmd, capture_output=True, timeout=3).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out if out.startswith(b"\x89PNG") else None
+
+
+class PageDots(tk.Canvas):
+    """Seitenwahl unter den Tasten wie in der Deck-Software: 1 2 3 4 + in einer Leiste, die gewählte Seite
+    hell hinterlegt – Klick wählt, + legt eine Seite an, Rechtsklick öffnet das Seitenmenü."""
+
+    CELL, H = 34, 30
+    MAX = 20  # mehr Seiten passen nicht unter die Tasten
 
     def __init__(self, master, app, ids, current):
         self.app, self.ids, self.current = app, list(ids), current
-        n = min(len(self.ids), 12)
-        super().__init__(master, width=72 + max(0, n - 1) * self.GAP, height=self.H, bg=_bg(master),
+        n = min(len(self.ids), self.MAX)
+        super().__init__(master, width=(n + 1) * self.CELL + 8, height=self.H, bg=_bg(master),
                          highlightthickness=0, bd=0, cursor="hand2")
-        self.f = theme.font(app.root, 12, "bold")
+        self.f = theme.font(app.root, 10)
+        self.fb = theme.font(app.root, 10, "bold")
         self.bind("<Button-1>", self._click)
         self.bind("<Button-3>", self._menu)
         self._draw()
 
     def _x(self, i):
-        return 36 + i * self.GAP
+        """Mitte der Seite i (i == Anzahl: das +)."""
+        return 4 + i * self.CELL + self.CELL / 2
 
     def _draw(self):
         self.delete("all")
-        h = self.H
-        self.create_text(12, h / 2 - 1, text="‹", fill=COL["muted"], font=self.f)
+        h, w = self.H, int(self["width"])
+        theme.rounded_rect(self, 0, 0, w - 1, h - 1, h / 2, fill=COL["panel2"], outline="")
         cur = self.ids.index(self.current) if self.current in self.ids else -1
-        for i in range(min(len(self.ids), 12)):
-            x, r = self._x(i), 4 if i == cur else 3.5
-            self.create_oval(x - r, h / 2 - r, x + r, h / 2 + r, outline="",
-                             fill=COL["fg"] if i == cur else COL["faint"])
-        self.create_text(int(self["width"]) - 12, h / 2 - 1, text="›", fill=COL["muted"], font=self.f)
+        n = min(len(self.ids), self.MAX)
+        for i in range(n):
+            x = self._x(i)
+            if i == cur:
+                theme.rounded_rect(self, x - 15, 4, x + 15, h - 5, (h - 9) / 2, fill=COL["muted"], outline="")
+            self.create_text(x, h / 2, text=str(i + 1), font=self.fb if i == cur else self.f,
+                             fill=COL["side"] if i == cur else COL["muted"])
+        self.create_text(self._x(n), h / 2 - 1, text="+", font=theme.font(self.app.root, 13), fill=COL["muted"])
 
     def _index_at(self, x):
-        n = min(len(self.ids), 12)
-        if x < 24:
-            return "prev"
-        if x > int(self["width"]) - 24:
-            return "next"
-        i = round((x - 36) / self.GAP)
+        n = min(len(self.ids), self.MAX)
+        i = int((x - 4) // self.CELL)
+        if i == n:
+            return "add"
         return i if 0 <= i < n else None
 
     def _click(self, e):
         hit = self._index_at(e.x)
-        cur = self.ids.index(self.current) if self.current in self.ids else 0
-        if hit == "prev":
-            hit = cur - 1
-        elif hit == "next":
-            hit = cur + 1
-        if isinstance(hit, int) and 0 <= hit < len(self.ids) and self.ids[hit] != self.current:
+        if hit == "add":
+            self.app.add_page()
+        elif isinstance(hit, int) and self.ids[hit] != self.current:
             self.app.goto_page(self.ids[hit])
 
     def _menu(self, e):
@@ -454,15 +479,17 @@ class PageDots(tk.Canvas):
 
 
 class DropButton(tk.Canvas):
-    """Auswahlfeld der Kopfzeile (Gerät, Profil): Symbol, Text, ⌄ – Klick klappt die Liste darunter auf."""
+    """Auswahl der Kopfzeile wie in der Deck-Software: Text mit ⌄ ohne Rahmen (Gerät groß, Profil darunter
+    kleiner) – Klick klappt die Liste darunter auf."""
 
-    def __init__(self, master, icon, text, width=220, command=None, height=36):
-        super().__init__(master, width=width, height=height, bg=_bg(master), highlightthickness=0, bd=0,
+    def __init__(self, master, icon, text, size=10, bold=False, command=None, max_width=420):
+        self.f = theme.font(master, size, "bold") if bold else theme.font(master, size)
+        self.h = int(size * 2.2) + 4
+        super().__init__(master, width=60, height=self.h, bg=_bg(master), highlightthickness=0, bd=0,
                          cursor="hand2")
-        self.icon, self.text, self.command, self.w, self.h = icon, text, command, width, height
+        self.icon, self.text, self.command, self.size, self.max_width = icon, text, command, size, max_width
         self.hover = False
         self.icons = theme.Icons(self)
-        self.f = theme.font(self, 10)
         self.bind("<Button-1>", lambda e: self.command and self.command())
         self.bind("<Enter>", lambda e: self._set_hover(True))
         self.bind("<Leave>", lambda e: self._set_hover(False))
@@ -473,22 +500,84 @@ class DropButton(tk.Canvas):
         self._draw()
 
     def set(self, text, icon=None):
-        if (text, icon or self.icon) != (self.text, self.icon):
-            self.text, self.icon = text, icon or self.icon
+        if text != self.text:
+            self.text = text
             self._draw()
 
     def _draw(self):
         self.delete("all")
-        w, h = self.w, self.h
-        theme.rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=COL["raised"] if self.hover else COL["panel2"],
-                           outline=COL["border"])
-        x = 12
-        if self.icon:
-            self.create_image(x + 8, h / 2, image=self.icons.get(self.icon, 16, COL["fg"]))
-            x += 26
-        self.create_text(x, h / 2, text=_clip(self.text, _measure_font(self, self.f), w - x - 30), anchor="w",
-                         fill=COL["fg"], font=self.f)
-        self.create_image(w - 16, h / 2, image=self.icons.get("chevron", 14, COL["muted"]))
+        f = _measure_font(self, self.f)
+        cs = max(12, int(self.size * 1.3))  # Pfeil wächst mit der Schrift
+        text = _clip(self.text, f, self.max_width - cs - 8)
+        tw = _width(f, text)
+        w, h = tw + cs + 8, self.h
+        if int(self["width"]) != w:
+            self.configure(width=w)
+        color = COL["fg"] if self.hover or self.size > 11 else COL["muted"]
+        self.create_text(0, h / 2, text=text, anchor="w", fill=color, font=self.f)
+        self.create_image(tw + 6 + cs / 2, h / 2 + 1, image=self.icons.get("chevron", cs, COL["muted"]))
+
+
+class IconButton(tk.Canvas):
+    """Rundes Symbol ohne Rahmen (Kopfzeile: Glocke, Plugin-Store, Einstellungen); hell beim Überfahren,
+    mit Punkt für Neues (badge)."""
+
+    def __init__(self, master, image, command=None, size=34):
+        super().__init__(master, width=size, height=size, bg=_bg(master), highlightthickness=0, bd=0,
+                         cursor="hand2")
+        self.image, self.command, self.size = image, command, size
+        self.hover = self.badge = False
+        self.enabled = True
+        self.bind("<Button-1>", lambda e: self.enabled and self.command and self.command())
+        self.bind("<Enter>", lambda e: self._set_hover(True))
+        self.bind("<Leave>", lambda e: self._set_hover(False))
+        self._draw()
+
+    def _set_hover(self, v):
+        self.hover = v
+        self._draw()
+
+    def set_badge(self, on):
+        if bool(on) != self.badge:
+            self.badge = bool(on)
+            self._draw()
+
+    def configure_text(self, enabled=True, **_kw):  # wie theme.Button (Rückgängig/Wiederholen)
+        if enabled != self.enabled:
+            self.enabled = enabled
+            self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        s = self.size
+        if self.hover and self.enabled:
+            self.create_oval(1, 1, s - 1, s - 1, fill=COL["nav_on"], outline="")
+        img = self.image() if callable(self.image) else self.image
+        self.create_image(s / 2, s / 2, image=img)
+        if not self.enabled:
+            self.create_oval(0, 0, s, s, fill=_bg(self), outline="", stipple="gray50")
+        if self.badge:
+            self.create_oval(s - 11, 4, s - 4, 11, fill=COL["danger"], outline=_bg(self), width=1)
+
+
+class TitleMenuButton(tk.Canvas):
+    """„T⌄“ neben dem Titel: klappt Schrift, Farbe und Position des Titels auf."""
+
+    def __init__(self, master, command=None):
+        super().__init__(master, width=40, height=30, bg=_bg(master), highlightthickness=0, bd=0, cursor="hand2")
+        self.command = command
+        self.icons = theme.Icons(self)
+        self.f = theme.font(master, 13)
+        self.bind("<Button-1>", lambda e: self.command and self.command())
+        self.bind("<Enter>", lambda e: self._draw(True))
+        self.bind("<Leave>", lambda e: self._draw(False))
+        self._draw(False)
+
+    def _draw(self, hover):
+        self.delete("all")
+        c = COL["fg"] if hover else COL["muted"]
+        self.create_text(12, 15, text="T", fill=c, font=self.f)
+        self.create_image(29, 16, image=self.icons.get("chevron", 11, c))
 
 
 class DropPanel(tk.Toplevel):
@@ -596,7 +685,7 @@ class EditorApp:
         self._shown_seq = None
         self._profile_ids = []
         self._types = dict(C.BY_UUID)
-        self._insp_tab = "appearance"
+        self._insp_tab = "main"
         self._lib_selected = None
         self._tiles_by_uuid = {}
 
@@ -873,7 +962,10 @@ class EditorApp:
             n = len(plugins.installed())
         except Exception:  # noqa: BLE001
             n = ""
-        self.plugins_btn.configure_text(text=_("Plugins") + (f" · {n}" if n else ""))
+        tabs = getattr(self, "lib_tabs", None)
+        if tabs is not None:  # Anzahl im Reiter „Plugins“ der Aktionsleiste
+            tabs.items[1] = ("plugins", _("Plugins") + (f" · {n}" if n else ""), None)
+            tabs._draw()
 
     def _restart(self):
         theme.restart_later("freestream")
@@ -895,14 +987,13 @@ class EditorApp:
         self._small_bold = tkfont.Font(self.root, font=theme.font(self.root, 8, "bold"))
 
     def _build(self):
-        """Aufbau wie in der Deck-Software von Elgato: oben Gerät und Profil, Mitte die Tasten, darunter die
-        Eigenschaften der gewählten Taste, rechts die Aktionen."""
+        """Aufbau wie in der Deck-Software von Elgato: links oben Gerät und Profil, rechts daneben Glocke,
+        Plugin-Store und Einstellungen; Mitte die Tasten, darunter die Eigenschaften der gewählten Taste;
+        rechts über die ganze Höhe die Aktionen."""
         r = self.root
         self.status_var = tk.StringVar(value="")
         self._model_codes = list(MODELS)
         self.btn = {}
-        self._build_topbar(r)
-        tk.Frame(r, bg=COL["border"], height=1).pack(side="top", fill="x")
         body = tk.Frame(r, bg=COL["bg"])
         body.pack(side="top", fill="both", expand=True)
         lib = tk.Frame(body, bg=COL["side"], width=310)
@@ -912,42 +1003,65 @@ class EditorApp:
         self._build_library(lib)
         main = tk.Frame(body, bg=COL["canvas"])
         main.pack(side="left", fill="both", expand=True)
+        self._build_topbar(main)
         self._build_center(main)
 
     # ------------------------------------------------------------- Kopfzeile
-    def _build_topbar(self, r):
-        top = tk.Frame(r, bg=COL["side"], height=58, padx=14)
-        top.pack(side="top", fill="x")
-        top.pack_propagate(False)
-        self._mark = theme.gradient_mark(r, 26, "deck")
-        tk.Label(top, image=self._mark, bg=COL["side"]).pack(side="left", padx=(0, 12))
-        # Gerät und Profil als Auswahlfelder; ihre Listen klappen darunter auf
-        self.dev_dd = DropButton(top, "deck", "FreeDeck", width=230, command=lambda: self._toggle_drop("dev"))
-        self.dev_dd.pack(side="left", padx=(0, 8))
-        self.prof_dd = DropButton(top, None, _("No profile"), width=230, command=lambda: self._toggle_drop("prof"))
-        self.prof_dd.pack(side="left")
+    def _build_topbar(self, main):
+        r = self.root
+        bg = COL["canvas"]
+        top = tk.Frame(main, bg=bg, padx=30)
+        top.pack(side="top", fill="x", pady=(14, 0))
+        # links: Gerät groß, darunter das Profil – beide klappen ihre Liste darunter auf
+        names = tk.Frame(top, bg=bg)
+        names.pack(side="left")
+        self.dev_dd = DropButton(names, "deck", "FreeDeck", size=15, bold=True,
+                                 command=lambda: self._toggle_drop("dev"))
+        self.dev_dd.pack(anchor="w")
+        self.prof_dd = DropButton(names, None, _("No profile"), size=10, command=lambda: self._toggle_drop("prof"))
+        self.prof_dd.pack(anchor="w")
         self.dev_panel = DropPanel(r, 280)
         self.devbox = tk.Frame(self.dev_panel.body, bg=COL["side"])
         self.devbox.pack(fill="x")
         self.prof_panel = DropPanel(r, 300)
         tk.Label(self.prof_panel.body, text=_("Profiles"), bg=COL["side"], fg=COL["muted"],
                  font=theme.font(r, 9, "bold"), anchor="w").pack(fill="x", padx=8, pady=(4, 6))
+        # Import/Export gehören zum Profil: unten in seiner Liste
+        foot = tk.Frame(self.prof_panel.body, bg=COL["side"])
+        foot.pack(side="bottom", fill="x", padx=4, pady=(6, 2))
+        self.btn["imp"] = theme.Button(foot, _("Import"), "import",
+                                       command=lambda: (self._hide_drops(), self.import_profiles()))
+        self.btn["imp"].pack(side="left")
+        self.btn["exp"] = theme.Button(foot, _("Export"), "export",
+                                       command=lambda: (self._hide_drops(), self.export_profile()))
+        self.btn["exp"].pack(side="left", padx=(8, 0))
+        tk.Frame(self.prof_panel.body, bg=COL["border"], height=1).pack(side="bottom", fill="x", pady=(6, 0))
         self.profile_list = ScrollFrame(self.prof_panel.body, bg=COL["side"])
         self.profile_list.pack(fill="both", expand=True)
-        # rechts: Einstellungen, Plugins, Export/Import, Rückgängig
-        self.settings_btn = theme.Button(top, icon="gear", command=self.open_settings)
-        self.settings_btn.pack(side="right", padx=(8, 0))
-        self.plugins_btn = theme.Button(top, _("Plugins"), "puzzle", command=self.open_plugins)
-        self.plugins_btn.pack(side="right", padx=(8, 0))
-        self.btn["exp"] = theme.Button(top, _("Export"), "export", command=self.export_profile)
-        self.btn["exp"].pack(side="right", padx=(8, 0))
-        self.btn["imp"] = theme.Button(top, _("Import"), "import", command=self.import_profiles)
-        self.btn["imp"].pack(side="right", padx=(8, 0))
-        self.btn["redo"] = theme.Button(top, icon="redo", command=self.redo)
-        self.btn["redo"].pack(side="right", padx=(8, 0))
-        self.btn["undo"] = theme.Button(top, icon="undo", command=self.undo)
-        self.btn["undo"].pack(side="right", padx=(8, 0))
+        # Aufklapp-Felder der Eigenschaften: Titel-Einstellungen (T⌄) und Taste (⌄ auf der Vorschau)
+        self.title_panel = DropPanel(r, 330)
+        self.key_panel = DropPanel(r, 300)
+        # rechts: Rückgängig/Wiederholen, Glocke (Updates), Plugin-Store, Einstellungen
+        icons = tk.Frame(top, bg=bg)
+        icons.pack(side="right", anchor="n", pady=(4, 0))
+        self.settings_btn = IconButton(icons, self.icons.get("gear", 20, COL["fg"]), command=self.open_settings)
+        self.settings_btn.pack(side="right", padx=(6, 0))
+        self.plugins_btn = IconButton(icons, theme.store_mark(r, 20), command=self.open_plugins)
+        self.plugins_btn.pack(side="right", padx=(6, 0))
+        self.bell_btn = IconButton(icons, self.icons.get("bell", 20, COL["fg"]), command=self.open_notifications)
+        self.bell_btn.pack(side="right", padx=(6, 0))
+        tk.Frame(icons, bg=COL["border"], width=1, height=20).pack(side="right", padx=(10, 4))
+        self.btn["redo"] = IconButton(icons, lambda: self.icons.get("redo", 16, COL["muted"]), command=self.redo)
+        self.btn["redo"].pack(side="right")
+        self.btn["undo"] = IconButton(icons, lambda: self.icons.get("undo", 16, COL["muted"]), command=self.undo)
+        self.btn["undo"].pack(side="right")
         self._update_plugin_count()
+
+    def open_notifications(self):
+        """Glocke: nach Updates suchen und das Ergebnis zeigen (neue Version, Hinweise)."""
+        from . import updateui
+        self.bell_btn.set_badge(False)
+        return updateui.check_now(self.root, "FreeDeck", self._restart)
 
     def _toggle_drop(self, which):
         panel, anchor = (self.dev_panel, self.dev_dd) if which == "dev" else (self.prof_panel, self.prof_dd)
@@ -961,7 +1075,8 @@ class EditorApp:
         panel.show(anchor)
 
     def _hide_drops(self):
-        for p in (getattr(self, "dev_panel", None), getattr(self, "prof_panel", None)):
+        for p in (getattr(self, "dev_panel", None), getattr(self, "prof_panel", None),
+                  getattr(self, "title_panel", None), getattr(self, "key_panel", None)):
             if p is not None:
                 p.hide()
 
@@ -1040,8 +1155,13 @@ class EditorApp:
         self.canvas.bind("<Button-3>", self._canvas_menu)
         self.insp_head = tk.Frame(insp, bg=COL["panel"])
         self.insp_head.pack(side="top", fill="x")
+        tk.Frame(insp, bg=COL["border"], height=1).pack(side="top", fill="x", pady=(10, 0))
+        # links die gewählte Taste groß (mit Zuständen darunter), rechts ihre Felder
+        self.insp_key = tk.Frame(insp, bg=COL["panel"], width=128)
+        self.insp_key.pack(side="left", fill="y", pady=(12, 0))
+        self.insp_key.pack_propagate(False)
         self.inspector = ScrollFrame(insp, bg=COL["panel"])
-        self.inspector.pack(side="top", fill="both", expand=True, pady=(10, 0))
+        self.inspector.pack(side="left", fill="both", expand=True, pady=(12, 0))
 
     # ------------------------------------------------------------ Bibliothek
     def _build_library(self, lib):
@@ -1049,14 +1169,19 @@ class EditorApp:
         box.pack(fill="both", expand=True)
         self.search_var = tk.StringVar()
         self.search_var.trace_add("write", lambda *a: self.fill_catalog())
-        sb = RoundBox(box, height=36, radius=10, pad=4, padx=10)
-        sb.pack(fill="x")
+        srow = tk.Frame(box, bg=COL["side"])
+        srow.pack(fill="x")
+        # rechts neben der Suche: alle Kategorien auf- oder zuklappen
+        IconButton(srow, self.icons.get("list", 16, COL["muted"]), command=self.toggle_all_categories,
+                   size=30).pack(side="right", padx=(8, 0))
+        sb = RoundBox(srow, height=34, radius=8, pad=4, padx=10)
+        sb.pack(side="left", fill="x", expand=True)
         tk.Label(sb.body, image=self.icons.get("search", 15, COL["muted"]), bg=COL["panel"]).pack(side="left")
         ent = tk.Entry(sb.body, textvariable=self.search_var, bg=COL["panel"], fg=COL["fg"],
                        insertbackground=COL["fg"], relief="flat", highlightthickness=0, bd=0,
                        font=theme.font(self.root, 10))
         ent.pack(side="left", fill="both", expand=True, padx=(8, 0))
-        ph = tk.Label(sb.body, text=_("Search actions"), bg=COL["panel"], fg=COL["faint"],
+        ph = tk.Label(sb.body, text=_("Search"), bg=COL["panel"], fg=COL["faint"],
                       font=theme.font(self.root, 10))
 
         def placeholder(*_a):
@@ -1069,12 +1194,31 @@ class EditorApp:
         self.search_var.trace_add("write", placeholder)
         ph.bind("<Button-1>", lambda e: ent.focus_set())
         self.root.after_idle(placeholder)
+        # Tasten (alle Aktionen) | Plugins (installierte Plugins)
+        self._lib_tab = "keys"
+        self.lib_tabs = theme.SoftSegmented(box, [("keys", _("Keys"), "deck"), ("plugins", _("Plugins"), None)],
+                                            command=self.set_library_tab, value="keys", fill=True, height=34)
+        self.lib_tabs.pack(fill="x", pady=(12, 4))
         self.tree_hint = tk.StringVar(value=_("Drag onto a key or double-click"))
         tk.Label(box, textvariable=self.tree_hint, bg=COL["side"], fg=COL["muted"], wraplength=274, justify="left",
                  anchor="w", font=theme.font(self.root, 9)).pack(side="bottom", fill="x", pady=(8, 0))
         self.library = ScrollFrame(box, bg=COL["side"])
-        self.library.pack(fill="both", expand=True, pady=(10, 0))
-        self._lib_open = None  # aufgeklappte Kategorien (None = Vorgabe: die ersten beiden)
+        self.library.pack(fill="both", expand=True, pady=(6, 0))
+        self._lib_open = None  # aufgeklappte Kategorien (None = Vorgabe: alle zu)
+
+    def set_library_tab(self, tab):
+        self._lib_tab = tab
+        self.lib_tabs.set(tab)
+        self.fill_catalog()
+
+    def toggle_all_categories(self):
+        """Symbol neben der Suche: alles zuklappen – ist schon alles zu, alles aufklappen."""
+        cats = list(dict.fromkeys(a.category for a in self._catalog()))
+        self._lib_open = set() if self._lib_open else set(cats)
+        if self._lib_tab != "keys":
+            self.set_library_tab("keys")
+        else:
+            self.fill_catalog(keep_scroll=True)
 
     def _bind_keys(self):
         r = self.root
@@ -1180,7 +1324,7 @@ class EditorApp:
         for c in self.pagebar.winfo_children():
             c.destroy()
         self.inspector.clear()
-        for c in self.insp_head.winfo_children():
+        for c in (*self.insp_head.winfo_children(), *self.insp_key.winfo_children()):
             c.destroy()
         for k in ("exp", "undo", "redo"):
             self.btn[k].configure_text(enabled=False)
@@ -1422,12 +1566,11 @@ class EditorApp:
         has_bg = self.doc.background(self.page_uuid)[0] is not None
         theme.Button(bar, _("Background"), icon="image", kind="primary" if has_bg else "default",
                      command=self.open_background).pack(side="right")
-        # Seiten wie in der Deck-Software: ‹ ● ○ ○ › mittig unter den Tasten, daneben + für eine neue
+        # Seiten wie in der Deck-Software: 1 2 3 4 + mittig unter den Tasten
         mid = tk.Frame(bar, bg=_bg(bar))
         mid.place(relx=0.5, rely=0.5, anchor="center")
         self.page_dots = PageDots(mid, self, self.doc.page_ids, self.nav[0] if self.nav else None)
         self.page_dots.pack(side="left")
-        theme.PillButton(mid, text="+", height=26, padx=9, command=self.add_page).pack(side="left", padx=(10, 0))
 
     def _page_menu(self, e, pid):
         """Kontextmenü einer Seitenschaltfläche: verschieben, löschen, hinzufügen."""
@@ -1692,8 +1835,7 @@ class EditorApp:
             x = x0 + i * (seg + 6)
             data = page.get(slot)
             if data is None:
-                _round_rect(cv, x, y, x + seg, y + ch, 10, fill="", outline=COL["line"], width=2, dash=(5, 4))
-                cv.create_text(x + seg / 2, y + ch / 2, text="+", fill=COL["faint"], font=(self._fam, 14))
+                _round_rect(cv, x, y, x + seg, y + ch, 10, fill="" if sp else COL["key_empty"], outline="")
                 info = None
             else:
                 info = self._dial_info(data)
@@ -1789,8 +1931,7 @@ class EditorApp:
         """Pedal: kein Display – Riffeln, Symbol und Name der Aktion."""
         cv = self.canvas
         if data is None:
-            _round_rect(cv, x, y, x + w, y + h, 16, fill="", outline=COL["line"], width=2, dash=(5, 4))
-            cv.create_text(x + w / 2, y + h / 2, text="+", fill=COL["faint"], font=(self._fam, 18))
+            _round_rect(cv, x, y, x + w, y + h, 16, fill=COL["key_empty"], outline="")
         else:
             _round_rect(cv, x, y, x + w, y + h, 16, fill=COL["card"], outline=COL["card_edge"], width=1)
             for k in range(5):
@@ -1820,9 +1961,8 @@ class EditorApp:
                     self._tk_forget(hit[1])
                 hit = self._img_cache[key] = (tile, _rounded(tile, max(6, w // 8)))
             cv.create_image(x, y, image=self._tk_image(hit[1]), anchor="nw")
-        elif data is None:
-            _round_rect(cv, x, y, x + w, y + h, max(6, w // 8), fill="", outline=COL["line"], width=2, dash=(5, 4))
-            cv.create_text(x + w / 2, y + h / 2, text="+", fill=COL["faint"], font=(self._fam, max(10, w // 5)))
+        elif data is None:  # leere Taste: dunkle Fläche wie in der Deck-Software
+            _round_rect(cv, x, y, x + w, y + h, max(6, w // 8), fill=COL["key_empty"], outline="")
         else:
             cv.create_image(x, y, image=self._tk_image(self._render(slot, data, (w, h))), anchor="nw")
             if not A.is_supported(data.get("UUID", "")):
@@ -1888,14 +2028,12 @@ class EditorApp:
             return
         target = self.slot_at(e.x, e.y)
         if target is None:
-            # auf die Seitenpunkte gezogen? (‹ › = Nachbarseite)
+            # auf eine Seitenzahl gezogen?
             w = self.root.winfo_containing(e.x_root, e.y_root)
             pid = getattr(w, "_page", None)
             if isinstance(w, PageDots):
                 hit = w._index_at(e.x_root - w.winfo_rootx())
-                cur = w.ids.index(w.current) if w.current in w.ids else 0
-                hit = cur - 1 if hit == "prev" else cur + 1 if hit == "next" else hit
-                pid = w.ids[hit] if isinstance(hit, int) and 0 <= hit < len(w.ids) else None
+                pid = w.ids[hit] if isinstance(hit, int) else None
             if pid and pid != self.nav[0]:
                 self._move_to_page(d["slot"], pid)
             return
@@ -2007,11 +2145,14 @@ class EditorApp:
 
     def fill_catalog(self, keep_scroll=False):
         """Aktionsliste: Kategorien zum Auf-/Zuklappen, darin je Aktion eine Zeile (wie die Deck-Software)."""
+        if getattr(self, "_lib_tab", "keys") == "plugins":
+            self._fill_plugins(keep_scroll)
+            return
         q = self.search_var.get().strip().lower()
         avail = self._catalog()
         cats = list(dict.fromkeys(a.category for a in avail))
         if self._lib_open is None:
-            self._lib_open = set(cats[:2])
+            self._lib_open = set()  # wie in der Deck-Software: anfangs alle Kategorien zu
         self.library.clear(keep_scroll)
         f = self.library.inner
         self._tiles_by_uuid = {}
@@ -2023,7 +2164,8 @@ class EditorApp:
                 continue
             shown = True
             is_open = bool(q) or cat in self._lib_open  # beim Suchen alles Gefundene zeigen
-            CategoryRow(f, self, cat, is_open, len(items)).pack(fill="x", pady=(2, 0))
+            CategoryRow(f, self, cat, is_open, len(items),
+                        glyph=action_look(items[0].uuid, cat)[0]).pack(fill="x")
             if not is_open:
                 continue
             for a in items:
@@ -2035,6 +2177,37 @@ class EditorApp:
         if not shown:
             tk.Label(f, text=_("No matching actions"), bg=COL["side"], fg=COL["muted"],
                      font=theme.font(self.root, 9)).pack(anchor="w", padx=8, pady=6)
+
+    def _fill_plugins(self, keep_scroll=False):
+        """Reiter „Plugins“: installierte Plugins mit Version und Zustand, darunter der Weg in den Store."""
+        from . import plugins
+        self.library.clear(keep_scroll)
+        f = self.library.inner
+        q = self.search_var.get().strip().lower()
+        try:
+            found = sorted(plugins.installed().values(), key=lambda p: p.name.lower())
+        except Exception:  # noqa: BLE001
+            found = []
+        found = [p for p in found if not q or q in p.name.lower()]
+        for info in found:
+            row = tk.Frame(f, bg=COL["side"], pady=6, padx=6)
+            row.pack(fill="x")
+            img = theme.icon_tile(self.root, "puzzle", 30, COL["accent"] if info.runnable else COL["raised"],
+                                  radius=0.22)
+            tk.Label(row, image=img, bg=COL["side"]).pack(side="left", padx=(4, 10))
+            txt = tk.Frame(row, bg=COL["side"])
+            txt.pack(side="left", fill="x", expand=True)
+            theme.label(txt, info.name, 10, "bold", bg=COL["side"], anchor="w").pack(anchor="w", fill="x")
+            sub = " · ".join(x for x in (info.version, info.reason or ngettext(
+                "{n} action", "{n} actions", len(info.actions)).format(n=len(info.actions))) if x)
+            theme.label(txt, sub, 8, color=COL["danger"] if info.reason else COL["muted"], bg=COL["side"],
+                        anchor="w").pack(anchor="w", fill="x")
+            tk.Frame(f, bg=COL["border"], height=1).pack(fill="x")
+        if not found:
+            tk.Label(f, text=_("No plugins installed") if not q else _("No matching actions"), bg=COL["side"],
+                     fg=COL["muted"], font=theme.font(self.root, 9)).pack(anchor="w", padx=8, pady=6)
+        theme.Button(f, _("Plugin store and management…"), icon="puzzle", command=self.open_plugins).pack(
+            anchor="w", padx=6, pady=(12, 0))
 
     def toggle_category(self, cat):
         if self._lib_open is None:
@@ -2130,18 +2303,25 @@ class EditorApp:
         self.status(_("{name} added").format(name=self._types[uuid].name))
 
     # ========================================================= Eigenschaften
-    INSPECTOR_TABS = ("appearance", "action", "advanced")
+    INSPECTOR_TABS = ("main",)  # eine Ansicht wie in der Deck-Software (Titel, dann die Felder der Aktion)
 
     def set_inspector_tab(self, key):
-        if key in self.INSPECTOR_TABS:
-            self._insp_tab = key
-            self.build_inspector()
+        self._insp_tab = "main"
+        self.build_inspector()
 
     def build_inspector(self):
         self.inspector.clear()
         head = self.insp_head
         for c in head.winfo_children():
             c.destroy()
+        for c in self.insp_key.winfo_children():
+            c.destroy()
+        self.insp_key.pack_forget()  # die große Vorschau nur bei einer belegten Taste
+        self._insp_form_ref = None
+        for panel in (self.title_panel, self.key_panel):  # gehören zur vorigen Taste
+            panel.hide()
+            for c in panel.body.winfo_children():
+                c.destroy()
         f = self.inspector.inner
         if not self.doc:
             return
@@ -2168,7 +2348,86 @@ class EditorApp:
             return
         form = ActionForm(self, f, data, self.page_uuid, self.selected, header=where)
         form.build_header(head)
-        form.build_tab(self._insp_tab)
+        self._insp_form_ref = weakref.ref(form)  # schwach: ein ersetztes Formular soll freigegeben werden
+        self._insp_preview(form)
+        form.build_main(f)
+
+    def _insp_preview(self, form):
+        """Gewählte Taste groß links in den Eigenschaften, darunter je Zustand ein Punkt zum Umschalten."""
+        box = self.insp_key
+        for c in box.winfo_children():
+            c.destroy()
+        data, slot = form.data, form.slot
+        states = data.get("States") or [{}]
+        size = (96, 96) if slot[0] == "key" else (104, 52)
+        try:
+            img = (E.preview_action(self.doc, self.page_uuid, data, size, state=form.state_idx) if slot[0] == "key"
+                   else E.preview_dial(self.doc, self.page_uuid, data, size)).convert("RGBA")
+        except Exception:  # noqa: BLE001 – Vorschau ist Beiwerk
+            return
+        pad = 5
+        frame = Image.new("RGBA", (size[0] + 2 * pad, size[1] + 2 * pad), (0, 0, 0, 0))
+        ImageDraw.Draw(frame).rounded_rectangle((0, 0, frame.width - 1, frame.height - 1), radius=18,
+                                                fill=theme.rgb(COL["line"]) + (255,))
+        frame.alpha_composite(_rounded(img, 14), (pad, pad))
+        self._insp_photo = ImageTk.PhotoImage(frame, master=self.root)
+        if not box.winfo_ismapped():
+            box.pack(side="left", fill="y", pady=(12, 0), before=self.inspector)
+        cv = tk.Canvas(box, width=frame.width, height=frame.height, bg=COL["panel"], highlightthickness=0, bd=0)
+        cv.pack(anchor="nw")
+        cv.create_image(0, 0, image=self._insp_photo, anchor="nw")
+        # wie in der Deck-Software: + oben links wählt ein Symbol, ⌄ oben rechts öffnet weitere Optionen
+        for tag, x, glyph, cmd in (("plus", 16, "plus", form._icon_library),
+                                   ("more", frame.width - 16, "chevron", lambda: form.key_menu(cv))):
+            cv.create_oval(x - 9, 7, x + 9, 25, fill="#2a2a2a", outline="#5a5a5a", tags=tag)
+            cv.create_image(x, 16, image=self.icons.get(glyph, 11, "#f2f2f2"), tags=tag)
+            cv.tag_bind(tag, "<Button-1>", lambda e, c=cmd: c())
+            cv.tag_bind(tag, "<Enter>", lambda e: cv.configure(cursor="hand2"))
+            cv.tag_bind(tag, "<Leave>", lambda e: cv.configure(cursor=""))
+        if len(states) > 1:
+            dots = tk.Canvas(box, width=frame.width, height=18, bg=COL["panel"], highlightthickness=0, bd=0,
+                             cursor="hand2")
+            dots.pack(anchor="nw", pady=(6, 0))
+            n = len(states)
+            x0 = frame.width / 2 - (n - 1) * 9
+            for i in range(n):
+                x = x0 + i * 18
+                dots.create_oval(x - 5, 4, x + 5, 14, outline=COL["fg"], width=1.5,
+                                 fill=COL["fg"] if i == form.state_idx else "", tags=f"s{i}")
+                dots.create_oval(x - 2, 7, x + 2, 11, outline="", fill=COL["panel"] if i == form.state_idx else "")
+                dots.tag_bind(f"s{i}", "<Button-1>", lambda e, i=i: self._insp_state(form, i))
+
+    @property
+    def _insp_form(self):
+        """Formular der gerade gezeigten Eigenschaften (oder None)."""
+        ref = getattr(self, "_insp_form_ref", None)
+        return ref() if ref else None
+
+    def _toggle_title_panel(self, form, anchor):
+        """T⌄: Titel-Einstellungen der gewählten Taste unter dem Knopf auf- und zuklappen."""
+        panel = self.title_panel
+        if panel.winfo_ismapped():
+            panel.hide()
+            return
+        self._hide_drops()
+        for c in panel.body.winfo_children():
+            c.destroy()
+        form.build_title_settings(panel.body)
+        panel.show(anchor)
+
+    def _toggle_key_panel(self, form, anchor):
+        """⌄ › Deckkraft: Regler unter der Vorschau."""
+        panel = self.key_panel
+        self._hide_drops()
+        for c in panel.body.winfo_children():
+            c.destroy()
+        form.build_key_settings(panel.body)
+        panel.show(anchor)
+
+    def _insp_state(self, form, idx):
+        form.state_idx = idx
+        self._insp_preview(form)
+        form.build_appearance()
 
     def _insp_title(self, head, image, title, subtitle):
         pc = COL["panel"]
@@ -2202,64 +2461,156 @@ class ActionForm:
     # ------------------------------------------------------------ Aufbau
     def build_header(self, head):
         """Kopf der Eigenschaften im Hauptfenster: Symbol, Titel, Reiter."""
-        glyph, color = self._look()
-        st = (self.data.get("States") or [{}])[min(self.state_idx, len(self.data.get("States") or [{}]) - 1)]
-        title = ((st or {}).get("Title") or "").strip().splitlines()
+        # „Kategorie: Aktion“ wie in der Deck-Software, dahinter wo die Taste sitzt
         name = C.display_name(self.data)
-        self.app._insp_title(head, theme.icon_tile(self.app.root, glyph, 38, color), title[0] if title else name,
-                             f"{name} · {self.header}")
+        t = self.type or self.app._types.get(self.data.get("UUID", ""))
+        cat = (t.category if t else "") or (self.data.get("Plugin") or {}).get("Name") or ""
+        cat = cat.split(":", 1)[-1].strip() if cat.startswith("Plugin:") else cat
+        pc = COL["panel"]
+        if cat:
+            theme.label(head, cat + ":", 11, "bold", bg=pc).pack(side="left")
+        theme.label(head, name, 11, bg=pc).pack(side="left", padx=(6, 0))
+        theme.label(head, self.header, 9, color=COL["muted"], bg=pc).pack(side="left", padx=(10, 0))
         theme.Button(head, icon="trash", kind="ghost", command=self.app.delete_selected).pack(side="right",
                                                                                              padx=(8, 0))
-        theme.SoftSegmented(head, [("appearance", _("Appearance"), None), ("action", _("Action"), None),
-                                   ("advanced", _("Advanced"), None)], command=self.app.set_inspector_tab,
-                            value=self.app._insp_tab).pack(side="right")
 
-    def build_tab(self, tab):
-        f = self.parent
-        if tab == "appearance":
-            self.app_frame = tk.Frame(f, bg=COL["panel"])
-            self.app_frame.pack(fill="x")
-            self.build_appearance()
-        elif tab == "action":
-            self._unsupported_note(f)
-            shown = False
-            if self.data.get("UUID") == C.FOLDER_UUID:
-                theme.Button(f, _("Open folder"), icon="folder", command=lambda: self.app.open_folder(
-                    (self.data.get("Settings") or {}).get("ProfileUUID"))).pack(anchor="w", pady=(0, 8))
-                shown = True
-            if self.data.get("UUID", "").startswith("com.lindeck.homeassistant."):
-                from . import hassui
-                hassui.connection_row(f, self.app)
-            fields = self.type.fields_for(self.slot[0]) if self.type else []
-            if fields:
-                self.build_fields(f, fields)
-                shown = True
-            if self.type and self.type.children:
-                self.build_children(f)
-                shown = True
-            if not shown and self._has_pi():
-                theme.Button(f, _("Settings page…"), kind="primary", command=lambda: self.app.open_property_inspector(
-                    self.page_uuid, self.slot)).pack(anchor="w")
-                shown = True
-            if not shown:
-                tk.Label(f, text=_("This action has no further settings."), bg=COL["panel"], fg=COL["muted"],
-                         font=theme.font(self.app.root, 9)).pack(anchor="w")
-        else:
-            self._unsupported_note(f)
-            grid = tk.Frame(f, bg=COL["panel"])
-            grid.pack(fill="x")
-            grid.columnconfigure(1, weight=1)
-            ttk.Label(grid, text=_("Action"), style="Panel.TLabel").grid(row=0, column=0, sticky="w", padx=(0, 16),
-                                                                         pady=4)
-            ttk.Label(grid, text=self.data.get("UUID", ""), style="Muted.TLabel").grid(row=0, column=1, sticky="w")
-            row = tk.Frame(f, bg=COL["panel"])
-            row.pack(fill="x", pady=(8, 0))
-            if self._has_pi():
-                theme.Button(row, _("Settings page…"), kind="primary", command=lambda: self.app.open_property_inspector(
-                    self.page_uuid, self.slot)).pack(side="left", padx=(0, 8))
-            theme.Button(row, _("Settings (JSON)…"), command=self.edit_json).pack(side="left", padx=(0, 8))
-            theme.Button(row, _("Delete"), icon="trash", kind="danger", command=self.app.delete_selected).pack(
-                side="left")
+    def build_main(self, f):
+        """Eigenschaften wie in der Deck-Software: Titel (T⌄: Schrift, Farbe, Position), darunter die Felder der
+        Aktion – Beschriftung rechtsbündig links daneben."""
+        self._unsupported_note(f)
+        grid = self._grid(f)
+        states = self.data.get("States") or [{}]
+        self.state_idx = min(self.state_idx, len(states) - 1)
+        if self.slot[0] == "key" or self.data.get("States"):
+            self._label(grid, 0, _("Title"))
+            trow = tk.Frame(grid, bg=COL["panel"])
+            trow.grid(row=0, column=1, sticky="ew", pady=4)
+            title = (states[self.state_idx] or {}).get("Title") or ""
+            self.title_txt = tk.Text(trow, height=2 if "\n" in title else 1, width=24, bg=COL["panel2"],
+                                     fg=COL["fg"], insertbackground=COL["fg"], relief="flat",
+                                     font=theme.font(self.app.root, 10), wrap="none", highlightthickness=1,
+                                     highlightbackground=COL["border"], highlightcolor=COL["accent"], padx=6, pady=4)
+            self.title_txt.insert("1.0", title)
+            self.title_txt.pack(side="left", fill="x", expand=True)
+            self.title_txt.bind("<KeyRelease>", lambda e: self._set_state("Title", self.title_txt.get("1.0", "end-1c")))
+            tb = TitleMenuButton(trow, command=lambda: self.app._toggle_title_panel(self, tb))
+            tb.pack(side="left", padx=(8, 0))
+        row = 1
+        if self.data.get("UUID") == C.FOLDER_UUID:
+            theme.Button(grid, _("Open folder"), icon="folder", command=lambda: self.app.open_folder(
+                (self.data.get("Settings") or {}).get("ProfileUUID"))).grid(row=row, column=1, sticky="w", pady=4)
+            row += 1
+        if self.data.get("UUID", "").startswith("com.lindeck.homeassistant."):
+            from . import hassui
+            hold = tk.Frame(grid, bg=COL["panel"])
+            hold.grid(row=row, column=1, sticky="ew", pady=4)
+            hassui.connection_row(hold, self.app)
+            row += 1
+        fields = self.type.fields_for(self.slot[0]) if self.type else []
+        for fld in fields:
+            self.build_field(grid, row, fld)
+            row += 1
+        if self.type and self.type.children:
+            self.build_children(f)
+        if not fields and not (self.type and self.type.children) and self._has_pi():
+            theme.Button(grid, _("Settings page…"), kind="primary", command=lambda: self.app.open_property_inspector(
+                self.page_uuid, self.slot)).grid(row=row, column=1, sticky="w", pady=4)
+
+    def _grid(self, f):
+        grid = tk.Frame(f, bg=COL["panel"])
+        grid.pack(fill="x")
+        grid.columnconfigure(0, minsize=110)
+        grid.columnconfigure(1, weight=1)
+        return grid
+
+    def _label(self, grid, row, text, sticky="ne"):
+        ttk.Label(grid, text=text + ":", style="Muted.TLabel").grid(row=row, column=0, sticky=sticky,
+                                                                   padx=(0, 14), pady=(8, 4))
+
+    # ------------------------------------------- Aufklapp-Felder (T⌄, ⌄)
+    def build_title_settings(self, f):
+        """T⌄ neben dem Titel: Titel zeigen und Position, Schrift und Größe, Farbe, unterstrichen."""
+        from .dialogkit import trace
+        states = self.data.get("States") or [{}]
+        st = states[min(self.state_idx, len(states) - 1)] or {}
+        bg = COL["side"]
+        f.columnconfigure(1, weight=1)
+
+        def lab(text, r):
+            tk.Label(f, text=text, bg=bg, fg=COL["muted"], font=theme.font(self.app.root, 9)).grid(
+                row=r, column=0, sticky="w", padx=(6, 12), pady=5)
+        lab(_("Show title"), 0)
+        srow = tk.Frame(f, bg=bg)
+        srow.grid(row=0, column=1, sticky="w", pady=5)
+        show = theme.Switch(srow, command=lambda: self._set_state("ShowTitle", show.get()))
+        show.set(st.get("ShowTitle", True) is not False)
+        show.pack(side="left")
+        al = ttk.Combobox(srow, state="readonly", width=8, values=[n for _v, n in ALIGN])
+        cur = (st.get("TitleAlignment") or "bottom").lower()
+        al.current(next((i for i, (v, _n) in enumerate(ALIGN) if v == cur), 2))
+        al.bind("<<ComboboxSelected>>", lambda e: self._set_state("TitleAlignment", ALIGN[al.current()][0]))
+        al.pack(side="left", padx=(10, 0))
+        lab(_("Font"), 1)
+        frow = tk.Frame(f, bg=bg)
+        frow.grid(row=1, column=1, sticky="ew", pady=5)
+        sty = ttk.Combobox(frow, state="readonly", width=11, values=[n for _v, n in STYLES])
+        cur = (st.get("FontStyle") or "").replace("Regular", "")
+        sty.current(next((i for i, (v, _n) in enumerate(STYLES) if v.lower() == cur.lower()), 0))
+        sty.bind("<<ComboboxSelected>>", lambda e: self._set_state("FontStyle", STYLES[sty.current()][0]))
+        sty.pack(side="left", fill="x", expand=True)
+        size = tk.StringVar(value=str(st.get("FontSize") or 12))
+        ttk.Spinbox(frow, from_=6, to=40, width=4, textvariable=size).pack(side="left", padx=(8, 0))
+        trace(frow, size, lambda: self._set_int_state("FontSize", size.get()))
+        lab(_("Title color"), 2)
+        crow = tk.Frame(f, bg=bg)
+        crow.grid(row=2, column=1, sticky="w", pady=5)
+        color = st.get("TitleColor") or "#ffffff"
+        cb = tk.Button(crow, text="  ", bg=color, activebackground=color, relief="flat", width=3, bd=0,
+                       highlightthickness=1, highlightbackground=COL["border"], cursor="hand2",
+                       command=lambda: self._pick_color(cb))
+        cb.pack(side="left", ipady=2)
+        und = theme.Switch(crow, command=lambda: self._set_state("FontUnderline", und.get()))
+        und.set(bool(st.get("FontUnderline")))
+        und.pack(side="left", padx=(14, 8))
+        tk.Label(crow, text=_("underline"), bg=bg, fg=COL["fg"], font=theme.font(self.app.root, 9)).pack(side="left")
+
+    def build_key_settings(self, f):
+        """Deckkraft der Taste (⌄ auf der Vorschau › Deckkraft): das Hintergrundbild scheint durch das Symbol."""
+        states = self.data.get("States") or [{}]
+        st = states[min(self.state_idx, len(states) - 1)] or {}
+        bg = COL["side"]
+        tk.Label(f, text=_("Opacity"), bg=bg, fg=COL["muted"], font=theme.font(self.app.root, 9)).pack(
+            side="left", padx=(6, 12), pady=6)
+        try:
+            op = max(0, min(100, int(st.get("IconOpacity", 100))))
+        except (TypeError, ValueError):
+            op = 100
+        op_val = tk.StringVar(f, value=f"{op} %")
+        theme.Fader(f, length=150, thickness=18, orient="horizontal", value=op,
+                    command=lambda v: self._set_opacity(v, op_val)).pack(side="left")
+        tk.Label(f, textvariable=op_val, bg=bg, fg=COL["fg"], width=6, font=theme.font(self.app.root, 9)).pack(
+            side="left", padx=(8, 0))
+
+    def key_menu(self, anchor):
+        """⌄ auf der Vorschau: Symbol, Deckkraft, Einstellungen als JSON/Einstellungsseite, Löschen."""
+        st = (self.data.get("States") or [{}])[min(self.state_idx, len(self.data.get("States") or [{}]) - 1)] or {}
+        m = theme.PopupMenu(self.app.root, width=250)
+        m.add(_("Icon"))  # Überschrift (grau) wie in der Deck-Software
+        m.add(_("Choose image file…"), self._choose_icon, icon="image")
+        m.add(_("Paste from clipboard"), self._paste_icon if _clipboard_image_tool() else None, icon="layers")
+        m.add(_("Open icon collection…"), self._icon_library, icon="grid")
+        m.add(_("Default"), (lambda: self._set_state("Image", "", rebuild=True)) if st.get("Image") else None,
+              icon="undo")
+        if self.slot[0] == "key":
+            m.add(_("Opacity"), lambda: self.app._toggle_key_panel(self, anchor), icon="sun")
+        m.separator()
+        if self._has_pi():
+            m.add(_("Settings page…"), lambda: self.app.open_property_inspector(self.page_uuid, self.slot),
+                  icon="gear")
+        m.add(_("Settings (JSON)…"), self.edit_json, icon="edit")
+        m.separator()
+        m.add(_("Delete"), self.app.delete_selected, icon="trash", danger=True)
+        return m.popup(anchor.winfo_rootx() + anchor.winfo_width() - 20, anchor.winfo_rooty() + 28)
 
     def _unsupported_note(self, f):
         if not A.is_supported(self.data.get("UUID", "")):
@@ -2292,22 +2643,11 @@ class ActionForm:
             self.build_children(f)
 
     def build_fields(self, f, fields):
-        """Felder zweispaltig: kurze Felder nebeneinander, breite über die ganze Zeile."""
-        grid = tk.Frame(f, bg=COL["panel"])
-        grid.pack(fill="x")
-        grid.columnconfigure(1, weight=1)
-        grid.columnconfigure(3, weight=1)
-        row = col = 0
-        for fld in fields:
-            wide = fld.kind in ("multiline", "hotkey", "file", "profile", "entity") or (
-                fld.kind == "text" and fld.hint)
-            if wide and col:
-                row, col = row + 1, 0
-            self.build_field(grid, row, fld, col=col, span=3 if wide else 1)
-            if wide or col:
-                row, col = row + 1, 0
-            else:
-                col = 2
+        """Felder untereinander, Beschriftung rechtsbündig davor (wie in der Deck-Software)."""
+        grid = self._grid(f)
+        for row, fld in enumerate(fields):
+            self.build_field(grid, row, fld)
+
     def _has_pi(self):
         from . import plugins
         info = plugins.plugin_for_action(self.data.get("UUID", ""))
@@ -2324,103 +2664,18 @@ class ActionForm:
 
     # ------------------------------------------------------- Darstellung
     def build_appearance(self):
-        """Titel, Schrift, Farbe, Position und Symbol – zweispaltig."""
-        from .dialogkit import trace
-        f = self.app_frame
-        for c in f.winfo_children():
-            c.destroy()
-        states = self.data.get("States") or [{}]
-        self.state_idx = min(self.state_idx, len(states) - 1)
-        st = states[self.state_idx] if states else {}
-        f.columnconfigure(1, weight=1, uniform="v")
-        f.columnconfigure(3, weight=1, uniform="v")
-
-        def lab(text, r, c, sticky="w"):
-            ttk.Label(f, text=text, style="Muted.TLabel").grid(row=r, column=c, sticky=sticky,
-                                                               padx=(0 if c == 0 else 24, 14), pady=4)
-        # links: Titel, Schrift, Symbol
-        lab(_("Title"), 0, 0, "nw")
-        title = st.get("Title") or ""
-        txt = tk.Text(f, height=2 if "\n" in title else 1, width=24, bg=COL["panel2"], fg=COL["fg"], insertbackground=COL["fg"],
-                      relief="flat", font=theme.font(self.app.root, 10), wrap="none", highlightthickness=1,
-                      highlightbackground=COL["border"], highlightcolor=COL["accent"], padx=6, pady=4)
-        txt.insert("1.0", title)
-        txt.grid(row=0, column=1, sticky="ew", pady=4)
-        txt.bind("<KeyRelease>", lambda e: self._set_state("Title", txt.get("1.0", "end-1c")))
-        lab(_("Font"), 1, 0)
-        frow = tk.Frame(f, bg=COL["panel"])
-        frow.grid(row=1, column=1, sticky="ew", pady=4)
-        sty = ttk.Combobox(frow, state="readonly", width=11, values=[n for _v, n in STYLES])
-        cur = (st.get("FontStyle") or "").replace("Regular", "")
-        sty.current(next((i for i, (v, _n) in enumerate(STYLES) if v.lower() == cur.lower()), 0))
-        sty.bind("<<ComboboxSelected>>", lambda e: self._set_state("FontStyle", STYLES[sty.current()][0]))
-        sty.pack(side="left", fill="x", expand=True)
-        size = tk.StringVar(value=str(st.get("FontSize") or 12))
-        ttk.Spinbox(frow, from_=6, to=40, width=4, textvariable=size).pack(side="left", padx=(8, 0))
-        trace(frow, size, lambda: self._set_int_state("FontSize", size.get()))
-        lab(_("Icon"), 2, 0)
-        irow = tk.Frame(f, bg=COL["panel"])
-        irow.grid(row=2, column=1, sticky="w", pady=4)
-        prev = E.preview_action(self.doc, self.page_uuid, self.data, (36, 36), state=self.state_idx) \
-            if self.slot[0] == "key" else E.preview_dial(self.doc, self.page_uuid, self.data, (72, 36))
-        self._icon_photo = ImageTk.PhotoImage(_rounded(prev.convert("RGBA"), 7), master=self.app.root)
-        pv = tk.Label(irow, image=self._icon_photo, bg=COL["panel"], cursor="hand2")
-        pv.pack(side="left")
-        pv.bind("<Button-1>", lambda e: self._icon_library())
-        # Bibliothek mit vordefinierten Icons; „Eigenes Bild …“ steckt darin
-        theme.Button(irow, _("Icons…"), "grid", command=self._icon_library).pack(side="left", padx=(8, 0))
-        b = theme.Button(irow, _("Default"), kind="ghost", command=lambda: self._set_state("Image", "", rebuild=True))
-        b.pack(side="left", padx=(4, 0))
-        if not st.get("Image"):
-            b.configure_text(enabled=False)
-        # Deckkraft: das Hintergrundbild der Seite scheint durch das Symbol (FreeWave-Tasten: ihr Hintergrund)
-        lab(_("Opacity"), 3, 0)
-        orow = tk.Frame(f, bg=COL["panel"])
-        orow.grid(row=3, column=1, sticky="ew", pady=4)
-        try:
-            op = max(0, min(100, int(st.get("IconOpacity", 100))))
-        except (TypeError, ValueError):
-            op = 100
-        op_val = tk.StringVar(f, value=f"{op} %")
-        fd = theme.Fader(orow, length=150, thickness=18, orient="horizontal", value=op,
-                         command=lambda v: self._set_opacity(v, op_val))
-        fd.pack(side="left")
-        ttk.Label(orow, textvariable=op_val, style="Panel.TLabel", width=6).pack(side="left", padx=(8, 0))
-        # rechts: Zustand, Titel zeigen + Position, Farbe
-        r = 0
-        if len(states) > 1:
-            lab(_("State"), r, 2)
-            sv = ttk.Combobox(f, state="readonly", width=12,
-                              values=[_("State {n}").format(n=i + 1) for i in range(len(states))])
-            sv.current(self.state_idx)
-            sv.grid(row=r, column=3, sticky="w", pady=4)
-            sv.bind("<<ComboboxSelected>>", lambda e: (setattr(self, "state_idx", sv.current()),
-                                                       self.build_appearance()))
-            r += 1
-        lab(_("Show title"), r, 2)
-        srow = tk.Frame(f, bg=COL["panel"])
-        srow.grid(row=r, column=3, sticky="w", pady=4)
-        show = theme.Switch(srow, command=lambda: self._set_state("ShowTitle", show.get()))
-        show.set(st.get("ShowTitle", True) is not False)
-        show.pack(side="left")
-        al = ttk.Combobox(srow, state="readonly", width=8, values=[n for _v, n in ALIGN])
-        cur = (st.get("TitleAlignment") or "bottom").lower()
-        al.current(next((i for i, (v, _n) in enumerate(ALIGN) if v == cur), 2))
-        al.bind("<<ComboboxSelected>>", lambda e: self._set_state("TitleAlignment", ALIGN[al.current()][0]))
-        al.pack(side="left", padx=(10, 0))
-        r += 1
-        lab(_("Title color"), r, 2)
-        crow = tk.Frame(f, bg=COL["panel"])
-        crow.grid(row=r, column=3, sticky="w", pady=4)
-        color = st.get("TitleColor") or "#ffffff"
-        cb = tk.Button(crow, text="  ", bg=color, activebackground=color, relief="flat", width=3, bd=0,
-                       highlightthickness=1, highlightbackground=COL["border"], cursor="hand2",
-                       command=lambda: self._pick_color(cb))
-        cb.pack(side="left", ipady=2)
-        und = theme.Switch(crow, command=lambda: self._set_state("FontUnderline", und.get()))
-        und.set(bool(st.get("FontUnderline")))
-        und.pack(side="left", padx=(14, 8))
-        ttk.Label(crow, text=_("underline"), style="Panel.TLabel").pack(side="left")
+        """Darstellung hat sich geändert (Symbol, Zustand): Vorschau und ein offenes T⌄ neu aufbauen."""
+        if self.app._insp_form is self:
+            self.app._insp_preview(self)
+            panel = self.app.title_panel
+            if panel.winfo_ismapped():
+                for c in panel.body.winfo_children():
+                    c.destroy()
+                self.build_title_settings(panel.body)
+            if hasattr(self, "title_txt") and self.title_txt.winfo_exists():
+                states = self.data.get("States") or [{}]
+                self.title_txt.delete("1.0", "end")
+                self.title_txt.insert("1.0", (states[min(self.state_idx, len(states) - 1)] or {}).get("Title") or "")
 
     def _set_state(self, key, value, rebuild=False):
         self.doc.update_state(self.page_uuid, self.slot, self.state_idx, key, value, action=self.data)
@@ -2482,6 +2737,24 @@ class ActionForm:
                 return
         self.build_appearance()
 
+    def _paste_icon(self):
+        """Bild aus der Zwischenablage als Tastenbild (wl-paste/xclip liefern PNG)."""
+        import tempfile
+        data = _clipboard_image()
+        if not data:
+            messagebox.showinfo(_("Icon"), _("The clipboard holds no image."), parent=self.app.root)
+            return
+        with tempfile.TemporaryDirectory() as tmp:
+            path = f"{tmp}/clipboard.png"
+            with open(path, "wb") as fh:
+                fh.write(data)
+            try:
+                self.doc.set_icon(self.page_uuid, self.slot, self.state_idx, path, action=self.data)
+            except E.EditError as e:
+                messagebox.showerror(_("Icon"), str(e), parent=self.app.root)
+                return
+        self.build_appearance()
+
     def _choose_icon(self):
         f = filedialog.askopenfilename(parent=self.app.root, title=_("Choose icon"),
                                        filetypes=[(_("Images"), "*.png *.jpg *.jpeg *.gif *.svg *.webp *.bmp"),
@@ -2503,8 +2776,8 @@ class ActionForm:
         # Beobachtung der Felder endet mit ihrer Zelle – sonst hielte Tcl jedes ersetzte Formular fest
         from .dialogkit import trace
         s = self.data.setdefault("Settings", {})
-        ttk.Label(grid, text=fld.label, style="Muted.TLabel").grid(row=row, column=col, sticky="nw",
-                                                                   padx=(0 if col == 0 else 24, 14), pady=4)
+        ttk.Label(grid, text=fld.label + ":", style="Muted.TLabel").grid(row=row, column=col, sticky="ne",
+                                                                         padx=(0 if col == 0 else 24, 14), pady=(8, 4))
         cell = ttk.Frame(grid, style="Panel.TFrame")
         cell.grid(row=row, column=col + 1, columnspan=span, sticky="ew", pady=4)
         k = fld.key

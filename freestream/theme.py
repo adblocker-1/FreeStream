@@ -39,7 +39,7 @@ PALETTES = {  # neutrales Grau wie in Wave Link / der Deck-Software von Elgato
         "monitor": "#36c5e8", "stream": "#c084fc", "danger": "#f0484f", "danger_soft": "#3d2224",
         "ok": "#2bd665", "warn": "#f5b13d",
         "device": "#111111", "slot": "#2a2a2a", "drop": "#2bd665", "shadow": "#0a0a0a",
-        "line": "#4a4a4a", "card": "#2c2c2c", "card_edge": "#3c3c3c", "canvas": "#171717",
+        "line": "#4a4a4a", "card": "#2c2c2c", "card_edge": "#3c3c3c", "canvas": "#171717", "key_empty": "#262626",
     },
     "light": {
         "bg": "#f3f3f3", "side": "#ebebeb", "panel": "#fbfbfb", "panel2": "#f5f5f5", "raised": "#d9d9d9",
@@ -48,7 +48,7 @@ PALETTES = {  # neutrales Grau wie in Wave Link / der Deck-Software von Elgato
         "monitor": "#0a9cc4", "stream": "#9341e6", "danger": "#d42a33", "danger_soft": "#fbe3e4",
         "ok": "#16a34a", "warn": "#d48a06",
         "device": "#1c1c1c", "slot": "#2a2a2a", "drop": "#16a34a", "shadow": "#c4c4c4",
-        "line": "#c4c4c4", "card": "#ffffff", "card_edge": "#dcdcdc", "canvas": "#e6e6e6",
+        "line": "#c4c4c4", "card": "#ffffff", "card_edge": "#dcdcdc", "canvas": "#e6e6e6", "key_empty": "#d2d2d2",
     },
 }
 MODES = ("auto", "light", "dark")
@@ -606,6 +606,14 @@ def _draw_glyph(name, size, color, bg, circle):
     elif n == "home":
         d.polygon([P(0.5, 0.04), P(0.96, 0.46), P(0.84, 0.46), P(0.84, 0.94), P(0.58, 0.94), P(0.58, 0.64),
                    P(0.42, 0.64), P(0.42, 0.94), P(0.16, 0.94), P(0.16, 0.46), P(0.04, 0.46)], fill=c)
+    elif n == "list":  # Liste: drei Zeilen mit Punkt davor
+        for y in (0.2, 0.5, 0.8):
+            ell(0.04, y - 0.07, 0.18, y + 0.07)
+            line((0.32, y), (0.96, y))
+    elif n == "bell":  # Glocke (Umriss): Benachrichtigungen und Updates
+        d.arc((*P(0.2, 0.08), *P(0.8, 0.68)), 180, 360, fill=c, width=lw)
+        line((0.2, 0.38), (0.2, 0.66), (0.08, 0.8), (0.92, 0.8), (0.8, 0.66), (0.8, 0.38))
+        d.arc((*P(0.38, 0.74), *P(0.62, 0.98)), 0, 180, fill=c, width=lw)
     elif n == "gauge":
         arc(0.04, 0.14, 0.96, 1.06, 180, 360)
         line((0.5, 0.6), (0.76, 0.3))
@@ -1178,6 +1186,26 @@ def gradient_mark(master, size, kind="deck"):
         im.paste(grad, (0, 0), mask)
         g = glyph("deck" if kind == "deck" else "wave", int(S * 0.56), "#ffffff")
         im.alpha_composite(g, (int(S * 0.22), int(S * 0.22)))
+        cache[key] = ImageTk.PhotoImage(im.reduce(k), master=master)
+    return cache[key]
+
+
+def store_mark(master, size):
+    """Zeichen des Plugin-Stores: vier bunte Formen im Quadrat (eigene Grafik)."""
+    cache = _img_cache(master)
+    key = ("store", size)
+    if key not in cache:
+        k = 4
+        S = size * k
+        im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        h, g = S * 0.44, S * 0.12
+        d.ellipse((0, 0, h, h), outline=rgb("#f0484f"), width=int(S * 0.1))  # Ring
+        d.rounded_rectangle((h + g, 0, S, h), radius=S * 0.08, fill=rgb("#f5c542"))  # Quadrat
+        d.polygon([(0, S), (h / 2, h + g), (h, S)], fill=rgb("#2bd665"))  # Dreieck
+        c = S - h / 2
+        d.rectangle((c - S * 0.06, h + g, c + S * 0.06, S), fill=rgb("#4f8cff"))  # Plus
+        d.rectangle((h + g, c - S * 0.06, S, c + S * 0.06), fill=rgb("#4f8cff"))
         cache[key] = ImageTk.PhotoImage(im.reduce(k), master=master)
     return cache[key]
 
