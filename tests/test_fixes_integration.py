@@ -524,9 +524,10 @@ def test_trace_action_forms_freed_on_select(_trace_app):
     assert names and all(_trace_observed(root, v) for v in names)
     app.select(slots[0])
     assert not any(_trace_observed(root, v) for v in names)  # Formular ersetzt: Beobachtung beendet
-    # Darstellung: Schriftgröße
-    app.set_inspector_tab("appearance")
-    size = _trace_fields(app.inspector.inner, "TSpinbox")
+    # Darstellung: Schriftgröße (T⌄ neben dem Titel)
+    app.set_inspector_tab("main")
+    app._toggle_title_panel(app._insp_form, app.insp_head)
+    size = _trace_fields(app.title_panel.body, "TSpinbox")
     assert len(size) == 1
     root.setvar(size[0], "17")
     assert app.doc.get(page, slots[0])["States"][0]["FontSize"] == 17

@@ -199,9 +199,9 @@ def test_freedeck_layout_like_deck_software(app, store):
     app._toggle_drop("dev")  # nochmal: zu
     app.root.update()
     assert not app.dev_panel.winfo_ismapped()
-    # Kategorien: anfangs die ersten beiden offen, Klick klappt auf/zu, Suche zeigt alles Gefundene
+    # Kategorien: anfangs alle zu (wie in der Deck-Software), Klick klappt auf/zu, Suche zeigt alles Gefundene
     cats = [w for w in app.library.inner.winfo_children() if isinstance(w, CategoryRow)]
-    assert [c.open for c in cats[:3]] == [True, True, False]
+    assert not any(c.open for c in cats)
     third = cats[2].cat
     app.toggle_category(third)
     rows = [w for w in app.library.inner.winfo_children() if isinstance(w, ActionRow)]
@@ -210,14 +210,24 @@ def test_freedeck_layout_like_deck_software(app, store):
     rows = [w for w in app.library.inner.winfo_children() if isinstance(w, ActionRow)]
     assert rows and all("hotkey" in (r.type.name + r.type.description + r.type.category).lower() for r in rows)
     app.search_var.set("")
-    # Seiten: ‹ ● ○ › unter den Tasten
+    # Seiten: 1 2 + unter den Tasten
     app.add_page()
     ids = app.doc.page_ids
     assert app.nav[0] == ids[1] and app.page_dots.current == ids[1]
     app.page_dots._click(types.SimpleNamespace(x=app.page_dots._x(0)))
     assert app.nav[0] == ids[0]
-    app.page_dots._click(types.SimpleNamespace(x=int(app.page_dots["width"]) - 5))  # ›
+    app.page_dots._click(types.SimpleNamespace(x=app.page_dots._x(1)))
     assert app.nav[0] == ids[1]
+    app.page_dots._click(types.SimpleNamespace(x=app.page_dots._x(2)))  # +: neue Seite dahinter
+    assert len(app.doc.page_ids) == 3 and app.nav[0] == app.doc.page_ids[2]
+    # Kopfzeile: Glocke, Plugin-Store, Einstellungen; Import/Export stecken in der Profilliste
+    assert app.bell_btn.winfo_exists() and app.plugins_btn.winfo_exists() and app.settings_btn.winfo_exists()
+    assert app.btn["imp"].winfo_toplevel() is app.prof_panel
+    # Aktionsleiste: Reiter „Plugins“ zeigt die installierten Plugins
+    app.set_library_tab("plugins")
+    assert not [w for w in app.library.inner.winfo_children() if isinstance(w, CategoryRow)]
+    app.set_library_tab("keys")
+    assert [w for w in app.library.inner.winfo_children() if isinstance(w, CategoryRow)]
 
 
 def test_freewave_mix_columns_fit_window(env, pactl):

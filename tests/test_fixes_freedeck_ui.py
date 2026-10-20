@@ -241,11 +241,11 @@ def test_drag_key_onto_page_dots_moves_it(app):
     _drag_key(app, ("key", 0, 0), dots.winfo_rootx() + dots._x(1), dots.winfo_rooty() + dots.H // 2)
     assert app.doc.get(first, ("key", 0, 0)) is None
     assert app.doc.get(second, ("key", 0, 0))["UUID"] == HOTKEY
-    # „‹“ steht für die Seite davor
+    # zurück auf die Zahl der ersten Seite
     app.goto_page(second)
     app.root.update()
     dots = app.page_dots
-    _drag_key(app, ("key", 0, 0), dots.winfo_rootx() + 10, dots.winfo_rooty() + dots.H // 2)
+    _drag_key(app, ("key", 0, 0), dots.winfo_rootx() + dots._x(0), dots.winfo_rooty() + dots.H // 2)
     assert app.doc.get(first, ("key", 0, 0))["UUID"] == HOTKEY
     assert app.doc.get(second, ("key", 0, 0)) is None
 
@@ -388,6 +388,9 @@ def test_opacity_is_one_undo_step_for_all_states(app):
 def test_category_toggle_keeps_scroll_position(app):
     from freestream import editor
     root, cv = app.root, app.library.canvas
+    cats = [w.cat for w in app.library.inner.winfo_children() if isinstance(w, editor.CategoryRow)]
+    app._lib_open = set(cats[:2])  # zwei Kategorien offen: die Liste ist länger als ihr Bereich
+    app.fill_catalog()
     _pump(root)
     cv.yview_moveto(1.0)
     _pump(root)
@@ -552,3 +555,31 @@ def test_virtual_deck_does_not_cover_its_menu():
         assert ticks() == 0
     finally:
         root.destroy()
+
+
+# ------------------------------------------- Eigenschaften wie in der Deck-Software
+def test_inspector_single_view_with_title_menu_and_icon_menu(app):
+    """Eine Ansicht ohne Reiter: Titel mit T⌄, Felder der Aktion; links die Taste mit + (Iconsammlung) und
+    ⌄ (Bilddatei, Zwischenablage, Iconsammlung …)."""
+    from freestream import theme
+    app.select(("key", 0, 0))
+    app.root.update()
+    form = app._insp_form
+    assert form is not None and app.insp_key.winfo_ismapped()
+    assert not [w for w in app.insp_head.winfo_children() if isinstance(w, theme.SoftSegmented)]
+    app._toggle_title_panel(form, app.insp_head)
+    app.root.update()
+    assert app.title_panel.winfo_ismapped()
+    assert [w for w in app.title_panel.body.winfo_children() if w.winfo_class() == "Frame"]
+    app._toggle_title_panel(form, app.insp_head)  # nochmal: zu
+    assert not app.title_panel.winfo_ismapped()
+    m = form.key_menu(app.insp_key)
+    try:
+        labels = m.labels()
+        assert labels[:4] == ["Icon", "Bilddatei auswählen …", "Aus Zwischenablage einsetzen",
+                              "Iconsammlung öffnen …"]
+    finally:
+        m.close()
+    app.select(("key", 4, 2))  # leere Taste: keine große Vorschau
+    app.root.update()
+    assert app._insp_form is None and not app.insp_key.winfo_ismapped()

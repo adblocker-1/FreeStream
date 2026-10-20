@@ -72,37 +72,43 @@ backups) from USB sticks and Downloads by itself. **Settings → Setup wizard** 
 
 ## The window
 
-Laid out like the Elgato app: **device and profile** to choose at the top, the keys in the
-middle, the settings of the selected key at the bottom and all actions on the right – in
-categories you open and close with a click, with a search on top. Both programs use the
-same neutral grey look as the Elgato software.
+Laid out like the Elgato app: the **device** in large letters at the top left with the
+**profile** below it (click either to switch), the keys in the middle with the **page
+numbers** (1 2 3 … +) underneath, the settings of the selected key at the bottom and all
+actions on the right – in categories you open and close with a click, with a search on top
+and the tabs **Keys** and **Plugins**. At the top right sit the **bell** (check for updates),
+the **plugin store** and the **settings**. Both programs use the same neutral grey look as
+the Elgato software.
 
-- **Drag an action onto a key** (or double-click it), drag keys to move them,
-  right-click for copy, paste and delete. Changes show up on the deck right away.
+- **Drag an action onto a key** (or double-click it), drag keys to move them (also onto a
+  page number), right-click for copy, paste and delete. Changes show up on the deck right away.
+- **Key settings** like in the Elgato app: the key on the left (dots below it switch its
+  states), next to it the **title** with **T⌄** for font, colour and position, then the
+  settings of the action.
 - It also works the other way round: turn the page, open a folder or switch the
   profile on the deck and the window follows; keys that change by themselves
   (volume, mute, clock …) look exactly like on the deck.
 - The device is drawn like your model: touch strip and dials on the Stream Deck +,
   the info bar on the Neo (‹ › turn the pages), pedals on the Pedal. Free keys are
-  dashed with a “+”.
+  plain dark squares.
 - **Profiles:** the profile field at the top lists them; **New profile** only asks for a
-  name – FreeDeck knows the connected model. Right-click a profile to rename, duplicate,
-  export or delete it. Profiles
+  name – FreeDeck knows the connected model. **Import** and **Export** sit at the bottom of
+  the list. Right-click a profile to rename, duplicate, export or delete it. Profiles
   stay in the Elgato format, so **Export…** takes them back to Windows.
 - **On the deck**, a key briefly shows **Done** or **Error** after its action; a
   Multi Action shows **Step 2 / 5** with a progress bar.
 
 ## Icons and backgrounds
 
-**Icons …** next to the key preview opens the **icon library**: over 100 icons
+**+** on the key (in the key settings) opens the **icon library**: over 100 icons
 drawn for FreeDeck in three packs (**Color**, **White**, **Black**) with search and
-zoom. **Own image …** takes any picture.
+zoom. **⌄** on the key offers **Choose image file …**, **Paste from clipboard** and the
+icon collection.
 
 ![Icon library](docs/images/freedeck-icons.png)
 
 **Background** above the device spreads a picture across all keys of a page; the
-touch strip of the Stream Deck + can get its own image. **Opacity** (Appearance tab of a
-key) lets the background shine through the icon – on FreeWave keys only their dark
+touch strip of the Stream Deck + can get its own image. **Opacity** (⌄ on the key) lets the background shine through the icon – on FreeWave keys only their dark
 background becomes see-through, the symbol, fader and text stay sharp.
 
 **When FreeDeck is not running** (Settings → Devices): instead of the logo, the deck keeps
