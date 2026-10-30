@@ -24,10 +24,10 @@ fn clear(b: &gtk::Box) {
     }
 }
 
-/// Aktion auf der gewählten Taste (Kopie) und ihr Platz.
+/// Aktion auf der gewählten Taste bzw. dem Drehregler (Kopie) und ihr Platz.
 fn selected(ed: &Rc<Editor>) -> Option<(u8, Slot, Map<String, Value>)> {
-    let k = ed.state.borrow().selected?;
-    let slot = ed.slot_of(k);
+    let slot = ed.selected_slot()?;
+    let k = ed.state.borrow().selected.unwrap_or(0);
     let page = ed.page_uuid()?;
     let st = ed.state.borrow();
     let data = st.doc.as_ref()?.get(&page, slot)?.clone();
@@ -77,12 +77,18 @@ pub fn build(ed: &Rc<Editor>) {
     clear(&ed.insp_body);
     *ed.insp_pic.borrow_mut() = None;
     let g = ed.geometry();
-    let Some(k) = ed.state.borrow().selected else {
+    let Some(sel) = ed.selected_slot() else {
         ed.insp_head.append(&label(&tr!("Select a key to edit it."), &["insp-name"]));
         ed.insp_body.append(&label(&tr!("Drag an action here from the list on the right, or double-click it there."), &["muted"]));
         return;
     };
-    let where_ = tr!("Key {col},{row}", col = k % g.cols + 1, row = k / g.cols + 1);
+    let where_ = match sel {
+        Slot::Dial(i) => tr!("Dial {n}", n = i + 1),
+        _ => {
+            let k = ed.state.borrow().selected.unwrap_or(0);
+            tr!("Key {col},{row}", col = k % g.cols + 1, row = k / g.cols + 1)
+        }
+    };
     let Some((k, slot, data)) = selected(ed) else {
         ed.insp_head.append(&label(&tr!("{where} – empty", r#where = where_), &["insp-name"]));
         ed.insp_body.append(&label(&tr!("Drag an action here from the list on the right, or double-click it there."), &["muted"]));
@@ -130,7 +136,16 @@ pub fn build(ed: &Rc<Editor>) {
     // ------------------------------------------------- links: Taste mit + und ⌄
     let left = gtk::Box::new(Orientation::Vertical, 6);
     left.set_valign(Align::Start);
-    if let Some(img) = ed.state.borrow().keys.get(&k) {
+    let preview = match slot {
+        // Drehregler: sein Feld auf dem Touchstreifen
+        Slot::Dial(i) => ed.state.borrow().preview.as_ref().and_then(|c| c.lcd_frame()).map(|img| {
+            let n = g.dials.max(1) as u32;
+            let w = img.width() / n;
+            image::imageops::crop_imm(&img, w * i as u32, 0, w, img.height()).to_image()
+        }),
+        _ => ed.state.borrow().keys.get(&k).cloned(),
+    };
+    if let Some(img) = preview.as_ref() {
         let pic = gtk::Picture::for_paintable(&super::util::texture(img));
         pic.set_size_request(96, 96);
         pic.set_can_shrink(true);

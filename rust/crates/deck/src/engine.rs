@@ -376,6 +376,13 @@ impl Controller {
         Some(render::compose_infobar(size, &hm, "", (n > 1).then_some((n, self.page_index))))
     }
 
+    /// Werte eines Drehreglers (Titel, Wert, Balken) für die Ringe im Fenster; None: Regler leer.
+    pub fn dial_feedback(&self, i: u8) -> Option<crate::actions::Feedback> {
+        let a = self.dials.get(&i)?;
+        let env = self.make_env(&self.cfg.data, self.outbox.for_key(None));
+        Some(a.behavior.feedback(&a.data, &env))
+    }
+
     /// Was gerade auf Touchstreifen bzw. Infoleiste gehört (ohne Gerät – auch für die Vorschau).
     pub fn lcd_frame(&self) -> Option<RgbaImage> {
         self.touchscreen_image().or_else(|| self.infobar_image())

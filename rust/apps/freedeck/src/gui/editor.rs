@@ -9,7 +9,7 @@ use freestream_core::models::{model_geometry, model_name, Geometry};
 use freestream_core::profiles::ProfileStore;
 use freestream_core::tr;
 use freestream_deck::daemon::Daemon;
-use freestream_deck::device::MemoryDeck;
+use freestream_deck::device::{model_lcd_size, MemoryDeck};
 use freestream_deck::engine::Controller;
 use image::RgbaImage;
 use std::cell::RefCell;
@@ -42,6 +42,8 @@ pub struct State {
     pub on_add: Option<Rc<dyn Fn(String)>>,
     /// Zustand der Taste, der bearbeitet wird (Tasten mit mehreren Zuständen)
     pub state_idx: usize,
+    /// gewählter Drehregler (Stream Deck +) statt einer Taste
+    pub selected_dial: Option<u8>,
     /// Speichern nach dem Tippen (verzögert)
     save_job: Option<glib::SourceId>,
 }
@@ -82,6 +84,7 @@ impl Editor {
             clip: None,
             on_add: None,
             state_idx: 0,
+            selected_dial: None,
             save_job: None,
         }));
 
@@ -235,10 +238,11 @@ impl Editor {
             let prof = pid.and_then(|p| st.store.lock().unwrap().get(p).cloned());
             st.profile = prof.as_ref().map(|p| p.id.clone());
             st.selected = None;
+            st.selected_dial = None;
             st.doc = prof.as_ref().and_then(|p| ProfileDoc::open(&p.root).map_err(|e| log::warn!("{e}")).ok());
             st.preview = prof.map(|p| {
                 let model = if model_geometry(&p.model).is_some() { p.model.clone() } else { "20GBA9901".into() };
-                let dev = Arc::new(MemoryDeck::new(&model, "EDITOR", (KEY_PX, KEY_PX)));
+                let dev = Arc::new(MemoryDeck::with_lcd(&model, "EDITOR", (KEY_PX, KEY_PX), model_lcd_size(&model)));
                 let mut c = Controller::new(dev, st.store.clone());
                 c.load_profile(Some(&p.id), Some(0));
                 c
@@ -329,6 +333,7 @@ impl Editor {
                     c.back_to_parent();
                 }
                 ed.state.borrow_mut().selected = None;
+                ed.state.borrow_mut().selected_dial = None;
                 ed.refresh();
             });
             self.foot.set_start_widget(Some(&back));
@@ -391,46 +396,75 @@ impl Editor {
             c.goto_page(i);
         }
         self.state.borrow_mut().selected = None;
+        self.state.borrow_mut().selected_dial = None;
         self.refresh();
     }
 
     // ------------------------------------------------------------------ Bühne
-    /// Lage der Tasten: (x, y, Größe, Abstand) passend in die Fläche.
-    fn layout(&self, w: f64, h: f64) -> (f64, f64, f64, f64) {
+    /// Lage von Tasten, Touchstreifen mit Drehreglern (Stream Deck +) bzw. Infoleiste (Neo).
+    pub(super) fn layout(&self, w: f64, h: f64) -> Layout {
         let g = self.geometry();
         let (cols, rows) = (g.cols.max(1) as f64, g.rows.max(1) as f64);
         let gap_ratio = 0.14;
-        let size = ((w - 40.0) / (cols + (cols - 1.0) * gap_ratio)).min((h - 20.0) / (rows + (rows - 1.0) * gap_ratio)).min(110.0).max(24.0);
+        let neo = !self.has_dials() && self.has_lcd();
+        // Höhe unter den Tasten in Tastengrößen: Streifen + Ringe bzw. Infoleiste
+        let extra = if self.has_dials() { gap_ratio + 0.55 + 0.12 + 0.62 } else if neo { gap_ratio + 0.45 } else { 0.0 };
+        let size = ((w - 40.0) / (cols + (cols - 1.0) * gap_ratio))
+            .min((h - 20.0) / (rows + (rows - 1.0) * gap_ratio + extra))
+            .min(110.0)
+            .max(24.0);
         let gap = size * gap_ratio;
         let total_w = cols * size + (cols - 1.0) * gap;
-        let total_h = rows * size + (rows - 1.0) * gap;
-        ((w - total_w) / 2.0, (h - total_h) / 2.0, size, gap)
+        let total_h = rows * size + (rows - 1.0) * gap + extra * size;
+        let (x0, y0) = ((w - total_w) / 2.0, (h - total_h) / 2.0);
+        let keys_bottom = y0 + rows * size + (rows - 1.0) * gap;
+        let strip = self.has_dials().then(|| (x0, keys_bottom + gap, total_w, size * 0.55));
+        let bar = neo.then(|| (x0, keys_bottom + gap, total_w, size * 0.45));
+        Layout { x0, y0, size, gap, strip, ring: size * 0.26, bar }
+    }
+
+    fn has_dials(&self) -> bool {
+        self.geometry().dials > 0
+    }
+
+    fn has_lcd(&self) -> bool {
+        self.state.borrow().preview.as_ref().map(|c| c.dev.lcd_size().is_some()).unwrap_or(false)
+    }
+
+    fn draw_image(cr: &gtk::cairo::Context, img: &RgbaImage, x: f64, y: f64, w: f64, h: f64, radius: f64) {
+        if let Some(s) = surface(img) {
+            let _ = cr.save();
+            rounded(cr, x, y, w, h, radius);
+            cr.clip();
+            cr.translate(x, y);
+            cr.scale(w / img.width() as f64, h / img.height() as f64);
+            let _ = cr.set_source_surface(&s, 0.0, 0.0);
+            cr.source().set_filter(gtk::cairo::Filter::Good);
+            let _ = cr.paint();
+            let _ = cr.restore();
+        }
+    }
+
+    fn select_ring(cr: &gtk::cairo::Context, x: f64, y: f64, w: f64, h: f64, radius: f64) {
+        let (r_, g_, b_) = rgb("#3d9bff");
+        cr.set_source_rgb(r_, g_, b_);
+        cr.set_line_width(2.5);
+        rounded(cr, x - 3.0, y - 3.0, w + 6.0, h + 6.0, radius + 3.0);
+        let _ = cr.stroke();
     }
 
     fn draw_stage(&self, cr: &gtk::cairo::Context, w: f64, h: f64) {
         let st = self.state.borrow();
         let g = self.geometry();
-        let (x0, y0, size, gap) = self.layout(w, h);
+        let l = self.layout(w, h);
+        let (x0, y0, size, gap) = (l.x0, l.y0, l.size, l.gap);
         for k in 0..g.keys() as u8 {
             let (c, r) = ((k % g.cols) as f64, (k / g.cols) as f64);
             let (x, y) = (x0 + c * (size + gap), y0 + r * (size + gap));
             let radius = size / 8.0;
             let occupied = st.preview.as_ref().map(|p| p.current_page().map(|pg| pg.keypad.contains_key(&(k % g.cols, k / g.cols))).unwrap_or(false)).unwrap_or(false);
             match st.keys.get(&k).filter(|_| occupied || st.preview.as_ref().map(|p| p.current_page().map(|pg| !pg.background.is_empty()).unwrap_or(false)).unwrap_or(false)) {
-                Some(img) => {
-                    if let Some(s) = surface(img) {
-                        let _ = cr.save();
-                        rounded(cr, x, y, size, size, radius);
-                        cr.clip();
-                        let scale = size / img.width() as f64;
-                        cr.translate(x, y);
-                        cr.scale(scale, scale);
-                        let _ = cr.set_source_surface(&s, 0.0, 0.0);
-                        cr.source().set_filter(gtk::cairo::Filter::Good);
-                        let _ = cr.paint();
-                        let _ = cr.restore();
-                    }
-                }
+                Some(img) => Self::draw_image(cr, img, x, y, size, size, radius),
                 None => {
                     let (r_, g_, b_) = rgb("#262626");
                     cr.set_source_rgb(r_, g_, b_);
@@ -438,19 +472,124 @@ impl Editor {
                     let _ = cr.fill();
                 }
             }
-            if st.selected == Some(k) {
-                let (r_, g_, b_) = rgb("#3d9bff");
+            if st.selected == Some(k) && st.selected_dial.is_none() {
+                Self::select_ring(cr, x, y, size, size, radius);
+            }
+        }
+        // Touchstreifen (wie auf dem Gerät) und darunter je Regler ein Ring mit dem Wert
+        if let Some((sx, sy, sw, sh)) = l.strip {
+            let n = g.dials.max(1) as f64;
+            match st.preview.as_ref().and_then(|c| c.lcd_frame()) {
+                Some(img) => Self::draw_image(cr, &img, sx, sy, sw, sh, 10.0),
+                None => {
+                    let (r_, g_, b_) = rgb("#262626");
+                    cr.set_source_rgb(r_, g_, b_);
+                    rounded(cr, sx, sy, sw, sh, 10.0);
+                    let _ = cr.fill();
+                }
+            }
+            let seg = sw / n;
+            for i in 0..g.dials {
+                let x = sx + i as f64 * seg;
+                if i > 0 {
+                    cr.set_source_rgba(1.0, 1.0, 1.0, 0.08);
+                    cr.set_line_width(1.0);
+                    cr.move_to(x, sy + 6.0);
+                    cr.line_to(x, sy + sh - 6.0);
+                    let _ = cr.stroke();
+                }
+                let fb = st.preview.as_ref().and_then(|c| c.dial_feedback(i));
+                let (cx, cy, r) = (x + seg / 2.0, sy + sh + size * 0.12 + l.ring, l.ring);
+                let lw = (r / 5.0).max(3.0);
+                cr.set_line_width(lw);
+                let (a0, a1) = (0.75 * std::f64::consts::PI, 2.25 * std::f64::consts::PI);
+                let (r_, g_, b_) = rgb("#3a3a3a");
                 cr.set_source_rgb(r_, g_, b_);
-                cr.set_line_width(2.5);
-                rounded(cr, x - 3.0, y - 3.0, size + 6.0, size + 6.0, radius + 3.0);
+                cr.arc(cx, cy, r, a0, a1);
                 let _ = cr.stroke();
+                if let Some(ind) = fb.as_ref().and_then(|f| f.indicator) {
+                    if ind > 0.0 {
+                        let (r_, g_, b_) = rgb("#3d9bff");
+                        cr.set_source_rgb(r_, g_, b_);
+                        cr.arc(cx, cy, r, a0, a0 + (a1 - a0) * (ind as f64 / 100.0).min(1.0));
+                        let _ = cr.stroke();
+                    }
+                }
+                let text = match &fb {
+                    Some(f) => f.indicator.map(|v| format!("{}", v.round() as i64)).unwrap_or_default(),
+                    None => "+".into(),
+                };
+                if !text.is_empty() {
+                    cr.set_source_rgb(0.85, 0.85, 0.85);
+                    cr.set_font_size((r * 0.6).max(9.0));
+                    if let Ok(ext) = cr.text_extents(&text) {
+                        cr.move_to(cx - ext.width() / 2.0 - ext.x_bearing(), cy + ext.height() / 2.0);
+                        let _ = cr.show_text(&text);
+                    }
+                }
+                if st.selected_dial == Some(i) {
+                    Self::select_ring(cr, x + 2.0, sy, seg - 4.0, sh, 8.0);
+                }
+            }
+        }
+        // Neo: Infoleiste, links und rechts die Touch-Tasten (Seite wechseln)
+        if let Some((bx, by, bw, bh)) = l.bar {
+            let n = st.preview.as_ref().map(|c| c.page_count()).unwrap_or(1);
+            let on = n > 1 && st.preview.as_ref().map(|c| c.folders.is_empty()).unwrap_or(true);
+            for (x, sign) in [(bx, "‹"), (bx + bw - bh, "›")] {
+                let (r_, g_, b_) = rgb("#2b2b2b");
+                cr.set_source_rgb(r_, g_, b_);
+                rounded(cr, x, by, bh, bh, 10.0);
+                let _ = cr.fill();
+                if on {
+                    cr.set_source_rgb(0.9, 0.9, 0.9);
+                } else {
+                    cr.set_source_rgb(0.4, 0.4, 0.4);
+                }
+                cr.set_font_size(bh * 0.5);
+                if let Ok(ext) = cr.text_extents(sign) {
+                    cr.move_to(x + bh / 2.0 - ext.width() / 2.0 - ext.x_bearing(), by + bh / 2.0 + ext.height() / 2.0);
+                    let _ = cr.show_text(sign);
+                }
+            }
+            let (ix, iw) = (bx + bh + 10.0, bw - 2.0 * bh - 20.0);
+            if let Some(img) = st.preview.as_ref().and_then(|c| c.lcd_frame()) {
+                // Seitenverhältnis der Infoleiste behalten
+                let ih = (iw * img.height() as f64 / img.width() as f64).min(bh);
+                let iw2 = ih * img.width() as f64 / img.height() as f64;
+                Self::draw_image(cr, &img, ix + (iw - iw2) / 2.0, by + (bh - ih) / 2.0, iw2, ih, 8.0);
             }
         }
     }
 
+    /// Was liegt an (x, y) auf der Bühne?
+    fn hit(&self, x: f64, y: f64) -> Option<Hit> {
+        let g = self.geometry();
+        let l = self.layout(self.stage.width() as f64, self.stage.height() as f64);
+        if let Some((sx, sy, sw, sh)) = l.strip {
+            let bottom = sy + sh + self.layout(self.stage.width() as f64, self.stage.height() as f64).size * 0.12 + 2.0 * l.ring;
+            if x >= sx && x < sx + sw && y >= sy && y <= bottom {
+                return Some(Hit::Dial(((x - sx) / (sw / g.dials.max(1) as f64)).floor() as u8));
+            }
+        }
+        if let Some((bx, by, bw, bh)) = l.bar {
+            if y >= by && y <= by + bh {
+                if x >= bx && x <= bx + bh {
+                    return Some(Hit::TouchKey(-1));
+                }
+                if x >= bx + bw - bh && x <= bx + bw {
+                    return Some(Hit::TouchKey(1));
+                }
+                return None;
+            }
+        }
+        self.key_at(x, y).map(Hit::Key)
+    }
+
     fn key_at(&self, x: f64, y: f64) -> Option<u8> {
         let g = self.geometry();
-        let (x0, y0, size, gap) = self.layout(self.stage.width() as f64, self.stage.height() as f64);
+        let l = self.layout(self.stage.width() as f64, self.stage.height() as f64);
+        let (x0, y0, size, gap) = (l.x0, l.y0, l.size, l.gap);
         let (c, r) = (((x - x0) / (size + gap)).floor(), ((y - y0) / (size + gap)).floor());
         if c < 0.0 || r < 0.0 || c >= g.cols as f64 || r >= g.rows as f64 {
             return None;
@@ -460,13 +599,27 @@ impl Editor {
     }
 
     fn stage_click(self: &Rc<Self>, n: i32, x: f64, y: f64) {
-        let k = self.key_at(x, y);
+        let hit = self.hit(x, y);
+        if let Some(Hit::TouchKey(d)) = hit {
+            // Neo: Touch-Tasten blättern wie am Gerät
+            let (cur, cnt, root) = self.state.borrow().preview.as_ref().map(|c| (c.page_index, c.page_count(), c.folders.is_empty())).unwrap_or((0, 0, false));
+            if cnt > 1 && root {
+                self.goto_page(((cur as i64 + d as i64).rem_euclid(cnt as i64)) as usize);
+            }
+            return;
+        }
+        let (k, dial) = match hit {
+            Some(Hit::Key(k)) => (Some(k), None),
+            Some(Hit::Dial(i)) => (None, Some(i)),
+            _ => (None, None),
+        };
         {
             let mut st = self.state.borrow_mut();
-            if st.selected != k {
+            if st.selected != k || st.selected_dial != dial {
                 st.state_idx = 0;
             }
             st.selected = k;
+            st.selected_dial = dial;
         }
         if n == 2 {
             // Doppelklick auf einen Ordner öffnet ihn
@@ -482,6 +635,7 @@ impl Editor {
                     c.open_folder(&f);
                 }
                 self.state.borrow_mut().selected = None;
+                self.state.borrow_mut().selected_dial = None;
                 self.refresh();
                 return;
             }
@@ -745,14 +899,56 @@ impl Editor {
         self.refresh();
     }
 
+    /// Gewählter Platz (Taste oder Drehregler).
+    pub fn selected_slot(&self) -> Option<Slot> {
+        let st = self.state.borrow();
+        match (st.selected_dial, st.selected) {
+            (Some(i), _) => Some(Slot::Dial(i)),
+            (None, Some(k)) => Some(self.slot_of(k)),
+            _ => None,
+        }
+    }
+
+    /// Aktion auf einen Drehregler legen (nur Aktionen, die einen Regler können).
+    pub fn add_dial_action(self: &Rc<Self>, uuid: &str, i: u8) {
+        if let Some(t) = freestream_core::catalog::lookup(uuid).filter(|t| !t.supports(freestream_core::catalog::DIAL)) {
+            self.state.borrow_mut().status = tr!("“{name}” only works on keys", name = t.name());
+            self.refresh_header();
+            return;
+        }
+        self.edit(|doc, page| {
+            doc.place(page, Slot::Dial(i), uuid);
+        });
+        {
+            let mut st = self.state.borrow_mut();
+            st.selected = None;
+            st.selected_dial = Some(i);
+        }
+        self.refresh_inspector();
+        self.stage.queue_draw();
+    }
+
     /// Aktion aus der Liste auf eine Taste legen (None: gewählte Taste, sonst erste freie).
     pub fn add_action(self: &Rc<Self>, uuid: &str, key: Option<u8>) {
+        if key.is_none() {
+            if let Some(i) = self.state.borrow().selected_dial {
+                let me = self.clone();
+                let uuid = uuid.to_string();
+                glib::idle_add_local_once(move || me.add_dial_action(&uuid, i));
+                return;
+            }
+        }
         let g = self.geometry();
         let target = key.or(self.state.borrow().selected).or_else(|| {
             let st = self.state.borrow();
             let pg = st.preview.as_ref()?.current_page()?;
             (0..g.keys() as u8).find(|k| !pg.keypad.contains_key(&(k % g.cols, k / g.cols)))
         });
+        if let Some(t) = freestream_core::catalog::lookup(uuid).filter(|t| !t.supports(freestream_core::catalog::KEY)) {
+            self.state.borrow_mut().status = tr!("“{name}” only works on dials", name = t.name());
+            self.refresh_header();
+            return;
+        }
         let Some(k) = target else {
             self.state.borrow_mut().status = tr!("No free space – select a key to replace it");
             self.refresh_header();
@@ -763,6 +959,7 @@ impl Editor {
             doc.place(page, slot, uuid);
         });
         self.state.borrow_mut().selected = Some(k);
+        self.state.borrow_mut().selected_dial = None;
         self.refresh_inspector();
         self.stage.queue_draw();
     }
@@ -779,6 +976,7 @@ impl Editor {
         let (a, b) = (self.slot_of(from), self.slot_of(to));
         self.edit(|doc, page| doc.move_action(page, a, page, b));
         self.state.borrow_mut().selected = Some(to);
+        self.state.borrow_mut().selected_dial = None;
         self.refresh_inspector();
     }
 
@@ -859,6 +1057,10 @@ impl Editor {
         let ed = self.clone();
         drop.connect_drop(move |_, v, x, y| {
             let Ok(text) = v.get::<String>() else { return false };
+            if let (Some(Hit::Dial(i)), Some(uuid)) = (ed.hit(x, y), text.strip_prefix(super::library::DRAG_PREFIX)) {
+                ed.add_dial_action(uuid, i);
+                return true;
+            }
             let Some(k) = ed.key_at(x, y) else { return false };
             if let Some(uuid) = text.strip_prefix(super::library::DRAG_PREFIX) {
                 ed.add_action(uuid, Some(k));
@@ -895,6 +1097,7 @@ impl Editor {
         menu.connect_pressed(move |_, _, x, y| {
             if let Some(k) = ed.key_at(x, y) {
                 ed.state.borrow_mut().selected = Some(k);
+                ed.state.borrow_mut().selected_dial = None;
                 ed.refresh_inspector();
                 ed.stage.queue_draw();
                 ed.key_menu(k, x, y);
@@ -934,8 +1137,8 @@ impl Editor {
                     }
                 }
                 Key::Delete | Key::BackSpace => {
-                    if let Some(k) = sel {
-                        ed.delete_key(k)
+                    if let Some(slot) = ed.selected_slot() {
+                        ed.edit(|doc, page| doc.remove(page, slot));
                     }
                 }
                 _ => return glib::Propagation::Proceed,
@@ -1079,6 +1282,7 @@ impl Editor {
             d.move_action(&src, src_slot, &dst, free);
         }
         self.state.borrow_mut().selected = None;
+        self.state.borrow_mut().selected_dial = None;
         self.commit();
     }
 
@@ -1122,6 +1326,27 @@ impl Editor {
         pop.connect_closed(|p| p.unparent());
         pop.popup();
     }
+}
+
+/// Lage der Bühne (siehe [`Editor::layout`]).
+pub(super) struct Layout {
+    pub x0: f64,
+    pub y0: f64,
+    pub size: f64,
+    pub gap: f64,
+    /// Touchstreifen (x, y, Breite, Höhe)
+    pub strip: Option<(f64, f64, f64, f64)>,
+    /// Radius der Ringe unter dem Streifen
+    pub ring: f64,
+    /// Infoleiste des Neo
+    pub bar: Option<(f64, f64, f64, f64)>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Hit {
+    Key(u8),
+    Dial(u8),
+    TouchKey(i8),
 }
 
 /// Text im Drag & Drop für eine Taste der Bühne.
