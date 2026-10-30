@@ -83,6 +83,39 @@ fn offer(parent: &gtk::ApplicationWindow, u: Update, automatic: bool) {
     let bar = gtk::ProgressBar::new();
     bar.set_visible(false);
     b.append(&bar);
+    // Welche Programme: Python oder Rust (Beta) – wie im Update-Dialog der Python-Version
+    let erow = gtk::Box::new(Orientation::Horizontal, 12);
+    erow.append(&label(&tr!("Program"), &[]));
+    let seg = gtk::Box::new(Orientation::Horizontal, 0);
+    seg.add_css_class("tabs");
+    let py = gtk::ToggleButton::with_label("Python");
+    let rs = gtk::ToggleButton::with_label(&tr!("Rust (Beta)"));
+    rs.set_group(Some(&py));
+    for t in [&py, &rs] {
+        t.add_css_class("tab");
+        seg.append(t);
+    }
+    if updater::edition() == "rust" { rs.set_active(true) } else { py.set_active(true) }
+    erow.append(&seg);
+    b.append(&erow);
+    let hint = label(&tr!("Rust (Beta) runs without Python and starts faster. It uses the same profiles and settings – you can switch back with every update."), &["muted"]);
+    hint.set_wrap(true);
+    b.append(&hint);
+    let status = label("", &["muted"]);
+    status.set_wrap(true);
+    b.append(&status);
+    let installed = updater::dpkg_packages();
+    let target = updater::Target::detect();
+    {
+        // keine Rust-Pakete für dieses System in diesem Release: zurück auf Python
+        let (u, installed, target, py2, status) = (u.clone(), installed.clone(), target.clone(), py.clone(), status.clone());
+        rs.connect_toggled(move |t| {
+            if t.is_active() && updater::update_for_edition(&u, "rust", &installed, &target).is_none() {
+                py2.set_active(true);
+                status.set_text(&tr!("This release has no Rust packages for your system."));
+            }
+        });
+    }
     let row = gtk::Box::new(Orientation::Horizontal, 8);
     let skip = gtk::Button::with_label(&tr!("Skip this version"));
     skip.add_css_class("flat");
@@ -117,10 +150,13 @@ fn offer(parent: &gtk::ApplicationWindow, u: Update, automatic: bool) {
     }
     {
         let (w, p, l) = (win.clone(), parent.clone(), lock.clone());
+        let rs = rs.clone();
         install.connect_clicked(move |btn| {
             btn.set_sensitive(false);
             bar.set_visible(true);
-            let rx = updater::download_in_background(u.clone());
+            let ed = if rs.is_active() { "rust" } else { "python" };
+            let chosen = updater::update_for_edition(&u, ed, &installed, &target).unwrap_or_else(|| u.clone());
+            let rx = updater::download_in_background(chosen);
             let (w, p, l, bar, version) = (w.clone(), p.clone(), l.clone(), bar.clone(), u.version.clone());
             glib::timeout_add_local(Duration::from_millis(100), move || loop {
                 match rx.try_recv() {
@@ -135,7 +171,7 @@ fn offer(parent: &gtk::ApplicationWindow, u: Update, automatic: bool) {
                         w.close();
                         l.borrow_mut().release();
                         match res {
-                            Ok(files) => run_install(&p, files, version.clone()),
+                            Ok(files) => run_install(&p, files, version.clone(), ed),
                             Err(e) => info(&p, &tr!("Updates"), &e.download_message()),
                         }
                         return glib::ControlFlow::Break;
@@ -149,15 +185,17 @@ fn offer(parent: &gtk::ApplicationWindow, u: Update, automatic: bool) {
     win.present();
 }
 
-fn run_install(parent: &gtk::ApplicationWindow, files: Vec<std::path::PathBuf>, version: String) {
+fn run_install(parent: &gtk::ApplicationWindow, files: Vec<std::path::PathBuf>, version: String, edition: &'static str) {
     let p = parent.clone();
     let v = version.clone();
     poll(updater::install_in_background(files, version), move |outcome| {
         let text = outcome.message("FreeDeck", &v, false);
         match outcome {
             InstallOutcome::Installed => {
+                // ab jetzt startet „FreeDeck“ die gewählte Ausgabe
+                updater::set_edition(edition);
                 info(&p, &tr!("Updates"), &text);
-                restart();
+                restart(edition);
             }
             InstallOutcome::NoPkexec(folder) => {
                 info(&p, &tr!("Updates"), &text);
@@ -168,11 +206,14 @@ fn run_install(parent: &gtk::ApplicationWindow, files: Vec<std::path::PathBuf>, 
     });
 }
 
-/// Neu starten, sobald dieses Programm beendet ist (die neue Version liegt dann auf der Platte).
-fn restart() {
-    if let Ok(exe) = std::env::current_exe() {
+/// Neu starten, sobald dieses Programm beendet ist (die neue Version liegt dann auf der Platte). Python
+/// gewählt: das Python-FreeDeck starten.
+fn restart(edition: &str) {
+    let exe = if edition == "python" { Some(std::path::PathBuf::from("freedeck")) } else { std::env::current_exe().ok() };
+    if let Some(exe) = exe {
         let pid = std::process::id();
-        let script = format!("while kill -0 {pid} 2>/dev/null; do sleep 0.2; done; exec \"$0\" gui");
+        let arg = if edition == "python" { "open" } else { "gui" };
+        let script = format!("while kill -0 {pid} 2>/dev/null; do sleep 0.2; done; exec \"$0\" {arg}");
         let _ = std::process::Command::new("sh").arg("-c").arg(script).arg(exe).spawn();
     }
     glib::timeout_add_local_once(Duration::from_secs(2), || {

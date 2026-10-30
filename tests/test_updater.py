@@ -461,3 +461,72 @@ def test_api_falls_back_to_old_repo_name(monkeypatch):
     monkeypatch.setattr(updater, "_get_json", fake)
     assert updater.check({"freestream": "0"}).version == "9.1.0"
     assert urls == list(updater.API_URLS)
+
+
+# ------------------------------------------------------------------ Ausgabe: Python oder Rust (Beta)
+def _rust_release(version="9.1.0", distros=("ubuntu-24.04", "debian-12"), data=b"deb"):
+    rel = release(version, data=data)
+    digest = "sha256:" + hashlib.sha256(data).hexdigest()
+    for d in distros:
+        name = f"freedeck-rs_{version}_amd64_{d}.deb"
+        rel["assets"].append({"name": name, "size": len(data), "digest": digest,
+                              "browser_download_url": f"{PREFIX}v{version}/{name}"})
+    return rel
+
+
+def test_edition_setting(home, monkeypatch):
+    monkeypatch.delenv("FREESTREAM_EDITION", raising=False)
+    assert updater.edition() == "python"
+    updater.set_edition("rust")
+    assert updater.edition() == "rust"
+    updater.set_edition("nonsense")
+    assert updater.edition() == "python"
+    monkeypatch.setenv("FREESTREAM_EDITION", "rust")
+    assert updater.edition() == "rust"
+
+
+def test_rust_asset_names_prefer_own_system():
+    names = updater.asset_names("freedeck-rs", "1.2.0", arch="amd64", distro="debian-12")
+    assert names[0] == "freedeck-rs_1.2.0_amd64_debian-12.deb"
+    assert "freedeck-rs_1.2.0_amd64.deb" in names
+    assert updater.asset_names("freedeck", "1.2.0") == ["freedeck_1.2.0_all.deb"]
+
+
+def test_update_for_other_edition(monkeypatch):
+    monkeypatch.setattr(updater, "_distro", lambda: "ubuntu-24.04")
+    monkeypatch.setattr(updater, "_deb_arch", lambda: "amd64")
+    monkeypatch.setattr(updater, "dpkg_packages", lambda: {"freestream": "0.16.0"})
+    up = updater.release_update(_rust_release(), {"freestream": "0.16.0"}, current="0.16.0")
+    assert [f["name"] for f in up.files] == ["freestream_9.1.0_all.deb"]
+    rust = updater.update_for_edition(up, "rust")
+    assert [f["name"] for f in rust.files] == ["freedeck-rs_9.1.0_amd64_ubuntu-24.04.deb"]
+    assert updater.update_for_edition(up, "python").files == up.files
+    # Release ohne Rust-Paket für dieses System: keine Rust-Auswahl
+    monkeypatch.setattr(updater, "_distro", lambda: "fedora-40")
+    assert updater.update_for_edition(up, "rust") is None
+
+
+def test_packages_for_edition():
+    assert updater.packages_for("rust", {"freestream": "1"}) == ["freedeck-rs"]
+    assert updater.packages_for("python", {"freedeck": "1", "freedeck-rs": "1"}) == ["freedeck"]
+    assert updater.packages_for("python", {"freedeck-rs": "1"}) == ["freestream"]
+
+
+def test_redirect_to_rust(home, monkeypatch):
+    calls = []
+    monkeypatch.setattr(updater.os, "execv", lambda exe, argv: calls.append(argv))
+    monkeypatch.setattr(updater, "rust_program", lambda name: f"/usr/bin/{name}-rs")
+    monkeypatch.delenv("FREESTREAM_PYTHON", raising=False)
+    monkeypatch.delenv("FREESTREAM_EDITION", raising=False)
+    updater.redirect_to_rust("freedeck", [])
+    assert calls == []  # Python gewählt: nichts umleiten
+    updater.set_edition("rust")
+    updater.redirect_to_rust("freedeck", [])
+    updater.redirect_to_rust("freedeck", ["run"])
+    updater.redirect_to_rust("freedeck", ["profiles"])  # Kommandozeile bleibt Python
+    updater.redirect_to_rust("freewave", ["--hidden"])
+    updater.redirect_to_rust("freewave", ["mixer", "status"])
+    assert calls == [["/usr/bin/freedeck-rs"], ["/usr/bin/freedeck-rs", "run"], ["/usr/bin/freewave-rs", "--hidden"]]
+    monkeypatch.setenv("FREESTREAM_PYTHON", "1")
+    updater.redirect_to_rust("freedeck", [])
+    assert len(calls) == 3

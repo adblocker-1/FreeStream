@@ -772,6 +772,10 @@ def _installed(cmd):
 
 
 def main(argv=None, prog="freedeck"):
+    if prog == "freedeck":
+        # Rust-Ausgabe gewählt (Update-Dialog): Fenster und Dienst laufen dann als freedeck-rs
+        from .updater import redirect_to_rust
+        redirect_to_rust("freedeck", sys.argv[1:] if argv is None else argv)
     ap = argparse.ArgumentParser(prog=prog, description=_("FreeDeck – software for Elgato decks on Linux"))
     ap.add_argument("--version", action="version", version=__version__)
     ap.add_argument("-v", "--verbose", action="store_true")
@@ -912,6 +916,8 @@ def main(argv=None, prog="freedeck"):
 def wave_main(argv=None):
     """Einstieg für `freewave`: ohne Befehl Fenster öffnen; `freewave mixer …`, `freewave mic …`."""
     argv = list(sys.argv[1:] if argv is None else argv)
+    from .updater import redirect_to_rust
+    redirect_to_rust("freewave", argv)
     cmd = next((a for a in argv if not a.startswith("-")), "")
     if cmd in ("mixer", "mic", "wave") + SHARED_CMDS:
         i = argv.index(cmd)
