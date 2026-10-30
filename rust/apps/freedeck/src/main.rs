@@ -18,8 +18,8 @@ mod gui;
 
 fn usage() {
     println!("FreeDeck {}\n", freestream_core::VERSION);
-    println!("  freedeck run                     {}", tr!("Run the service (keys on the device, no window)"));
-    println!("  freedeck devices                 {}", tr!("Connected devices"));
+    println!("  freedeck run                     {}", tr!("start only the service, without a window (e.g. via SSH)"));
+    println!("  freedeck devices                 {}", tr!("show connected devices"));
     println!("  freedeck profiles                {}", tr!("Profiles"));
     println!("  freedeck import <file|folder>    {}", tr!("Import profiles"));
     println!("  freedeck preview <profile> [page] [-o file.png]");
@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         }
         Some("run") | Some("--hidden") => {
             if let Some(pid) = already_running() {
-                println!("{}", tr!("FreeDeck is already running (pid {pid})", pid = pid));
+                println!("{}", format!("{} (pid {pid})", tr!("FreeDeck is already running")));
                 return Ok(());
             }
             let mut d = Daemon::new();
@@ -65,7 +65,7 @@ fn main() -> anyhow::Result<()> {
         Some("profiles") => {
             let store = ProfileStore::new(None);
             for p in store.profiles.values() {
-                println!("{:<38} {:<24} {:<22} {} {}", p.id, p.name, p.model_name(), p.page_ids.len(), tr!("pages"));
+                println!("{:<38} {:<24} {:<22} {}", p.id, p.name, p.model_name(), freestream_core::i18n::ngettext("{n} page", "{n} pages", p.page_ids.len() as i64).replace("{n}", &p.page_ids.len().to_string()));
             }
             Ok(())
         }
@@ -75,7 +75,7 @@ fn main() -> anyhow::Result<()> {
                 return Ok(());
             };
             let ids = import_path(std::path::Path::new(src), None, None, true)?;
-            println!("{}", tr!("{n} profiles imported", n = ids.len()));
+            println!("{}", freestream_core::i18n::ngettext("{n} profile imported", "{n} profiles imported", ids.len() as i64).replace("{n}", &ids.len().to_string()));
             Ok(())
         }
         Some("preview") => preview(&args[1..]),

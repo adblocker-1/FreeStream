@@ -55,6 +55,7 @@ pub struct Editor {
     prof_list: gtk::Box,
     pub(super) stage: gtk::DrawingArea,
     pages: gtk::Box,
+    foot: gtk::CenterBox,
     status: gtk::Label,
     pub(super) insp_head: gtk::Box,
     pub(super) insp_body: gtk::Box,
@@ -110,7 +111,7 @@ impl Editor {
         let icons = gtk::Box::new(Orientation::Horizontal, 6);
         icons.set_valign(Align::Start);
         top.append(&icons);
-        let bell = icon_button("preferences-system-notifications-symbolic", &tr!("Check for updates"));
+        let bell = icon_button("preferences-system-notifications-symbolic", &tr!("Updates"));
         let store_btn = icon_button("application-x-addon-symbolic", &tr!("Plugins"));
         let gear = icon_button("emblem-system-symbolic", &tr!("Settings"));
         for b in [&bell, &store_btn, &gear] {
@@ -133,6 +134,8 @@ impl Editor {
         main.append(&status);
         let foot = gtk::CenterBox::new();
         foot.set_margin_bottom(12);
+        foot.set_margin_start(30);
+        foot.set_margin_end(30);
         let pages = gtk::Box::new(Orientation::Horizontal, 0);
         pages.add_css_class("pages");
         foot.set_center_widget(Some(&pages));
@@ -165,7 +168,7 @@ impl Editor {
         let lib = super::library::build(&state);
         body.append(&lib);
 
-        let ed = Rc::new(Editor { win: win.clone(), state, dev_label, prof_label, dev_list, prof_list, stage, pages, status, insp_head, insp_body, insp_pic: RefCell::new(None) });
+        let ed = Rc::new(Editor { win: win.clone(), state, dev_label, prof_label, dev_list, prof_list, stage, pages, foot, status, insp_head, insp_body, insp_pic: RefCell::new(None) });
         ed.connect(&bell, &store_btn, &gear);
         ed.start();
         win
@@ -292,7 +295,7 @@ impl Editor {
                     let custom = c.cfg.device(serial).get("name").and_then(|v| v.as_str()).map(str::to_string);
                     custom.filter(|n| !n.is_empty()).unwrap_or_else(|| model_name(&c.dev.model()))
                 })
-                .unwrap_or_else(|| tr!("No device")),
+                .unwrap_or_else(|| tr!("No device connected")),
             _ => st.preview.as_ref().and_then(|c| c.profile.as_ref()).map(|p| p.model_name()).unwrap_or_else(|| "FreeDeck".into()),
         };
         self.dev_label.set_text(&dev_name);
@@ -315,6 +318,40 @@ impl Editor {
             self.pages.remove(&c);
         }
         let (cur, n) = self.state.borrow().preview.as_ref().map(|c| (c.page_index, c.page_count())).unwrap_or((0, 0));
+        // links „↩ Zurück“ im Ordner, rechts „Hintergrund“
+        let in_folder = self.state.borrow().preview.as_ref().map(|c| !c.folders.is_empty()).unwrap_or(false);
+        if in_folder {
+            let back = gtk::Button::with_label(&tr!("↩ Back"));
+            back.add_css_class("btn");
+            let ed = self.clone();
+            back.connect_clicked(move |_| {
+                if let Some(c) = ed.state.borrow_mut().preview.as_mut() {
+                    c.back_to_parent();
+                }
+                ed.state.borrow_mut().selected = None;
+                ed.refresh();
+            });
+            self.foot.set_start_widget(Some(&back));
+        } else {
+            self.foot.set_start_widget(None::<&gtk::Widget>);
+        }
+        if n > 0 {
+            let has_bg = self.state.borrow().preview.as_ref().and_then(|c| c.current_page()).map(|p| !p.background.is_empty()).unwrap_or(false);
+            let bg = gtk::Button::new();
+            let row = gtk::Box::new(Orientation::Horizontal, 6);
+            row.append(&gtk::Image::from_icon_name("image-x-generic-symbolic"));
+            row.append(&gtk::Label::new(Some(&tr!("Background"))));
+            bg.set_child(Some(&row));
+            bg.add_css_class("btn");
+            if has_bg {
+                bg.add_css_class("suggested-action");
+            }
+            let ed = self.clone();
+            bg.connect_clicked(move |_| super::bg_ui::open(&ed));
+            self.foot.set_end_widget(Some(&bg));
+        } else {
+            self.foot.set_end_widget(None::<&gtk::Widget>);
+        }
         for i in 0..n {
             let b = gtk::Button::with_label(&(i + 1).to_string());
             b.add_css_class("page-btn");
@@ -613,7 +650,7 @@ impl Editor {
                     match res {
                         Ok(ids) => {
                             ed.state.borrow().store.lock().unwrap().reload();
-                            ed.state.borrow_mut().status = tr!("{n} profiles imported", n = ids.len());
+                            ed.state.borrow_mut().status = freestream_core::i18n::ngettext("{n} profile imported", "{n} profiles imported", ids.len() as i64).replace("{n}", &ids.len().to_string());
                             ed.open_profile(ids.first().map(String::as_str));
                         }
                         Err(e) => info(&ed.win, &tr!("Import"), &e.to_string()),

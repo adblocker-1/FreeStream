@@ -70,7 +70,7 @@ pub fn open(parent: &gtk::ApplicationWindow, state: &Rc<RefCell<State>>) {
         save_keys(&[("check_updates", Value::from(on))]);
         gtk::glib::Propagation::Proceed
     });
-    row(&g, 1, &tr!("Check for updates every time FreeDeck starts"), &updates);
+    row(&g, 1, &tr!("Check for updates every time {app} starts", app = "FreeDeck"), &updates);
     let auto = gtk::Switch::new();
     auto.set_active(desktop::autostart_enabled("freedeck"));
     auto.set_halign(gtk::Align::Start);
@@ -103,14 +103,17 @@ pub fn open(parent: &gtk::ApplicationWindow, state: &Rc<RefCell<State>>) {
     let cur = cfg.get("language").and_then(Value::as_str).unwrap_or("auto").to_string();
     lang.set_selected(langs.iter().position(|l| *l == cur).map(|i| i + 1).unwrap_or(0) as u32);
     let langs2 = langs.clone();
+    let names2 = names.clone();
     lang.connect_selected_notify(move |d| {
         let i = d.selected() as usize;
         let key = if i == 0 { "auto".to_string() } else { langs2[i - 1].to_string() };
         save_keys(&[("language", Value::from(key))]);
+        // wie in der Python-Version: Neustart anbieten
+        let Some(win) = d.root().and_then(|r| r.downcast::<gtk::Window>().ok()) else { return };
+        let text = tr!("{app} will be shown in {language} after a restart. Restart now?", app = "FreeDeck", language = names2[i]);
+        ask_restart(&win, &text);
     });
     row(&g, 1, &tr!("Language"), &lang);
-    let hint = label(&tr!("The new language is used after a restart."), &["muted"]);
-    g.attach(&hint, 1, 2, 1, 1);
     general.append(&g);
     stack.add_titled(&general, Some("general"), &tr!("General"));
 
@@ -159,7 +162,7 @@ pub fn open(parent: &gtk::ApplicationWindow, state: &Rc<RefCell<State>>) {
         });
         row(&g, 1, &tr!("Brightness"), &scale);
         let opts = [0i64, 1, 5, 10, 15, 30, 60];
-        let labels: Vec<String> = opts.iter().map(|m| if *m == 0 { tr!("Never") } else { tr!("{n} minutes", n = m) }).collect();
+        let labels: Vec<String> = opts.iter().map(|m| if *m == 0 { tr!("Never") } else { freestream_core::i18n::ngettext("{n} minute", "{n} minutes", *m as i64).replace("{n}", &m.to_string()) }).collect();
         let sl = gtk::DropDown::from_strings(&labels.iter().map(String::as_str).collect::<Vec<_>>());
         sl.set_selected(opts.iter().position(|m| *m == sleep).unwrap_or(0) as u32);
         let (c2, s2) = (ctrl.clone(), serial.clone());
@@ -204,5 +207,44 @@ pub fn open(parent: &gtk::ApplicationWindow, state: &Rc<RefCell<State>>) {
     let w2 = win.clone();
     close.connect_clicked(move |_| w2.close());
     outer.append(&close);
+    win.present();
+}
+
+/// Neustart anbieten („Neu starten“ / „Später“). Das neue FreeDeck startet, sobald dieses beendet ist.
+fn ask_restart(parent: &gtk::Window, text: &str) {
+    let win = gtk::Window::builder().transient_for(parent).modal(true).resizable(false).title("FreeDeck").build();
+    let b = gtk::Box::new(Orientation::Vertical, 14);
+    for m in [b.upcast_ref::<gtk::Widget>()] {
+        m.set_margin_start(20);
+        m.set_margin_end(20);
+        m.set_margin_top(18);
+        m.set_margin_bottom(16);
+    }
+    let l = label(text, &[]);
+    l.set_wrap(true);
+    l.set_max_width_chars(50);
+    b.append(&l);
+    let row = gtk::Box::new(Orientation::Horizontal, 8);
+    row.set_halign(gtk::Align::End);
+    let later = gtk::Button::with_label(&tr!("Later"));
+    let now = gtk::Button::with_label(&tr!("Restart"));
+    now.add_css_class("suggested-action");
+    row.append(&later);
+    row.append(&now);
+    b.append(&row);
+    win.set_child(Some(&b));
+    let w = win.clone();
+    later.connect_clicked(move |_| w.close());
+    now.connect_clicked(|_| {
+        if let Ok(exe) = std::env::current_exe() {
+            let pid = std::process::id();
+            // warten, bis dieser Prozess (und mit ihm der Dienst) beendet ist
+            let script = format!("while kill -0 {pid} 2>/dev/null; do sleep 0.2; done; exec \"$0\" gui");
+            let _ = std::process::Command::new("sh").arg("-c").arg(script).arg(exe).spawn();
+        }
+        if let Some(app) = gtk::gio::Application::default() {
+            app.quit();
+        }
+    });
     win.present();
 }

@@ -81,7 +81,8 @@ pub fn build(state: &Rc<RefCell<State>>) -> gtk::Box {
     search.add_css_class("search");
     search.set_hexpand(true);
     srow.append(&search);
-    let all = super::util::icon_button("view-list-symbolic", &tr!("Open or close all categories"));
+    let all = gtk::Button::from_icon_name("view-list-symbolic");
+    all.add_css_class("icon-btn");
     srow.append(&all);
     pad.append(&srow);
 

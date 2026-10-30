@@ -2,6 +2,7 @@
 //! Glocke, Plugin-Store und Einstellungen; in der Mitte die Tasten mit den Seitenzahlen darunter; unten die
 //! Eigenschaften der gewählten Taste; rechts über die ganze Höhe die Aktionen.
 
+mod bg_ui;
 mod editor;
 mod hotkey;
 mod icons;
