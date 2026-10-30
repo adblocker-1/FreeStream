@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::actions::{Action, Command, Env};
+use crate::actions::{Action, Command, Env, Outbox};
 use crate::device::{Device, Event};
 use crate::render::{self, Overlay};
 
@@ -37,6 +37,11 @@ pub struct Controller {
     pub brightness: u8,
     keys: HashMap<u8, Action>,
     pressed: HashMap<u8, Instant>,
+    /// Aktionen der Drehregler (Stream Deck +)
+    dials: HashMap<u8, Action>,
+    dial_pressed: HashMap<u8, Instant>,
+    /// Befehle aus Threads der Aktionen (Multi-Aktionen, Key Logic …)
+    outbox: Outbox,
     overlays: HashMap<u8, (Overlay, Instant)>,
     tiles: HashMap<(u8, u8), RgbaImage>,
     /// Bilder, die gerade auf dem Gerät stehen (für das Fenster und um Doppeltes zu sparen)
@@ -67,6 +72,9 @@ impl Controller {
             brightness,
             keys: HashMap::new(),
             pressed: HashMap::new(),
+            dials: HashMap::new(),
+            dial_pressed: HashMap::new(),
+            outbox: Outbox::default(),
             overlays: HashMap::new(),
             tiles: HashMap::new(),
             shown: HashMap::new(),
@@ -200,9 +208,18 @@ impl Controller {
         (self.page_index, self.page_count())
     }
 
+    /// Profil vom Mac (lindeck-meta.json „OSType“): Cmd und Strg in Tastenkürzeln tauschen.
+    fn swap_cmd_ctrl(&self) -> bool {
+        self.profile.as_ref()
+            .and_then(|p| p.meta.get("OSType").and_then(Value::as_str))
+            .map(|o| o.to_lowercase().starts_with("mac"))
+            .unwrap_or(false)
+    }
+
     /// Aktionen der Seite anlegen und alle Tasten zeichnen.
     pub fn show_current(&mut self) {
         self.keys.clear();
+        self.dials.clear();
         self.overlays.clear();
         self.tiles.clear();
         let cols = self.geometry.cols;
@@ -211,6 +228,11 @@ impl Controller {
                 if *c < cols && *r < self.geometry.rows {
                     self.keys.insert(r * cols + c, Action::new(data.clone(), pg.dir.clone()));
                 }
+            }
+            for (i, data) in &pg.encoders {
+                let mut a = Action::new(data.clone(), pg.dir.clone());
+                a.data.dial = true;
+                self.dials.insert(*i, a);
             }
             if let Some(bg) = pg.image_path(&pg.background) {
                 self.tiles = render::background_tiles(&bg, cols, self.geometry.rows, self.dev.key_size(), pg.background_dim);
@@ -231,7 +253,7 @@ impl Controller {
             None => tile.map(|t| render::fit(t, size.0, size.1)).unwrap_or_else(|| RgbaImage::from_pixel(size.0, size.1, image::Rgba([0, 0, 0, 255]))),
             Some(a) => {
                 let (page_index, page_count) = self.env();
-                let env = Env { cfg: &self.cfg.data, page_index, page_count };
+                let env = Env { cfg: &self.cfg.data, page_index, page_count, swap_cmd_ctrl: self.swap_cmd_ctrl(), outbox: self.outbox.for_key(Some(k)) };
                 let overlay = self.overlays.get(&k).map(|(o, _)| *o);
                 a.image(&env, size, tile, overlay)
             }
@@ -275,6 +297,22 @@ impl Controller {
                 let held = self.pressed.remove(&k).map(|t| t.elapsed().as_millis() as u64).unwrap_or(0);
                 self.with_action(k, |a, env| a.behavior.key_up(&a.data, env, held));
             }
+            Event::DialDown(d) => {
+                self.dial_pressed.insert(d, Instant::now());
+                self.with_dial(d, |a, env| a.behavior.dial_down(&a.data, env));
+            }
+            Event::DialUp(d) => {
+                let held = self.dial_pressed.remove(&d).map(|t| t.elapsed().as_millis() as u64).unwrap_or(0);
+                self.with_dial(d, |a, env| a.behavior.dial_up(&a.data, env, held));
+            }
+            Event::DialTurn(d, ticks) => self.with_dial(d, |a, env| a.behavior.dial_turn(&a.data, env, ticks)),
+            Event::Touch { x, long } => {
+                // Touchstreifen: gleich breite Felder über den Drehreglern
+                let n = self.geometry.dials.max(1) as u32;
+                let width = self.dev.lcd_size().map(|s| s.0).unwrap_or(800).max(1);
+                let d = ((x as u32 * n) / width).min(n - 1) as u8;
+                self.with_dial(d, |a, env| a.behavior.touch(&a.data, env, long));
+            }
             other => log::debug!("Eingabe {other:?} – noch nicht belegt"),
         }
     }
@@ -282,13 +320,27 @@ impl Controller {
     fn with_action(&mut self, k: u8, f: impl FnOnce(&mut Action, &Env) -> Command) {
         let (page_index, page_count) = self.env();
         let cfg = self.cfg.data.clone();
+        let swap_cmd_ctrl = self.swap_cmd_ctrl();
+        let outbox = self.outbox.for_key(Some(k));
         let Some(a) = self.keys.get_mut(&k) else { return };
-        let env = Env { cfg: &cfg, page_index, page_count };
+        let env = Env { cfg: &cfg, page_index, page_count, swap_cmd_ctrl, outbox };
         let cmd = f(a, &env);
-        self.run(k, cmd);
+        self.run(Some(k), cmd);
     }
 
-    fn run(&mut self, k: u8, cmd: Command) {
+    fn with_dial(&mut self, d: u8, f: impl FnOnce(&mut Action, &Env) -> Command) {
+        let (page_index, page_count) = self.env();
+        let cfg = self.cfg.data.clone();
+        let swap_cmd_ctrl = self.swap_cmd_ctrl();
+        let outbox = self.outbox.for_key(None);
+        let Some(a) = self.dials.get_mut(&d) else { return };
+        let env = Env { cfg: &cfg, page_index, page_count, swap_cmd_ctrl, outbox };
+        let cmd = f(a, &env);
+        self.run(None, cmd);
+    }
+
+    /// Befehl ausführen; `key` = Taste der Aktion (None = Drehregler: ohne Hinweis auf einer Taste).
+    fn run(&mut self, key: Option<u8>, cmd: Command) {
         match cmd {
             Command::None => {}
             Command::OpenFolder(u) => self.open_folder(&u),
@@ -311,13 +363,29 @@ impl Controller {
             Command::SetBrightness(v) => self.set_brightness(v),
             Command::ChangeBrightness(d) => self.set_brightness((self.brightness as i32 + d).clamp(0, 100) as u8),
             Command::Sleep => self.sleep(),
+            Command::Run(cmds) => {
+                for c in cmds {
+                    self.run(key, c);
+                }
+            }
+            Command::SetState(s) => {
+                if let Some(a) = key.and_then(|k| self.keys.get_mut(&k)) {
+                    a.data.state = s % a.data.state_count();
+                }
+                if let Some(k) = key {
+                    self.render_key(k);
+                    let _ = self.dev.flush();
+                }
+            }
             Command::Ok | Command::Alert => {
+                let Some(k) = key else { return };
                 let o = if cmd == Command::Ok { Overlay::Ok } else { Overlay::Alert };
                 self.overlays.insert(k, (o, Instant::now()));
                 self.render_key(k);
                 let _ = self.dev.flush();
             }
             Command::Redraw => {
+                let Some(k) = key else { return };
                 self.render_key(k);
                 let _ = self.dev.flush();
             }
@@ -336,6 +404,9 @@ impl Controller {
 
     /// Alle paar hundert Millisekunden: Hinweise ausblenden, Uhren nachziehen, Ruhezustand.
     pub fn tick(&mut self) {
+        for (key, cmd) in self.outbox.drain() {
+            self.run(key, cmd);
+        }
         let expired: Vec<u8> = self.overlays.iter().filter(|(_, (_, t))| t.elapsed() > Duration::from_millis(1200)).map(|(k, _)| *k).collect();
         let mut dirty = false;
         for k in expired {
@@ -349,6 +420,12 @@ impl Controller {
             if redraw {
                 self.render_key(k);
                 dirty = true;
+            }
+        }
+        // Drehregler: Zustand nachziehen (Countdown-Alarm …); den Touchstreifen zeichnet FreeDeck noch nicht
+        for a in self.dials.values_mut() {
+            if a.behavior.needs_tick() {
+                a.behavior.tick(&a.data);
             }
         }
         if dirty {
