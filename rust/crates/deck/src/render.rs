@@ -50,6 +50,35 @@ pub fn font(style: Style) -> Option<FontArc> {
     f
 }
 
+/// Schrift einer bestimmten Familie (Titelstil „FontFamily“) über fc-match, wie die Python-Version; sonst
+/// die Standardschrift.
+pub fn font_family(family: &str, style: Style) -> Option<FontArc> {
+    if family.trim().is_empty() {
+        return font(style);
+    }
+    static FAMILIES: OnceLock<Mutex<HashMap<(String, Style), Option<FontArc>>>> = OnceLock::new();
+    let cache = FAMILIES.get_or_init(Default::default);
+    let key = (family.to_string(), style);
+    if let Some(f) = cache.lock().unwrap().get(&key) {
+        return f.clone().or_else(|| font(style));
+    }
+    let st = match style {
+        Style::Regular => "regular",
+        Style::Bold => "bold",
+        Style::Italic => "italic",
+        Style::BoldItalic => "bold:italic",
+    };
+    let file = std::process::Command::new("fc-match")
+        .args(["-f", "%{file}", &format!("{family}:{st}")])
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|f| !f.is_empty());
+    let f = file.and_then(|f| std::fs::read(f).ok()).and_then(|b| FontArc::try_from_vec(b).ok());
+    cache.lock().unwrap().insert(key, f.clone());
+    f.or_else(|| font(style))
+}
+
 fn style_of(state: &Map<String, Value>) -> Style {
     let s = state.get("FontStyle").and_then(Value::as_str).unwrap_or("").to_lowercase();
     match (s.contains("bold"), s.contains("italic")) {
@@ -141,7 +170,8 @@ pub fn draw_title(img: &mut RgbaImage, title: &str, state: &Map<String, Value>, 
         return;
     }
     let style = style_of(state);
-    let Some(f) = font(style) else { return };
+    let family = state.get("FontFamily").and_then(Value::as_str).unwrap_or("");
+    let Some(f) = font_family(family, style) else { return };
     let (w, h) = (img.width() as f32, img.height() as f32);
     let mut size = (state.get("FontSize").and_then(Value::as_f64).unwrap_or(12.0) as f32 * 1.05 * scale).round();
     let lines: Vec<&str> = title.split('\n').collect();
