@@ -1010,6 +1010,48 @@ class MixerSceneAction(NativeAction):
         return fb
 
 
+class SoundboardAction(NativeAction):
+    """Klang aus dem Soundboard von FreeWave abspielen (nochmals drücken = stoppen); leuchtet, solange er spielt."""
+
+    @property
+    def ref(self):
+        return str(_first(self.settings, "sound", default=""))
+
+    def _sound(self):
+        from . import soundboard
+        from .config import _read_file
+        now = time.time()
+        if now - getattr(self, "_sb_at", 0) > 2.0:
+            try:
+                data = _read_file()
+            except (OSError, ValueError):
+                data = {}
+            self._sb = next((s for s in soundboard.sounds(data) if s["id"] == self.ref), None)
+            self._sb_at = now
+        return self._sb
+
+    def active(self):
+        from . import soundboard
+        return soundboard._DECK_PLAYER.is_playing(self.ref) if self.ref else False
+
+    def main_text(self):
+        s = self._sound()
+        return s["name"] if s else pgettext("key label", "Sound")
+
+    def preview_text(self):
+        return pgettext("key label", "Sound")
+
+    def status_text(self):
+        if self._sound() is None:
+            return _("not found")
+        return pgettext("state", "playing") if self.active() else ""
+
+    def key_down(self):
+        from . import soundboard
+        self._sb_at = 0
+        self.run(soundboard.play_from_config, self.ref, self.ctx.cfg if self.ctx else None)
+
+
 # ==========================================================================
 # Wave-Mikrofon
 # ==========================================================================
@@ -1152,6 +1194,8 @@ def lookup(uuid: str):
         return WaveMicAction
     if u == "com.lindeck.mixer.scene":
         return MixerSceneAction
+    if u == "com.lindeck.freewave.soundboard":
+        return SoundboardAction
     if u == "com.lindeck.mixer.mixselect":
         return MixSelectAction
     if u == "com.lindeck.mixer.pages":

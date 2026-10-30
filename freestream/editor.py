@@ -57,7 +57,7 @@ ACTION_GLYPH = {
     "obs.audio": "mic", "obs.replay": "undo", "obs.virtualcam": "camera", "obs.studiomode": "grid",
     "obs.transition": "arrow", "obs.screenshot": "image", "media.player": "music", "discord.voice": "chat",
     "mixer.channel": "fx", "mixer.output": "headphones", "mixer.mixselect": "wave", "mixer.pages": "grid",
-    "wavemic.control": "mic",
+    "wavemic.control": "mic", "freewave.soundboard": "sfx",
     "clock.clock": "clock", "clock.countdown": "hourglass", "clock.stopwatch": "stopwatch", "sysmon.cpu": "cpu",
     "sysmon.memory": "memory", "sysmon.temperature": "thermometer", "sysmon.network": "network",
     "sysmon.battery": "battery", "sysmon.disk": "disk",

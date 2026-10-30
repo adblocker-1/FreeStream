@@ -222,6 +222,12 @@ def _scene_choices():
     return [(s["id"], s.get("name") or s["id"]) for s in scenes] or [("", _("(no scenes saved in FreeWave yet)"))]
 
 
+def _sound_choices():
+    """Klänge aus dem Soundboard von FreeWave (für das Auswahlfeld im Editor)."""
+    from .soundboard import sound_choices
+    return sound_choices()
+
+
 CATALOG += [
     # ------------------------------------------------------------- OBS
     ActionType("com.lindeck.obs.scene", _("Scene"), "OBS Studio", {"scene": ""}, controllers=(KEY, DIAL),
@@ -311,6 +317,9 @@ CATALOG += [
     ActionType("com.lindeck.mixer.scene", _("Mixer Scene"), "FreeWave", {"scene": ""}, states=2,
                fields=[Field("choice", "scene", _("Scene"), _scene_choices)],
                description=_("Applies a mixer scene saved in FreeWave and shows when it is active")),
+    ActionType("com.lindeck.freewave.soundboard", _("Soundboard: Play Sound"), "FreeWave", {"sound": ""}, states=2,
+               fields=[Field("choice", "sound", _("Sound"), _sound_choices)],
+               description=_("Plays a sound from the FreeWave soundboard in the chosen mixes (press again to stop)")),
     # -------------------------------------------------------- Wave-Mikro
     ActionType("com.lindeck.wavemic.control", _("Wave Microphone"), "FreeWave", {"function": "mute", "step": 5},
                controllers=(KEY, DIAL),
