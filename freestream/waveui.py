@@ -23,7 +23,7 @@ import tkinter as tk
 
 from PIL import Image, ImageDraw, ImageTk
 
-from . import ducking, levels, parts, shortcuts, system, theme, wavemic
+from . import ducking, levels, parts, shortcuts, soundboard, system, theme, wavemic
 from .dialogkit import ScrollArea
 from .i18n import _, ngettext
 from .parts import has_freedeck
@@ -688,6 +688,7 @@ class WaveWindow:
             return
         self.quitting = True
         self.levels.stop()
+        self.soundview.stop_all()
         if self.tray:
             self.tray.stop()
         self.root.quit()
@@ -713,7 +714,13 @@ class WaveWindow:
         self.view_mic = tk.Frame(self.content, bg=COL["bg"])
         self.view_fx = tk.Frame(self.content, bg=COL["bg"])
         self.view_apps = tk.Frame(self.content, bg=COL["bg"])
+        self.view_flow = tk.Frame(self.content, bg=COL["bg"])
+        self.view_sound = tk.Frame(self.content, bg=COL["bg"])
         self._build_mixer()
+        from .flowview import FlowView
+        from .soundview import SoundboardView
+        self.flow = FlowView(self.view_flow, self.root, on_select=lambda _nid: self._update_header())
+        self.soundview = SoundboardView(self.view_sound, self)
         self._build_mic()
         self._build_fx_view()
         self._build_apps_view()
@@ -734,7 +741,8 @@ class WaveWindow:
         self.mic_card.pack(fill="x", pady=(0, 6))
         tk.Frame(sb.top, bg=COL["border"], height=1).pack(fill="x", padx=6, pady=(8, 4))
         self.nav = {}
-        for key, text, icon in (("mixer", _("Mixer"), "sliders"), ("mic", _("Microphone"), "mic"),
+        for key, text, icon in (("mixer", _("Mixer"), "sliders"), ("flow", _("Audio Flow"), "flow"),
+                                ("soundboard", _("Soundboard"), "waveform"), ("mic", _("Microphone"), "mic"),
                                 ("effects", _("Effects"), "spark"), ("apps", _("Apps"), "grid")):
             item = NavItem(sb.top, text, icon, "", command=lambda k=key: self.show_view(k))
             item.icons = _NavIcons(item)
@@ -818,6 +826,7 @@ class WaveWindow:
         self.deck_btn = Button(head, _("Export to FreeDeck"), "export", command=self.open_deck_export)
         self.setup_btn = Button(head, _("Set up mixer"), "wave", kind="primary",
                                 command=lambda: self._mixer_enable(True))
+        self.clear_btn = Button(head, _("Clear selection"), "close", command=lambda: self.flow.select(None))
         self.head, self.head_left = head, left
 
     def _update_header(self):
@@ -837,6 +846,14 @@ class WaveWindow:
         elif self.view == "mic":
             self.title_var.set(_("Microphone"))
             self.sub_var.set(self.mic_name.get())
+        elif self.view == "flow":
+            self.title_var.set(_("Audio Flow"))
+            self.sub_var.set(_("Click any element to follow its signal path"))
+            if self.flow.selected:
+                shown = ("clear",)
+        elif self.view == "soundboard":
+            self.title_var.set(_("Soundboard"))
+            self.sub_var.set(_("Click a sound to play it – click again to stop. Right-click to edit it."))
         elif self.view == "effects":
             self.title_var.set(_("Effects"))
             self.sub_var.set(_("Effect chains per channel – changes are live."))
@@ -857,8 +874,8 @@ class WaveWindow:
         widgets = {"add": (self.add_btn, {}), "deck": (self.deck_btn, {"padx": (0, 8)}),
                    "listen": (self.listen_btn, {}),
                    "scene": (self.scene_btn, {"padx": (0, 8)}),
-                   "setup": (self.setup_btn, {})}
-        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.setup_btn, self.listen_btn):
+                   "setup": (self.setup_btn, {}), "clear": (self.clear_btn, {})}
+        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.setup_btn, self.listen_btn, self.clear_btn):
             w.pack_forget()
         for key in self._header_shown:
             w, kw = widgets[key]
@@ -869,11 +886,19 @@ class WaveWindow:
         for k, item in self.nav.items():
             item.set(active=k == key)
         for k, f in (("mixer", self.view_mixer), ("mic", self.view_mic), ("effects", self.view_fx),
-                     ("apps", self.view_apps)):
+                     ("apps", self.view_apps), ("flow", self.view_flow), ("soundboard", self.view_sound)):
             if k == key:
                 f.pack(fill="both", expand=True)
             else:
                 f.pack_forget()
+        if key == "flow":
+            self.flow.show()
+        else:
+            self.flow.hide()
+        if key == "soundboard":
+            self.soundview.show()
+        else:
+            self.soundview.hide()
         self._update_header()
 
     # -------------------------------------------------------------- Mixer
@@ -2340,6 +2365,15 @@ class WaveWindow:
             st["outputs"] = [(o["name"], o.get("description") or o["name"]) for o in self.mixer.outputs()]
             st["monitor_output"] = self.mixer._state().get("monitor_output", "")
             st["streams"] = self.mixer.streams()
+            # für Audio Flow und Soundboard: Lautstärken der Sinks (Mixe, Geräte), Namen der Quellen,
+            # Ziele der Mixe und Programmsymbole – alles aus derselben pactl-Abfrage
+            st["sink_levels"] = {b.get("name"): (int(b.get("volume", 100)), bool(b.get("mute")))
+                                 for b in system._pactl_blocks("sinks") if b.get("name")}
+            st["source_names"] = {b.get("name"): b.get("description") or b.get("name")
+                                  for b in system._pactl_blocks("sources") if b.get("name")}
+            st["mix_sinks"] = {m["id"]: self.mixer.mix_sink(m) for m in st["mixes"]}
+            st["mix_targets"] = soundboard.mix_targets(self.mixer)
+            st["app_icons"] = self._app_icons(st["streams"])
             if any(c.get("kind") == "input" for c in chans):
                 try:
                     st["inputs"] = dict(self.mixer.inputs())
@@ -2378,6 +2412,29 @@ class WaveWindow:
         except Exception:  # noqa: BLE001
             st["noise"] = {}
         return st
+
+    def _app_icons(self, streams):
+        """{Programm-Schlüssel: Pfad zum Symbol} für die spielenden Programme (im Arbeits-Thread, gemerkt)."""
+        cache = self.__dict__.setdefault("_icon_paths", {})
+        todo = [s for s in streams if (s.get("key") or "") not in cache]
+        if todo:
+            from . import desktop
+            if getattr(self, "_app_entries", None) is None:
+                try:
+                    entries = desktop.app_entries()
+                except Exception:  # noqa: BLE001
+                    entries = []
+                for e in entries:
+                    e["icon_path"] = desktop.app_icon(e["icon"])
+                self._app_entries = entries
+            for s in todo:
+                key, app = (s.get("key") or "").lower(), (s.get("app") or "").lower()
+                hit = next((e for e in self._app_entries if e.get("icon_path") and key and (
+                    (e.get("key") or "").lower() == key or (e.get("cls") or "").lower() == key)), None) or \
+                    next((e for e in self._app_entries if e.get("icon_path") and app
+                          and (e.get("name") or "").lower() == app), None)
+                cache[s.get("key") or ""] = str(hit["icon_path"]) if hit else None
+        return {s.get("key") or "": cache.get(s.get("key") or "") for s in streams}
 
     def _refresh_due(self):
         """Neu einlesen, wenn PipeWire eine Änderung meldet (gebündelt), sonst nur alle REFRESH_IDLE_MS –
@@ -2660,6 +2717,8 @@ class WaveWindow:
             if not self.no_hw.winfo_manager():
                 self.no_hw.pack(anchor="nw", fill="x")
         self._apply_noise(st.get("noise") or {})
+        self.flow.update(st)
+        self.soundview.update(st)
         self._update_header()
 
     def _build_fx_placeholder(self):

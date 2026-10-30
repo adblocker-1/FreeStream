@@ -21,7 +21,8 @@ Available in **English, German, Spanish, French and Portuguese (Brazil)**.
   [plugins and connections](#plugins-and-connections) · [virtual deck](#virtual-deck) · [settings](#freedeck-settings) ·
   [troubleshooting](#freedeck-troubleshooting)
 - [FreeWave](#freewave): [first start](#first-start-1) · [the mixer](#the-mixer) ·
-  [apps and channels](#apps-and-channels) · [more features](#more-features) ·
+  [apps and channels](#apps-and-channels) · [audio flow and soundboard](#audio-flow-and-soundboard) ·
+  [more features](#more-features) ·
   [FreeWave on the deck](#freewave-on-the-deck) · [troubleshooting](#freewave-troubleshooting)
 - [For both programs](#for-both-programs): settings file, help, legal
 
@@ -281,6 +282,26 @@ from the list can be added by its name.
 
 ![Apps tab of a channel: apps assigned in advance](docs/images/freewave-channel-apps.png)
 
+## Audio Flow and Soundboard
+
+**Audio Flow** shows the whole signal path as a graph: inputs (playing apps and
+hardware inputs) → channels → mixes → output devices. Cyan lines go from an input
+to its channel, magenta from a channel to a mix, green from a mix to a device; dashed
+grey means muted. **Click any element** to follow its path – everything connected to
+it stays lit, the rest is dimmed; **Clear selection** shows everything again.
+
+![Audio Flow: inputs, channels, mixes and outputs with their connections](docs/images/freewave-audioflow.png)
+
+The **Soundboard** plays short sounds (WAV, MP3, OGG, FLAC) straight into your mixes.
+**Add sound** copies the file to `~/.local/share/freestream/sounds/`; click a pad to
+play it, click again to stop. The panel on the right sets name, file, color, volume
+and **loop**. Below the pads you choose **Play in** (one mix or all mixes – e.g. the
+Stream Mix, so your audience hears it), **Monitor in** (hear it yourself on the
+Personal Mix or any output) and the overall volume. With FreeDeck, the key action
+**Soundboard: Play Sound** plays a sound from this list.
+
+![Soundboard with sound pads and the settings of the selected sound](docs/images/freewave-soundboard.png)
+
 ## More features
 
 | Feature | |
@@ -315,8 +336,8 @@ it up to date when you add or delete channels:
 
 ![FreeWave keys on a deck: mix choice, channel tiles and faders with live level](docs/images/freewave-deck.png)
 
-The actions **Mixer Channel**, **Mixer Scene** and **Wave Microphone** work even
-when the FreeWave window is closed.
+The actions **Mixer Channel**, **Mixer Scene**, **Wave Microphone** and **Soundboard: Play Sound**
+work even when the FreeWave window is closed.
 
 <a id="freewave-troubleshooting"></a>
 ## Troubleshooting
