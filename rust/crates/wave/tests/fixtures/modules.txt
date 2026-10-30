@@ -1,0 +1,415 @@
+Module #1
+	Name: libpipewire-module-rt
+	Argument: {
+            nice.level    = -11
+            rt.prio       = 88
+            #rt.time.soft = -1
+            #rt.time.hard = -1
+            #uclamp.min = 0
+            #uclamp.max = 1024
+        }
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-rt"
+		object.id = "1"
+		object.serial = "1"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Use realtime thread scheduling, falling back to RTKit"
+		module.usage = "( nice.level=<priority: default 20(don't change)> ) ( rt.prio=<priority: default 83> ) ( rt.time.soft=<in usec: default -1> ) ( rt.time.hard=<in usec: default -1> ) ( rlimits.enabled=<default true> ) ( rtportal.enabled=<default true> ) ( rtkit.enabled=<default true> ) ( uclamp.min=<default 0> ) ( uclamp.max=<default 1024> )"
+		module.version = "1.0.5"
+		nice.level = "-11"
+		rt.prio = "88"
+
+Module #2
+	Name: libpipewire-module-protocol-native
+	Argument: {
+            # List of server Unix sockets, and optionally permissions
+            #sockets = [ { name = "pipewire-0" }, { name = "pipewire-0-manager" } ]
+        }
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-protocol-native"
+		object.id = "2"
+		object.serial = "2"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Native protocol using unix sockets"
+		module.version = "1.0.5"
+
+Module #3
+	Name: libpipewire-module-profiler
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-profiler"
+		object.id = "3"
+		object.serial = "3"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Generate Profiling data"
+		module.version = "1.0.5"
+
+Module #5
+	Name: libpipewire-module-metadata
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-metadata"
+		object.id = "5"
+		object.serial = "5"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Allow clients to create metadata store"
+		module.version = "1.0.5"
+
+Module #7
+	Name: libpipewire-module-spa-device-factory
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-spa-device-factory"
+		object.id = "7"
+		object.serial = "7"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Provide a factory to make SPA devices"
+		module.version = "1.0.5"
+
+Module #9
+	Name: libpipewire-module-spa-node-factory
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-spa-node-factory"
+		object.id = "9"
+		object.serial = "9"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Provide a factory to make SPA nodes"
+		module.version = "1.0.5"
+
+Module #11
+	Name: libpipewire-module-client-node
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-client-node"
+		object.id = "11"
+		object.serial = "11"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Allow clients to create and control remote nodes"
+		module.version = "1.0.5"
+
+Module #13
+	Name: libpipewire-module-client-device
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-client-device"
+		object.id = "13"
+		object.serial = "13"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Allow clients to create and control remote devices"
+		module.version = "1.0.5"
+
+Module #16
+	Name: libpipewire-module-access
+	Argument: {
+            # Socket-specific access permissions
+            #access.socket = { pipewire-0 = "default", pipewire-0-manager = "unrestricted" }
+
+            # Deprecated legacy mode (not socket-based),
+            # for now enabled by default if access.socket is not specified
+            #access.legacy = true
+        }
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-access"
+		object.id = "15"
+		object.serial = "16"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Perform access check"
+		module.usage = "( access.socket={ <socket>=<access>, ... } ) ( access.legacy=true ) "
+		module.version = "1.0.5"
+
+Module #17
+	Name: libpipewire-module-adapter
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-adapter"
+		object.id = "16"
+		object.serial = "17"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Manage adapter nodes"
+		module.version = "1.0.5"
+
+Module #19
+	Name: libpipewire-module-link-factory
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-link-factory"
+		object.id = "18"
+		object.serial = "19"
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "Allow clients to create links"
+		module.usage = "( allow.link.passive=<bool, default false> ) "
+		module.version = "1.0.5"
+
+Module #21
+	Name: libpipewire-module-session-manager
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.name = "libpipewire-module-session-manager"
+		object.id = "20"
+		object.serial = "21"
+		module.author = "George Kiagiadakis <george.kiagiadakis@collabora.com>"
+		module.description = "Implements objects for session management"
+		module.version = "1.0.5"
+
+Module #536870912
+	Name: module-always-sink
+	Argument: 
+	Usage counter: n/a
+	Properties:
+		module.author = "Pauli Virtanen <pav@iki.fi>"
+		module.description = "Always keeps at least one sink loaded even if it's a null one"
+		module.usage = "sink_name=<name of sink>"
+		module.version = "1.0.5"
+
+Module #536870913
+	Name: module-null-sink
+	Argument: media.class=Audio/Source/Virtual sink_name=alsa_input.usb-Elgato_Wave_3 sink_properties=device.description='Wave:3 Mono' device.vendor.name=Elgato
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870914
+	Name: module-null-sink
+	Argument: sink_name=alsa_output.speakers sink_properties=device.description=Lautsprecher
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870915
+	Name: module-null-sink
+	Argument: sink_name=alsa_output.usb-headphones sink_properties=device.description='USB Kopfhörer'
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870916
+	Name: module-null-sink
+	Argument: sink_name=linewave_streammix sink_properties="device.description='FreeWave Stream-Mix' node.description='FreeWave Stream-Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870917
+	Name: module-null-sink
+	Argument: sink_name=linewave_system sink_properties="device.description='FreeWave System' node.description='FreeWave System' monitor.channel-volumes='true'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870918
+	Name: module-loopback
+	Argument: source=linewave_system.monitor sink=alsa_output.usb-headphones latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_system_monitor' media.name='FreeWave System → Persönlicher Mix' node.description='FreeWave System → Persönlicher Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870919
+	Name: module-loopback
+	Argument: source=linewave_system.monitor sink=linewave_streammix latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_system_stream' media.name='FreeWave System → Stream-Mix' node.description='FreeWave System → Stream-Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870920
+	Name: module-null-sink
+	Argument: sink_name=linewave_music sink_properties="device.description='FreeWave Musik' node.description='FreeWave Musik' monitor.channel-volumes='true'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870921
+	Name: module-loopback
+	Argument: source=linewave_music.monitor sink=alsa_output.usb-headphones latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_music_monitor' media.name='FreeWave Musik → Persönlicher Mix' node.description='FreeWave Musik → Persönlicher Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870922
+	Name: module-loopback
+	Argument: source=linewave_music.monitor sink=linewave_streammix latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_music_stream' media.name='FreeWave Musik → Stream-Mix' node.description='FreeWave Musik → Stream-Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870923
+	Name: module-null-sink
+	Argument: sink_name=linewave_browser sink_properties="device.description='FreeWave Browser' node.description='FreeWave Browser' monitor.channel-volumes='true'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870924
+	Name: module-loopback
+	Argument: source=linewave_browser.monitor sink=alsa_output.usb-headphones latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_browser_monitor' media.name='FreeWave Browser → Persönlicher Mix' node.description='FreeWave Browser → Persönlicher Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870925
+	Name: module-loopback
+	Argument: source=linewave_browser.monitor sink=linewave_streammix latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_browser_stream' media.name='FreeWave Browser → Stream-Mix' node.description='FreeWave Browser → Stream-Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870926
+	Name: module-null-sink
+	Argument: sink_name=linewave_voice sink_properties="device.description='FreeWave Voice Chat' node.description='FreeWave Voice Chat' monitor.channel-volumes='true'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870927
+	Name: module-loopback
+	Argument: source=linewave_voice.monitor sink=alsa_output.usb-headphones latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_voice_monitor' media.name='FreeWave Voice Chat → Persönlicher Mix' node.description='FreeWave Voice Chat → Persönlicher Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870928
+	Name: module-loopback
+	Argument: source=linewave_voice.monitor sink=linewave_streammix latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_voice_stream' media.name='FreeWave Voice Chat → Stream-Mix' node.description='FreeWave Voice Chat → Stream-Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870929
+	Name: module-null-sink
+	Argument: sink_name=linewave_game sink_properties="device.description='FreeWave Spiel' node.description='FreeWave Spiel' monitor.channel-volumes='true'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870930
+	Name: module-loopback
+	Argument: source=linewave_game.monitor sink=alsa_output.usb-headphones latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_game_monitor' media.name='FreeWave Spiel → Persönlicher Mix' node.description='FreeWave Spiel → Persönlicher Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870931
+	Name: module-loopback
+	Argument: source=linewave_game.monitor sink=linewave_streammix latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_game_stream' media.name='FreeWave Spiel → Stream-Mix' node.description='FreeWave Spiel → Stream-Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870932
+	Name: module-null-sink
+	Argument: sink_name=linewave_sfx sink_properties="device.description='FreeWave Effekte' node.description='FreeWave Effekte' monitor.channel-volumes='true'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Wim Taymans <wim.taymans@gmail.com>"
+		module.description = "A NULL sink"
+		module.usage = "sink_name=<name of sink> sink_properties=<properties for the sink> format=<sample format> rate=<sample rate> channels=<number of channels> channel_map=<channel map>"
+		module.version = "1.0.5"
+
+Module #536870933
+	Name: module-loopback
+	Argument: source=linewave_sfx.monitor sink=alsa_output.usb-headphones latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_sfx_monitor' media.name='FreeWave Effekte → Persönlicher Mix' node.description='FreeWave Effekte → Persönlicher Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870934
+	Name: module-loopback
+	Argument: source=linewave_sfx.monitor sink=linewave_streammix latency_msec=20 source_dont_move=true sink_input_properties="linewave.loop='linewave_sfx_stream' media.name='FreeWave Effekte → Stream-Mix' node.description='FreeWave Effekte → Stream-Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870935
+	Name: module-loopback
+	Argument: source=alsa_input.usb-Elgato_Wave_3 sink=alsa_output.usb-headphones latency_msec=20 sink_input_properties="linewave.loop='linewave_mic_monitor' media.name='FreeWave Mikrofon → Persönlicher Mix' node.description='FreeWave Mikrofon → Persönlicher Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"
+
+Module #536870936
+	Name: module-loopback
+	Argument: source=alsa_input.usb-Elgato_Wave_3 sink=linewave_streammix latency_msec=20 sink_input_properties="linewave.loop='linewave_mic_stream' media.name='FreeWave Mikrofon → Stream-Mix' node.description='FreeWave Mikrofon → Stream-Mix'"
+	Usage counter: n/a
+	Properties:
+		module.author = "Arun Raghavan <arun@asymptotic.io>"
+		module.description = "Loopback from source to sink"
+		module.usage = "source=<source to connect to> sink=<sink to connect to> latency_msec=<latency in ms> rate=<sample rate> channels=<number of channels> channel_map=<channel map> sink_input_properties=<proplist> source_output_properties=<proplist> source_dont_move=<boolean> sink_dont_move=<boolean> remix=<remix channels?> "
+		module.version = "1.0.5"

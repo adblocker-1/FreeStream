@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/deck", "apps/freedeck"]
+members = ["crates/core", "crates/deck", "crates/wave", "apps/freedeck"]
 
 [workspace.package]
 version = "0.39.0"
@@ -11,6 +11,7 @@ rust-version = "1.75"
 [workspace.dependencies]
 freestream-core = { path = "crates/core" }
 freestream-deck = { path = "crates/deck" }
+freestream-wave = { path = "crates/wave" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 anyhow = "1"
@@ -38,6 +39,8 @@ ureq = { version = "3", default-features = false, features = ["rustls"] }
 rustls-native-certs = "0.8"
 sha2 = "0.10"
 base64 = "0.22"
+indexmap = "2"
+regex = "1"
 
 [profile.release]
 lto = "thin"

@@ -620,6 +620,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "freestream-wave"
+version = "0.39.0"
+dependencies = [
+ "freestream-core",
+ "indexmap",
+ "libc",
+ "log",
+ "regex",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
