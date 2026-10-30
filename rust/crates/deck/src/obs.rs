@@ -579,6 +579,23 @@ pub fn current() -> Option<Arc<Client>> {
     CLIENT.lock().unwrap().clone()
 }
 
+/// „Verbindung testen“ (Einstellungen): mit OBS verbinden und gleich wieder trennen, ohne den gemeinsamen
+/// Client anzufassen. Blockiert bis `timeout`. Fehlertext bei Misserfolg.
+pub fn test_connection(host: &str, port: u16, password: &str, timeout: Duration) -> Result<(), String> {
+    let host = Some(host.trim()).filter(|h| !h.is_empty()).unwrap_or("127.0.0.1").to_string();
+    let c = Client::start(Settings { host, port, password: password.to_string(), in_keyring: false });
+    let ok = c.wait_connected(timeout);
+    let err = c.error();
+    c.close();
+    if ok {
+        Ok(())
+    } else if err.is_empty() {
+        Err(tr!("OBS is not answering"))
+    } else {
+        Err(err)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -9,6 +9,7 @@ pub mod editdoc;
 pub mod i18n;
 pub mod models;
 pub mod paths;
+pub mod plugins;
 pub mod profiles;
 pub mod secrets;
 

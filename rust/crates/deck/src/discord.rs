@@ -140,7 +140,7 @@ impl Client {
     pub fn new(settings: Settings) -> Arc<Client> {
         Arc::new(Client {
             settings,
-            token_file: paths::state_dir().join("discord-token.json"),
+            token_file: token_file(),
             sock: Mutex::new(None),
             generation: AtomicU64::new(0),
             ready: AtomicBool::new(false),
@@ -437,6 +437,24 @@ pub fn client(cfg: &Map<String, Value>) -> Arc<Client> {
 
 pub fn current() -> Option<Arc<Client>> {
     CLIENT.lock().unwrap().clone()
+}
+
+/// Datei mit dem gespeicherten Discord-Zugang.
+pub fn token_file() -> PathBuf {
+    paths::state_dir().join("discord-token.json")
+}
+
+/// Ist ein Discord-Zugang gespeichert (angemeldet)?
+pub fn logged_in() -> bool {
+    token_file().is_file()
+}
+
+/// Abmelden (Einstellungen › Verbindungen): Verbindung trennen, gespeicherten Zugang löschen.
+pub fn logout() {
+    if let Some(c) = current() {
+        c.disconnect();
+    }
+    let _ = std::fs::remove_file(token_file());
 }
 
 #[cfg(test)]
