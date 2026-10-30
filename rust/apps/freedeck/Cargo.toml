@@ -13,3 +13,6 @@ log.workspace = true
 env_logger.workspace = true
 serde_json.workspace = true
 ctrlc = { version = "3", features = ["termination"] }
+gtk4.workspace = true
+image.workspace = true
+elgato-streamdeck.workspace = true

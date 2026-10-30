@@ -26,7 +26,7 @@ data-encoding = "2"
 tempfile = "3"
 elgato-streamdeck = "0.14"
 hidapi = { version = "2", default-features = false, features = ["linux-static-hidraw"] }
-gtk4 = "0.11"
+gtk4 = { version = "0.11", features = ["v4_6"] }  # Ubuntu 22.04: GTK 4.6, Debian 12: 4.8
 
 [profile.release]
 lto = "thin"

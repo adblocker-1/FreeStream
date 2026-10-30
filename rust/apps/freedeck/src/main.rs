@@ -14,6 +14,8 @@ use freestream_deck::device::MemoryDeck;
 use freestream_deck::engine::Controller;
 use std::sync::{Arc, Mutex};
 
+mod gui;
+
 fn usage() {
     println!("FreeDeck {}\n", freestream_core::VERSION);
     println!("  freedeck run                     {}", tr!("Run the service (keys on the device, no window)"));
@@ -27,7 +29,20 @@ fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
-        None | Some("run") | Some("--hidden") => {
+        None | Some("gui") => {
+            // Fenster mit dem Dienst im selben Prozess (Geräte laufen in eigenen Threads)
+            let daemon = if already_running().is_some() {
+                None
+            } else {
+                let d = Arc::new(Mutex::new(Daemon::new()));
+                let d2 = d.clone();
+                std::thread::spawn(move || service_loop(d2));
+                Some(d)
+            };
+            gui::run(daemon);
+            Ok(())
+        }
+        Some("run") | Some("--hidden") => {
             if let Some(pid) = already_running() {
                 println!("{}", tr!("FreeDeck is already running (pid {pid})", pid = pid));
                 return Ok(());
@@ -89,6 +104,20 @@ fn preview(args: &[String]) -> anyhow::Result<()> {
     c.preview(12).save(&out)?;
     println!("{} – {} → {out}", p.name, model_name(&model));
     Ok(())
+}
+
+/// Geräte suchen und Profile neu lesen, solange das Fenster offen ist.
+fn service_loop(d: Arc<Mutex<Daemon>>) {
+    let Ok(mut hid) = elgato_streamdeck::new_hidapi() else { return };
+    freestream_deck::daemon::write_pid_file();
+    loop {
+        {
+            let mut d = d.lock().unwrap();
+            d.scan(&mut hid);
+            d.reload_if_changed();
+        }
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
 }
 
 /// Strg+C / SIGTERM beenden den Dienst sauber (Tasten bleiben nicht halb gezeichnet).
