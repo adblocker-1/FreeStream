@@ -46,6 +46,8 @@ pub struct ChannelView {
     pub effects_running: bool,
     /// Programme, die gerade in diesem Kanal spielen
     pub streams: Vec<Stream>,
+    /// Eingangsgerät bei Eingangskanälen und dem Mikrofon (Name, Beschreibung; leer: keins)
+    pub input: Device,
 }
 
 /// Ein Mix für die Anzeige.
@@ -55,6 +57,10 @@ pub struct MixView {
     /// tatsächliche Ausgabegeräte
     pub devices: Vec<String>,
     pub can_listen: bool,
+    /// Lautstärke des Mixes (Mix-Sink, bei direktem Mix das Gerät; None: unbekannt)
+    pub volume: Option<Level>,
+    /// Lautstärke/stumm je Ausgabegerät des Mixes
+    pub device_levels: IndexMap<String, Level>,
 }
 
 /// Auto-Ducking für die Anzeige.
@@ -112,6 +118,7 @@ pub fn build_snapshot(host: &WaveHost, version: u64) -> Snapshot {
         let st = m.state();
         let mixes = m.mixes();
         let fx = m.fx();
+        let sinks = m.sink_levels();
         let channels = m.all_channels().into_iter().map(|c| {
             let member: Vec<String> = mixes.iter().filter(|x| !x.exclude.contains(&c.id)).map(|x| x.id.clone()).collect();
             ChannelView {
@@ -123,13 +130,21 @@ pub fn build_snapshot(host: &WaveHost, version: u64) -> Snapshot {
                 effects_active: fx.active(&c.id),
                 effects_running: fx.running(&c.id),
                 streams: streams.iter().filter(|s| s.channel.as_deref() == Some(c.id.as_str())).cloned().collect(),
+                input: m.channel_input(&c, &st),
                 channel: c,
             }
         }).collect();
-        let mix_views = mixes.into_iter().map(|x| MixView {
-            devices: m.mix_devices(&x, Some(&st)),
-            can_listen: m.can_listen(&x.id),
-            mix: x,
+        let mix_views = mixes.into_iter().map(|x| {
+            let devices = m.mix_devices(&x, Some(&st));
+            let volume = sinks.get(&Mixer::mix_sink(&x))
+                .or_else(|| if devices.len() == 1 && !x.virtual_ { sinks.get(&devices[0]) } else { None }).copied();
+            MixView {
+                device_levels: devices.iter().filter_map(|d| sinks.get(d).map(|l| (d.clone(), *l))).collect(),
+                volume,
+                devices,
+                can_listen: m.can_listen(&x.id),
+                mix: x,
+            }
         }).collect();
         let conf = m.conf();
         let mic = host.mic.lock().map(|mut w| w.status()).unwrap_or_default();

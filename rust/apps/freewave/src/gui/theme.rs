@@ -97,11 +97,13 @@ pub fn fill_rounded(cr: &gtk::cairo::Context, x: f64, y: f64, w: f64, h: f64, r:
 }
 
 // ------------------------------------------------------------------ Bilder
-/// Symbol als RGBA-Bild (theme.glyph); „sliders“ (Mixer/Effekte) und „link_off“ zeichnet FreeWave selbst.
+/// Symbol als RGBA-Bild (theme.glyph); „sliders“ (Mixer/Effekte), „flow“ (Audio Flow) und „link_off“
+/// zeichnet FreeWave selbst.
 pub fn glyph_image(name: &str, size: u32, color: &str) -> RgbaImage {
     let c = rgb(color);
     match name {
         "sliders" => sliders_image(size, c),
+        "flow" => flow_image(size, c),
         "link_off" => freestream_deck::iconlib::glyph("link", size, [c[0], c[1], c[2], 255]),
         _ => freestream_deck::iconlib::glyph(name, size, [c[0], c[1], c[2], 255]),
     }
@@ -125,6 +127,37 @@ fn sliders_image(size: u32, c: [u8; 3]) -> RgbaImage {
         let xx = s * x;
         rect(xx - lw / 2.0, s * 0.1, xx + lw / 2.0, s * 0.9);
         rect(xx - s * 0.12, s * y - s * 0.07, xx + s * 0.12, s * y + s * 0.07);
+    }
+    image::imageops::resize(&im, size, size, image::imageops::FilterType::Triangle)
+}
+
+/// Symbol „Signalweg“ (Audio Flow): ein Punkt links, zwei rechts, verbunden durch Linien.
+fn flow_image(size: u32, c: [u8; 3]) -> RgbaImage {
+    let k = 4u32;
+    let s = (size * k) as f64;
+    let mut im = RgbaImage::new(size * k, size * k);
+    let col = Rgba([c[0], c[1], c[2], 255]);
+    let lw = (s * 0.085).max(1.0);
+    let r = s * 0.13;
+    let a = (s * 0.2, s * 0.5);
+    let ends = [(s * 0.8, s * 0.22), (s * 0.8, s * 0.78)];
+    // Abstand eines Punkts zur Strecke p–q
+    let seg = |px: f64, py: f64, p: (f64, f64), q: (f64, f64)| {
+        let (dx, dy) = (q.0 - p.0, q.1 - p.1);
+        let t = (((px - p.0) * dx + (py - p.1) * dy) / (dx * dx + dy * dy)).clamp(0.0, 1.0);
+        ((px - p.0 - t * dx).powi(2) + (py - p.1 - t * dy).powi(2)).sqrt()
+    };
+    for y in 0..im.height() {
+        for x in 0..im.width() {
+            let (fx, fy) = (x as f64 + 0.5, y as f64 + 0.5);
+            let ring = |p: (f64, f64)| ((fx - p.0).powi(2) + (fy - p.1).powi(2)).sqrt();
+            let on_ring = [a, ends[0], ends[1]].iter().any(|&p| (ring(p) - r).abs() <= lw / 2.0);
+            // Linien zwischen den Kreisen (außerhalb der Kreise)
+            let on_line = ends.iter().any(|&e| seg(fx, fy, a, e) <= lw / 2.0 && ring(a) > r && ring(e) > r);
+            if on_ring || on_line {
+                im.put_pixel(x, y, col);
+            }
+        }
     }
     image::imageops::resize(&im, size, size, image::imageops::FilterType::Triangle)
 }
@@ -363,6 +396,23 @@ dropdown > button { background-image: none; background-color: #2c2c2c; border: 1
 .step-dot.todo { background-color: #323232; box-shadow: inset 0 0 0 1px #3a3a3a; color: #a8a8a8; font-weight: normal; }
 .step-line { min-height: 1px; background-color: #3a3a3a; }
 .step-line.done { min-height: 2px; background-color: #3d9bff; }
+.flow-node { background-image: none; background-color: #323232; border: none; border-radius: 6px; padding: 0 10px; box-shadow: none; color: #f2f2f2; transition: opacity 120ms; }
+.flow-node:hover { background-color: #3a3a3a; }
+.flow-node.sel { background-color: #3c3c3c; box-shadow: inset 0 0 0 1px #555555; }
+.flow-node.dim { opacity: 0.32; }
+.flow-node:focus-visible { outline: none; }
+.flow-title { font-weight: bold; font-size: 10pt; }
+.flow-sub { color: #a8a8a8; font-size: 8pt; }
+.flow-chip { background-color: #323232; border-radius: 4px; padding: 4px 10px; color: #c8c8c8; font-size: 8pt; font-weight: bold; }
+.legend { color: #a8a8a8; font-size: 8pt; }
+.sb-pad, .sb-add { background-image: none; background-color: #2c2c2c; border: 1px solid #333333; border-radius: 8px; box-shadow: none; padding: 6px; color: #f2f2f2; }
+.sb-pad:hover, .sb-add:hover { background-color: #363636; }
+.sb-pad.sel { border-color: #5a5a5a; background-color: #333333; }
+.sb-pad.playing { border-color: #3d9bff; box-shadow: inset 0 0 0 1px #3d9bff; }
+.sb-pad:focus-visible, .sb-add:focus-visible { outline: none; }
+flowboxchild { padding: 0; background: none; }
+.sb-panel { background-color: #2c2c2c; border-radius: 10px; }
+.sb-value { color: #f2f2f2; }
 scrollbar slider { background-color: #454545; min-width: 6px; min-height: 6px; }
 scrolledwindow, viewport { background: none; }
 "#;
@@ -396,5 +446,8 @@ mod tests {
         assert_eq!(t.get_pixel(0, 0)[3], 0); // Ecke rund
         assert_eq!(t.get_pixel(20, 2)[3], 255);
         assert_eq!(sliders_image(16, [255, 255, 255]).dimensions(), (16, 16));
+        let f = flow_image(32, [255, 255, 255]);
+        assert_eq!(f.dimensions(), (32, 32));
+        assert!(f.pixels().any(|p| p[3] > 200));
     }
 }
