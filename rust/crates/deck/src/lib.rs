@@ -13,6 +13,7 @@ pub mod engine;
 pub mod extra;
 pub mod input;
 pub mod livedraw;
+pub mod plugins;
 pub mod render;
 pub mod sound;
 pub mod sysinfo;

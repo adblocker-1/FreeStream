@@ -12,6 +12,8 @@ pub fn behavior_for(uuid: &str) -> Option<Box<dyn Behavior>> {
         .or_else(|| actions_multi::behavior_for(uuid))
         .or_else(|| actions_sysmon::behavior_for(uuid))
         .or_else(|| actions_app::behavior_for(uuid))
+        // Aktionen installierter Elgato-Plugins (nach allem Eingebauten)
+        .or_else(|| crate::plugins::behavior_for(uuid))
 }
 
 #[cfg(test)]
