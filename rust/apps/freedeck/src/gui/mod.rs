@@ -7,6 +7,7 @@ mod hotkey;
 mod icons;
 mod inspector;
 mod library;
+mod profiles_ui;
 mod settings;
 mod util;
 

@@ -464,6 +464,22 @@ impl Editor {
             self.prof_list.remove(&c);
         }
         self.prof_list.append(&label(&tr!("Profiles").to_uppercase(), &["section"]));
+        let newb = gtk::Button::new();
+        newb.add_css_class("title-drop");
+        let nrow = gtk::Box::new(Orientation::Horizontal, 10);
+        nrow.add_css_class("menu-row");
+        nrow.add_css_class("accent");
+        nrow.append(&gtk::Image::from_icon_name("list-add-symbolic"));
+        nrow.append(&label(&tr!("New profile"), &[]));
+        newb.set_child(Some(&nrow));
+        let ed = self.clone();
+        newb.connect_clicked(move |b| {
+            if let Some(p) = b.ancestor(gtk::Popover::static_type()) {
+                p.downcast::<gtk::Popover>().unwrap().popdown();
+            }
+            super::profiles_ui::new_profile(&ed);
+        });
+        self.prof_list.append(&newb);
         let (profiles, cur) = {
             let st = self.state.borrow();
             let store = st.store.lock().unwrap();
@@ -483,6 +499,11 @@ impl Editor {
             row.append(&label(&name, &[]));
             row.append(&label(&format!("{model} · {}", freestream_core::i18n::ngettext("{n} page", "{n} pages", pages as i64).replace("{n}", &pages.to_string())), &["faint"]));
             b.set_child(Some(&row));
+            let rc = gtk::GestureClick::new();
+            rc.set_button(3);
+            let (ed, id2, bb) = (self.clone(), id.clone(), b.clone());
+            rc.connect_pressed(move |_, _, _, _| super::profiles_ui::context_menu(&ed, bb.upcast_ref(), &id2));
+            b.add_controller(rc);
             let ed = self.clone();
             b.connect_clicked(move |b| {
                 if let Some(p) = b.ancestor(gtk::Popover::static_type()) {
