@@ -447,6 +447,16 @@ fn em_scale(f: &FontArc, px: f32) -> f32 {
 pub enum Anchor {
     Middle,
     RightMiddle,
+    /// „lm“: links, senkrecht Mitte
+    LeftMiddle,
+}
+
+/// Breite eines Texts in einer Schriftgröße wie in Pillow (`textlength`, passend zu [`draw_text_at`]).
+pub fn text_length(style: Style, size: f32, text: &str) -> f32 {
+    match font(style) {
+        Some(f) => text_width(&f, em_scale(&f, size), text),
+        None => 0.0,
+    }
 }
 
 /// Text an einem Anker zeichnen; `size` wie in Pillow, `stroke` = Umriss in Schwarz.
@@ -462,6 +472,7 @@ pub fn draw_text_at(img: &mut RgbaImage, style: Style, size: f32, (x, y): (f32, 
     let left = match anchor {
         Anchor::Middle => x - tw / 2.0,
         Anchor::RightMiddle => x - tw,
+        Anchor::LeftMiddle => x,
     };
     let top = y - (sf.ascent() - sf.descent()) / 2.0;
     for dx in -stroke..=stroke {

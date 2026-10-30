@@ -63,8 +63,11 @@ impl Daemon {
             .name(format!("deck-{serial}"))
             .spawn(move || {
                 let mut last_tick = Instant::now();
+                let mut last_fast = Instant::now();
+                let mut fast = false;
                 while !stop2.load(Ordering::Relaxed) && !all_stop.load(Ordering::Relaxed) {
-                    match dev.read(Duration::from_millis(100)) {
+                    // Live-Pegel (FreeWave-Fader): kürzer warten, damit der schnelle Takt etwa 12× pro Sekunde kommt
+                    match dev.read(Duration::from_millis(if fast { 40 } else { 100 })) {
                         Ok(evs) => {
                             for ev in evs {
                                 ctrl.lock().unwrap().handle(ev);
@@ -76,8 +79,14 @@ impl Daemon {
                         }
                     }
                     if last_tick.elapsed() > Duration::from_millis(250) {
-                        ctrl.lock().unwrap().tick();
+                        let mut c = ctrl.lock().unwrap();
+                        c.tick();
+                        fast = c.has_fast_tick();
                         last_tick = Instant::now();
+                    }
+                    if fast && last_fast.elapsed() >= Duration::from_millis(80) {
+                        ctrl.lock().unwrap().fast_tick();
+                        last_fast = Instant::now();
                     }
                 }
                 ctrls.lock().unwrap().remove(&serial2);

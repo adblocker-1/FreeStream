@@ -649,6 +649,40 @@ impl Controller {
         }
     }
 
+    /// Gibt es auf der Seite Tasten oder Drehregler mit schnellem Takt (Pegel der FreeWave-Fader)?
+    pub fn has_fast_tick(&self) -> bool {
+        self.keys.values().chain(self.dials.values()).any(|a| a.behavior.needs_fast_tick(&a.data))
+    }
+
+    /// Schneller Takt (etwa 12× pro Sekunde, siehe [`crate::daemon`]): Live-Anzeigen nachziehen. Eine Taste
+    /// wird nur gezeichnet, wenn ihre Aktion eine Änderung meldet, und nur gesendet, wenn sich das Bild
+    /// geändert hat.
+    pub fn fast_tick(&mut self) {
+        if self.asleep {
+            return;
+        }
+        let keys: Vec<u8> = self.keys.iter().filter(|(_, a)| a.behavior.needs_fast_tick(&a.data)).map(|(k, _)| *k).collect();
+        let mut dirty = false;
+        for k in keys {
+            if self.keys.get_mut(&k).map(|a| a.behavior.fast_tick(&a.data)).unwrap_or(false) {
+                self.render_key(k);
+                dirty = true;
+            }
+        }
+        let mut lcd = false;
+        for a in self.dials.values_mut() {
+            if a.behavior.needs_fast_tick(&a.data) {
+                lcd |= a.behavior.fast_tick(&a.data);
+            }
+        }
+        if lcd {
+            self.render_lcd();
+        }
+        if dirty {
+            let _ = self.dev.flush();
+        }
+    }
+
     /// Profile neu gelesen (Editor hat gespeichert): gleiche Seite neu zeichnen.
     pub fn reload(&mut self) {
         if self.cfg.reload_if_changed() {

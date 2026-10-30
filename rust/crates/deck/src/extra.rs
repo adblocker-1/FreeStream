@@ -1,10 +1,11 @@
 //! Weitere eingebaute Aktionen (Tastenkürzel, Text, Medien, Uhr, Timer, Soundboard, Multi-Aktionen,
-//! Systemmonitor, Programm beenden) und die Verbindungs-Aktionen (OBS Studio, Home Assistant, Discord) –
+//! Systemmonitor, Programm beenden), die Verbindungs-Aktionen (OBS Studio, Home Assistant, Discord) und die
+//! FreeWave-Aktionen (Mixer, Wave-Mikrofon) –
 //! [`crate::actions::behavior_for`] fragt hier nach, wenn es eine UUID nicht selbst kennt.
 
 use crate::actions::Behavior;
-use crate::{actions_app, actions_discord, actions_hass, actions_input, actions_multi, actions_obs, actions_sound,
-            actions_sysmon, actions_time};
+use crate::{actions_app, actions_discord, actions_hass, actions_input, actions_mixer, actions_multi, actions_obs,
+            actions_sound, actions_sysmon, actions_time};
 
 pub fn behavior_for(uuid: &str) -> Option<Box<dyn Behavior>> {
     actions_input::behavior_for(uuid)
@@ -18,6 +19,7 @@ pub fn behavior_for(uuid: &str) -> Option<Box<dyn Behavior>> {
         .or_else(|| actions_hass::behavior_for(uuid))
         .or_else(|| actions_obs::behavior_for(uuid))
         .or_else(|| actions_discord::behavior_for(uuid))
+        .or_else(|| actions_mixer::behavior_for(uuid))
 }
 
 #[cfg(test)]

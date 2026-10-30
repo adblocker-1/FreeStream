@@ -192,6 +192,20 @@ pub trait Behavior: Send {
     fn tick(&mut self, _a: &ActionData) -> bool {
         false
     }
+    /// Schneller Takt (etwa 12× pro Sekunde) für Live-Anzeigen wie die Pegel der FreeWave-Fader?
+    fn needs_fast_tick(&self, _a: &ActionData) -> bool {
+        false
+    }
+    /// Schneller Takt: true = neu zeichnen (das Bild geht nur bei einer Änderung ans Gerät).
+    fn fast_tick(&mut self, _a: &ActionData) -> bool {
+        false
+    }
+    /// Hat das eigene Bild ([`Behavior::image`]) die Deckkraft (IconOpacity) schon eingerechnet? Dann wird
+    /// sie beim Zusammensetzen nicht noch einmal angewandt (FreeWave-Tasten: nur der Hintergrund wird
+    /// durchsichtig).
+    fn own_opacity(&self, _a: &ActionData) -> bool {
+        false
+    }
     /// Zustand aus einer Live-Verbindung (OBS nimmt auf, Discord stumm …): die Steuerung setzt ihn nach
     /// jedem [`Behavior::tick`] und zeichnet neu, wenn er sich ändert. None = Zustand nicht anfassen.
     fn live_state(&self, _a: &ActionData) -> Option<usize> {
@@ -351,7 +365,11 @@ impl Action {
         } else {
             self.behavior.title(&self.data, env).unwrap_or_else(|| self.data.title())
         };
-        render::compose_key(size, icon.as_ref(), &title, &self.data.state_dict(), overlay, base)
+        let mut state = self.data.state_dict();
+        if own.is_some() && self.behavior.own_opacity(&self.data) {
+            state.remove("IconOpacity");
+        }
+        render::compose_key(size, icon.as_ref(), &title, &state, overlay, base)
     }
 
     /// Symbol für das Feld im Touchstreifen (48×48 wie in der Python-Version).

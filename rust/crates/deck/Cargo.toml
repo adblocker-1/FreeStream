@@ -7,9 +7,13 @@ license.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+# für das simulierte pactl aus crates/wave/tests/common
+regex.workspace = true
 
 [dependencies]
 freestream-core.workspace = true
+freestream-wave.workspace = true
+indexmap.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
 log.workspace = true
