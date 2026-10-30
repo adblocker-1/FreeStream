@@ -48,7 +48,15 @@ jobs:
         id: name
         run: echo "tag=$(echo '${{ matrix.image }}' | tr ':' '-')" >> "$GITHUB_OUTPUT"
 
+      - name: Paket (.deb)
+        run: |
+          deb=$(rust/packaging/build-deb.sh rust/dist)
+          mv "$deb" "${deb%.deb}_${{ steps.name.outputs.tag }}.deb"
+          ls -l rust/dist
+
       - uses: actions/upload-artifact@v4
         with:
           name: freedeck-rust-${{ steps.name.outputs.tag }}
-          path: rust/target/release/freedeck
+          path: |
+            rust/target/release/freedeck
+            rust/dist/*.deb

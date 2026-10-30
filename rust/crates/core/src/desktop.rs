@@ -2,9 +2,14 @@
 
 use std::path::PathBuf;
 
-/// Befehl im Autostart je Programm.
-fn autostart_exec(name: &str) -> &'static str {
-    if name == "freewave" { "freewave --hidden" } else { "freedeck run" }
+/// Befehl im Autostart je Programm. FreeDeck startet sich unter dem eigenen Namen
+/// (das Rust-Paket heißt `freedeck-rs` und liegt neben der Python-Version).
+fn autostart_exec(name: &str) -> String {
+    if name == "freewave" {
+        return "freewave --hidden".into();
+    }
+    let exe = std::env::current_exe().ok().and_then(|p| p.file_name().map(|n| n.to_string_lossy().into_owned()));
+    format!("{} run", exe.filter(|n| n.starts_with("freedeck")).unwrap_or_else(|| "freedeck".into()))
 }
 
 fn user_autostart_dir() -> PathBuf {
