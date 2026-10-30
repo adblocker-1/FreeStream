@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/core", "crates/deck", "crates/wave", "apps/freedeck"]
+members = ["crates/core", "crates/deck", "crates/wave", "apps/freedeck", "apps/freewave"]
 
 [workspace.package]
 version = "0.39.0"
