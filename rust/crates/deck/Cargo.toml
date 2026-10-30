@@ -16,6 +16,7 @@ log.workspace = true
 image.workspace = true
 ab_glyph.workspace = true
 resvg.workspace = true
+tiny-skia.workspace = true
 elgato-streamdeck.workspace = true
 hidapi.workspace = true
 evdev.workspace = true

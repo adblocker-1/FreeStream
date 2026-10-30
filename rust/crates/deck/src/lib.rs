@@ -11,6 +11,7 @@ pub mod daemon;
 pub mod device;
 pub mod engine;
 pub mod extra;
+pub mod iconlib;
 pub mod input;
 pub mod livedraw;
 pub mod render;
