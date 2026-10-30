@@ -31,6 +31,8 @@ evdev = "0.13"
 jiff = "0.2"
 fastrand = "2"
 libc = "0.2"
+ureq = { version = "3", default-features = false, features = ["rustls"] }  # HTTPS_PROXY/NO_PROXY werden beachtet
+sha2 = "0.10"
 
 [profile.release]
 lto = "thin"

@@ -1,0 +1,371 @@
+[
+  {
+    "tag_name": "v0.38.0",
+    "name": "FreeStream v0.38.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-09-01T10:00:00Z",
+    "created_at": "2026-09-01T10:00:00Z",
+    "html_url": "https://github.com/adblocker-1/FreeStream/releases/tag/v0.38.0",
+    "body": "**English**\n\nNew things.\n\n\n\nMore.\n---\n**Deutsch**\n\nNeues.",
+    "assets": [
+      {
+        "name": "freestream_0.38.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.38.0/freestream_0.38.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck_0.38.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.38.0/freedeck_0.38.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freewave_0.38.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.38.0/freewave_0.38.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.41.0-beta.1",
+    "name": "FreeStream v0.41.0-beta.1",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-10-20T10:00:00Z",
+    "created_at": "2026-10-20T10:00:00Z",
+    "html_url": "https://github.com/adblocker-1/FreeStream/releases/tag/v0.41.0-beta.1",
+    "body": "**English**\n\nNew things.\n\n\n\nMore.\n---\n**Deutsch**\n\nNeues.",
+    "assets": [
+      {
+        "name": "freestream_0.41.0~beta.1_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.41.0-beta.1/freestream_0.41.0~beta.1_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck_0.41.0~beta.1_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.41.0-beta.1/freedeck_0.41.0~beta.1_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freewave_0.41.0~beta.1_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.41.0-beta.1/freewave_0.41.0~beta.1_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck-rs_0.41.0~beta.1_amd64.deb",
+        "size": 5000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.41.0-beta.1/freedeck-rs_0.41.0~beta.1_amd64.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+      },
+      {
+        "name": "freedeck-rs_0.41.0~beta.1_amd64_ubuntu-24.04.deb",
+        "size": 6000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.41.0-beta.1/freedeck-rs_0.41.0~beta.1_amd64_ubuntu-24.04.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.42.0",
+    "name": "FreeStream v0.42.0",
+    "draft": true,
+    "prerelease": false,
+    "published_at": null,
+    "created_at": "2026-10-25T09:00:00Z",
+    "html_url": "https://github.com/adblocker-1/FreeStream/releases/tag/v0.42.0",
+    "body": "**English**\n\nNew things.\n\n\n\nMore.\n---\n**Deutsch**\n\nNeues.",
+    "assets": [
+      {
+        "name": "freestream_0.42.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.42.0/freestream_0.42.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck_0.42.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.42.0/freedeck_0.42.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freewave_0.42.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.42.0/freewave_0.42.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck-rs_0.42.0_amd64.deb",
+        "size": 5000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.42.0/freedeck-rs_0.42.0_amd64.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+      },
+      {
+        "name": "freedeck-rs_0.42.0_amd64_ubuntu-24.04.deb",
+        "size": 6000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.42.0/freedeck-rs_0.42.0_amd64_ubuntu-24.04.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.40.0",
+    "name": "FreeStream v0.40.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-10-10T10:00:00Z",
+    "created_at": "2026-10-10T10:00:00Z",
+    "html_url": "https://github.com/adblocker-1/FreeStream/releases/tag/v0.40.0",
+    "body": "**English**\n\nNew things.\n\n\n\nMore.\n---\n**Deutsch**\n\nNeues.",
+    "assets": [
+      {
+        "name": "freestream_0.40.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.40.0/freestream_0.40.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck_0.40.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.40.0/freedeck_0.40.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freewave_0.40.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.40.0/freewave_0.40.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck-rs_0.40.0_amd64.deb",
+        "size": 5000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.40.0/freedeck-rs_0.40.0_amd64.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+      },
+      {
+        "name": "freedeck-rs_0.40.0_amd64_ubuntu-24.04.deb",
+        "size": 6000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.40.0/freedeck-rs_0.40.0_amd64_ubuntu-24.04.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.39.1",
+    "name": "FreeStream v0.39.1",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-10-05T10:00:00Z",
+    "created_at": "2026-10-05T10:00:00Z",
+    "html_url": "https://github.com/adblocker-1/FreeStream/releases/tag/v0.39.1",
+    "body": "**English**\n\nNew things.\n\n\n\nMore.\n---\n**Deutsch**\n\nNeues.",
+    "assets": [
+      {
+        "name": "freestream_0.39.1_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.39.1/freestream_0.39.1_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck_0.39.1_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.39.1/freedeck_0.39.1_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freewave_0.39.1_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.39.1/freewave_0.39.1_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck-rs_0.39.1_amd64.deb",
+        "size": 5000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.39.1/freedeck-rs_0.39.1_amd64.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.37.0",
+    "name": "FreeStream v0.37.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-08-01T10:00:00Z",
+    "created_at": "2026-08-01T10:00:00Z",
+    "html_url": "https://github.com/adblocker-1/FreeStream/releases/tag/v0.37.0",
+    "body": "**English**\n\nNew things.\n\n\n\nMore.\n---\n**Deutsch**\n\nNeues.",
+    "assets": [
+      {
+        "name": "freestream_0.37.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.37.0/freestream_0.37.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package"
+      },
+      {
+        "name": "freedeck_0.37.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.37.0/freedeck_0.37.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package"
+      },
+      {
+        "name": "freewave_0.37.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.37.0/freewave_0.37.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package"
+      },
+      {
+        "name": "freedeck-rs_0.37.0_amd64.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.37.0/freedeck-rs_0.37.0_amd64.deb",
+        "content_type": "application/vnd.debian.binary-package"
+      },
+      {
+        "name": "freedeck-rs_0.37.0_amd64_ubuntu-24.04.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.37.0/freedeck-rs_0.37.0_amd64_ubuntu-24.04.deb",
+        "content_type": "application/vnd.debian.binary-package"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.36.0",
+    "name": "FreeStream v0.36.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-10-01T12:00:00Z",
+    "created_at": "2026-10-01T12:00:00Z",
+    "html_url": "https://github.com/adblocker-1/FreeStream/releases/tag/v0.36.0",
+    "body": "**English**\n\nNew things.\n\n\n\nMore.\n---\n**Deutsch**\n\nNeues.",
+    "assets": [
+      {
+        "name": "freestream_0.36.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.36.0/freestream_0.36.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck_0.36.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.36.0/freedeck_0.36.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freewave_0.36.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.36.0/freewave_0.36.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck-rs_0.36.0_amd64.deb",
+        "size": 1000,
+        "browser_download_url": "https://example.com/freedeck-rs_0.36.0_amd64.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.35.0",
+    "name": "FreeStream v0.35.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-07-01T10:00:00Z",
+    "created_at": "2026-07-01T10:00:00Z",
+    "html_url": "https://github.com/adblocker-1/FreeStream/releases/tag/v0.35.0",
+    "body": "",
+    "assets": [
+      {
+        "name": "freestream_0.35.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.35.0/freestream_0.35.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck_0.35.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.35.0/freedeck_0.35.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freewave_0.35.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.35.0/freewave_0.35.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "freedeck-rs_0.35.0_amd64.deb",
+        "size": 5000,
+        "browser_download_url": "https://github.com/adblocker-1/FreeStream/releases/download/v0.35.0/freedeck-rs_0.35.0_amd64.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.27.0",
+    "name": "FreeStream v0.27.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-01-01T10:00:00Z",
+    "created_at": "2026-01-01T10:00:00Z",
+    "html_url": "https://github.com/adblocker-1/FreeStream/releases/tag/v0.27.0",
+    "body": "**English**\n\nNew things.\n\n\n\nMore.\n---\n**Deutsch**\n\nNeues.",
+    "assets": [
+      {
+        "name": "streamlin_0.27.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/Streamlin/releases/download/v0.27.0/streamlin_0.27.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "lindeck_0.27.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/Streamlin/releases/download/v0.27.0/lindeck_0.27.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      },
+      {
+        "name": "linewave_0.27.0_all.deb",
+        "size": 1000,
+        "browser_download_url": "https://github.com/adblocker-1/Streamlin/releases/download/v0.27.0/linewave_0.27.0_all.deb",
+        "content_type": "application/vnd.debian.binary-package",
+        "digest": "sha256:ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB"
+      }
+    ]
+  }
+]
