@@ -7,7 +7,7 @@ use image::RgbaImage;
 use serde_json::{Map, Value};
 use std::collections::VecDeque;
 
-use crate::actions::{ActionData, Behavior, Env};
+use crate::actions::{ActionData, Behavior, Env, Feedback};
 use crate::actions_time::fmt_duration;
 use crate::livedraw::{self as d, Rgb, BG, FG, MUTED};
 use crate::sysinfo::{self, human_bytes, CpuMeter, RateMeter, SysInfo};
@@ -259,6 +259,16 @@ impl Behavior for SysMon {
         let changed = snap != self.last;
         self.last = snap;
         changed || self.graph(&s)
+    }
+    fn feedback(&self, a: &ActionData, _env: &Env) -> Feedback {
+        let s = a.settings();
+        let t = a.title();
+        let mut fb = Feedback { title: if t.is_empty() { self.label(&s) } else { t }, value: String::new(), indicator: None };
+        if let Some(r) = &self.cur {
+            fb.value = if self.metric == Metric::Network && r.value.is_some() { format!("↓{}", r.text) } else { r.text.clone() };
+            fb.indicator = r.frac.map(|f| (f * 100.0) as f32);
+        }
+        fb
     }
 }
 

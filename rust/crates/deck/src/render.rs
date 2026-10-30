@@ -122,12 +122,17 @@ pub fn draw_text(img: &mut RgbaImage, f: &FontArc, size: f32, x: f32, y: f32, te
 }
 
 fn blend(p: &mut Rgba<u8>, c: [u8; 3], a: f32) {
+    // „Über“-Mischung: auf durchsichtigem Grund (Felder des Touchstreifens) bleibt die Farbe erhalten
     let inv = 1.0 - a;
     let old_a = p[3] as f32 / 255.0;
-    for i in 0..3 {
-        p[i] = (c[i] as f32 * a + p[i] as f32 * inv).round() as u8;
+    let out_a = a + old_a * inv;
+    if out_a <= 0.0 {
+        return;
     }
-    p[3] = ((a + old_a * inv) * 255.0).round().min(255.0) as u8;
+    for i in 0..3 {
+        p[i] = ((c[i] as f32 * a + p[i] as f32 * old_a * inv) / out_a).round().min(255.0) as u8;
+    }
+    p[3] = (out_a * 255.0).round().min(255.0) as u8;
 }
 
 /// Titel einer Taste wie in der Elgato-App (Größe relativ zu 72 px, Umriss, Position, Unterstreichung).
@@ -286,6 +291,8 @@ pub fn fallback_icon(w: u32, h: u32, label: &str) -> RgbaImage {
 pub enum Overlay {
     Ok,
     Alert,
+    /// Fortschritt einer Multi-Aktion: `done` von `steps` Schritten erledigt
+    Progress { done: u16, steps: u16 },
 }
 
 /// Taste zusammensetzen: Grund (Hintergrund-Kachel oder Schwarz), Symbol, Titel, Hinweis.
@@ -311,6 +318,7 @@ pub fn compose_key(
     match overlay {
         Some(Overlay::Ok) => badge(&mut img, [46, 204, 113], &freestream_core::tr!("Done")),
         Some(Overlay::Alert) => badge(&mut img, [229, 72, 77], &freestream_core::tr!("Error")),
+        Some(Overlay::Progress { done, steps }) => progress(&mut img, done, steps),
         None => {}
     }
     img
@@ -331,6 +339,49 @@ fn badge(img: &mut RgbaImage, color: [u8; 3], text: &str) {
     }
     let tw = text_width(&f, size, text);
     draw_text(img, &f, size, (w as f32 - tw) / 2.0, (h as f32 - size) / 2.0, text, color);
+}
+
+/// Fortschritt einer Multi-Aktion (wie `_progress`): „Schritt n / m“ und unten ein Balken.
+pub fn progress(img: &mut RgbaImage, done: u16, steps: u16) {
+    let steps = steps.max(1);
+    let step = (done + 1).min(steps);
+    badge(img, ACCENT, &freestream_core::tr!("Step {n} / {m}", n = step, m = steps));
+    let (w, h) = (img.width() as f32, img.height() as f32);
+    let (pad, bh) = (w * 0.14, (h * 0.055).max(3.0));
+    let y = h * 0.88;
+    fill_round_rect(img, (pad, y, w - pad, y + bh), bh / 2.0, [255, 255, 255, 45]);
+    let frac = (done as f32 / steps as f32).clamp(0.0, 1.0);
+    if frac > 0.0 {
+        fill_round_rect(img, (pad, y, pad + (w - 2.0 * pad) * frac, y + bh), bh / 2.0, [ACCENT[0], ACCENT[1], ACCENT[2], 255]);
+    }
+}
+
+/// „Fehler“ auf einem Bild (Taste oder Feld des Touchstreifens), wie `_alert`.
+pub fn alert(img: &mut RgbaImage) {
+    badge(img, [229, 72, 77], &freestream_core::i18n::pgettext("overlay", "Error"));
+}
+
+const ACCENT: [u8; 3] = [91, 124, 255];
+
+/// Gefülltes Rechteck mit runden Ecken (x0, y0, x1, y1), Farbe mit Deckkraft.
+pub fn fill_round_rect(img: &mut RgbaImage, (x0, y0, x1, y1): (f32, f32, f32, f32), r: f32, color: [u8; 4]) {
+    let r = r.min((x1 - x0) / 2.0).min((y1 - y0) / 2.0).max(0.0);
+    let a = color[3] as f32 / 255.0;
+    for py in y0.floor().max(0.0) as u32..(y1.ceil().max(0.0) as u32).min(img.height()) {
+        for px in x0.floor().max(0.0) as u32..(x1.ceil().max(0.0) as u32).min(img.width()) {
+            let (cx, cy) = (px as f32 + 0.5, py as f32 + 0.5);
+            if cx < x0 || cx > x1 || cy < y0 || cy > y1 {
+                continue;
+            }
+            // Abstand zur Ecke: nur in den Eckquadraten zählt der Radius
+            let dx = (x0 + r - cx).max(cx - (x1 - r)).max(0.0);
+            let dy = (y0 + r - cy).max(cy - (y1 - r)).max(0.0);
+            if dx * dx + dy * dy > r * r {
+                continue;
+            }
+            blend(img.get_pixel_mut(px, py), [color[0], color[1], color[2]], a);
+        }
+    }
 }
 
 /// Text als Tastenbild (Seitenanzeige, Uhr, Kein-Profil-Bild).
@@ -384,6 +435,117 @@ pub fn background_tiles(path: &Path, cols: u8, rows: u8, (w, h): (u32, u32), dim
     out
 }
 
+// ------------------------------------------------------------------- Touchstreifen und Infoleiste
+/// PxScale für eine Schriftgröße wie in Pillow (Geviert in Pixeln; ab_glyph rechnet mit der Zeilenhöhe).
+fn em_scale(f: &FontArc, px: f32) -> f32 {
+    let upem = f.units_per_em().unwrap_or(1000.0);
+    px * f.height_unscaled() / upem
+}
+
+/// Wo Text ausgerichtet wird (wie die Anker von Pillow: „mm“ = Mitte, „rm“ = rechts, senkrecht Mitte).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Anchor {
+    Middle,
+    RightMiddle,
+}
+
+/// Text an einem Anker zeichnen; `size` wie in Pillow, `stroke` = Umriss in Schwarz.
+#[allow(clippy::too_many_arguments)]
+pub fn draw_text_at(img: &mut RgbaImage, style: Style, size: f32, (x, y): (f32, f32), anchor: Anchor, text: &str, color: [u8; 3], stroke: i32) {
+    if text.is_empty() {
+        return;
+    }
+    let Some(f) = font(style) else { return };
+    let scale = em_scale(&f, size);
+    let sf = f.as_scaled(PxScale::from(scale));
+    let tw = text_width(&f, scale, text);
+    let left = match anchor {
+        Anchor::Middle => x - tw / 2.0,
+        Anchor::RightMiddle => x - tw,
+    };
+    let top = y - (sf.ascent() - sf.descent()) / 2.0;
+    for dx in -stroke..=stroke {
+        for dy in -stroke..=stroke {
+            if dx != 0 || dy != 0 {
+                draw_text(img, &f, scale, left + dx as f32, top + dy as f32, text, [0, 0, 0]);
+            }
+        }
+    }
+    draw_text(img, &f, scale, left, top, text, color);
+}
+
+/// Bild mit Alpha auf ein anderes legen (wie Pillows alpha_composite).
+fn composite(dst: &mut RgbaImage, src: &RgbaImage, x: i64, y: i64) {
+    imageops::overlay(dst, src, x, y);
+}
+
+/// Ein Feld des Touchstreifens (wie `compose_dial_segment`): Titel oben, Symbol links, Wert rechts,
+/// Balken unten. Durchsichtig, damit der Hintergrund des ganzen Streifens zu sehen ist.
+pub fn compose_dial_segment(
+    (w, h): (u32, u32),
+    icon: Option<&RgbaImage>,
+    title: &str,
+    value: &str,
+    indicator: Option<f32>,
+    background: Option<&RgbaImage>,
+) -> RgbaImage {
+    let mut img = RgbaImage::new(w, h);
+    if let Some(bg) = background {
+        composite(&mut img, &fit(bg, w, h), 0, 0);
+    }
+    let wf = w as f32;
+    draw_text_at(&mut img, Style::Bold, 16.0, (wf / 2.0, 14.0), Anchor::Middle, title, [255, 255, 255], 1);
+    let ic = (h as f32 * 0.48) as u32;
+    if let Some(icon) = icon {
+        composite(&mut img, &fit(icon, ic, ic), 12, 26);
+    }
+    draw_text_at(&mut img, Style::Bold, 20.0, (wf - 14.0, 50.0), Anchor::RightMiddle, value, [255, 255, 255], 1);
+    if let Some(ind) = indicator {
+        let (x0, x1, y) = (14.0, wf - 14.0, h as f32 - 14.0);
+        fill_round_rect(&mut img, (x0, y - 4.0, x1, y + 4.0), 4.0, [60, 60, 66, 255]);
+        let frac = (ind / 100.0).clamp(0.0, 1.0);
+        if frac > 0.0 {
+            fill_round_rect(&mut img, (x0, y - 4.0, x0 + (x1 - x0) * frac, y + 4.0), 4.0, [10, 132, 255, 255]);
+        }
+    }
+    img
+}
+
+/// Ganzer Touchstreifen (wie `compose_strip`): Schwarz, Hintergrund, Felder nebeneinander.
+pub fn compose_strip((w, h): (u32, u32), segments: &[RgbaImage], background: Option<&RgbaImage>) -> RgbaImage {
+    let mut img = RgbaImage::from_pixel(w, h, Rgba([0, 0, 0, 255]));
+    if let Some(bg) = background {
+        composite(&mut img, &fit(bg, w, h), 0, 0);
+    }
+    let mut x = 0i64;
+    for seg in segments {
+        composite(&mut img, seg, x, 0);
+        x += seg.width() as i64;
+    }
+    img
+}
+
+/// Infoleiste des Neo (wie `compose_infobar`): große Zeile, darunter Seitenpunkte (n, aktuelle) oder
+/// eine kleine Zeile.
+pub fn compose_infobar((w, h): (u32, u32), big: &str, small: &str, dots: Option<(usize, usize)>) -> RgbaImage {
+    let mut img = RgbaImage::from_pixel(w, h, Rgba([0, 0, 0, 255]));
+    let (wf, hf) = (w as f32, h as f32);
+    draw_text_at(&mut img, Style::Bold, (hf * 0.5).floor(), (wf / 2.0, hf * 0.42), Anchor::Middle, big, [255, 255, 255], 0);
+    if let Some((n, cur)) = dots {
+        let (r, gap) = (3.0, 12.0);
+        let x0 = wf / 2.0 - (n.saturating_sub(1)) as f32 * gap / 2.0;
+        let cy = hf - 10.0;
+        for i in 0..n {
+            let c = if i == cur { [255, 255, 255, 255] } else { [90, 90, 90, 255] };
+            let cx = x0 + i as f32 * gap;
+            fill_round_rect(&mut img, (cx - r, cy - r, cx + r + 1.0, cy + r + 1.0), r + 0.5, c);
+        }
+    } else if !small.is_empty() {
+        draw_text_at(&mut img, Style::Regular, (hf * 0.2).floor(), (wf / 2.0, hf * 0.85), Anchor::Middle, small, [170, 170, 180], 0);
+    }
+    img
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -400,6 +562,36 @@ mod tests {
             assert!(bright(40, 72));
             assert!(!bright(0, 20));
         }
+    }
+
+    #[test]
+    fn strip_and_segments() {
+        let seg = compose_dial_segment((200, 100), None, "", "", Some(50.0), None);
+        // Balken: links blau, rechts grau, darüber durchsichtig
+        assert_eq!(seg.get_pixel(30, 86).0, [10, 132, 255, 255]);
+        assert_eq!(seg.get_pixel(170, 86).0, [60, 60, 66, 255]);
+        assert_eq!(seg.get_pixel(100, 60)[3], 0);
+        let strip = compose_strip((800, 100), &[RgbaImage::new(200, 100), seg], None);
+        assert_eq!(strip.dimensions(), (800, 100));
+        assert_eq!(strip.get_pixel(230, 86).0, [10, 132, 255, 255]);
+        assert_eq!(strip.get_pixel(30, 86).0, [0, 0, 0, 255]);
+    }
+
+    #[test]
+    fn infobar_dots() {
+        let img = compose_infobar((248, 58), "", "", Some((3, 1)));
+        assert_eq!(img.get_pixel(112, 48).0, [90, 90, 90, 255]);
+        assert_eq!(img.get_pixel(124, 48).0, [255, 255, 255, 255]);
+        assert_eq!(img.get_pixel(136, 48).0, [90, 90, 90, 255]);
+    }
+
+    #[test]
+    fn progress_overlay() {
+        let img = compose_key((72, 72), None, "", &Map::new(), Some(Overlay::Progress { done: 1, steps: 2 }), None);
+        // halber Balken: links Akzent, rechts nur die Spur
+        let y = (72.0 * 0.88 + 1.0) as u32;
+        assert_eq!(img.get_pixel(15, y).0[..3], ACCENT);
+        assert_ne!(img.get_pixel(55, y).0[..3], ACCENT);
     }
 
     #[test]

@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use crate::actions::{ActionData, Behavior, Command, Env};
+use crate::actions::{ActionData, Behavior, Command, Env, Feedback};
 use crate::livedraw::{self as d, BG, FG, MUTED};
 use crate::{render, sound, system};
 
@@ -392,6 +392,19 @@ impl Behavior for Clock {
     fn image(&self, a: &ActionData, _env: &Env, size: (u32, u32)) -> Option<RgbaImage> {
         (!has_image(a)).then(|| Self::draw(a, size))
     }
+    fn feedback(&self, a: &ActionData, _env: &Env) -> Feedback {
+        let p = Self::parts(a);
+        let t = a.title();
+        let title = if !t.is_empty() { t } else if !p.city.is_empty() { p.city.clone() } else { p.date.clone() };
+        let mut value = p.hm.clone();
+        if !p.sec.is_empty() {
+            value += &format!(":{}", p.sec);
+        }
+        if !p.ampm.is_empty() {
+            value += &format!(" {}", p.ampm);
+        }
+        Feedback { title, value, indicator: None }
+    }
     fn needs_tick(&self) -> bool {
         true
     }
@@ -667,6 +680,16 @@ impl Behavior for Countdown {
         let flash = st.finished && blink();
         Some(Self::draw(&st, &a.settings(), size, flash))
     }
+    fn feedback(&self, a: &ActionData, _env: &Env) -> Feedback {
+        let st = self.peek(a);
+        let t = a.title();
+        let left = st.left();
+        Feedback {
+            title: if t.is_empty() { Self::state_text(&st, &a.settings()) } else { t },
+            value: fmt_duration(shown(left) as f64),
+            indicator: Some(if st.total > 0.0 { (100.0 * left / st.total) as f32 } else { 0.0 }),
+        }
+    }
 }
 
 /// com.lindeck.clock.stopwatch: Drücken startet/stoppt, langer Druck setzt zurück.
@@ -745,6 +768,21 @@ impl Behavior for Stopwatch {
     }
     fn image(&self, a: &ActionData, _env: &Env, size: (u32, u32)) -> Option<RgbaImage> {
         (!has_image(a)).then(|| Self::draw(&self.peek(a), &a.settings(), size))
+    }
+    fn feedback(&self, a: &ActionData, _env: &Env) -> Feedback {
+        let st = self.peek(a);
+        let el = st.stopwatch();
+        let t = a.title();
+        let title = if !t.is_empty() {
+            t
+        } else if st.running {
+            pgettext("timer", "running")
+        } else if st.elapsed > 0.0 {
+            pgettext("timer", "paused")
+        } else {
+            Some(label(&a.settings())).filter(|l| !l.is_empty()).unwrap_or_else(|| tr!("Stopwatch"))
+        };
+        Feedback { title, value: fmt_duration(el), indicator: Some((el as i64 % 60) as f32 * 100.0 / 59.0) }
     }
 }
 
