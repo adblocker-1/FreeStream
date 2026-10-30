@@ -18,3 +18,7 @@ ab_glyph.workspace = true
 resvg.workspace = true
 elgato-streamdeck.workspace = true
 hidapi.workspace = true
+evdev.workspace = true
+jiff.workspace = true
+fastrand.workspace = true
+libc.workspace = true

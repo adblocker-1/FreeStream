@@ -5,6 +5,7 @@
 use image::RgbaImage;
 use serde_json::{Map, Value};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use crate::render;
 use crate::system;
@@ -28,6 +29,53 @@ pub enum Command {
     Ok,
     Alert,
     Redraw,
+    /// Zustand der Aktion setzen (Hotkey-Umschalter, Multi Action Switch) und neu zeichnen
+    SetState(usize),
+    /// Mehrere Befehle nacheinander (z. B. aus [`Behavior::execute`])
+    Run(Vec<Command>),
+}
+
+impl Command {
+    /// Zwei Befehle hintereinander (None fällt weg).
+    pub fn then(self, other: Command) -> Command {
+        match (self, other) {
+            (Command::None, b) => b,
+            (a, Command::None) => a,
+            (Command::Run(mut v), b) => {
+                v.push(b);
+                Command::Run(v)
+            }
+            (a, b) => Command::Run(vec![a, b]),
+        }
+    }
+}
+
+/// Befehle, die eine Aktion später aus einem eigenen Thread schickt (Multi-Aktionen, Key Logic, Text …).
+/// Die Steuerung holt sie in [`crate::engine::Controller::tick`] ab; `key` ist die Taste (None = Drehregler).
+/// Befehl mit Taste (None = Drehregler).
+pub type Posted = (Option<u8>, Command);
+
+#[derive(Clone, Default)]
+pub struct Outbox {
+    key: Option<u8>,
+    queue: Arc<Mutex<Vec<Posted>>>,
+}
+
+impl Outbox {
+    /// Dieselbe Warteschlange für eine bestimmte Taste (None = Drehregler).
+    pub fn for_key(&self, key: Option<u8>) -> Outbox {
+        Outbox { key, queue: self.queue.clone() }
+    }
+
+    pub fn send(&self, cmd: Command) {
+        if cmd != Command::None {
+            self.queue.lock().unwrap().push((self.key, cmd));
+        }
+    }
+
+    pub fn drain(&self) -> Vec<Posted> {
+        std::mem::take(&mut *self.queue.lock().unwrap())
+    }
 }
 
 /// Was eine Aktion über ihre Umgebung wissen darf.
@@ -35,6 +83,49 @@ pub struct Env<'a> {
     pub cfg: &'a Map<String, Value>,
     pub page_index: usize,
     pub page_count: usize,
+    /// Profil vom Mac: Cmd und Strg in Tastenkürzeln tauschen
+    pub swap_cmd_ctrl: bool,
+    /// für Befehle aus eigenen Threads
+    pub outbox: Outbox,
+}
+
+impl<'a> Env<'a> {
+    pub fn new(cfg: &'a Map<String, Value>, page_index: usize, page_count: usize) -> Self {
+        Self { cfg, page_index, page_count, swap_cmd_ctrl: false, outbox: Outbox::default() }
+    }
+
+    /// Kopie zum Mitnehmen in einen Thread.
+    pub fn snapshot(&self) -> OwnedEnv {
+        OwnedEnv { cfg: self.cfg.clone(), page_index: self.page_index, page_count: self.page_count,
+                   swap_cmd_ctrl: self.swap_cmd_ctrl, outbox: self.outbox.clone() }
+    }
+
+    /// Zahl aus der Konfiguration (z. B. `long_press_ms`).
+    pub fn cfg_i64(&self, key: &str, default: i64) -> i64 {
+        self.cfg.get(key).and_then(Value::as_i64).unwrap_or(default)
+    }
+
+    /// Langer Druck nach `long_press_ms`?
+    pub fn is_long(&self, held_ms: u64) -> bool {
+        held_ms as i64 >= self.cfg_i64("long_press_ms", 500)
+    }
+}
+
+/// [`Env`] mit eigenen Daten (für Threads).
+#[derive(Clone)]
+pub struct OwnedEnv {
+    pub cfg: Map<String, Value>,
+    pub page_index: usize,
+    pub page_count: usize,
+    pub swap_cmd_ctrl: bool,
+    pub outbox: Outbox,
+}
+
+impl OwnedEnv {
+    pub fn env(&self) -> Env<'_> {
+        Env { cfg: &self.cfg, page_index: self.page_index, page_count: self.page_count,
+              swap_cmd_ctrl: self.swap_cmd_ctrl, outbox: self.outbox.clone() }
+    }
 }
 
 /// Verhalten einer Aktion. Alle Methoden haben Vorgaben: eine Aktion überschreibt nur, was sie braucht.
@@ -53,6 +144,16 @@ pub trait Behavior: Send {
     }
     fn dial_up(&mut self, a: &ActionData, env: &Env, held_ms: u64) -> Command {
         self.key_up(a, env, held_ms)
+    }
+    /// Tippen auf den Touchstreifen über dem Drehregler (lang = langes Tippen).
+    fn touch(&mut self, a: &ActionData, env: &Env, long: bool) -> Command {
+        let c = self.dial_down(a, env);
+        c.then(self.dial_up(a, env, if long { 600 } else { 0 }))
+    }
+    /// Einmal auslösen, z. B. als Schritt einer Multi-Aktion (Drücken und sofort Loslassen).
+    fn execute(&mut self, a: &ActionData, env: &Env) -> Command {
+        let c = self.key_down(a, env);
+        c.then(self.key_up(a, env, 0))
     }
     /// Eigenes Bild statt des Symbols aus dem Profil (Seitenanzeige, Uhr …); None = Profil-Symbol.
     fn image(&self, _a: &ActionData, _env: &Env, _size: (u32, u32)) -> Option<RgbaImage> {
@@ -82,6 +183,8 @@ pub struct ActionData {
     pub data: Map<String, Value>,
     pub page_dir: PathBuf,
     pub state: usize,
+    /// liegt auf einem Drehregler (Stream Deck +)
+    pub dial: bool,
 }
 
 impl ActionData {
@@ -89,7 +192,7 @@ impl ActionData {
         let uuid = data.get("UUID").and_then(Value::as_str).unwrap_or("").to_string();
         let n = data.get("States").and_then(Value::as_array).map(|a| a.len()).unwrap_or(1).max(1);
         let state = (data.get("State").and_then(Value::as_u64).unwrap_or(0) as usize).min(n - 1);
-        Self { uuid, data, page_dir, state }
+        Self { uuid, data, page_dir, state, dial: false }
     }
 
     pub fn settings(&self) -> Map<String, Value> {
@@ -176,6 +279,28 @@ impl Action {
         render::compose_key(size, icon.as_ref(), &title, &self.data.state_dict(), overlay, base)
     }
 
+    /// Als Schritt einer anderen Aktion auslösen: Zustandswechsel gelten für diese Aktion selbst,
+    /// alle anderen Befehle gehen an die Steuerung zurück.
+    pub fn execute_nested(&mut self, env: &Env) -> Command {
+        let cmd = self.behavior.execute(&self.data, env);
+        self.absorb(cmd)
+    }
+
+    /// [`Command::SetState`] auf die eigenen Daten anwenden, den Rest zurückgeben.
+    pub fn absorb(&mut self, cmd: Command) -> Command {
+        match cmd {
+            Command::SetState(s) => {
+                self.data.state = s % self.data.state_count();
+                Command::None
+            }
+            Command::Run(v) => v.into_iter().fold(Command::None, |acc, c| {
+                let c = self.absorb(c);
+                acc.then(c)
+            }),
+            c => c,
+        }
+    }
+
     fn fallback_label(&self) -> String {
         match self.data.uuid.as_str() {
             "com.elgato.streamdeck.profile.openchild" => freestream_core::tr!("Folder"),
@@ -220,11 +345,21 @@ impl Behavior for PageIndicator {
 /// Programm öffnen (beim Loslassen, wie in der Elgato-App).
 struct OpenApp;
 impl Behavior for OpenApp {
-    fn key_up(&mut self, a: &ActionData, env: &Env, _held_ms: u64) -> Command {
+    fn key_up(&mut self, a: &ActionData, env: &Env, held_ms: u64) -> Command {
         let s = a.settings();
         let get = |k: &str| s.get(k).and_then(Value::as_str).unwrap_or("").to_string();
         let target = [get("exec"), get("bundle_path"), get("bundle_id"), get("path")].into_iter().find(|t| !t.is_empty()).unwrap_or_default();
         let cmd = system::resolve_program(&target, env.cfg.get("app_map").and_then(Value::as_object), &get("app_name"));
+        let hint = if get("exec").is_empty() { get("bundle_path") } else { get("exec") };
+        let names = system::process_names_for(cmd.as_deref(), &hint);
+        // langer Druck mit „Programm beenden“ (Einstellung long_press)
+        if env.is_long(held_ms) && matches!(get("long_press").as_str(), "quit" | "close" | "kill" | "force_quit") {
+            return if system::kill_processes(&names) { Command::None } else { Command::Alert };
+        }
+        let front = s.get("bring_to_front").and_then(Value::as_bool).unwrap_or(true);
+        if front && cmd.is_some() && system::is_running(&names) && system::focus_window(&names) {
+            return Command::None;
+        }
         match cmd {
             Some(c) => {
                 let args = get("args");
