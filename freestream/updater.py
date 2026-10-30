@@ -48,6 +48,11 @@ PACKAGES = NEW_PACKAGES + tuple(LEGACY)
 LATER_SECONDS = 15 * 60  # „Später“: das zweite Programm fragt beim gleichen Anmelden nicht noch einmal
 STATE_FILE = "update.json"
 CHANNELS = ("stable", "beta")
+# Welche Ausgabe läuft: die Python-Programme oder die Rust-Programme (Beta, Paket freedeck-rs mit
+# /usr/bin/freedeck-rs und /usr/bin/freewave-rs). Wählbar im Update-Dialog (config.json "edition").
+EDITIONS = ("python", "rust")
+RUST_PACKAGE = "freedeck-rs"
+RUST_PROGRAMS = {"freedeck": "freedeck-rs", "freewave": "freewave-rs"}
 
 
 # ------------------------------------------------------------------ Einstellung
@@ -86,6 +91,61 @@ def channel():
 
 def set_channel(ch):
     _write_config("update_channel", ch if ch in CHANNELS else "stable")
+
+
+def edition():
+    """Gewählte Ausgabe: "python" (Standard) oder "rust". FREESTREAM_EDITION überschreibt sie für einen Start."""
+    e = os.environ.get("FREESTREAM_EDITION") or _read_config().get("edition")
+    return e if e in EDITIONS else "python"
+
+
+def set_edition(e):
+    _write_config("edition", e if e in EDITIONS else "python")
+
+
+def rust_program(name):
+    """Pfad des Rust-Programms zu „freedeck“/„freewave“, wenn die Rust-Ausgabe installiert ist; sonst None."""
+    exe = RUST_PROGRAMS.get(name)
+    return shutil.which(exe) if exe else None
+
+
+def redirect_to_rust(name, argv):
+    """Rust gewählt: die Python-Programme starten stattdessen die Rust-Programme (Menü, Autostart, Neustart
+    nach dem Update). Nur Fenster und Hintergrunddienst, die Kommandozeile bleibt Python.
+    FREESTREAM_PYTHON=1 erzwingt Python. Kehrt nur zurück, wenn nichts umgeleitet wird."""
+    if os.environ.get("FREESTREAM_PYTHON") or edition() != "rust":
+        return
+    exe = rust_program(name)
+    if not exe:
+        return
+    args = list(argv)
+    cmd = next((a for a in args if not a.startswith("-")), "")
+    if name == "freedeck":
+        if cmd not in ("", "open", "edit", "run", "quit") or "--no-gui" in args:
+            return
+        args = ["run"] if cmd == "run" else (["quit"] if cmd == "quit" else [])
+    else:
+        if cmd:
+            return
+        args = [a for a in args if a in ("--hidden", "--quit")]
+    log.info("Rust edition selected: starting %s", exe)
+    os.execv(exe, [exe, *args])
+
+
+def _deb_arch():
+    return (_query(["dpkg", "--print-architecture"]).strip() or
+            {"x86_64": "amd64", "aarch64": "arm64"}.get(os.uname().machine, os.uname().machine))
+
+
+def _distro():
+    """System aus /etc/os-release, z. B. "ubuntu-24.04" (Name der Rust-Pakete im Release)."""
+    try:
+        fields = dict(line.split("=", 1) for line in Path("/etc/os-release").read_text().splitlines() if "=" in line)
+    except OSError:
+        return ""
+    ident = fields.get("ID", "").strip().strip('"')
+    ver = fields.get("VERSION_ID", "").strip().strip('"')
+    return f"{ident}-{ver}" if ident and ver else ""
 
 
 # ------------------------------------------------------------------ Zustand (übersprungen, später, installiert)
@@ -179,9 +239,10 @@ def dpkg_packages():
     if not shutil.which("dpkg-query"):
         return {}
     found = {}
-    for line in _query(["dpkg-query", "-W", "-f=${Package}\t${Status}\t${Version}\n", *PACKAGES]).splitlines():
+    for line in _query(["dpkg-query", "-W", "-f=${Package}\t${Status}\t${Version}\n", *PACKAGES,
+                        RUST_PACKAGE]).splitlines():
         parts = line.split("\t")
-        if len(parts) == 3 and parts[0] in PACKAGES and parts[1].endswith(" installed"):
+        if len(parts) == 3 and parts[0] in PACKAGES + (RUST_PACKAGE,) and parts[1].endswith(" installed"):
             found[parts[0]] = parts[2]
     return found
 
@@ -205,13 +266,14 @@ def installed_packages():
 class Update:
     """Ein Release mit den passenden .deb-Dateien."""
 
-    def __init__(self, version, notes, page, files, date="", prerelease=False):
+    def __init__(self, version, notes, page, files, date="", prerelease=False, release=None):
         self.version = version  # z. B. "0.17.0"
         self.notes = notes
         self.page = page  # Release-Seite im Browser
         self.files = files  # [{"name", "url", "sha256", "size"}]
         self.date = date  # Veröffentlichung, z. B. "2026-10-01"
         self.prerelease = prerelease
+        self.release = release  # Antwort der API (für den Wechsel der Ausgabe im Dialog)
 
     @property
     def downgrade(self):
@@ -244,9 +306,20 @@ def english_notes(body):
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-def asset_names(pkg, version):
-    """Mögliche Dateinamen eines Pakets im Release (Vorabversion auch mit ~ statt -)."""
-    return [f"{pkg}_{v}_all.deb" for v in dict.fromkeys((version, version.replace("-", "~")))]
+def asset_names(pkg, version, arch=None, distro=None):
+    """Mögliche Dateinamen eines Pakets im Release (Vorabversion auch mit ~ statt -). Das Rust-Paket gibt es je
+    Architektur und System (`freedeck-rs_0.40.0_amd64_ubuntu-24.04.deb`; das passende System zuerst)."""
+    versions = dict.fromkeys((version, version.replace("-", "~")))
+    if pkg != RUST_PACKAGE:
+        return [f"{pkg}_{v}_all.deb" for v in versions]
+    arch = arch or _deb_arch()
+    distro = _distro() if distro is None else distro
+    out = []
+    for v in versions:
+        if distro:
+            out.append(f"{pkg}_{v}_{arch}_{distro}.deb")
+        out.append(f"{pkg}_{v}_{arch}.deb")
+    return out
 
 
 def release_files(release, packages):
@@ -282,7 +355,24 @@ def make_update(release, packages):
     version = (release.get("tag_name") or "").lstrip("v")
     return Update(version, english_notes(release.get("body")), release.get("html_url") or "", files,
                   date=(release.get("published_at") or release.get("created_at") or "")[:10],
-                  prerelease=bool(release.get("prerelease")))
+                  prerelease=bool(release.get("prerelease")), release=release)
+
+
+def packages_for(ed, installed=None):
+    """Pakete, die das Update für die Ausgabe `ed` installiert: Python – die installierten Python-Pakete (sonst
+    freestream); Rust – freedeck-rs. Die jeweils andere Ausgabe bleibt installiert."""
+    installed = dpkg_packages() if installed is None else installed
+    if ed == "rust":
+        return [RUST_PACKAGE]
+    py = [p for p in installed if p != RUST_PACKAGE]
+    return py or ["freestream"]
+
+
+def update_for_edition(update, ed):
+    """Dasselbe Release mit den Paketen der Ausgabe `ed`; None, wenn das Release sie nicht enthält."""
+    if update is None or not update.release:
+        return None
+    return make_update(update.release, packages_for(ed))
 
 
 def release_update(release, packages, current=__version__, beta=False):
@@ -332,6 +422,8 @@ def check(packages=None, timeout=10, beta=None):
     packages = installed_packages() if packages is None else packages
     if not packages:
         return None
+    # Python-Programme prüfen ihre eigenen Pakete (das Rust-Paket hat eigene Versionen und Dateien)
+    packages = [p for p in packages if p != RUST_PACKAGE] or packages
     beta = channel() == "beta" if beta is None else beta
     if beta:
         return newest_update(fetch_releases(timeout), packages)

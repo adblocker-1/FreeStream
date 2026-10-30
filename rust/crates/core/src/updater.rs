@@ -111,6 +111,40 @@ pub fn set_channel(ch: &str) -> bool {
     config::save_keys(&[("update_channel", Value::String(ch.into()))])
 }
 
+// ------------------------------------------------------------------ Ausgabe: Python oder Rust (Beta)
+/// Gewählte Ausgabe (config.json "edition", wie die Python-Version): "python" (Standard) oder "rust".
+pub fn edition() -> &'static str {
+    let env = std::env::var("FREESTREAM_EDITION").ok();
+    let cfg = read_config();
+    match env.as_deref().or_else(|| cfg.get("edition").and_then(Value::as_str)) {
+        Some("rust") => "rust",
+        _ => "python",
+    }
+}
+
+pub fn set_edition(e: &str) -> bool {
+    config::save_keys(&[("edition", Value::String(if e == "rust" { "rust" } else { "python" }.into()))])
+}
+
+/// Pakete, die das Update für die Ausgabe `ed` installiert: Rust – freedeck-rs (dazu die installierten
+/// Python-Pakete, damit beide auf demselben Stand bleiben); Python – die installierten Python-Pakete, sonst
+/// freestream (und freedeck-rs, falls installiert).
+pub fn packages_for(ed: &str, installed: &BTreeMap<String, String>) -> Vec<String> {
+    let mut out: Vec<String> = installed.keys().filter(|p| p.as_str() != RUST_PACKAGE).cloned().collect();
+    if ed == "python" && out.is_empty() {
+        out.push("freestream".into());
+    }
+    if ed == "rust" || installed.contains_key(RUST_PACKAGE) {
+        out.push(RUST_PACKAGE.into());
+    }
+    out
+}
+
+/// Dasselbe Release mit den Paketen der Ausgabe `ed`; None, wenn es sie nicht (für dieses System) enthält.
+pub fn update_for_edition(update: &Update, ed: &str, installed: &BTreeMap<String, String>, target: &Target) -> Option<Update> {
+    make_update(&update.release, &packages_for(ed, installed), target)
+}
+
 // ------------------------------------------------------------------ Zustand (übersprungen, später, installiert)
 fn state_path() -> PathBuf {
     paths::state_dir().join(STATE_FILE)
@@ -410,6 +444,8 @@ pub struct Update {
     /// Veröffentlichung, z. B. "2026-10-01"
     pub date: String,
     pub prerelease: bool,
+    /// Antwort der API (für den Wechsel der Ausgabe im Dialog)
+    pub release: Value,
 }
 
 impl Update {
@@ -538,6 +574,7 @@ pub fn make_update<S: AsRef<str>>(release: &Value, packages: &[S], target: &Targ
         files,
         date: date.chars().take(10).collect(),
         prerelease: truthy(release.get("prerelease")),
+        release: release.clone(),
     })
 }
 

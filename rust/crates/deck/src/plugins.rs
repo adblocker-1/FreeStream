@@ -326,10 +326,10 @@ fn safe_extract(file: &Path, dest: &Path) -> anyhow::Result<()> {
     let mut z = zip::ZipArchive::new(std::fs::File::open(file)?)?;
     for i in 0..z.len() {
         let mut f = z.by_index(i)?;
-        let name = f.name().replace('\\', "/");
+        let name = f.name()?.replace('\\', "/");
         let rel = Path::new(&name);
         if rel.is_absolute() || rel.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
-            anyhow::bail!(tr!("Unsafe path in archive: {path}", path = f.name()));
+            anyhow::bail!(tr!("Unsafe path in archive: {path}", path = name));
         }
         let target = dest.join(rel);
         if name.ends_with('/') {

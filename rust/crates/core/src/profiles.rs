@@ -374,7 +374,7 @@ pub(crate) fn extract_zip(file: &Path, dest: &Path) -> anyhow::Result<()> {
     let mut z = zip::ZipArchive::new(std::fs::File::open(file)?)?;
     for i in 0..z.len() {
         let mut f = z.by_index(i)?;
-        let name = f.name().replace('\\', "/");
+        let name = f.name()?.replace('\\', "/");
         // Pfade aus dem Archiv dürfen nicht aus dem Zielordner heraus zeigen
         let rel = Path::new(&name);
         if rel.is_absolute() || rel.components().any(|c| matches!(c, std::path::Component::ParentDir)) {

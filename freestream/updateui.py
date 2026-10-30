@@ -15,7 +15,7 @@ from . import __version__, desktop, updater
 from . import msgbox as messagebox
 from .dialogkit import ScrollArea, footer, header, slim_scrollbar
 from .i18n import _
-from .theme import COL, Button, Card, Dialog, InfoCard, Switch, font, label
+from .theme import COL, Button, Card, Dialog, InfoCard, Segmented, Switch, font, label
 
 log = logging.getLogger("freestream.updateui")
 
@@ -48,7 +48,13 @@ def start(root, app, restart):
     if version:
         desktop.notify(_("FreeStream was updated"), _("Version {version} is installed.").format(version=version),
                        app=app, icon="system-software-update")
-    if not updater.enabled() or not updater.installed_packages():
+    if not updater.installed_packages():
+        return
+    if version and "edition" not in updater._read_config():
+        # erstes Update mit der Wahl Python/Rust: einmal fragen, welche Programme laufen sollen
+        _ask_edition(root, app, restart)
+        return
+    if not updater.enabled():
         return
 
     def done(update, error):
@@ -66,6 +72,29 @@ def start(root, app, restart):
             lock.release()
 
     _in_background(root, updater.check, done)
+
+
+def _ask_edition(root, app, restart):
+    """Nach einem Update einmal fragen: weiter mit Python oder Rust (Beta)? Holt das laufende Release (mit den
+    Rust-Paketen für dieses System); ohne Rust-Pakete wird nicht gefragt."""
+    def work():
+        release = updater._get_first(updater.API_URLS, 10)
+        if updater.parse_version(release.get("tag_name") or "") != updater.parse_version(__version__):
+            return None
+        return updater.make_update(release, updater.packages_for("python"))
+
+    def done(update, error):
+        if error is not None or update is None or updater.update_for_edition(update, "rust") is None:
+            return
+        lock = updater.PromptLock()
+        if not lock.acquire():
+            return
+        try:
+            UpdateDialog(root, update, app, restart, lock=lock, choose=True)
+        except tk.TclError:
+            lock.release()
+
+    _in_background(root, work, done)
 
 
 def _no_packages(parent, app):
@@ -200,8 +229,10 @@ class RollbackDialog(Dialog):
 class UpdateDialog(Dialog):
     """Neue (mit rollback: ältere) Version: Notizen zeigen, nach Bestätigung herunterladen und installieren."""
 
-    def __init__(self, master, update, app, restart, lock=None, automatic=False, rollback=False):
-        title = _("Install an earlier version") if rollback else _("Update available")
+    def __init__(self, master, update, app, restart, lock=None, automatic=False, rollback=False, choose=False):
+        # choose: nur die Wahl Python/Rust (nach einem Update), nichts Neues zu installieren
+        self.choose = choose
+        title = _("Install an earlier version") if rollback else _("Program") if choose else _("Update available")
         super().__init__(master, title, width=540)
         self.update_info, self.app, self.restart = update, app, restart
         self.lock, self.automatic, self.rollback = lock, automatic, rollback
@@ -214,11 +245,14 @@ class UpdateDialog(Dialog):
             header(b, title, _("FreeStream {version} will replace version {current}. Your settings and profiles "
                                "stay, but an older version may not understand everything a newer one saved.")
                    .format(version=update.version, current=__version__), icon="undo", color=COL["warn"])
+        elif choose:
+            header(b, title, _("FreeStream {version} is installed. Choose which programs you want to use.")
+                   .format(version=update.version), icon="spark")
         else:
             header(b, title, _("FreeStream {version} is ready to install. You are using version {current}.")
                    .format(version=update.version, current=__version__), icon="spark")
 
-        if update.notes:
+        if update.notes and not choose:
             card = Card(b, pad=14, stretch=True)
             card.pack(fill="both", expand=True)
             txt = tk.Text(card.body, height=10, width=62, wrap="word", bg=COL["panel"], fg=COL["fg"], relief="flat",
@@ -234,12 +268,26 @@ class UpdateDialog(Dialog):
                    command=lambda: webbrowser.open(update.page)).pack(anchor="w", pady=(8, 0))
 
         row = tk.Frame(b, bg=COL["bg"])
-        if not rollback:
+        if not rollback and not choose:
             row.pack(fill="x", pady=(14, 0))
         self.auto = Switch(row, command=self._toggle_auto)
         self.auto.set(updater.configured())
         self.auto.pack(side="left")
         label(row, _("Check for updates every time {app} starts").format(app=app), 10).pack(side="left", padx=10)
+
+        # Welche Programme: Python oder Rust (Beta) – gilt für FreeDeck und FreeWave
+        self.edition = "python"
+        if not rollback:
+            erow = tk.Frame(b, bg=COL["bg"])
+            erow.pack(fill="x", pady=(14, 0))
+            label(erow, _("Program"), 10).pack(side="left", padx=(0, 12))
+            self.edition_switch = Segmented(erow, [("python", "Python"), ("rust", _("Rust (Beta)"))],
+                                            command=self._choose_edition, value=updater.edition())
+            self.edition_switch.pack(side="left")
+            label(b, _("Rust (Beta) runs without Python and starts faster. It uses the same profiles and settings – "
+                       "you can switch back with every update."), 9, color=COL["muted"], wraplength=520,
+                  justify="left").pack(anchor="w", pady=(6, 0))
+            self.edition = updater.edition()
 
         self.status = label(b, "", 9, color=COL["muted"], wraplength=560, justify="left")
         st = ttk.Style(self)
@@ -249,13 +297,13 @@ class UpdateDialog(Dialog):
 
         footer(self)
         install_text = _("Install version {version}").format(version=update.version) if rollback \
-            else _("Install update")
+            else _("Continue") if choose else _("Install update")
         self.install_btn = Button(self.buttons, install_text, icon="check", kind="primary", command=self._install)
         self.install_btn.pack(side="right")
         self.later_btn = Button(self.buttons, _("Cancel") if rollback else _("Later"), command=self._later)
         self.later_btn.pack(side="right", padx=8)
         self.skip_btn = Button(self.buttons, _("Skip this version"), kind="ghost", command=self._skip)
-        if not rollback:
+        if not rollback and not choose:
             self.skip_btn.pack(side="left")
         self.protocol("WM_DELETE_WINDOW", self._later)
         self.bind("<Escape>", lambda e: self._later())
@@ -266,12 +314,25 @@ class UpdateDialog(Dialog):
         self.focus_force()
 
     # -------------------------------------------------------------- Knöpfe
+    def _choose_edition(self, ed):
+        if self.busy:
+            return
+        if ed == "rust" and updater.update_for_edition(self.update_info, "rust") is None:
+            self.edition_switch.value = self.edition
+            self.edition_switch._draw()
+            self._show_status(_("This release has no Rust packages for your system."), COL["warn"], bar=False)
+            return
+        self.edition = ed
+        self._show_status("", bar=False)
+
     def _toggle_auto(self):
         updater.set_enabled(self.auto.get())
 
     def _later(self):
         if self.busy:
             return
+        if self.choose:
+            updater.set_edition(updater.edition())  # nur einmal fragen
         if self.automatic:
             updater.remind_later(self.update_info.version)
         self.destroy()
@@ -289,7 +350,7 @@ class UpdateDialog(Dialog):
 
     def _set_busy(self, busy):
         self.busy = busy
-        for w in (self.install_btn, self.later_btn) + (() if self.rollback else (self.skip_btn,)):
+        for w in (self.install_btn, self.later_btn) + (() if self.rollback or self.choose else (self.skip_btn,)):
             if busy:
                 w.pack_forget()
             elif not w.winfo_manager():
@@ -306,13 +367,21 @@ class UpdateDialog(Dialog):
 
     # -------------------------------------------------------------- Installation
     def _install(self):
+        if self.choose and self.edition == "python":
+            updater.set_edition("python")  # bleibt wie es ist, nicht wieder fragen
+            self.destroy()
+            return
         self._set_busy(True)
         self.protocol("WM_DELETE_WINDOW", lambda: None)
         self._show_status(_("Downloading FreeStream {version}…").format(version=self.update_info.version))
         progress = {"value": 0}
 
+        # gewählte Ausgabe: dasselbe Release mit den Paketen von Python bzw. Rust
+        up = updater.update_for_edition(self.update_info, self.edition) if not self.rollback else None
+        self.install_info = up or self.update_info
+
         def work():
-            return updater.download(self.update_info, progress=lambda d, t: progress.update(value=d * 1000 // t))
+            return updater.download(self.install_info, progress=lambda d, t: progress.update(value=d * 1000 // t))
 
         def tick():
             if self.busy and self.proc is None and self.winfo_exists():
@@ -357,6 +426,9 @@ class UpdateDialog(Dialog):
         output = (self.proc.stdout.read() if self.proc.stdout else "") or ""
         if rc == 0:
             self.bar.stop()
+            if not self.rollback:
+                # ab jetzt startet „FreeDeck“/„FreeWave“ die gewählte Ausgabe (auch beim Neustart gleich)
+                updater.set_edition(self.edition)
             done = (_("Version {version} installed. {app} restarts now.")
                     .format(version=self.update_info.version, app=self.app) if self.rollback
                     else _("Update installed. {app} restarts now.").format(app=self.app))

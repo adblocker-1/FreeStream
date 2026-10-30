@@ -6,7 +6,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Language: es\n"
 
-#: freestream/__main__.py:846
+#: freestream/__main__.py:850
 msgid "Scenes: scene list | save <name> | apply <name> | rename <name> <new name> | delete <name>"
 msgstr "Escenas: scene list | save <nombre> | apply <nombre> | rename <nombre> <nuevo nombre> | delete <nombre>"
 
@@ -81,183 +81,183 @@ msgstr "Conectando con Discord – confirma la solicitud en Discord …"
 msgid "Home Assistant is not set up yet. In the FreeDeck window: choose a Home Assistant action → “Connect …” (or Settings → Connections)."
 msgstr "Home Assistant aún no está configurado. En la ventana de FreeDeck: elige una acción de Home Assistant → «Conectar …» (o Ajustes → Conexiones)."
 
-#: freestream/__main__.py:775
+#: freestream/__main__.py:779
 msgid "FreeDeck – software for Elgato decks on Linux"
 msgstr "FreeDeck – software para decks de Elgato en Linux"
 
-#: freestream/__main__.py:780
+#: freestream/__main__.py:784
 msgid "open the FreeDeck window (default without a command)"
 msgstr "abrir la ventana de FreeDeck (predeterminado sin comando)"
 
-#: freestream/__main__.py:785
+#: freestream/__main__.py:789
 msgid "start FreeDeck hidden (autostart)"
 msgstr "iniciar FreeDeck oculto (inicio automático)"
 
-#: freestream/__main__.py:786
+#: freestream/__main__.py:790
 msgid "start only the service, without a window (e.g. via SSH)"
 msgstr "iniciar solo el servicio, sin ventana (p. ej. por SSH)"
 
-#: freestream/__main__.py:790
+#: freestream/__main__.py:794
 msgid "open the FreeDeck window, optionally with a specific profile"
 msgstr "abrir la ventana de FreeDeck, opcionalmente con un perfil concreto"
 
-#: freestream/__main__.py:791
+#: freestream/__main__.py:795
 msgid "profile (ID or name) to open"
 msgstr "perfil (ID o nombre) que se abrirá"
 
-#: freestream/__main__.py:794
+#: freestream/__main__.py:798
 msgid "quit the running FreeDeck"
 msgstr "cerrar el FreeDeck en ejecución"
 
-#: freestream/__main__.py:797
+#: freestream/__main__.py:801
 msgid "import Elgato profiles (.streamDeckProfile, backup, ProfilesV2/V3 folder)"
 msgstr "importar perfiles de Elgato (.streamDeckProfile, copia de seguridad, carpeta ProfilesV2/V3)"
 
-#: freestream/__main__.py:799
+#: freestream/__main__.py:803
 msgid "do not overwrite existing profiles"
 msgstr "no sobrescribir los perfiles existentes"
 
-#: freestream/__main__.py:802
+#: freestream/__main__.py:806
 msgid "show imported profiles"
 msgstr "mostrar los perfiles importados"
 
-#: freestream/__main__.py:805
+#: freestream/__main__.py:809
 msgid "show connected devices"
 msgstr "mostrar dispositivos conectados"
 
-#: freestream/__main__.py:809
+#: freestream/__main__.py:813
 msgid "permanently assign a profile to a device"
 msgstr "asignar un perfil a un dispositivo de forma permanente"
 
-#: freestream/__main__.py:814
+#: freestream/__main__.py:818
 msgid "delete a profile"
 msgstr "eliminar un perfil"
 
-#: freestream/__main__.py:818
+#: freestream/__main__.py:822
 msgid "render profile pages as PNG (no device needed)"
 msgstr "renderizar las páginas del perfil como PNG (no hace falta el dispositivo)"
 
-#: freestream/__main__.py:821
+#: freestream/__main__.py:825
 msgid "also render folders"
 msgstr "renderizar también las carpetas"
 
-#: freestream/__main__.py:824
+#: freestream/__main__.py:828
 msgid "compatibility report for profiles"
 msgstr "informe de compatibilidad de los perfiles"
 
-#: freestream/__main__.py:828
+#: freestream/__main__.py:832
 msgid "copy the default icons from the Elgato installer"
 msgstr "copiar los iconos predeterminados del instalador de Elgato"
 
-#: freestream/__main__.py:829
+#: freestream/__main__.py:833
 msgid "Stream_Deck_*.msi or a copied program folder"
 msgstr "Stream_Deck_*.msi o una carpeta del programa copiada"
 
-#: freestream/__main__.py:832
+#: freestream/__main__.py:836
 msgid "manage Elgato plugins (list, install, remove)"
 msgstr "gestionar plugins de Elgato (list, install, remove)"
 
-#: freestream/__main__.py:834
+#: freestream/__main__.py:838
 msgid "file (.streamDeckPlugin) or plugin UUID"
 msgstr "archivo (.streamDeckPlugin) o UUID del plugin"
 
-#: freestream/__main__.py:837
+#: freestream/__main__.py:841
 msgid "audio mixer (Wave Link replacement): status, setup, remove, set, mute, assign, output"
 msgstr "mezclador de audio (sustituto de Wave Link): status, setup, remove, set, mute, assign, output"
 
-#: freestream/__main__.py:842
+#: freestream/__main__.py:846
 msgid "set <channel> <mix|both> <percent> · mute <channel> <mix> · master <channel> <percent> · listen <mix> · assign <program> <channel> · output [device] · add <name> [input device] · delete <channel>"
 msgstr "set <canal> <mezcla|both> <porcentaje> · mute <canal> <mezcla> · master <canal> <porcentaje> · listen <mezcla> · assign <programa> <canal> · output [dispositivo] · add <nombre> [dispositivo de entrada] · delete <canal>"
 
-#: freestream/__main__.py:849
+#: freestream/__main__.py:853
 msgid "microphone: status, gain, mute, lowcut, clipguard, leds, flip, headphone, monitor, noise"
 msgstr "micrófono: status, gain, mute, lowcut, clipguard, leds, flip, headphone, monitor, noise"
 
-#: freestream/__main__.py:854
+#: freestream/__main__.py:858
 msgid "gain <percent> · lowcut on|off [80|120] · clipguard on|off · leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100> · noise on|off|status|strength <0…95>|backend auto|rnnoise|webrtc"
 msgstr "gain <porcentaje> · lowcut on|off [80|120] · clipguard on|off · leds on|off · flip on|off · headphone <dB −60…0> · monitor <0…100> · noise on|off|status|strength <0…95>|backend auto|rnnoise|webrtc"
 
-#: freestream/__main__.py:859
+#: freestream/__main__.py:863
 msgid "open FreeWave: mixer and microphone (separate program)"
 msgstr "abrir FreeWave: mezclador y micrófono (programa independiente)"
 
-#: freestream/__main__.py:860
+#: freestream/__main__.py:864
 msgid "start hidden (autostart)"
 msgstr "iniciar oculto (inicio automático)"
 
-#: freestream/__main__.py:861
+#: freestream/__main__.py:865
 msgid "no icon in the system tray"
 msgstr "sin icono en la bandeja del sistema"
 
-#: freestream/__main__.py:862
+#: freestream/__main__.py:866
 msgid "quit the running FreeWave"
 msgstr "cerrar el FreeWave en ejecución"
 
-#: freestream/__main__.py:865
+#: freestream/__main__.py:869
 msgid "test the connection to OBS"
 msgstr "probar la conexión con OBS"
 
-#: freestream/__main__.py:868
+#: freestream/__main__.py:872
 msgid "connect to Discord (one-time authorization)"
 msgstr "conectar con Discord (autorización única)"
 
-#: freestream/__main__.py:871
+#: freestream/__main__.py:875
 msgid "Home Assistant: test the connection, list entities"
 msgstr "Home Assistant: probar la conexión, listar entidades"
 
-#: freestream/__main__.py:873
+#: freestream/__main__.py:877
 msgid "entities: only entities whose ID or name contains this text"
 msgstr "entities: solo entidades cuyo ID o nombre contiene este texto"
 
-#: freestream/__main__.py:876
+#: freestream/__main__.py:880
 msgid "test connected devices step by step"
 msgstr "probar los dispositivos conectados paso a paso"
 
-#: freestream/__main__.py:877
+#: freestream/__main__.py:881
 msgid "seconds per step"
 msgstr "segundos por paso"
 
-#: freestream/__main__.py:878
+#: freestream/__main__.py:882
 msgid "stop the running service for the test"
 msgstr "detener el servicio en ejecución durante la prueba"
 
-#: freestream/__main__.py:882
+#: freestream/__main__.py:886
 msgid "show or hide the virtual deck"
 msgstr "mostrar u ocultar el deck virtual"
 
-#: freestream/__main__.py:886
+#: freestream/__main__.py:890
 msgid "reload the running service"
 msgstr "recargar el servicio en ejecución"
 
-#: freestream/__main__.py:889
+#: freestream/__main__.py:893
 msgid "save all profiles, settings and plugins to one file"
 msgstr "guardar todos los perfiles, ajustes y plugins en un archivo"
 
-#: freestream/__main__.py:890
+#: freestream/__main__.py:894
 msgid "target file or folder (default: freestream-DATE.freestream-backup)"
 msgstr "archivo o carpeta de destino (predeterminado: freestream-FECHA.freestream-backup)"
 
-#: freestream/__main__.py:891
+#: freestream/__main__.py:895
 msgid "do not include installed plugins"
 msgstr "no incluir los plugins instalados"
 
-#: freestream/__main__.py:894
+#: freestream/__main__.py:898
 msgid "restore a backup (replaces profiles and settings)"
 msgstr "restaurar una copia de seguridad (reemplaza perfiles y ajustes)"
 
-#: freestream/__main__.py:895
+#: freestream/__main__.py:899
 msgid "backup file (.freestream-backup)"
 msgstr "archivo de copia de seguridad (.freestream-backup)"
 
-#: freestream/__main__.py:896
+#: freestream/__main__.py:900
 msgid "do not ask for confirmation"
 msgstr "no pedir confirmación"
 
-#: freestream/__main__.py:899
+#: freestream/__main__.py:903
 msgid "create a support report for a GitHub issue (secrets removed)"
 msgstr "crear un informe de soporte para un issue de GitHub (sin secretos)"
 
-#: freestream/__main__.py:900
+#: freestream/__main__.py:904
 msgid "file or folder for the report (default: home folder)"
 msgstr "archivo o carpeta para el informe (predeterminado: carpeta personal)"
 
@@ -1691,7 +1691,7 @@ msgstr "Traer al frente un programa en ejecución"
 msgid "Long press"
 msgstr "Pulsación larga"
 
-#: freestream/catalog.py:102 freestream/freedecksettings.py:592 freestream/settingsui.py:70
+#: freestream/catalog.py:102 freestream/freedecksettings.py:592 freestream/settingsui.py:70 freestream/updateui.py:235
 msgid "Program"
 msgstr "Programa"
 
@@ -3787,7 +3787,7 @@ msgstr "Del perfil importado: {app}"
 msgid "Switch to the program now … {n}"
 msgstr "Cambia ahora al programa … {n}"
 
-#: freestream/freedecksettings.py:787 freestream/pluginui.py:186 freestream/updateui.py:181
+#: freestream/freedecksettings.py:787 freestream/pluginui.py:186 freestream/updateui.py:210
 #, python-brace-format
 msgid "Version {version}"
 msgstr "Versión {version}"
@@ -5075,7 +5075,7 @@ msgstr "Restaurar copia de seguridad"
 msgid "Check now"
 msgstr "Buscar ahora"
 
-#: freestream/settingsui.py:76 freestream/updateui.py:242
+#: freestream/settingsui.py:76 freestream/updateui.py:276
 #, python-brace-format
 msgid "Check for updates every time {app} starts"
 msgstr "Buscar actualizaciones cada vez que se inicie {app}"
@@ -5246,47 +5246,51 @@ msgstr "{app} cambiará al nuevo aspecto tras reiniciar. ¿Reiniciar ahora?"
 msgid "FreeStream was updated"
 msgstr "FreeStream se ha actualizado"
 
-#: freestream/updateui.py:74 freestream/updateui.py:89 freestream/updateui.py:92
+#: freestream/updateui.py:103 freestream/updateui.py:118 freestream/updateui.py:121
 msgid "Updates"
 msgstr "Actualizaciones"
 
-#: freestream/updateui.py:137 freestream/updateui.py:141 freestream/updateui.py:204
+#: freestream/updateui.py:166 freestream/updateui.py:170 freestream/updateui.py:235
 msgid "Install an earlier version"
 msgstr "Instalar una versión anterior"
 
-#: freestream/updateui.py:142
+#: freestream/updateui.py:171
 msgid "Go back to an older release if the current version causes problems."
 msgstr "Vuelve a una versión anterior si la actual causa problemas."
 
-#: freestream/updateui.py:150
+#: freestream/updateui.py:179
 msgid "Loading the list of versions…"
 msgstr "Cargando la lista de versiones…"
 
-#: freestream/updateui.py:157
+#: freestream/updateui.py:186 freestream/updateui.py:300
 msgid "Continue"
 msgstr "Continuar"
 
-#: freestream/updateui.py:204
-msgid "Update available"
-msgstr "Actualización disponible"
-
-#: freestream/updateui.py:252
-msgid "Install update"
-msgstr "Instalar actualización"
-
-#: freestream/updateui.py:257
+#: freestream/updateui.py:305
 msgid "Skip this version"
 msgstr "Omitir esta versión"
 
-#: freestream/updateui.py:176
+#: freestream/updateui.py:205
 msgid "Choose the version to install:"
 msgstr "Elige la versión que quieres instalar:"
 
-#: freestream/updateui.py:255
+#: freestream/updateui.py:235
+msgid "Update available"
+msgstr "Actualización disponible"
+
+#: freestream/updateui.py:300
+msgid "Install update"
+msgstr "Instalar actualización"
+
+#: freestream/updateui.py:303
 msgid "Later"
 msgstr "Más tarde"
 
-#: freestream/updateui.py:368
+#: freestream/updateui.py:323
+msgid "This release has no Rust packages for your system."
+msgstr "Esta versión no incluye paquetes de Rust para tu sistema."
+
+#: freestream/updateui.py:440
 msgid "The installation was cancelled. Nothing was changed."
 msgstr "La instalación se canceló. No se cambió nada."
 
@@ -5295,107 +5299,120 @@ msgstr "La instalación se canceló. No se cambió nada."
 msgid "Version {version} is installed."
 msgstr "La versión {version} está instalada."
 
-#: freestream/updateui.py:74
+#: freestream/updateui.py:103
 #, python-brace-format
 msgid "Automatic updates work for the installed .deb packages only. This copy of {app} was started from the source code."
 msgstr "Las actualizaciones automáticas solo funcionan con los paquetes .deb instalados. Esta copia de {app} se inició desde el código fuente."
 
-#: freestream/updateui.py:145
+#: freestream/updateui.py:174
 msgid "Before you go back"
 msgstr "Antes de volver atrás"
 
-#: freestream/updateui.py:146
+#: freestream/updateui.py:175
 msgid "Older versions may not read settings or profiles that a newer version saved. Automatic update checks will offer the newest version again – choose “Skip this version” to stay on the older one."
 msgstr "Es posible que las versiones anteriores no lean los ajustes o perfiles guardados por una versión más nueva. La búsqueda automática de actualizaciones volverá a ofrecer la versión más reciente: elige «Omitir esta versión» para quedarte con la anterior."
 
-#: freestream/updateui.py:174
+#: freestream/updateui.py:203
 msgid "No earlier versions are available."
 msgstr "No hay versiones anteriores disponibles."
 
-#: freestream/updateui.py:180
+#: freestream/updateui.py:209
 msgid "Beta"
 msgstr "Beta"
 
-#: freestream/updateui.py:251
+#: freestream/updateui.py:299
 #, python-brace-format
 msgid "Install version {version}"
 msgstr "Instalar la versión {version}"
 
-#: freestream/updateui.py:311
+#: freestream/updateui.py:376
 #, python-brace-format
 msgid "Downloading FreeStream {version}…"
 msgstr "Descargando FreeStream {version}…"
 
-#: freestream/updateui.py:334
+#: freestream/updateui.py:403
 #, python-brace-format
 msgid "Installing… Enter your password when asked. {app} restarts by itself afterwards."
 msgstr "Instalando… Introduce tu contraseña cuando se te pida. {app} se reiniciará solo después."
 
-#: freestream/updateui.py:371
+#: freestream/updateui.py:443
 #, python-brace-format
 msgid "The installation failed: {error}"
 msgstr "La instalación falló: {error}"
 
-#: freestream/updateui.py:89
+#: freestream/updateui.py:118
 #, python-brace-format
 msgid "Could not check for updates: {error}"
 msgstr "No se pudo buscar actualizaciones: {error}"
 
-#: freestream/updateui.py:178
+#: freestream/updateui.py:207
 #, python-brace-format
 msgid "Published {date}"
 msgstr "Publicada el {date}"
 
-#: freestream/updateui.py:214
+#: freestream/updateui.py:245
 #, python-brace-format
 msgid "FreeStream {version} will replace version {current}. Your settings and profiles stay, but an older version may not understand everything a newer one saved."
 msgstr "FreeStream {version} reemplazará la versión {current}. Tus ajustes y perfiles se conservan, pero una versión anterior puede no entender todo lo que guardó una más nueva."
 
-#: freestream/updateui.py:218
-#, python-brace-format
-msgid "FreeStream {version} is ready to install. You are using version {current}."
-msgstr "FreeStream {version} está listo para instalarse. Estás usando la versión {current}."
-
-#: freestream/updateui.py:233
+#: freestream/updateui.py:267
 msgid "Show release on GitHub"
 msgstr "Ver la versión en GitHub"
 
-#: freestream/updateui.py:328
+#: freestream/updateui.py:284
+msgid "Rust (Beta)"
+msgstr "Rust (beta)"
+
+#: freestream/updateui.py:287
+msgid "Rust (Beta) runs without Python and starts faster. It uses the same profiles and settings – you can switch back with every update."
+msgstr "Rust (beta) funciona sin Python y arranca más rápido. Usa los mismos perfiles y ajustes; puedes volver atrás en cada actualización."
+
+#: freestream/updateui.py:397
 #, python-brace-format
 msgid "The download is damaged ({file}). Nothing was installed."
 msgstr "La descarga está dañada ({file}). No se instaló nada."
 
-#: freestream/updateui.py:330
+#: freestream/updateui.py:399
 #, python-brace-format
 msgid "Download failed: {error}"
 msgstr "La descarga falló: {error}"
 
-#: freestream/updateui.py:347
+#: freestream/updateui.py:416
 #, python-brace-format
 msgid "Automatic installation is not possible here (pkexec is missing). The packages are in {folder} – install them with a double-click."
 msgstr "La instalación automática no es posible aquí (falta pkexec). Los paquetes están en {folder}: instálalos con un doble clic."
 
-#: freestream/updateui.py:360
+#: freestream/updateui.py:432
 #, python-brace-format
 msgid "Version {version} installed. {app} restarts now."
 msgstr "Versión {version} instalada. {app} se reinicia ahora."
 
-#: freestream/updateui.py:362
+#: freestream/updateui.py:434
 #, python-brace-format
 msgid "Update installed. {app} restarts now."
 msgstr "Actualización instalada. {app} se reinicia ahora."
 
-#: freestream/updateui.py:92
+#: freestream/updateui.py:121
 #, python-brace-format
 msgid "You are using the latest version ({version})."
 msgstr "Estás usando la versión más reciente ({version})."
 
-#: freestream/updateui.py:169
+#: freestream/updateui.py:198
 #, python-brace-format
 msgid "Could not load the list of versions: {error}"
 msgstr "No se pudo cargar la lista de versiones: {error}"
 
-#: freestream/updateui.py:339
+#: freestream/updateui.py:249
+#, python-brace-format
+msgid "FreeStream {version} is installed. Choose which programs you want to use."
+msgstr "FreeStream {version} está instalado. Elige qué programas quieres usar."
+
+#: freestream/updateui.py:252
+#, python-brace-format
+msgid "FreeStream {version} is ready to install. You are using version {current}."
+msgstr "FreeStream {version} está listo para instalarse. Estás usando la versión {current}."
+
+#: freestream/updateui.py:408
 #, python-brace-format
 msgid "Could not start the installation: {error}"
 msgstr "No se pudo iniciar la instalación: {error}"
