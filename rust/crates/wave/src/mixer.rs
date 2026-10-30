@@ -2437,6 +2437,34 @@ impl Mixer {
             .collect()
     }
 
+    /// Lautstärke/stumm aller Sinks (Name -> Pegel), auch der FreeWave-Mix-Sinks.
+    pub fn sink_levels(&self) -> Levels {
+        self.blocks("sinks").iter().filter(|b| !b.name().is_empty())
+            .map(|b| (b.name().to_string(), Level { volume: b.volume.unwrap_or(100), mute: b.mute }))
+            .collect()
+    }
+
+    /// Eingangsgerät eines Eingangskanals oder des Mikrofons (leer bei Programm-Kanälen oder ohne Gerät).
+    pub fn channel_input(&self, c: &Channel, st: &Map<String, Value>) -> Device {
+        let name = if c.id == "mic" {
+            let mut mic = s(self.conf().get("mic"));
+            if mic.is_empty() {
+                mic = s(st.get("mic"));
+            }
+            mic
+        } else if !c.is_apps() {
+            c.source.clone()
+        } else {
+            String::new()
+        };
+        if name.is_empty() || name.ends_with(".monitor") {
+            return Device::default();
+        }
+        let description = self.blocks("sources").iter().find(|b| b.name() == name)
+            .map(|b| b.description().to_string()).filter(|d| !d.is_empty()).unwrap_or_else(|| name.clone());
+        Device { name, description }
+    }
+
     /// Persönlichen Mix auf ein anderes Ausgabegerät legen (Name, Teil der Beschreibung oder "next"/"").
     pub fn set_monitor_output(&self, device: &str) -> Result<String> {
         let outs = self.outputs();

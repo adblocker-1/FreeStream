@@ -1,5 +1,5 @@
 //! Fenster von FreeWave (GTK4) wie `freestream/waveui.py`: links die Seitenleiste mit Mikrofon, den
-//! Ansichten (Mixer, Mikrofon, Effekte, Apps) und den Mixen; rechts die gewählte Ansicht. Im Mixer hat
+//! Ansichten (Mixer, Audio Flow, Soundboard, Mikrofon, Effekte, Apps) und den Mixen; rechts die gewählte Ansicht. Im Mixer hat
 //! jeder Kanal eine Zeile, jeder Mix eine Spalte mit eigenem Regler – samt Pegel, Stumm-Knöpfen,
 //! gekoppelten Reglern und Effekten.
 //!
@@ -11,10 +11,12 @@ mod apps;
 mod deck_ui;
 mod dialogs;
 mod effects_ui;
+mod flow;
 mod mic;
 mod mixer;
 mod settings;
 mod setup;
+mod soundboard;
 mod theme;
 mod views;
 mod widgets;
@@ -152,6 +154,7 @@ pub struct Win {
     deck_btn: gtk::Button,
     setup_btn: gtk::Button,
     add_btn: gtk::Button,
+    clear_btn: gtk::Button,
     head_shown: RefCell<Vec<&'static str>>,
     status: gtk::Label,
     // Seitenleiste
@@ -165,6 +168,8 @@ pub struct Win {
     pub mixer: mixer::MixerView,
     pub mic: mic::MicView,
     pub views: views::Views,
+    pub flow: flow::FlowView,
+    pub sb: soundboard::SoundView,
     hidden_once: Cell<bool>,
     pub wizard_open: Cell<bool>,
     deck_sig: RefCell<Option<String>>,
@@ -213,7 +218,8 @@ impl Win {
         widgets::margins(&line, 8, 6, 4, 6);
         top.append(&line);
         let mut nav = Vec::new();
-        for (key, text, icon) in [("mixer", tr!("Mixer"), "sliders"), ("mic", tr!("Microphone"), "mic"),
+        for (key, text, icon) in [("mixer", tr!("Mixer"), "sliders"), ("flow", tr!("Audio Flow"), "flow"),
+                                  ("soundboard", tr!("Soundboard"), "wave"), ("mic", tr!("Microphone"), "mic"),
                                   ("effects", tr!("Effects"), "spark"), ("apps", tr!("Apps"), "grid")] {
             let item = NavItem::new(&text, icon, false);
             item.button.set_margin_bottom(2);
@@ -253,6 +259,7 @@ impl Win {
         let deck_btn = button(&tr!("Export to FreeDeck"), Some("export"), "");
         let setup_btn = button(&tr!("Set up mixer"), Some("wave"), "primary");
         let add_btn = button(&tr!("Add channel"), Some("plus"), "primary");
+        let clear_btn = button(&tr!("Clear selection"), Some("close"), "");
         let stack = gtk::Stack::new();
         stack.set_vexpand(true);
         stack.set_transition_type(gtk::StackTransitionType::None);
@@ -279,6 +286,7 @@ impl Win {
             deck_btn,
             setup_btn,
             add_btn,
+            clear_btn,
             head_shown: RefCell::new(vec!["-"]),
             status,
             nav,
@@ -290,17 +298,23 @@ impl Win {
             mixer: mixer::MixerView::new(),
             mic: mic::MicView::new(),
             views: views::Views::new(),
+            flow: flow::FlowView::new(),
+            sb: soundboard::SoundView::new(),
             hidden_once: Cell::new(false),
             wizard_open: Cell::new(false),
             deck_sig: RefCell::new(None),
             listen_now: RefCell::new(None),
         });
         w.stack.add_named(&w.mixer.root, Some("mixer"));
+        w.stack.add_named(&w.flow.root, Some("flow"));
+        w.stack.add_named(&w.sb.root, Some("soundboard"));
         w.stack.add_named(&w.mic.root, Some("mic"));
         w.stack.add_named(&w.views.fx_root, Some("effects"));
         w.stack.add_named(&w.views.apps_root, Some("apps"));
         mixer::init(&w);
         mic::init(&w);
+        flow::init(&w);
+        soundboard::init(&w);
         w.fill_mix_cards(&[]);
         w.connect(settings_item, stop);
         w.show_view("mixer");
@@ -326,6 +340,8 @@ impl Win {
         self.setup_btn.connect_clicked(move |_| w.mixer_enable(true));
         let w = self.clone();
         self.add_btn.connect_clicked(move |_| dialogs::channel_dialog(&w, None));
+        let w = self.clone();
+        self.clear_btn.connect_clicked(move |_| flow::select(&w, None));
         // Schließen versteckt nur: Mixer und Mikrofon bleiben aktiv
         let w = self.clone();
         self.win.connect_close_request(move |win| {
@@ -477,6 +493,7 @@ impl Win {
             self.apply_state(&s);
         }
         mixer::check_width(self);
+        flow::check_width(self);
     }
 
     fn tick_levels(self: &Rc<Self>) {
@@ -512,10 +529,14 @@ impl Win {
                 set_button_text(&self.listen_btn, if cur.is_empty() { "–" } else { &cur });
             }
             views::apply(self, s);
+            flow::apply(self, s);
+            soundboard::apply(self, s);
             self.sync_decks(s);
         } else {
             mixer::apply_off(self);
             views::apply_off(self);
+            flow::apply_off(self);
+            soundboard::apply(self, s);
             for card in self.mix_cards.borrow().values() {
                 card.set_sub(&tr!("Mixer is off"), true);
             }
@@ -567,6 +588,11 @@ impl Win {
     }
 
     // ============================================================ Kopf
+    /// Kopf neu ordnen (Audio Flow: „Auswahl aufheben“ ein-/ausblenden).
+    pub fn refresh_header(self: &Rc<Self>) {
+        self.update_header();
+    }
+
     fn update_header(self: &Rc<Self>) {
         let s = self.snap.borrow().clone();
         let view = self.view.borrow().clone();
@@ -582,6 +608,19 @@ impl Win {
                     self.sub.set_text(&tr!("The mixer is off – set it up to give every app its own channel."));
                     shown = vec!["setup"];
                 }
+            }
+            "flow" => {
+                self.title.set_text(&tr!("Audio Flow"));
+                self.sub.set_text(&tr!("Click any element to follow its signal path"));
+                if !s.active {
+                    shown = vec!["setup"];
+                } else if self.flow.has_selection() {
+                    shown = vec!["clear"];
+                }
+            }
+            "soundboard" => {
+                self.title.set_text(&tr!("Soundboard"));
+                self.sub.set_text("");
             }
             "mic" => {
                 self.title.set_text(&tr!("Microphone"));
@@ -612,6 +651,7 @@ impl Win {
                 "deck" => &self.deck_btn,
                 "listen" => &self.listen_btn,
                 "setup" => &self.setup_btn,
+                "clear" => &self.clear_btn,
                 _ => &self.add_btn,
             };
             self.head_buttons.append(b);

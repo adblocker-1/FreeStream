@@ -20,6 +20,7 @@
 pub mod control;
 pub mod ducking;
 pub mod effects;
+pub mod flow;
 pub mod fmt;
 pub mod host;
 pub mod levels;
@@ -28,6 +29,7 @@ pub mod noise;
 pub mod pactl;
 pub mod procs;
 pub mod settings;
+pub mod soundboard;
 pub mod wave3hw;
 pub mod wavemic;
 
