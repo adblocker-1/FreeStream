@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import wave
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -393,8 +394,23 @@ def shot_freewave(tmp):
     mixes = [{"id": "monitor", "exclude": ["mic"]},
              {"id": "chat", "name": "Chat Mix", "icon": "chat", "color": "#22c55e", "virtual": True, "devices": [],
               "exclude": ["system", "music", "browser", "podcast"]}]
+    sounds = []  # Soundboard: kurze Töne als Beispiel (selbst erzeugt)
+    for i, (name, color, loop) in enumerate((("Applause", "#30d158", False), ("Drum roll", "#ffb020", True),
+                                             ("Air horn", "#ff4d5a", False), ("Ding", "#2fc3ff", False),
+                                             ("Laugh track", "#a66bff", False), ("Intro jingle", "#ff6bd5", False))):
+        f = tmp / f"sound{i}.wav"
+        with wave.open(str(f), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(8000)
+            w.writeframes(b"\0\0" * 800)
+        sounds.append({"id": f"s{i}", "name": name, "file": str(f), "color": color, "volume": 100 - i * 5,
+                       "loop": loop})
     (tmp / "config" / "config.json").write_text(json.dumps({"mixer": {"enabled": True, "channels": channels,
-                                                                       "effects": fx, "mixes": mixes}}))
+                                                                       "effects": fx, "mixes": mixes},
+                                                            "soundboard": sounds, "soundboard_play": "all",
+                                                            "soundboard_monitor": "monitor",
+                                                            "soundboard_volume": 80}))
     fake = TW.FakePactl()
     fake.sinks[0]["description"] = "Headphones"  # Beispieldaten der Tests sind deutsch
     for inp in fake.inputs.values():
@@ -420,6 +436,19 @@ def shot_freewave(tmp):
     effects.Effects.start = lambda self, c, src: self.node_name(c["id"])  # keine echten Filterprozesse
     wave3hw.present = lambda: True
     wave3hw.USBTransport = lambda: TW.FakeWave3()
+    from freestream import desktop
+
+    def app_png(name, color):
+        f = tmp / f"app-{name}.png"
+        im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        ImageDraw.Draw(im).ellipse((4, 4, 60, 60), fill=color)
+        im.save(f)
+        return f
+    installed = [{"name": n, "key": k, "cls": k, "icon": k, "icon_path": app_png(k, c)} for n, k, c in (
+        ("Audacity", "audacity", "#2f7bff"), ("Firefox", "firefox", "#ff8a3d"), ("Rhythmbox", "rhythmbox", "#f5b13d"),
+        ("Spotify", "spotify", "#30d158"), ("Steam", "steam", "#5b7cff"), ("VLC media player", "vlc", "#ff8a3d"),
+        ("Discord", "discord", "#5865f2"))]
+    desktop.app_entries = lambda: [dict(e, icon=str(e["icon_path"])) for e in installed]
     from freestream.wavehost import WaveHost
     from freestream.waveui import WaveWindow
     host = WaveHost()
@@ -452,6 +481,24 @@ def shot_freewave(tmp):
     win.show_view("mic")
     pump(root, 1)
     grab(root, "freewave-microphone.png")
+    win.show_view("flow")
+    pump(root, 1.5)
+    root.event_generate("<Motion>", warp=True, x=5, y=5)  # Mauszeiger aus dem Graphen (sonst eine Karte hell)
+    win.flow._redraw()
+    pump(root, 0.5)
+    grab(root, "freewave-audioflow.png")
+    win.flow.select("ch:music")
+    pump(root, 0.5)
+    if os.environ.get("FREEWAVE_SHOT_ALL"):  # nur zum Vergleichen, nicht in der README
+        grab(root, "freewave-audioflow-selected.png")
+    win.flow.select(None)
+    win.show_view("soundboard")
+    sv = win.soundview
+    sv.select(sv.sounds[1])
+    sv.player.playing = lambda: {"s0"}  # wie während des Abspielens (ohne echten Ton)
+    sv.player.is_playing = lambda sid: sid == "s0"
+    pump(root, 1)
+    grab(root, "freewave-soundboard.png")
     win.show_view("mixer")
 
     from freestream import wavesetup
@@ -483,15 +530,7 @@ def shot_freewave(tmp):
     grab(dlg, "freewave-channel.png")
     dlg.destroy()
 
-    def app_png(name, color):
-        f = tmp / f"app-{name}.png"
-        im = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-        ImageDraw.Draw(im).ellipse((4, 4, 60, 60), fill=color)
-        im.save(f)
-        return f
-    installed = [{"name": n, "key": k, "cls": k, "icon": k, "icon_path": app_png(k, c)} for n, k, c in (
-        ("Audacity", "audacity", "#2f7bff"), ("Firefox", "firefox", "#ff8a3d"), ("Rhythmbox", "rhythmbox", "#f5b13d"),
-        ("Spotify", "spotify", "#30d158"), ("Steam", "steam", "#5b7cff"), ("VLC media player", "vlc", "#ff8a3d"))]
+    installed = installed[:6]
     apps = {"routes": [{"key": "firefox", "name": "Firefox", "own": True},
                        {"key": "spotify", "name": "Spotify", "own": False},
                        {"key": "cyberpunk2077", "name": "Cyberpunk 2077", "own": True}],

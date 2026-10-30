@@ -16,7 +16,8 @@ FREEDECK = ["app.py", "daemon.py", "engine.py", "actions.py", "catalog.py", "edi
            "selftest.py", "livekeys.py", "sysinfo.py", "deckexport.py", "mixkeys.py", "iconlib.py", "iconlibui.py",
            "freedecksettings.py", "connectionsui.py", "decksetup.py", "virtualdeck.py", "virtualui.py"]
 FREEWAVE = ["freewave.py", "wavehost.py", "waveui.py", "wavedialogs.py", "wavesetup.py", "mixer.py", "effects.py",
-            "levels.py", "wavemic.py", "wave3hw.py", "noise.py", "ducking.py"]
+            "levels.py", "wavemic.py", "wave3hw.py", "noise.py", "ducking.py", "audioflow.py", "flowview.py",
+            "soundboard.py", "soundview.py"]
 
 PACKAGES = {
     "freestream": COMMON + FREEDECK + FREEWAVE,

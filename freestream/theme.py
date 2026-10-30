@@ -618,6 +618,17 @@ def _draw_glyph(name, size, color, bg, circle):
         arc(0.04, 0.14, 0.96, 1.06, 180, 360)
         line((0.5, 0.6), (0.76, 0.3))
         ell(0.4, 0.5, 0.6, 0.7)
+    elif n == "flow":  # Knoten-Graph (Audio Flow): ein Punkt links, zwei rechts, verbunden
+        line((0.2, 0.5), (0.5, 0.5), (0.8, 0.2))
+        line((0.5, 0.5), (0.8, 0.8))
+        for cx, cy in ((0.16, 0.5), (0.84, 0.18), (0.84, 0.82)):
+            ell(cx - 0.15, cy - 0.15, cx + 0.15, cy + 0.15)
+    elif n == "waveform":  # Wellenform (Soundboard): unterschiedlich hohe Striche
+        for i, hh in enumerate((0.2, 0.5, 0.9, 0.35, 0.7, 0.45, 0.15)):
+            x = 0.06 + i * 0.147
+            line((x, 0.5 - hh / 2), (x, 0.5 + hh / 2))
+    elif n == "stop":
+        rect(0.14, 0.14, 0.86, 0.86, r=0.12)
     else:  # Punkt als Ersatz
         ell(0.3, 0.3, 0.7, 0.7)
     return im.resize((size, size), Image.LANCZOS)
