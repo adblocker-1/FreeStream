@@ -368,7 +368,7 @@ fn export_zip_and_import_roundtrip() {
     let out = doc.export(&fx.base.join("Mein Profil")).unwrap();
     assert_eq!(out.file_name().unwrap().to_str().unwrap(), "Mein Profil.streamDeckProfile");
     let mut z = zip::ZipArchive::new(std::fs::File::open(&out).unwrap()).unwrap();
-    let names: Vec<String> = z.file_names().map(str::to_string).collect();
+    let names: Vec<String> = z.file_names().map(|n| n.unwrap().to_string()).collect();
     let root_name = doc.root.file_name().unwrap().to_str().unwrap().to_string();
     assert!(names.iter().all(|n| n.starts_with(&format!("{root_name}/"))), "{names:?}");
     assert!(names.contains(&format!("{root_name}/manifest.json")));
