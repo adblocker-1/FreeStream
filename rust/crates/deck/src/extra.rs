@@ -13,6 +13,8 @@ pub fn behavior_for(uuid: &str) -> Option<Box<dyn Behavior>> {
         .or_else(|| actions_multi::behavior_for(uuid))
         .or_else(|| actions_sysmon::behavior_for(uuid))
         .or_else(|| actions_app::behavior_for(uuid))
+        // Aktionen installierter Elgato-Plugins vor den eigenen Linux-Versionen (wie Python)
+        .or_else(|| crate::plugins::behavior_for(uuid))
         .or_else(|| actions_hass::behavior_for(uuid))
         .or_else(|| actions_obs::behavior_for(uuid))
         .or_else(|| actions_discord::behavior_for(uuid))

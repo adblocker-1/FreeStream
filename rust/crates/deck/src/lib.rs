@@ -23,6 +23,7 @@ pub mod livedraw;
 pub mod native;
 pub mod net;
 pub mod obs;
+pub mod plugins;
 pub mod render;
 pub mod sound;
 pub mod sysinfo;

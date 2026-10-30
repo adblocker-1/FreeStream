@@ -593,6 +593,7 @@ dependencies = [
  "ab_glyph",
  "anyhow",
  "base64 0.22.1",
+ "data-encoding",
  "elgato-streamdeck",
  "evdev",
  "fastrand",
@@ -610,6 +611,8 @@ dependencies = [
  "tiny-skia",
  "tungstenite",
  "ureq",
+ "uuid",
+ "zip",
 ]
 
 [[package]]

@@ -47,6 +47,11 @@ impl Daemon {
     /// Gerät betreiben (eigener Thread: Eingaben lesen, Ticks, Neuladen).
     pub fn attach(&mut self, dev: Arc<dyn Device>) {
         let serial = dev.serial();
+        // Plugins vom neuen Gerät erfahren lassen (vor dem ersten Zeichnen: willAppear nennt das Gerät)
+        if let Some(h) = crate::plugins::host() {
+            let g = dev.geometry();
+            h.device_connected(crate::plugins::DeviceInfo { serial: serial.clone(), model: dev.model(), cols: g.cols, rows: g.rows });
+        }
         let ctrl = Arc::new(Mutex::new(Controller::new(dev.clone(), self.store.clone())));
         ctrl.lock().unwrap().start();
         self.controllers.lock().unwrap().insert(serial.clone(), ctrl.clone());
@@ -76,6 +81,9 @@ impl Daemon {
                     }
                 }
                 ctrls.lock().unwrap().remove(&serial2);
+                if let Some(h) = crate::plugins::host() {
+                    h.device_disconnected(&serial2);
+                }
             })
             .expect("Thread");
         self.running.insert(serial, Running { stop, thread });
@@ -134,8 +142,12 @@ impl Daemon {
     pub fn run(&mut self) -> anyhow::Result<()> {
         let mut hid = elgato_streamdeck::new_hidapi()?;
         write_pid_file();
+        self.start_plugin_host();
         while !self.stop.load(Ordering::Relaxed) {
             self.scan(&mut hid);
+            if let Some(h) = crate::plugins::host() {
+                h.sync();
+            }
             self.reload_if_changed();
             for _ in 0..20 {
                 if self.stop.load(Ordering::Relaxed) {
@@ -148,8 +160,35 @@ impl Daemon {
             r.stop.store(true, Ordering::Relaxed);
             let _ = r.thread.join();
         }
+        if let Some(h) = crate::plugins::host() {
+            h.stop();
+            crate::plugins::set_host(None);
+        }
         let _ = std::fs::remove_file(freestream_core::paths::pid_file());
         Ok(())
+    }
+
+    /// Plugin-Host starten (Elgato-Plugins, Einstellungsseiten); switchToProfile wechselt das Profil der Geräte.
+    pub fn start_plugin_host(&self) {
+        match crate::plugins::PluginHost::start_default() {
+            Ok(h) => {
+                let ctrls = self.controllers.clone();
+                h.set_profile_switcher(move |device, profile| {
+                    let list: Vec<(String, Arc<Mutex<Controller>>)> = ctrls.lock().unwrap().iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+                    for (serial, c) in list {
+                        if device.is_empty() || serial == device {
+                            let mut c = c.lock().unwrap();
+                            let known = c.store.lock().unwrap().get(profile).map(|p| p.id.clone());
+                            if let Some(id) = known {
+                                c.load_profile(Some(&id), None);
+                            }
+                        }
+                    }
+                });
+                crate::plugins::set_host(Some(h));
+            }
+            Err(e) => log::warn!("{}", freestream_core::tr!("Plugin host not available: {error}", error = e)),
+        }
     }
 }
 
