@@ -1,9 +1,10 @@
 //! Weitere eingebaute Aktionen (Tastenkürzel, Text, Medien, Uhr, Timer, Soundboard, Multi-Aktionen,
-//! Systemmonitor, Programm beenden) – [`crate::actions::behavior_for`] fragt hier nach, wenn es eine UUID
-//! nicht selbst kennt.
+//! Systemmonitor, Programm beenden) und die Verbindungs-Aktionen (OBS Studio, Home Assistant, Discord) –
+//! [`crate::actions::behavior_for`] fragt hier nach, wenn es eine UUID nicht selbst kennt.
 
 use crate::actions::Behavior;
-use crate::{actions_app, actions_input, actions_multi, actions_sound, actions_sysmon, actions_time};
+use crate::{actions_app, actions_discord, actions_hass, actions_input, actions_multi, actions_obs, actions_sound,
+            actions_sysmon, actions_time};
 
 pub fn behavior_for(uuid: &str) -> Option<Box<dyn Behavior>> {
     actions_input::behavior_for(uuid)
@@ -12,6 +13,9 @@ pub fn behavior_for(uuid: &str) -> Option<Box<dyn Behavior>> {
         .or_else(|| actions_multi::behavior_for(uuid))
         .or_else(|| actions_sysmon::behavior_for(uuid))
         .or_else(|| actions_app::behavior_for(uuid))
+        .or_else(|| actions_hass::behavior_for(uuid))
+        .or_else(|| actions_obs::behavior_for(uuid))
+        .or_else(|| actions_discord::behavior_for(uuid))
 }
 
 #[cfg(test)]
@@ -35,5 +39,31 @@ mod tests {
             assert!(crate::actions::behavior_for(uuid).supported(), "{uuid}");
         }
         assert!(super::behavior_for("com.example.plugin.x").is_none());
+    }
+
+    #[test]
+    fn connection_uuids_are_supported() {
+        for uuid in [
+            "com.lindeck.obs.scene", "com.lindeck.obs.record", "com.lindeck.obs.stream", "com.lindeck.obs.source",
+            "com.lindeck.obs.audio", "com.lindeck.obs.replay", "com.lindeck.obs.virtualcam", "com.lindeck.obs.studiomode",
+            "com.lindeck.obs.transition", "com.lindeck.obs.screenshot",
+            "com.elgato.obsstudio.scene", "com.elgato.obsstudio.record", "com.elgato.obsstudio.stream",
+            "com.lindeck.homeassistant.toggle", "com.lindeck.homeassistant.service", "com.lindeck.homeassistant.scene",
+            "com.lindeck.homeassistant.state",
+            "com.lindeck.discord.voice", "com.elgato.discord.mute", "com.elgato.discord.deafen",
+        ] {
+            assert!(super::behavior_for(uuid).is_some(), "{uuid}");
+            assert!(crate::actions::behavior_for(uuid).supported(), "{uuid}");
+        }
+        // bekannte Präfixe, aber keine bekannte Aktion
+        assert!(super::behavior_for("com.lindeck.homeassistant.unknown").is_none());
+        assert!(super::behavior_for("com.elgato.obsstudio.unknownthing").is_none());
+        // alle Verbindungs-Aktionen aus dem Katalog haben ein Verhalten
+        for a in freestream_core::catalog::catalog() {
+            let u = a.uuid.as_str();
+            if u.starts_with("com.lindeck.obs.") || u.starts_with("com.lindeck.homeassistant.") || u.starts_with("com.lindeck.discord.") {
+                assert!(super::behavior_for(u).is_some(), "{u}");
+            }
+        }
     }
 }

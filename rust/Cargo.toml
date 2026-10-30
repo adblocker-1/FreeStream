@@ -32,6 +32,12 @@ evdev = "0.13"
 jiff = "0.2"
 fastrand = "2"
 libc = "0.2"
+# Verbindungen (OBS, Home Assistant, Discord)
+tungstenite = "0.28"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+rustls-native-certs = "0.8"
+sha2 = "0.10"
+base64 = "0.22"
 
 [profile.release]
 lto = "thin"
