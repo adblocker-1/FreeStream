@@ -8,7 +8,7 @@ The Rust version of FreeDeck (and later FreeWave). It reads and writes the same 
 Easiest: install the package `freedeck-rs_<version>_amd64_<system>.deb` that fits your system
 (`ubuntu-24.04`, `debian-12` or `ubuntu-22.04`). It is in the download of the latest run of the
 **Rust** workflow (Actions tab). Double-click it or run `sudo apt install ./freedeck-rs_….deb`, then
-start **FreeDeck (Rust)** from the app menu or with `freedeck-rs`. It can be installed next to the
+start **FreeDeck (Rust)** or **FreeWave (Rust)** from the app menu, or run `freedeck-rs` / `freewave-rs`. It can be installed next to the
 Python FreeDeck and brings its own udev rule.
 
 Build it yourself:
