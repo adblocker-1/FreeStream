@@ -1,0 +1,20 @@
+[package]
+name = "freestream-deck"
+description = "FreeDeck: Geräte, Tastenbilder und Ablauf der Tasten"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[dependencies]
+freestream-core.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+log.workspace = true
+image.workspace = true
+ab_glyph.workspace = true
+resvg.workspace = true
+elgato-streamdeck.workspace = true
+hidapi.workspace = true
