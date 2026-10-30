@@ -22,6 +22,7 @@ fn usage() {
     println!("  freedeck devices                 {}", tr!("show connected devices"));
     println!("  freedeck profiles                {}", tr!("Profiles"));
     println!("  freedeck import <file|folder>    {}", tr!("Import profiles"));
+    println!("  freedeck plugin [list|install <file>|remove <uuid>]  {}", tr!("manage Elgato plugins (list, install, remove)"));
     println!("  freedeck quit                    {}", tr!("quit the running FreeDeck"));
     println!("  freedeck assign <serial> <profile> {}", tr!("permanently assign a profile to a device"));
     println!("  freedeck remove <profile>        {}", tr!("delete a profile"));
@@ -82,6 +83,18 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Some("preview") => preview(&args[1..]),
+        Some("plugin") => {
+            use freestream_deck::plugins;
+            let r = match args.get(1).map(String::as_str) {
+                Some("install") => plugins::cli_install(&args[2..].iter().map(std::path::PathBuf::from).collect::<Vec<_>>(), None),
+                Some("remove") => plugins::cli_remove(&args[2..], None),
+                _ => plugins::cli_list(None),
+            };
+            for l in r.lines {
+                println!("{l}");
+            }
+            std::process::exit(r.code);
+        }
         Some("quit") => {
             match already_running() {
                 Some(pid) => {
@@ -155,13 +168,20 @@ fn preview(args: &[String]) -> anyhow::Result<()> {
 
 /// Geräte suchen und Profile neu lesen, solange das Fenster offen ist.
 fn service_loop(d: Arc<Mutex<Daemon>>) {
-    let Ok(mut hid) = elgato_streamdeck::new_hidapi() else { return };
+    // ohne Zugriff auf USB (z. B. im Container) laufen virtuelles Deck und Plugins trotzdem
+    let mut hid = elgato_streamdeck::new_hidapi().map_err(|e| log::warn!("USB: {e}")).ok();
     freestream_deck::daemon::write_pid_file();
+    d.lock().unwrap().start_plugin_host();
     loop {
         {
             let mut d = d.lock().unwrap();
-            d.scan(&mut hid);
+            if let Some(hid) = hid.as_mut() {
+                d.scan(hid);
+            }
             d.reload_if_changed();
+        }
+        if let Some(h) = freestream_deck::plugins::host() {
+            h.sync();
         }
         std::thread::sleep(std::time::Duration::from_secs(2));
     }

@@ -214,7 +214,18 @@ pub fn build(ed: &Rc<Editor>) {
     grid.attach(&trow, 1, row, 1, 1);
     row += 1;
 
-    if typ.is_none() {
+    let plugin_ok = typ.is_none() && freestream_deck::plugins::action_supported(&uuid);
+    if plugin_ok && freestream_deck::plugins::has_property_inspector(&uuid) {
+        // Einstellungsseite des Plugins im Browser (läuft über den Plugin-Host des Dienstes)
+        let b = gtk::Button::with_label(&tr!("Settings page…"));
+        b.add_css_class("suggested-action");
+        b.set_halign(Align::Start);
+        let e = ed.clone();
+        b.connect_clicked(move |_| open_property_inspector(&e, slot));
+        grid.attach(&b, 1, row, 1, 1);
+        row += 1;
+    }
+    if typ.is_none() && !plugin_ok {
         let note = label(&tr!("Action of the plugin “{plugin}” – cannot run on Linux (plugin not installed or only for Windows/macOS). Title, icon and settings are kept.",
                               plugin = data.get("Plugin").and_then(|p| p.get("Name")).and_then(Value::as_str).unwrap_or(uuid.rsplit_once('.').map(|x| x.0).unwrap_or(&uuid))), &["muted"]);
         note.set_wrap(true);
@@ -761,4 +772,23 @@ fn catalog_button(text: &str, with_delay: bool, on: impl Fn(String) + Clone + 's
     }
     mb.set_popover(Some(&pop));
     mb
+}
+
+fn open_property_inspector(ed: &Rc<Editor>, slot: Slot) {
+    use freestream_deck::plugins::{browser_command, property_inspector_url, PiSlot};
+    let (Some(page), Some(pid)) = (ed.page_uuid(), ed.state.borrow().profile.clone()) else { return };
+    let pi = match slot {
+        Slot::Dial(i) => PiSlot::Dial(i),
+        Slot::Key(c, r) => PiSlot::Key(c, r),
+        _ => return,
+    };
+    match property_inspector_url(&pid, &page, pi) {
+        Some(url) => {
+            let cmd = browser_command(&url);
+            if let Some((exe, args)) = cmd.split_first() {
+                let _ = std::process::Command::new(exe).args(args).spawn();
+            }
+        }
+        None => super::editor::info(&ed.win, &tr!("Settings page…"), &tr!("FreeDeck must be running for this (menu: “FreeDeck” or `freedeck`), because it runs the plugins.")),
+    }
 }

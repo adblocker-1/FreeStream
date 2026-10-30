@@ -2,10 +2,15 @@ name: Rust
 
 on:
   push:
+    branches: ["**"]
+    tags: ["v*"]   # Pfadfilter gelten nicht für Tags: jedes Release bekommt die Rust-Pakete
     paths: ["rust/**", ".github/workflows/rust.yml"]
   pull_request:
     paths: ["rust/**", ".github/workflows/rust.yml"]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   # Bauen, Tests und Programm zum Herunterladen – auf den unterstützten Systemen
@@ -60,3 +65,26 @@ jobs:
           path: |
             rust/target/release/freedeck
             rust/dist/*.deb
+
+  # Bei einem Release (Tag v…): die Rust-Pakete an das Release hängen, das „Build .deb“ anlegt
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: freedeck-rust-*
+          path: art
+      - name: An das Release hängen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -R art
+          # das Release legt der andere Workflow an – bis zu 30 Minuten darauf warten
+          for i in $(seq 1 60); do
+            gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+            sleep 30
+          done
+          gh release upload "$GITHUB_REF_NAME" $(find art -name '*.deb') --clobber

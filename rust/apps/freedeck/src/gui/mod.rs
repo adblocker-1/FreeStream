@@ -10,6 +10,7 @@ mod inspector;
 mod library;
 mod profiles_ui;
 mod settings;
+mod update_ui;
 mod util;
 pub mod virtual_ui;
 
@@ -42,6 +43,7 @@ pub fn run(daemon: Option<Arc<Mutex<Daemon>>>) -> gtk::glib::ExitCode {
         if let Some(d) = &daemon {
             virtual_ui::start_if_enabled(app, d);
         }
+        update_ui::check_at_start(&win);
     });
     app.run_with_args::<&str>(&[])
 }

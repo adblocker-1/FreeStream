@@ -23,7 +23,7 @@ fn with_freewave() -> bool {
     freestream_deck::system::have("freewave")
 }
 
-fn action_row(t: &'static ActionType, state: &Rc<RefCell<State>>) -> gtk::Box {
+fn action_row(t: &ActionType, state: &Rc<RefCell<State>>) -> gtk::Box {
     let r = gtk::Box::new(Orientation::Horizontal, 10);
     r.add_css_class("action-row");
     let (glyph, color) = catalog::action_look(&t.uuid, t.category.id());
@@ -119,7 +119,25 @@ pub fn build(state: &Rc<RefCell<State>>) -> gtk::Box {
                 list.remove(&c);
             }
             if plugins.is_active() {
-                list.append(&label(&tr!("No plugins installed"), &["muted"]));
+                // Aktionen installierter Elgato-Plugins, nach Plugin gruppiert
+                let q = search.text().to_lowercase();
+                let mut types = freestream_deck::plugins::plugin_types(None);
+                types.sort_by(|a, b| (a.category.id(), a.name()).cmp(&(b.category.id(), b.name())));
+                if types.is_empty() {
+                    list.append(&label(&tr!("No plugins installed"), &["muted"]));
+                }
+                let mut last = String::new();
+                for t in types.iter().filter(|t| q.is_empty() || t.name().to_lowercase().contains(&q) || t.category.id().to_lowercase().contains(&q)) {
+                    let cat = t.category.id().trim_start_matches("Plugin:").trim().to_string();
+                    if cat != last {
+                        let h = label(&cat, &["cat-name"]);
+                        h.set_margin_top(10);
+                        h.set_margin_bottom(4);
+                        list.append(&h);
+                        last = cat;
+                    }
+                    list.append(&action_row(t, &state));
+                }
                 return;
             }
             let q = search.text().to_lowercase();

@@ -197,7 +197,7 @@ impl Editor {
         let win = self.win.clone();
         bell.connect_clicked(move |_| {
             let _ = &st;
-            info(&win, &tr!("Updates"), &tr!("You are using the latest version ({version}).", version = freestream_core::VERSION));
+            super::update_ui::check_now(&win);
         });
         let win = self.win.clone();
         store.connect_clicked(move |_| info(&win, &tr!("Plugins"), &tr!("Plugins")));
@@ -911,13 +911,13 @@ impl Editor {
 
     /// Aktion auf einen Drehregler legen (nur Aktionen, die einen Regler können).
     pub fn add_dial_action(self: &Rc<Self>, uuid: &str, i: u8) {
-        if let Some(t) = freestream_core::catalog::lookup(uuid).filter(|t| !t.supports(freestream_core::catalog::DIAL)) {
+        if let Some(t) = freestream_deck::plugins::find_type(uuid).filter(|t| !t.supports(freestream_core::catalog::DIAL)) {
             self.state.borrow_mut().status = tr!("“{name}” only works on keys", name = t.name());
             self.refresh_header();
             return;
         }
         self.edit(|doc, page| {
-            doc.place(page, Slot::Dial(i), uuid);
+            place_any(doc, page, Slot::Dial(i), uuid);
         });
         {
             let mut st = self.state.borrow_mut();
@@ -944,7 +944,7 @@ impl Editor {
             let pg = st.preview.as_ref()?.current_page()?;
             (0..g.keys() as u8).find(|k| !pg.keypad.contains_key(&(k % g.cols, k / g.cols)))
         });
-        if let Some(t) = freestream_core::catalog::lookup(uuid).filter(|t| !t.supports(freestream_core::catalog::KEY)) {
+        if let Some(t) = freestream_deck::plugins::find_type(uuid).filter(|t| !t.supports(freestream_core::catalog::KEY)) {
             self.state.borrow_mut().status = tr!("“{name}” only works on dials", name = t.name());
             self.refresh_header();
             return;
@@ -956,7 +956,7 @@ impl Editor {
         };
         let slot = self.slot_of(k);
         self.edit(|doc, page| {
-            doc.place(page, slot, uuid);
+            place_any(doc, page, slot, uuid);
         });
         self.state.borrow_mut().selected = Some(k);
         self.state.borrow_mut().selected_dial = None;
@@ -1325,6 +1325,15 @@ impl Editor {
         pop.set_child(Some(&list));
         pop.connect_closed(|p| p.unparent());
         pop.popup();
+    }
+}
+
+/// Aktion aus dem Katalog oder eines installierten Plugins auf einen Platz legen.
+fn place_any(doc: &mut ProfileDoc, page: &str, slot: Slot, uuid: &str) {
+    if freestream_core::catalog::lookup(uuid).is_some() {
+        doc.place(page, slot, uuid);
+    } else if let Some(t) = freestream_deck::plugins::find_type(uuid) {
+        doc.place_action(page, slot, freestream_core::catalog::new_action_of(&t));
     }
 }
 
