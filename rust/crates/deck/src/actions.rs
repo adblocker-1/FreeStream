@@ -274,7 +274,14 @@ impl ActionData {
     pub fn image_path(&self) -> Option<PathBuf> {
         let img = self.state_dict().get("Image").and_then(Value::as_str).unwrap_or("").to_string();
         if img.is_empty() {
-            return None;
+            // Standard-Icon aus den übernommenen Elgato-Assets (falls vorhanden)
+            if self.uuid == "com.elgato.streamdeck.system.multimedia" {
+                let idx = crate::actions_input::media_idx(self);
+                if let Some(p) = crate::builtin_icons::media_icon(idx) {
+                    return Some(p);
+                }
+            }
+            return crate::builtin_icons::default_icon(&self.uuid, self.state);
         }
         let p = self.page_dir.join(&img);
         if p.exists() {

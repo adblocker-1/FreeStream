@@ -10,6 +10,7 @@ pub mod actions_obs;
 pub mod actions_sound;
 pub mod actions_sysmon;
 pub mod actions_time;
+pub mod builtin_icons;
 pub mod daemon;
 pub mod device;
 pub mod discord;
