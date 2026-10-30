@@ -47,6 +47,17 @@ install it after you confirm (can be switched off in **Settings**).
 **Uninstall:** `sudo apt remove freestream` (or `freedeck` / `freewave`); your
 profiles stay in `~/.local/share/freestream`.
 
+### Preview: without Python (Rust)
+
+Since 0.39 there is also a native version of FreeDeck and FreeWave written in Rust. It needs no
+Python, starts faster and uses less memory. Download `freedeck-rs_<version>_amd64_<system>.deb` for
+your system (`ubuntu-24.04`, `debian-12` or `ubuntu-22.04`) and start **FreeDeck (Rust)** or
+**FreeWave (Rust)** from the menu. It installs next to the Python packages and uses the **same
+profiles and settings**, so you can switch back and forth. Quit the Python FreeDeck first – only one
+program can use the deck at a time. Details: [rust/README.md](rust/README.md).
+
+![FreeDeck (Rust)](docs/images/rust-freedeck.png)
+
 > **Status:** version 0.28, tested with simulated devices of every model.
 > Tests on real hardware are still pending; reports are welcome.
 

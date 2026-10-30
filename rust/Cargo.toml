@@ -1,0 +1,48 @@
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/deck", "crates/wave", "apps/freedeck", "apps/freewave"]
+
+[workspace.package]
+version = "0.39.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.75"
+
+[workspace.dependencies]
+freestream-core = { path = "crates/core" }
+freestream-deck = { path = "crates/deck" }
+freestream-wave = { path = "crates/wave" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+anyhow = "1"
+thiserror = "2"
+log = "0.4"
+env_logger = "0.11"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+ab_glyph = "0.2"
+resvg = "0.45"
+tiny-skia = "0.11"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+uuid = { version = "1", features = ["v4"] }
+data-encoding = "2"
+tempfile = "3"
+elgato-streamdeck = "0.14"
+hidapi = { version = "2", default-features = false, features = ["linux-static-hidraw"] }
+gtk4 = { version = "0.11", features = ["v4_6"] }  # Ubuntu 22.04: GTK 4.6, Debian 12: 4.8
+evdev = "0.13"
+jiff = "0.2"
+fastrand = "2"
+libc = "0.2"
+# Verbindungen (OBS, Home Assistant, Discord)
+tungstenite = "0.28"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+rustls-native-certs = "0.8"
+sha2 = "0.10"
+base64 = "0.22"
+indexmap = "2"
+regex = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true

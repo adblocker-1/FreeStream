@@ -1,0 +1,106 @@
+name: Rust
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]   # Pfadfilter gelten nicht für Tags: jedes Release bekommt die Rust-Pakete
+    paths: ["rust/**", ".github/workflows/rust.yml"]
+  pull_request:
+    paths: ["rust/**", ".github/workflows/rust.yml"]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Pakete an das Release v<Version> hängen (das „Build .deb“ anlegt)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  # Bauen, Tests und Programm zum Herunterladen – auf den unterstützten Systemen
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "debian:12", "ubuntu:22.04"]
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Abhängigkeiten
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            curl ca-certificates build-essential pkg-config libgtk-4-dev libhidapi-dev libudev-dev \
+            fonts-dejavu-core xvfb xauth
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Bauen
+        working-directory: rust
+        run: cargo build --release --locked || cargo build --release
+
+      - name: Tests
+        working-directory: rust
+        run: cargo test --release
+
+      - name: Programm startet
+        working-directory: rust
+        run: |
+          ./target/release/freedeck --version
+          ./target/release/freedeck profiles
+          # Fenster öffnen und nach ein paar Sekunden schließen (stürzt beim Start nicht ab)
+          timeout 8 xvfb-run -a ./target/release/freedeck gui || [ $? -eq 124 ]
+          # FreeWave: Kommandozeile und Fenster (ohne PipeWire im Container: Mixer bleibt aus)
+          ./target/release/freewave --version
+          ./target/release/freewave mixer status || true
+          timeout 8 xvfb-run -a ./target/release/freewave || [ $? -eq 124 ]
+
+      - name: Name für den Download
+        id: name
+        run: echo "tag=$(echo '${{ matrix.image }}' | tr ':' '-')" >> "$GITHUB_OUTPUT"
+
+      - name: Paket (.deb)
+        run: |
+          deb=$(rust/packaging/build-deb.sh rust/dist)
+          mv "$deb" "${deb%.deb}_${{ steps.name.outputs.tag }}.deb"
+          ls -l rust/dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: freedeck-rust-${{ steps.name.outputs.tag }}
+          path: |
+            rust/target/release/freedeck
+            rust/target/release/freewave
+            rust/dist/*.deb
+
+  # Bei einem Release (Tag v…): die Rust-Pakete an das Release hängen, das „Build .deb“ anlegt
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: freedeck-rust-*
+          path: art
+      - name: An das Release hängen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -R art
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v$(sed -n 's/^version = "\(.*\)"/\1/p' rust/Cargo.toml | head -1)"
+          fi
+          # das Release legt der andere Workflow an – bis zu 30 Minuten darauf warten
+          for i in $(seq 1 60); do
+            gh release view "$TAG" >/dev/null 2>&1 && break
+            sleep 30
+          done
+          gh release upload "$TAG" $(find art -name '*.deb') --clobber

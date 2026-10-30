@@ -1,0 +1,18 @@
+[package]
+name = "freedeck"
+description = "FreeDeck – Software für Elgato Stream Decks unter Linux"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+freestream-core.workspace = true
+freestream-deck.workspace = true
+anyhow.workspace = true
+log.workspace = true
+env_logger.workspace = true
+serde_json.workspace = true
+ctrlc = { version = "3", features = ["termination"] }
+gtk4.workspace = true
+image.workspace = true
+elgato-streamdeck.workspace = true

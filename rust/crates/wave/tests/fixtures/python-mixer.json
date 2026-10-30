@@ -1,0 +1,111 @@
+{
+  "modules": [
+    "536870916",
+    "536870917",
+    "536870918",
+    "536870919",
+    "536870920",
+    "536870921",
+    "536870922",
+    "536870923",
+    "536870924",
+    "536870925",
+    "536870926",
+    "536870927",
+    "536870928",
+    "536870929",
+    "536870930",
+    "536870931",
+    "536870932",
+    "536870933",
+    "536870934",
+    "536870935",
+    "536870936"
+  ],
+  "channels": {
+    "system": [
+      "536870917",
+      "536870918",
+      "536870919"
+    ],
+    "music": [
+      "536870920",
+      "536870921",
+      "536870922"
+    ],
+    "browser": [
+      "536870923",
+      "536870924",
+      "536870925"
+    ],
+    "voice": [
+      "536870926",
+      "536870927",
+      "536870928"
+    ],
+    "game": [
+      "536870929",
+      "536870930",
+      "536870931"
+    ],
+    "sfx": [
+      "536870932",
+      "536870933",
+      "536870934"
+    ],
+    "mic": [
+      "536870935",
+      "536870936"
+    ]
+  },
+  "loops": {
+    "system": {
+      "monitor": "536870918",
+      "stream": "536870919"
+    },
+    "music": {
+      "monitor": "536870921",
+      "stream": "536870922"
+    },
+    "browser": {
+      "monitor": "536870924",
+      "stream": "536870925"
+    },
+    "voice": {
+      "monitor": "536870927",
+      "stream": "536870928"
+    },
+    "game": {
+      "monitor": "536870930",
+      "stream": "536870931"
+    },
+    "sfx": {
+      "monitor": "536870933",
+      "stream": "536870934"
+    },
+    "mic": {
+      "monitor": "536870935",
+      "stream": "536870936"
+    }
+  },
+  "sources": {
+    "system": "linewave_system.monitor",
+    "music": "linewave_music.monitor",
+    "browser": "linewave_browser.monitor",
+    "voice": "linewave_voice.monitor",
+    "game": "linewave_game.monitor",
+    "sfx": "linewave_sfx.monitor",
+    "mic": "alsa_input.usb-Elgato_Wave_3"
+  },
+  "mixes": {
+    "monitor": [],
+    "stream": [
+      "536870916"
+    ]
+  },
+  "previous_default": "alsa_output.usb-headphones",
+  "monitor_output": "alsa_output.usb-headphones",
+  "mic": "alsa_input.usb-Elgato_Wave_3",
+  "created": 1793380972.496081,
+  "listen": "monitor"
+}

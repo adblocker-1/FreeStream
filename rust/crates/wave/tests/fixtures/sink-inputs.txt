@@ -1,0 +1,756 @@
+Sink Input #121
+	Driver: PipeWire
+	Owner Module: 536870918
+	Client: n/a
+	Sink: 80
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "alsa_output.usb-headphones"
+		linewave.loop = "linewave_system_monitor"
+		media.name = "FreeWave System → Persönlicher Mix"
+		device.description = "FreeWave System → Persönlicher Mix"
+		node.group = "loopback-536870918"
+		pulse.module.id = "536870918"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-12"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-12"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "67"
+		object.id = "68"
+		object.serial = "121"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave System → Persönlicher Mix"
+
+Sink Input #135
+	Driver: PipeWire
+	Owner Module: 536870919
+	Client: n/a
+	Sink: 107
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "linewave_streammix"
+		linewave.loop = "linewave_system_stream"
+		media.name = "FreeWave System → Stream-Mix"
+		device.description = "FreeWave System → Stream-Mix"
+		node.group = "loopback-536870919"
+		pulse.module.id = "536870919"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-13"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-13"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "80"
+		object.id = "81"
+		object.serial = "135"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave System → Stream-Mix"
+
+Sink Input #156
+	Driver: PipeWire
+	Owner Module: 536870921
+	Client: n/a
+	Sink: 80
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 42598 /  65% / -11.23 dB,   front-right: 42598 /  65% / -11.23 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "alsa_output.usb-headphones"
+		linewave.loop = "linewave_music_monitor"
+		media.name = "FreeWave Musik → Persönlicher Mix"
+		device.description = "FreeWave Musik → Persönlicher Mix"
+		node.group = "loopback-536870921"
+		pulse.module.id = "536870921"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-14"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-14"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "99"
+		object.id = "100"
+		object.serial = "156"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Musik → Persönlicher Mix"
+
+Sink Input #170
+	Driver: PipeWire
+	Owner Module: 536870922
+	Client: n/a
+	Sink: 107
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "linewave_streammix"
+		linewave.loop = "linewave_music_stream"
+		media.name = "FreeWave Musik → Stream-Mix"
+		device.description = "FreeWave Musik → Stream-Mix"
+		node.group = "loopback-536870922"
+		pulse.module.id = "536870922"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-15"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-15"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "112"
+		object.id = "113"
+		object.serial = "170"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Musik → Stream-Mix"
+
+Sink Input #191
+	Driver: PipeWire
+	Owner Module: 536870924
+	Client: n/a
+	Sink: 80
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "alsa_output.usb-headphones"
+		linewave.loop = "linewave_browser_monitor"
+		media.name = "FreeWave Browser → Persönlicher Mix"
+		device.description = "FreeWave Browser → Persönlicher Mix"
+		node.group = "loopback-536870924"
+		pulse.module.id = "536870924"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-16"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-16"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "131"
+		object.id = "132"
+		object.serial = "191"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Browser → Persönlicher Mix"
+
+Sink Input #205
+	Driver: PipeWire
+	Owner Module: 536870925
+	Client: n/a
+	Sink: 107
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "linewave_streammix"
+		linewave.loop = "linewave_browser_stream"
+		media.name = "FreeWave Browser → Stream-Mix"
+		device.description = "FreeWave Browser → Stream-Mix"
+		node.group = "loopback-536870925"
+		pulse.module.id = "536870925"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-17"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-17"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "144"
+		object.id = "145"
+		object.serial = "205"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Browser → Stream-Mix"
+
+Sink Input #226
+	Driver: PipeWire
+	Owner Module: 536870927
+	Client: n/a
+	Sink: 80
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "alsa_output.usb-headphones"
+		linewave.loop = "linewave_voice_monitor"
+		media.name = "FreeWave Voice Chat → Persönlicher Mix"
+		device.description = "FreeWave Voice Chat → Persönlicher Mix"
+		node.group = "loopback-536870927"
+		pulse.module.id = "536870927"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-18"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-18"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "159"
+		object.id = "164"
+		object.serial = "226"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Voice Chat → Persönlicher Mix"
+
+Sink Input #230
+	Driver: PipeWire
+	Owner Module: 536870928
+	Client: n/a
+	Sink: 107
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "linewave_streammix"
+		linewave.loop = "linewave_voice_stream"
+		media.name = "FreeWave Voice Chat → Stream-Mix"
+		device.description = "FreeWave Voice Chat → Stream-Mix"
+		node.group = "loopback-536870928"
+		pulse.module.id = "536870928"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-19"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-19"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "166"
+		object.id = "167"
+		object.serial = "230"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Voice Chat → Stream-Mix"
+
+Sink Input #257
+	Driver: PipeWire
+	Owner Module: 536870930
+	Client: n/a
+	Sink: 80
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "alsa_output.usb-headphones"
+		linewave.loop = "linewave_game_monitor"
+		media.name = "FreeWave Spiel → Persönlicher Mix"
+		device.description = "FreeWave Spiel → Persönlicher Mix"
+		node.group = "loopback-536870930"
+		pulse.module.id = "536870930"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-20"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-20"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "187"
+		object.id = "192"
+		object.serial = "257"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Spiel → Persönlicher Mix"
+
+Sink Input #265
+	Driver: PipeWire
+	Owner Module: 536870931
+	Client: n/a
+	Sink: 107
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "linewave_streammix"
+		linewave.loop = "linewave_game_stream"
+		media.name = "FreeWave Spiel → Stream-Mix"
+		device.description = "FreeWave Spiel → Stream-Mix"
+		node.group = "loopback-536870931"
+		pulse.module.id = "536870931"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-21"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-21"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "198"
+		object.id = "199"
+		object.serial = "265"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Spiel → Stream-Mix"
+
+Sink Input #296
+	Driver: PipeWire
+	Owner Module: 536870933
+	Client: n/a
+	Sink: 80
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "alsa_output.usb-headphones"
+		linewave.loop = "linewave_sfx_monitor"
+		media.name = "FreeWave Effekte → Persönlicher Mix"
+		device.description = "FreeWave Effekte → Persönlicher Mix"
+		node.group = "loopback-536870933"
+		pulse.module.id = "536870933"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-22"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-22"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "227"
+		object.id = "228"
+		object.serial = "296"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Effekte → Persönlicher Mix"
+
+Sink Input #308
+	Driver: PipeWire
+	Owner Module: 536870934
+	Client: n/a
+	Sink: 107
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: yes
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "linewave_streammix"
+		linewave.loop = "linewave_sfx_stream"
+		media.name = "FreeWave Effekte → Stream-Mix"
+		device.description = "FreeWave Effekte → Stream-Mix"
+		node.group = "loopback-536870934"
+		pulse.module.id = "536870934"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-23"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-23"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "238"
+		object.id = "239"
+		object.serial = "308"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Effekte → Stream-Mix"
+
+Sink Input #316
+	Driver: PipeWire
+	Owner Module: 536870935
+	Client: n/a
+	Sink: 80
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: yes
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "alsa_output.usb-headphones"
+		linewave.loop = "linewave_mic_monitor"
+		media.name = "FreeWave Mikrofon → Persönlicher Mix"
+		device.description = "FreeWave Mikrofon → Persönlicher Mix"
+		node.group = "loopback-536870935"
+		pulse.module.id = "536870935"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-24"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-24"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "243"
+		object.id = "242"
+		object.serial = "316"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Mikrofon → Persönlicher Mix"
+
+Sink Input #336
+	Driver: PipeWire
+	Owner Module: 536870936
+	Client: n/a
+	Sink: 107
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"float32ne\""  format.rate = "48000"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		target.object = "linewave_streammix"
+		linewave.loop = "linewave_mic_stream"
+		media.name = "FreeWave Mikrofon → Stream-Mix"
+		device.description = "FreeWave Mikrofon → Stream-Mix"
+		node.group = "loopback-536870936"
+		pulse.module.id = "536870936"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		node.link-group = "loopback-574-25"
+		node.latency = "320/48000"
+		node.virtual = "true"
+		resample.prefill = "true"
+		node.name = "output.loopback-574-25"
+		resample.disable = "true"
+		stream.is-live = "true"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		node.trigger = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "262"
+		object.id = "265"
+		object.serial = "336"
+		module-stream-restore.id = "sink-input-by-media-name:FreeWave Mikrofon → Stream-Mix"
+
+Sink Input #359
+	Driver: PipeWire
+	Owner Module: n/a
+	Client: 357
+	Sink: 184
+	Sample Specification: s16le 2ch 44100Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"s16le\""  format.rate = "44100"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		client.api = "pipewire-pulse"
+		pulse.server.type = "unix"
+		application.name = "Firefox"
+		application.process.binary = "firefox-esr"
+		application.id = "org.mozilla.firefox"
+		media.name = "Firefox"
+		application.process.id = "1661"
+		application.process.user = "root"
+		application.process.host = "vm"
+		application.language = "C"
+		application.process.machine_id = "4c398f739c8447eb99d3fe100ad1b0fa"
+		node.rate = "1/44100"
+		node.latency = "8192/44100"
+		stream.is-live = "true"
+		node.name = "Firefox"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "278"
+		object.id = "280"
+		object.serial = "359"
+		pulse.attr.maxlength = "4194304"
+		pulse.attr.tlength = "352800"
+		pulse.attr.prebuf = "349276"
+		pulse.attr.minreq = "3528"
+		module-stream-restore.id = "sink-input-by-application-id:org.mozilla.firefox"
+
+Sink Input #362
+	Driver: PipeWire
+	Owner Module: n/a
+	Client: 358
+	Sink: 145
+	Sample Specification: s16le 2ch 44100Hz
+	Channel Map: front-left,front-right
+	Format: pcm, format.sample_format = "\"s16le\""  format.rate = "44100"  format.channels = "2"  format.channel_map = "\"front-left,front-right\""
+	Corked: no
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Buffer Latency: 0 usec
+	Sink Latency: 0 usec
+	Resample method: PipeWire
+	Properties:
+		client.api = "pipewire-pulse"
+		pulse.server.type = "unix"
+		application.name = "Spotify"
+		application.process.binary = "spotify"
+		media.name = "Song"
+		application.process.id = "1660"
+		application.process.user = "root"
+		application.process.host = "vm"
+		application.language = "C"
+		application.process.machine_id = "4c398f739c8447eb99d3fe100ad1b0fa"
+		node.rate = "1/44100"
+		node.latency = "8192/44100"
+		stream.is-live = "true"
+		node.name = "Spotify"
+		node.want-driver = "true"
+		node.autoconnect = "true"
+		media.class = "Stream/Output/Audio"
+		adapt.follower.spa-node = ""
+		object.register = "false"
+		factory.id = "6"
+		clock.quantum-limit = "8192"
+		factory.mode = "split"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		client.id = "279"
+		object.id = "283"
+		object.serial = "362"
+		pulse.attr.maxlength = "4194304"
+		pulse.attr.tlength = "352800"
+		pulse.attr.prebuf = "349276"
+		pulse.attr.minreq = "3528"
+		module-stream-restore.id = "sink-input-by-application-name:Spotify"

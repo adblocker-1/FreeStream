@@ -1,0 +1,22 @@
+[package]
+name = "freestream-core"
+description = "FreeStream: Pfade, Einstellungen, Übersetzungen, Gerätemodelle und Elgato-Profile"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+log.workspace = true
+zip.workspace = true
+uuid.workspace = true
+data-encoding.workspace = true
+tempfile.workspace = true
+image.workspace = true
+jiff.workspace = true
+libc.workspace = true
+ureq.workspace = true
+sha2.workspace = true
