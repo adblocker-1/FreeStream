@@ -11,6 +11,7 @@ mod library;
 mod profiles_ui;
 mod settings;
 mod update_ui;
+mod settings_backup;
 mod settings_connections;
 mod settings_devices;
 mod settings_plugins;

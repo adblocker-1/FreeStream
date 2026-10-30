@@ -696,7 +696,9 @@ fn general(_ctx: &Rc<Ctx>) -> gtk::Widget {
         ask_restart(&win, &text);
     });
     c.append(&lang);
+    c.set_margin_bottom(16);
     b.append(&c);
+    b.append(&super::settings_backup::card_widget());
     sc.upcast()
 }
 
