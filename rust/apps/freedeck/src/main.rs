@@ -22,14 +22,17 @@ fn usage() {
     println!("  freedeck devices                 {}", tr!("show connected devices"));
     println!("  freedeck profiles                {}", tr!("Profiles"));
     println!("  freedeck import <file|folder>    {}", tr!("Import profiles"));
-    println!("  freedeck preview <profile> [page] [-o file.png]");
+    println!("  freedeck quit                    {}", tr!("quit the running FreeDeck"));
+    println!("  freedeck assign <serial> <profile> {}", tr!("permanently assign a profile to a device"));
+    println!("  freedeck remove <profile>        {}", tr!("delete a profile"));
+    println!("  freedeck preview <profile> [page] [-o file.png]  {}", tr!("render profile pages as PNG (no device needed)"));
 }
 
 fn main() -> anyhow::Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args: Vec<String> = std::env::args().skip(1).collect();
     match args.first().map(String::as_str) {
-        None | Some("gui") => {
+        None | Some("gui") | Some("open") | Some("edit") => {
             // Fenster mit dem Dienst im selben Prozess (Geräte laufen in eigenen Threads)
             let daemon = if already_running().is_some() {
                 None
@@ -79,6 +82,50 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Some("preview") => preview(&args[1..]),
+        Some("quit") => {
+            match already_running() {
+                Some(pid) => {
+                    // wie die Python-Version: SIGTERM, der Dienst beendet sich sauber
+                    let _ = std::process::Command::new("kill").arg(pid.to_string()).status();
+                    println!("{}", tr!("Quitting FreeDeck"));
+                }
+                None => println!("{}", tr!("FreeDeck is not running")),
+            }
+            Ok(())
+        }
+        Some("assign") => {
+            let (Some(serial), Some(prof)) = (args.get(1), args.get(2)) else {
+                usage();
+                return Ok(());
+            };
+            let store = ProfileStore::new(None);
+            let Some(p) = store.get(prof) else {
+                println!("{}", tr!("Profile '{profile}' not found", profile = prof));
+                std::process::exit(1);
+            };
+            let mut cfg = freestream_core::config::Config::load();
+            cfg.set_device(serial, "profile", serde_json::Value::from(p.id.clone()));
+            cfg.save()?;
+            println!("{}", tr!("Device {serial} -> {profile}", serial = serial, profile = p.name));
+            Ok(())
+        }
+        Some("remove") => {
+            let Some(prof) = args.get(1) else {
+                usage();
+                return Ok(());
+            };
+            let store = ProfileStore::new(None);
+            match store.get(prof).cloned() {
+                Some(p) if freestream_core::profiles::delete_profile(&p.id, None) => {
+                    println!("{}", tr!("Profile '{profile}' deleted", profile = p.name));
+                    Ok(())
+                }
+                _ => {
+                    println!("{}", tr!("Profile not found"));
+                    std::process::exit(1);
+                }
+            }
+        }
         Some("--version") | Some("version") => {
             println!("FreeDeck {}", freestream_core::VERSION);
             Ok(())
