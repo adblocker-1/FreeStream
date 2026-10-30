@@ -1,0 +1,54 @@
+name: Rust
+
+on:
+  push:
+    paths: ["rust/**", ".github/workflows/rust.yml"]
+  pull_request:
+    paths: ["rust/**", ".github/workflows/rust.yml"]
+  workflow_dispatch:
+
+jobs:
+  # Bauen, Tests und Programm zum Herunterladen – auf den unterstützten Systemen
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "debian:12", "ubuntu:22.04"]
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Abhängigkeiten
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            curl ca-certificates build-essential pkg-config libgtk-4-dev libhidapi-dev libudev-dev \
+            fonts-dejavu-core xvfb xauth
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Bauen
+        working-directory: rust
+        run: cargo build --release --locked || cargo build --release
+
+      - name: Tests
+        working-directory: rust
+        run: cargo test --release
+
+      - name: Programm startet
+        working-directory: rust
+        run: |
+          ./target/release/freedeck --version
+          ./target/release/freedeck profiles
+          # Fenster öffnen und nach ein paar Sekunden schließen (stürzt beim Start nicht ab)
+          timeout 8 xvfb-run -a ./target/release/freedeck gui || [ $? -eq 124 ]
+
+      - name: Name für den Download
+        id: name
+        run: echo "tag=$(echo '${{ matrix.image }}' | tr ':' '-')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: freedeck-rust-${{ steps.name.outputs.tag }}
+          path: rust/target/release/freedeck
