@@ -636,6 +636,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "freewave"
+version = "0.39.0"
+dependencies = [
+ "anyhow",
+ "ctrlc",
+ "env_logger",
+ "freestream-core",
+ "freestream-deck",
+ "freestream-wave",
+ "gtk4",
+ "image",
+ "indexmap",
+ "libc",
+ "log",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

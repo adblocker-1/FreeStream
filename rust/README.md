@@ -32,7 +32,13 @@ cargo run --release -p freedeck              # window with the device service
 cargo run --release -p freedeck -- run       # service only (no window)
 cargo run --release -p freedeck -- profiles  # list profiles
 cargo run --release -p freedeck -- preview Streaming 1 -o page.png
+cargo run --release -p freewave              # FreeWave window: mixer, microphone, effects, apps
+cargo run --release -p freewave -- --hidden  # FreeWave service only (autostart)
+cargo run --release -p freewave -- mixer status
 ```
+
+The package also contains **FreeWave (Rust)** (`freewave-rs`). Quit the Python FreeWave first
+(`freewave --quit`): both use the same PipeWire mixer and settings.
 
 Stop the Python FreeDeck first (`freedeck quit` or end it in the tray). Both cannot use the
 deck at the same time.
@@ -48,3 +54,4 @@ package both install one (`/lib/udev/rules.d/70-freedeck-rs.rules` or `70-freede
 | `crates/deck` | devices (USB), key images, actions, controller, service |
 | `crates/wave` | FreeWave core: PipeWire mixer (channels, mixes, levels, ducking, effects, noise suppression), Wave microphones, background service |
 | `apps/freedeck` | the `freedeck` program: window (GTK4) and command line |
+| `apps/freewave` | the `freewave` program: mixer window (GTK4), setup wizard, dialogs, export to FreeDeck, command line |

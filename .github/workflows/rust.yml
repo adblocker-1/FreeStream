@@ -48,6 +48,10 @@ jobs:
           ./target/release/freedeck profiles
           # Fenster öffnen und nach ein paar Sekunden schließen (stürzt beim Start nicht ab)
           timeout 8 xvfb-run -a ./target/release/freedeck gui || [ $? -eq 124 ]
+          # FreeWave: Kommandozeile und Fenster (ohne PipeWire im Container: Mixer bleibt aus)
+          ./target/release/freewave --version
+          ./target/release/freewave mixer status || true
+          timeout 8 xvfb-run -a ./target/release/freewave || [ $? -eq 124 ]
 
       - name: Name für den Download
         id: name
@@ -64,6 +68,7 @@ jobs:
           name: freedeck-rust-${{ steps.name.outputs.tag }}
           path: |
             rust/target/release/freedeck
+            rust/target/release/freewave
             rust/dist/*.deb
 
   # Bei einem Release (Tag v…): die Rust-Pakete an das Release hängen, das „Build .deb“ anlegt
