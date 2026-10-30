@@ -4,7 +4,7 @@
 use serde_json::{Map, Value};
 use std::time::Duration;
 
-use crate::actions::{ActionData, Behavior, Command, Env};
+use crate::actions::{ActionData, Behavior, Command, Env, Feedback};
 use crate::input::{self, Layout};
 use crate::system;
 
@@ -196,6 +196,16 @@ impl Behavior for Multimedia {
     }
     fn dial_up(&mut self, _a: &ActionData, _env: &Env, _held_ms: u64) -> Command {
         Command::None
+    }
+    fn feedback(&self, a: &ActionData, _env: &Env) -> Feedback {
+        let mut fb = Feedback::of(a);
+        // Lautstärke-Funktionen zeigen den Pegel (wpctl) – nur auf dem Drehregler abfragen
+        if a.dial && matches!(media_idx(a), 18 | 4 | 5 | 6) {
+            let (vol, muted) = system::get_volume(false);
+            fb.value = if muted { freestream_core::tr!("Muted") } else { format!("{vol}%") };
+            fb.indicator = Some(if muted { 0.0 } else { vol as f32 });
+        }
+        fb
     }
 }
 

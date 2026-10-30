@@ -33,6 +33,8 @@ pub enum Command {
     SetState(usize),
     /// Mehrere Befehle nacheinander (z. B. aus [`Behavior::execute`])
     Run(Vec<Command>),
+    /// Fortschritt einer laufenden Multi-Aktion auf der Taste: Some((erledigt, Schritte)), None = fertig
+    Progress(Option<(u16, u16)>),
 }
 
 impl Command {
@@ -87,17 +89,19 @@ pub struct Env<'a> {
     pub swap_cmd_ctrl: bool,
     /// für Befehle aus eigenen Threads
     pub outbox: Outbox,
+    /// Helligkeit des Geräts in Prozent (Anzeige des Helligkeits-Drehreglers)
+    pub brightness: u8,
 }
 
 impl<'a> Env<'a> {
     pub fn new(cfg: &'a Map<String, Value>, page_index: usize, page_count: usize) -> Self {
-        Self { cfg, page_index, page_count, swap_cmd_ctrl: false, outbox: Outbox::default() }
+        Self { cfg, page_index, page_count, swap_cmd_ctrl: false, outbox: Outbox::default(), brightness: 70 }
     }
 
     /// Kopie zum Mitnehmen in einen Thread.
     pub fn snapshot(&self) -> OwnedEnv {
         OwnedEnv { cfg: self.cfg.clone(), page_index: self.page_index, page_count: self.page_count,
-                   swap_cmd_ctrl: self.swap_cmd_ctrl, outbox: self.outbox.clone() }
+                   swap_cmd_ctrl: self.swap_cmd_ctrl, outbox: self.outbox.clone(), brightness: self.brightness }
     }
 
     /// Zahl aus der Konfiguration (z. B. `long_press_ms`).
@@ -119,12 +123,30 @@ pub struct OwnedEnv {
     pub page_count: usize,
     pub swap_cmd_ctrl: bool,
     pub outbox: Outbox,
+    pub brightness: u8,
 }
 
 impl OwnedEnv {
     pub fn env(&self) -> Env<'_> {
         Env { cfg: &self.cfg, page_index: self.page_index, page_count: self.page_count,
-              swap_cmd_ctrl: self.swap_cmd_ctrl, outbox: self.outbox.clone() }
+              swap_cmd_ctrl: self.swap_cmd_ctrl, outbox: self.outbox.clone(), brightness: self.brightness }
+    }
+}
+
+/// Was ein Drehregler auf seinem Feld im Touchstreifen zeigt (wie `Action.feedback()`).
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Feedback {
+    pub title: String,
+    pub value: String,
+    /// Balken unten in Prozent (None = kein Balken)
+    pub indicator: Option<f32>,
+}
+
+impl Feedback {
+    /// Vorgabe: Titel aus dem Profil, sonst der Name der Aktion.
+    pub fn of(a: &ActionData) -> Self {
+        let t = a.title();
+        Feedback { title: if t.is_empty() { a.name() } else { t }, value: String::new(), indicator: None }
     }
 }
 
@@ -173,6 +195,22 @@ pub trait Behavior: Send {
     /// Wird die Aktion auf dem Linux-Rechner ausgeführt? (sonst ein Punkt auf der Taste im Editor)
     fn supported(&self) -> bool {
         true
+    }
+    /// Titel, Wert und Balken für das Feld im Touchstreifen (Stream Deck +).
+    fn feedback(&self, a: &ActionData, env: &Env) -> Feedback {
+        let mut fb = Feedback::of(a);
+        if let Some(t) = self.title(a, env).filter(|t| !t.is_empty()) {
+            fb.title = t;
+        }
+        fb
+    }
+    /// Pfad des Symbols im Touchstreifen (Encoder.Icon, sonst das Tastenbild); None = kein Symbol.
+    fn encoder_icon_path(&self, a: &ActionData) -> Option<PathBuf> {
+        a.encoder_icon_path()
+    }
+    /// Selbst gezeichnetes Symbol für den Touchstreifen statt [`Behavior::encoder_icon_path`].
+    fn encoder_icon(&self, _a: &ActionData, _env: &Env, _size: (u32, u32)) -> Option<RgbaImage> {
+        None
     }
 }
 
@@ -241,6 +279,31 @@ impl ActionData {
         Some(p)
     }
 
+    /// Einstellungen des Drehreglers („Encoder“ im Manifest).
+    fn encoder(&self) -> Map<String, Value> {
+        self.data.get("Encoder").and_then(Value::as_object).cloned().unwrap_or_default()
+    }
+
+    /// Symbol im Touchstreifen (wie `encoder_icon_path`): Encoder.Icon, sonst das Tastenbild;
+    /// None bei Encoder.IconVisible = false.
+    pub fn encoder_icon_path(&self) -> Option<PathBuf> {
+        let enc = self.encoder();
+        if enc.get("IconVisible") == Some(&Value::Bool(false)) {
+            return None;
+        }
+        match enc.get("Icon").and_then(Value::as_str).filter(|s| !s.is_empty()) {
+            Some(icon) => Some(self.page_dir.join(icon)),
+            None => self.image_path(),
+        }
+    }
+
+    /// Hintergrund des eigenen Felds im Touchstreifen (Encoder.background).
+    pub fn encoder_background_path(&self) -> Option<PathBuf> {
+        let enc = self.encoder();
+        let bg = enc.get("background").or_else(|| enc.get("Background")).and_then(Value::as_str).filter(|s| !s.is_empty())?;
+        Some(self.page_dir.join(bg))
+    }
+
     pub fn state_count(&self) -> usize {
         self.data.get("States").and_then(Value::as_array).map(|a| a.len()).unwrap_or(1).max(1)
     }
@@ -277,6 +340,25 @@ impl Action {
             self.behavior.title(&self.data, env).unwrap_or_else(|| self.data.title())
         };
         render::compose_key(size, icon.as_ref(), &title, &self.data.state_dict(), overlay, base)
+    }
+
+    /// Symbol für das Feld im Touchstreifen (48×48 wie in der Python-Version).
+    pub fn encoder_icon(&self, env: &Env) -> Option<RgbaImage> {
+        const ICON: u32 = 48;
+        self.behavior.encoder_icon(&self.data, env, (ICON, ICON))
+            .or_else(|| self.behavior.encoder_icon_path(&self.data).and_then(|p| render::load_image(&p, ICON, ICON)))
+    }
+
+    /// Feld im Touchstreifen zeichnen; `alert` = „Fehler“ darüber.
+    pub fn dial_segment(&self, env: &Env, size: (u32, u32), alert: bool) -> RgbaImage {
+        let fb = self.behavior.feedback(&self.data, env);
+        let icon = self.encoder_icon(env);
+        let bg = self.data.encoder_background_path().and_then(|p| render::load_image(&p, size.0, size.1));
+        let mut seg = render::compose_dial_segment(size, icon.as_ref(), &fb.title, &fb.value, fb.indicator, bg.as_ref());
+        if alert {
+            render::alert(&mut seg);
+        }
+        seg
     }
 
     /// Als Schritt einer anderen Aktion auslösen: Zustandswechsel gelten für diese Aktion selbst,
@@ -390,6 +472,27 @@ fn website(a: &ActionData, _env: &Env) -> Command {
     if system::run_bg(&["xdg-open", &url]) { Command::None } else { Command::Alert }
 }
 
+/// Helligkeit: Taste wie in den Einstellungen, Drehregler ändert in 5er-Schritten, Drücken schaltet
+/// zwischen hell und gedimmt (wie `KeyBrightness`).
+struct KeyBrightness;
+impl Behavior for KeyBrightness {
+    fn key_down(&mut self, a: &ActionData, env: &Env) -> Command {
+        brightness(a, env)
+    }
+    fn dial_turn(&mut self, _a: &ActionData, _env: &Env, ticks: i8) -> Command {
+        Command::ChangeBrightness(5 * ticks as i32)
+    }
+    fn dial_down(&mut self, _a: &ActionData, env: &Env) -> Command {
+        Command::SetBrightness(if env.brightness < 50 { 100 } else { 30 })
+    }
+    fn dial_up(&mut self, _a: &ActionData, _env: &Env, _held_ms: u64) -> Command {
+        Command::None
+    }
+    fn feedback(&self, a: &ActionData, env: &Env) -> Feedback {
+        Feedback { value: format!("{}%", env.brightness), indicator: Some(env.brightness as f32), ..Feedback::of(a) }
+    }
+}
+
 fn brightness(a: &ActionData, _env: &Env) -> Command {
     // Elgato: Settings.brightness (Wert) oder .keybrightness mit „Increase/Decrease/Set“
     let s = a.settings();
@@ -420,7 +523,7 @@ pub fn behavior_for(uuid: &str) -> Box<dyn Behavior> {
         "com.elgato.streamdeck.system.website" => Box::new(Simple(website)),
         "com.elgato.streamdeck.system.openapp" => Box::new(OpenApp),
         "com.elgato.streamdeck.system.sleep" => Box::new(Simple(|_, _| Command::Sleep)),
-        "com.elgato.streamdeck.system.keybrightness" => Box::new(Simple(brightness)),
+        "com.elgato.streamdeck.system.keybrightness" => Box::new(KeyBrightness),
         _ => crate::extra::behavior_for(uuid).unwrap_or_else(|| Box::new(Unsupported)),
     }
 }

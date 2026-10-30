@@ -5,7 +5,7 @@ use freestream_core::config::{Config, State};
 use freestream_core::models::Geometry;
 use freestream_core::profiles::{Page, Profile, ProfileStore};
 use image::RgbaImage;
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -20,6 +20,28 @@ pub fn no_profile_key(size: (u32, u32), first: bool) -> RgbaImage {
         render::text_key(size, "FreeDeck", &freestream_core::tr!("No profile"), [20, 20, 24], [120, 160, 255])
     } else {
         render::text_key(size, "", "", [0, 0, 0], [0, 0, 0])
+    }
+}
+
+/// Uhr der Elgato-App (auch in der Infoleiste des Neo).
+const DIGITAL_TIME: &str = "com.elgato.streamdeck.system.digitaltime";
+/// So lange stehen „Fertig“/„Fehler“ auf der Taste bzw. dem Feld des Touchstreifens.
+const OVERLAY_TIME: Duration = Duration::from_millis(1200);
+/// Fortschritt einer Multi-Aktion: bis sie fertig meldet, höchstens so lange.
+const PROGRESS_TIME: Duration = Duration::from_secs(600);
+
+/// Wohin ein Befehl gehört.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Slot {
+    Key(u8),
+    Dial(u8),
+    /// Drehregler, der Befehl kam aber aus einem Thread (ohne Nummer): nur der Touchstreifen
+    Strip,
+}
+
+impl Slot {
+    fn from_posted(key: Option<u8>) -> Slot {
+        key.map(Slot::Key).unwrap_or(Slot::Strip)
     }
 }
 
@@ -40,12 +62,21 @@ pub struct Controller {
     /// Aktionen der Drehregler (Stream Deck +)
     dials: HashMap<u8, Action>,
     dial_pressed: HashMap<u8, Instant>,
+    /// Aktionen der Infoleiste (Neo)
+    infobar: HashMap<u8, Action>,
     /// Befehle aus Threads der Aktionen (Multi-Aktionen, Key Logic …)
     outbox: Outbox,
+    /// Hinweise auf Tasten: (Art, bis wann)
     overlays: HashMap<u8, (Overlay, Instant)>,
+    /// „Fehler“ auf Feldern des Touchstreifens: bis wann
+    dial_alerts: HashMap<u8, Instant>,
     tiles: HashMap<(u8, u8), RgbaImage>,
     /// Bilder, die gerade auf dem Gerät stehen (für das Fenster und um Doppeltes zu sparen)
     pub shown: HashMap<u8, RgbaImage>,
+    /// Bild auf Touchstreifen bzw. Infoleiste
+    lcd_shown: Option<RgbaImage>,
+    /// Touch-Tasten des Neo an?
+    touch_keys_on: Option<bool>,
     last_input: Instant,
     asleep: bool,
 }
@@ -74,10 +105,14 @@ impl Controller {
             pressed: HashMap::new(),
             dials: HashMap::new(),
             dial_pressed: HashMap::new(),
+            infobar: HashMap::new(),
             outbox: Outbox::default(),
             overlays: HashMap::new(),
+            dial_alerts: HashMap::new(),
             tiles: HashMap::new(),
             shown: HashMap::new(),
+            lcd_shown: None,
+            touch_keys_on: None,
             last_input: Instant::now(),
             asleep: false,
         }
@@ -208,6 +243,12 @@ impl Controller {
         (self.page_index, self.page_count())
     }
 
+    /// Umgebung für eine Aktion (`cfg` getrennt, damit die Aktion selbst veränderlich geliehen werden kann).
+    fn make_env<'a>(&self, cfg: &'a Map<String, Value>, outbox: Outbox) -> Env<'a> {
+        let (page_index, page_count) = self.env();
+        Env { cfg, page_index, page_count, swap_cmd_ctrl: self.swap_cmd_ctrl(), outbox, brightness: self.brightness }
+    }
+
     /// Profil vom Mac (lindeck-meta.json „OSType“): Cmd und Strg in Tastenkürzeln tauschen.
     fn swap_cmd_ctrl(&self) -> bool {
         self.profile.as_ref()
@@ -220,7 +261,9 @@ impl Controller {
     pub fn show_current(&mut self) {
         self.keys.clear();
         self.dials.clear();
+        self.infobar.clear();
         self.overlays.clear();
+        self.dial_alerts.clear();
         self.tiles.clear();
         let cols = self.geometry.cols;
         if let Some(pg) = self.current_page() {
@@ -233,6 +276,9 @@ impl Controller {
                 let mut a = Action::new(data.clone(), pg.dir.clone());
                 a.data.dial = true;
                 self.dials.insert(*i, a);
+            }
+            for (i, data) in &pg.infobar {
+                self.infobar.insert(*i, Action::new(data.clone(), pg.dir.clone()));
             }
             if let Some(bg) = pg.image_path(&pg.background) {
                 self.tiles = render::background_tiles(&bg, cols, self.geometry.rows, self.dev.key_size(), pg.background_dim);
@@ -252,8 +298,7 @@ impl Controller {
         match self.keys.get(&k) {
             None => tile.map(|t| render::fit(t, size.0, size.1)).unwrap_or_else(|| RgbaImage::from_pixel(size.0, size.1, image::Rgba([0, 0, 0, 255]))),
             Some(a) => {
-                let (page_index, page_count) = self.env();
-                let env = Env { cfg: &self.cfg.data, page_index, page_count, swap_cmd_ctrl: self.swap_cmd_ctrl(), outbox: self.outbox.for_key(Some(k)) };
+                let env = self.make_env(&self.cfg.data, self.outbox.for_key(Some(k)));
                 let overlay = self.overlays.get(&k).map(|(o, _)| *o);
                 a.image(&env, size, tile, overlay)
             }
@@ -278,7 +323,99 @@ impl Controller {
         for k in 0..self.geometry.keys() as u8 {
             self.render_key(k);
         }
+        self.render_lcd();
+        self.update_touch_keys();
         let _ = self.dev.flush();
+    }
+
+    // -------------------------------------------------------------- Touchstreifen und Infoleiste
+    /// Hat das Gerät einen Touchstreifen über den Drehreglern (Stream Deck +)? Sonst ist die LCD-Fläche
+    /// die Infoleiste (Neo).
+    fn has_strip(&self) -> bool {
+        self.geometry.dials > 0
+    }
+
+    /// Bild des Touchstreifens (wie `touchscreen_image`): ein Feld je Drehregler über dem
+    /// Hintergrund der Seite (Encoder-Hintergrund). None ohne Touchstreifen.
+    pub fn touchscreen_image(&self) -> Option<RgbaImage> {
+        let (w, h) = self.dev.lcd_size()?;
+        if !self.has_strip() {
+            return None;
+        }
+        let n = self.geometry.dials.max(1) as u32;
+        let seg = (w / n, h);
+        let pg = self.current_page();
+        let bg = pg.as_ref().and_then(|p| p.image_path(&p.encoder_background)).and_then(|p| render::load_image(&p, w, h));
+        let env = self.make_env(&self.cfg.data, self.outbox.for_key(None));
+        let segs: Vec<RgbaImage> = (0..n as u8)
+            .map(|i| match self.dials.get(&i) {
+                Some(a) => a.dial_segment(&env, seg, self.dial_alerts.contains_key(&i)),
+                None => RgbaImage::new(seg.0, seg.1),
+            })
+            .collect();
+        Some(render::compose_strip((w, h), &segs, bg.as_ref()))
+    }
+
+    /// Bild der Infoleiste des Neo (wie `infobar_image`): die Uhr aus der Infoleiste der Seite, sonst
+    /// Uhrzeit und Seitenpunkte. None ohne Infoleiste.
+    pub fn infobar_image(&self) -> Option<RgbaImage> {
+        let size = self.dev.lcd_size()?;
+        if self.has_strip() {
+            return None;
+        }
+        let env = self.make_env(&self.cfg.data, self.outbox.for_key(None));
+        let mut slots: Vec<&u8> = self.infobar.keys().collect();
+        slots.sort();
+        let clock = slots.into_iter().filter_map(|i| self.infobar.get(i)).find(|a| a.data.uuid == DIGITAL_TIME);
+        if let Some(img) = clock.and_then(|a| a.behavior.image(&a.data, &env, size)) {
+            return Some(img);
+        }
+        let n = self.page_count().max(1);
+        let now = jiff::Zoned::now();
+        let hm = format!("{:02}:{:02}", now.hour(), now.minute());
+        Some(render::compose_infobar(size, &hm, "", (n > 1).then_some((n, self.page_index))))
+    }
+
+    /// Was gerade auf Touchstreifen bzw. Infoleiste gehört (ohne Gerät – auch für die Vorschau).
+    pub fn lcd_frame(&self) -> Option<RgbaImage> {
+        self.touchscreen_image().or_else(|| self.infobar_image())
+    }
+
+    /// Zuletzt gezeigtes Bild auf Touchstreifen bzw. Infoleiste.
+    pub fn lcd_image(&self) -> Option<&RgbaImage> {
+        self.lcd_shown.as_ref()
+    }
+
+    /// Touchstreifen bzw. Infoleiste zeichnen (nur, wenn sich das Bild geändert hat).
+    pub fn render_lcd(&mut self) {
+        if !self.dev.has_display() {
+            return;
+        }
+        let Some(img) = self.lcd_frame() else { return };
+        if self.lcd_shown.as_ref() == Some(&img) {
+            return;
+        }
+        if let Err(e) = self.dev.set_lcd(&img) {
+            log::debug!("LCD: {e}");
+        }
+        self.lcd_shown = Some(img);
+    }
+
+    /// Neo: die beiden Touch-Tasten leuchten weiß, wenn es weitere Seiten gibt und kein Ordner offen ist.
+    fn update_touch_keys(&mut self) {
+        if self.geometry.touch_keys == 0 {
+            return;
+        }
+        let on = self.page_count() > 1 && self.folders.is_empty();
+        if self.touch_keys_on == Some(on) {
+            return;
+        }
+        for i in 0..self.geometry.touch_keys {
+            if let Err(e) = self.dev.set_touch_key_color(i, if on { [255, 255, 255] } else { [0, 0, 0] }) {
+                log::debug!("Touch-Taste {i}: {e}");
+            }
+        }
+        self.touch_keys_on = Some(on);
     }
 
     // ------------------------------------------------------------------------------------ Eingaben
@@ -313,34 +450,45 @@ impl Controller {
                 let d = ((x as u32 * n) / width).min(n - 1) as u8;
                 self.with_dial(d, |a, env| a.behavior.touch(&a.data, env, long));
             }
-            other => log::debug!("Eingabe {other:?} – noch nicht belegt"),
+            // Wischen über den Touchstreifen: nach rechts = vorige Seite, nach links = nächste (wie on_touch)
+            Event::Swipe { from, to } => {
+                let dx = to as i32 - from as i32;
+                if dx.abs() > 40 {
+                    self.run(Slot::Strip, if dx > 0 { Command::PreviousPage } else { Command::NextPage });
+                }
+            }
+            // Touch-Tasten des Neo: links = vorige Seite, rechts = nächste
+            Event::TouchKeyDown(i) => self.run(Slot::Strip, if i == 0 { Command::PreviousPage } else { Command::NextPage }),
+            Event::TouchKeyUp(_) => {}
+        }
+        // Drehregler zeigen ihren Wert im Touchstreifen
+        if matches!(ev, Event::DialDown(_) | Event::DialUp(_) | Event::DialTurn(..) | Event::Touch { .. }) {
+            self.render_lcd();
         }
     }
 
     fn with_action(&mut self, k: u8, f: impl FnOnce(&mut Action, &Env) -> Command) {
-        let (page_index, page_count) = self.env();
         let cfg = self.cfg.data.clone();
-        let swap_cmd_ctrl = self.swap_cmd_ctrl();
-        let outbox = self.outbox.for_key(Some(k));
+        let env = self.make_env(&cfg, self.outbox.for_key(Some(k)));
         let Some(a) = self.keys.get_mut(&k) else { return };
-        let env = Env { cfg: &cfg, page_index, page_count, swap_cmd_ctrl, outbox };
         let cmd = f(a, &env);
-        self.run(Some(k), cmd);
+        self.run(Slot::Key(k), cmd);
     }
 
     fn with_dial(&mut self, d: u8, f: impl FnOnce(&mut Action, &Env) -> Command) {
-        let (page_index, page_count) = self.env();
         let cfg = self.cfg.data.clone();
-        let swap_cmd_ctrl = self.swap_cmd_ctrl();
-        let outbox = self.outbox.for_key(None);
+        let env = self.make_env(&cfg, self.outbox.for_key(None));
         let Some(a) = self.dials.get_mut(&d) else { return };
-        let env = Env { cfg: &cfg, page_index, page_count, swap_cmd_ctrl, outbox };
         let cmd = f(a, &env);
-        self.run(None, cmd);
+        self.run(Slot::Dial(d), cmd);
     }
 
-    /// Befehl ausführen; `key` = Taste der Aktion (None = Drehregler: ohne Hinweis auf einer Taste).
-    fn run(&mut self, key: Option<u8>, cmd: Command) {
+    /// Befehl ausführen; `slot` = woher er kommt (Taste: Hinweise auf der Taste, Drehregler: im Touchstreifen).
+    fn run(&mut self, slot: Slot, cmd: Command) {
+        let key = match slot {
+            Slot::Key(k) => Some(k),
+            _ => None,
+        };
         match cmd {
             Command::None => {}
             Command::OpenFolder(u) => self.open_folder(&u),
@@ -365,30 +513,59 @@ impl Controller {
             Command::Sleep => self.sleep(),
             Command::Run(cmds) => {
                 for c in cmds {
-                    self.run(key, c);
+                    self.run(slot, c);
                 }
             }
-            Command::SetState(s) => {
-                if let Some(a) = key.and_then(|k| self.keys.get_mut(&k)) {
-                    a.data.state = s % a.data.state_count();
-                }
-                if let Some(k) = key {
+            Command::SetState(s) => match slot {
+                Slot::Key(k) => {
+                    if let Some(a) = self.keys.get_mut(&k) {
+                        a.data.state = s % a.data.state_count();
+                    }
                     self.render_key(k);
                     let _ = self.dev.flush();
                 }
-            }
-            Command::Ok | Command::Alert => {
+                Slot::Dial(d) => {
+                    if let Some(a) = self.dials.get_mut(&d) {
+                        a.data.state = s % a.data.state_count();
+                    }
+                    self.render_lcd();
+                }
+                Slot::Strip => {}
+            },
+            Command::Ok | Command::Alert => match slot {
+                Slot::Key(k) => {
+                    let o = if cmd == Command::Ok { Overlay::Ok } else { Overlay::Alert };
+                    self.overlays.insert(k, (o, Instant::now() + OVERLAY_TIME));
+                    self.render_key(k);
+                    let _ = self.dev.flush();
+                }
+                // im Touchstreifen erscheint nur „Fehler“ (wie in der Python-Version)
+                Slot::Dial(d) if cmd == Command::Alert => {
+                    self.dial_alerts.insert(d, Instant::now() + OVERLAY_TIME);
+                    self.render_lcd();
+                }
+                _ => {}
+            },
+            Command::Progress(p) => {
                 let Some(k) = key else { return };
-                let o = if cmd == Command::Ok { Overlay::Ok } else { Overlay::Alert };
-                self.overlays.insert(k, (o, Instant::now()));
+                match p {
+                    Some((done, steps)) => {
+                        self.overlays.insert(k, (Overlay::Progress { done, steps }, Instant::now() + PROGRESS_TIME));
+                    }
+                    None => {
+                        self.overlays.remove(&k);
+                    }
+                }
                 self.render_key(k);
                 let _ = self.dev.flush();
             }
-            Command::Redraw => {
-                let Some(k) = key else { return };
-                self.render_key(k);
-                let _ = self.dev.flush();
-            }
+            Command::Redraw => match slot {
+                Slot::Key(k) => {
+                    self.render_key(k);
+                    let _ = self.dev.flush();
+                }
+                Slot::Dial(_) | Slot::Strip => self.render_lcd(),
+            },
         }
     }
 
@@ -405,15 +582,19 @@ impl Controller {
     /// Alle paar hundert Millisekunden: Hinweise ausblenden, Uhren nachziehen, Ruhezustand.
     pub fn tick(&mut self) {
         for (key, cmd) in self.outbox.drain() {
-            self.run(key, cmd);
+            self.run(Slot::from_posted(key), cmd);
         }
-        let expired: Vec<u8> = self.overlays.iter().filter(|(_, (_, t))| t.elapsed() > Duration::from_millis(1200)).map(|(k, _)| *k).collect();
+        let now = Instant::now();
+        let expired: Vec<u8> = self.overlays.iter().filter(|(_, (_, until))| *until <= now).map(|(k, _)| *k).collect();
         let mut dirty = false;
         for k in expired {
             self.overlays.remove(&k);
             self.render_key(k);
             dirty = true;
         }
+        let before = self.dial_alerts.len();
+        self.dial_alerts.retain(|_, until| *until > now);
+        let mut lcd_dirty = self.dial_alerts.len() != before;
         let keys: Vec<u8> = self.keys.iter().filter(|(_, a)| a.behavior.needs_tick()).map(|(k, _)| *k).collect();
         for k in keys {
             let redraw = self.keys.get_mut(&k).map(|a| a.behavior.tick(&a.data)).unwrap_or(false);
@@ -422,11 +603,20 @@ impl Controller {
                 dirty = true;
             }
         }
-        // Drehregler: Zustand nachziehen (Countdown-Alarm …); den Touchstreifen zeichnet FreeDeck noch nicht
+        // Drehregler: Zustand nachziehen (Countdown-Alarm, Systemmonitor …), dann den Touchstreifen
         for a in self.dials.values_mut() {
+            if a.behavior.needs_tick() {
+                lcd_dirty |= a.behavior.tick(&a.data);
+            }
+        }
+        // Infoleiste: Uhr (das Bild geht nur bei einer Änderung ans Gerät)
+        for a in self.infobar.values_mut() {
             if a.behavior.needs_tick() {
                 a.behavior.tick(&a.data);
             }
+        }
+        if lcd_dirty || (!self.has_strip() && self.dev.lcd_size().is_some()) {
+            self.render_lcd();
         }
         if dirty {
             let _ = self.dev.flush();
@@ -459,6 +649,8 @@ impl Controller {
         self.page_index = idx.min(self.page_count().saturating_sub(1));
         self.folders = folders.iter().filter_map(|u| self.profile.as_ref()?.page(u)).collect();
         self.shown.clear();
+        self.lcd_shown = None;
+        self.touch_keys_on = None;
         self.show_current();
     }
 

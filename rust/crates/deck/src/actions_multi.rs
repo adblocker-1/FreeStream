@@ -9,10 +9,12 @@
 //! Wartezeit in einem eigenen Thread, der seine Befehle über [`crate::actions::Outbox`] schickt.
 
 use serde_json::{Map, Value};
+use std::cell::OnceCell;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::actions::{Action, ActionData, Behavior, Command, Env};
+use crate::actions::{Action, ActionData, Behavior, Command, Env, Feedback};
 
 pub const DELAY: &str = "com.elgato.streamdeck.multiactions.delay";
 /// Pause nach jedem Schritt (manche Programme verschlucken sonst Tastendrücke)
@@ -138,11 +140,26 @@ fn launch(groups: Groups, pick: impl FnOnce(&[Vec<Action>]) -> Vec<(usize, usize
     }
     drop(g);
     let owned = env.snapshot();
+    // Fortschritt auf der Taste (Einstellungen › Stil › Multi-Aktion), nur bei mehreren Schritten
+    let n = steps.len().min(u16::MAX as usize) as u16;
+    let show = n > 1 && env.cfg.get("multi_progress").and_then(Value::as_bool).unwrap_or(true);
     std::thread::spawn(move || {
         let Ok(mut g) = groups.try_lock() else { return };
         let env = owned.env();
-        run_steps(&steps, |(i, j)| g[i][j].execute_nested(&env),
-                  |ms| std::thread::sleep(Duration::from_millis(ms)), |c| env.outbox.send(c));
+        let progress = |done: usize| {
+            if show {
+                env.outbox.send(Command::Progress(Some((done.min(n as usize) as u16, n))));
+            }
+        };
+        progress(0);
+        for (i, st) in steps.iter().enumerate() {
+            run_steps(std::slice::from_ref(st), |(i, j)| g[i][j].execute_nested(&env),
+                      |ms| std::thread::sleep(Duration::from_millis(ms)), |c| env.outbox.send(c));
+            progress(i + 1);
+        }
+        if show {
+            env.outbox.send(Command::Progress(None));
+        }
     });
     Command::None
 }
@@ -269,22 +286,43 @@ fn current_idx(a: &ActionData, n: usize) -> usize {
     if n == 0 { 0 } else { i.rem_euclid(n as i64) as usize }
 }
 
+/// Unteraktionen eines Rads bzw. Stapels: beim ersten Gebrauch angelegt (auch zum Zeichnen, daher
+/// OnceCell), die Position kommt bis zum ersten Drehen aus Settings.CurrentIdx.
+#[derive(Default)]
+struct Stack {
+    items: OnceCell<Vec<Action>>,
+    idx: Option<usize>,
+}
+
+impl Stack {
+    fn items(&self, a: &ActionData) -> &Vec<Action> {
+        self.items.get_or_init(|| items_of(a))
+    }
+    fn idx(&self, a: &ActionData) -> usize {
+        let n = self.items(a).len();
+        self.idx.unwrap_or_else(|| current_idx(a, n))
+    }
+    fn len(&self, a: &ActionData) -> usize {
+        self.items(a).len()
+    }
+    fn get(&self, a: &ActionData) -> Option<&Action> {
+        self.items(a).get(self.idx(a))
+    }
+    fn get_mut(&mut self, a: &ActionData) -> Option<&mut Action> {
+        let i = self.idx(a);
+        self.idx = Some(i);
+        self.items.get_mut()?.get_mut(i)
+    }
+    fn set(&mut self, a: &ActionData, i: usize) {
+        self.items(a);
+        self.idx = Some(i);
+    }
+}
+
 /// com.elgato.streamdeck.keys.stack (Action Wheel): Drehen wählt, Drücken führt aus.
 #[derive(Default)]
 pub struct ActionWheel {
-    items: Option<Vec<Action>>,
-    idx: usize,
-}
-
-impl ActionWheel {
-    fn items(&mut self, a: &ActionData) -> &mut Vec<Action> {
-        if self.items.is_none() {
-            let items = items_of(a);
-            self.idx = current_idx(a, items.len());
-            self.items = Some(items);
-        }
-        self.items.get_or_insert_with(Vec::new)
-    }
+    stack: Stack,
 }
 
 /// Neue Position nach `ticks` Rasten (umlaufend).
@@ -295,44 +333,50 @@ pub fn wheel_pos(idx: usize, ticks: i32, n: usize) -> usize {
 impl Behavior for ActionWheel {
     fn dial_turn(&mut self, a: &ActionData, _env: &Env, ticks: i8) -> Command {
         let inv = a.data.get("Settings").and_then(|s| s.get("InvertRotation")).and_then(Value::as_bool).unwrap_or(false);
-        let n = self.items(a).len();
+        let n = self.stack.len(a);
         if n == 0 {
             return Command::None;
         }
-        self.idx = wheel_pos(self.idx, ticks as i32 * if inv { -1 } else { 1 }, n);
+        let i = wheel_pos(self.stack.idx(a), ticks as i32 * if inv { -1 } else { 1 }, n);
+        self.stack.set(a, i);
         Command::Redraw
     }
     fn dial_down(&mut self, a: &ActionData, env: &Env) -> Command {
-        self.items(a);
-        let idx = self.idx;
-        self.items(a).get_mut(idx).map(|c| c.execute_nested(env)).unwrap_or(Command::None)
+        self.stack.get_mut(a).map(|c| c.execute_nested(env)).unwrap_or(Command::None)
     }
     fn dial_up(&mut self, _a: &ActionData, _env: &Env, _held_ms: u64) -> Command {
         Command::None
     }
-    fn title(&self, _a: &ActionData, _env: &Env) -> Option<String> {
-        let c = self.items.as_ref()?.get(self.idx)?;
+    fn title(&self, a: &ActionData, _env: &Env) -> Option<String> {
+        let c = self.stack.get(a)?;
         let t = c.data.title();
         Some(if t.is_empty() { c.data.name() } else { t })
+    }
+    fn feedback(&self, a: &ActionData, env: &Env) -> Feedback {
+        let mut fb = Feedback::of(a);
+        if let Some(t) = self.title(a, env) {
+            fb.title = t;
+            fb.value = format!("{}/{}", self.stack.idx(a) + 1, self.stack.len(a));
+        }
+        fb
+    }
+    fn encoder_icon_path(&self, a: &ActionData) -> Option<PathBuf> {
+        match self.stack.get(a) {
+            Some(c) => c.data.image_path(),
+            None => a.encoder_icon_path(),
+        }
     }
 }
 
 /// com.elgato.streamdeck.dial.stack: mehrere Drehregler-Aktionen; Drücken wechselt zur nächsten.
 #[derive(Default)]
 pub struct DialStack {
-    items: Option<Vec<Action>>,
-    idx: usize,
+    stack: Stack,
 }
 
 impl DialStack {
     fn current(&mut self, a: &ActionData) -> Option<&mut Action> {
-        if self.items.is_none() {
-            let items = items_of(a);
-            self.idx = current_idx(a, items.len());
-            self.items = Some(items);
-        }
-        let idx = self.idx;
-        self.items.as_mut()?.get_mut(idx)
+        self.stack.get_mut(a)
     }
 }
 
@@ -347,12 +391,12 @@ impl Behavior for DialStack {
         }
     }
     fn dial_down(&mut self, a: &ActionData, _env: &Env) -> Command {
-        self.current(a);
-        let n = self.items.as_ref().map(Vec::len).unwrap_or(0);
+        let n = self.stack.len(a);
         if n == 0 {
             return Command::None;
         }
-        self.idx = (self.idx + 1) % n;
+        let i = (self.stack.idx(a) + 1) % n;
+        self.stack.set(a, i);
         Command::Redraw
     }
     fn dial_up(&mut self, _a: &ActionData, _env: &Env, _held_ms: u64) -> Command {
@@ -375,6 +419,24 @@ impl Behavior for DialStack {
             Some(c) => c.behavior.needs_tick() && c.behavior.tick(&c.data),
             None => false,
         }
+    }
+    fn feedback(&self, a: &ActionData, env: &Env) -> Feedback {
+        let Some(c) = self.stack.get(a) else { return Feedback::of(a) };
+        let mut fb = c.behavior.feedback(&c.data, env);
+        let n = self.stack.len(a);
+        let show = a.data.get("Settings").and_then(|s| s.get("ShowStackIcon")).and_then(Value::as_bool).unwrap_or(true);
+        if show && n > 1 {
+            fb.title = format!("{}  {}/{}", fb.title, self.stack.idx(a) + 1, n);
+        }
+        fb
+    }
+    fn encoder_icon_path(&self, a: &ActionData) -> Option<PathBuf> {
+        let c = self.stack.get(a)?;
+        c.behavior.encoder_icon_path(&c.data)
+    }
+    fn encoder_icon(&self, a: &ActionData, env: &Env, size: (u32, u32)) -> Option<image::RgbaImage> {
+        let c = self.stack.get(a)?;
+        c.behavior.encoder_icon(&c.data, env, size)
     }
 }
 
@@ -498,6 +560,25 @@ mod tests {
         let env = Env::new(&cfg, 0, 3);
         let mut m = MultiAction::new(MultiKind::Routine);
         assert_eq!(m.key_down(&a, &env), Command::None);
+        // bis zum Ende des Ablaufs (Fortschritt None) einsammeln
+        let mut got = Vec::new();
+        for _ in 0..100 {
+            got.extend(env.outbox.drain());
+            if got.last() == Some(&(None, Command::Progress(None))) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let (progress, cmds): (Vec<_>, Vec<_>) = got.into_iter().partition(|(_, c)| matches!(c, Command::Progress(_)));
+        assert_eq!(cmds, vec![(None, Command::NextPage)]);
+        let progress: Vec<Command> = progress.into_iter().map(|(_, c)| c).collect();
+        assert_eq!(progress, vec![Command::Progress(Some((0, 2))), Command::Progress(Some((1, 2))),
+                                  Command::Progress(Some((2, 2))), Command::Progress(None)]);
+        // ohne Fortschrittsanzeige (Einstellung multi_progress) nur der Befehl
+        let cfg = serde_json::from_value::<Map<String, Value>>(json!({"multi_progress": false})).unwrap();
+        let env = Env::new(&cfg, 0, 3);
+        let mut m = MultiAction::new(MultiKind::Routine);
+        m.key_down(&a, &env);
         let mut got = Vec::new();
         for _ in 0..100 {
             got.extend(env.outbox.drain());
@@ -569,8 +650,10 @@ mod tests {
         let s = data(json!({"UUID": "com.elgato.streamdeck.dial.stack", "Actions": [
             {"UUID": "com.elgato.streamdeck.system.keybrightness"}, {"UUID": "com.elgato.streamdeck.page.next"}]}));
         let mut ds = DialStack::default();
+        assert_eq!(ds.feedback(&s, &env).title, "keybrightness  1/2");
         assert_eq!(ds.dial_down(&s, &env), Command::Redraw);
-        assert_eq!(ds.idx, 1);
+        assert_eq!(ds.stack.idx, Some(1));
+        assert_eq!(ds.feedback(&s, &env).title, "next  2/2");
         assert_eq!(ds.touch(&s, &env, false), Command::NextPage);
     }
 }
