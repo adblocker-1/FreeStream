@@ -277,7 +277,8 @@ fn field_widget(ed: &Rc<Editor>, slot: Slot, f: &Field, s: &Map<String, Value>, 
         move |key: String, v: Value| ed.edit_soon(|doc, page| doc.update_settings(page, slot, &[], &key, v))
     };
     match f.kind {
-        FieldKind::Text | FieldKind::File | FieldKind::Entity => {
+        FieldKind::Entity => entity_field(ed, f, s, set),
+        FieldKind::Text | FieldKind::File => {
             let b = gtk::Box::new(Orientation::Horizontal, 4);
             let e = gtk::Entry::new();
             e.set_hexpand(true);
@@ -791,4 +792,102 @@ fn open_property_inspector(ed: &Rc<Editor>, slot: Slot) {
         }
         None => super::editor::info(&ed.win, &tr!("Settings page…"), &tr!("FreeDeck must be running for this (menu: “FreeDeck” or `freedeck`), because it runs the plugins.")),
     }
+}
+
+/// Home-Assistant-Entität: Eingabefeld und „Auswählen …“ mit der Liste aus Home Assistant (im Hintergrund
+/// geladen, nach den erlaubten Domains gefiltert), wie `hassui.entity_field`.
+fn entity_field(ed: &Rc<Editor>, f: &Field, s: &Map<String, Value>, set: impl Fn(String, Value) + Clone + 'static) -> gtk::Widget {
+    let key = f.key.clone();
+    let row = gtk::Box::new(Orientation::Horizontal, 4);
+    let e = gtk::Entry::new();
+    e.set_hexpand(true);
+    e.set_text(&s.get(&key).map(value_text).unwrap_or_default());
+    let (set2, k2) = (set.clone(), key.clone());
+    e.connect_changed(move |e| set2(k2.clone(), Value::String(e.text().to_string())));
+    row.append(&e);
+    let mb = gtk::MenuButton::new();
+    mb.set_label(&tr!("Choose …"));
+    let pop = gtk::Popover::new();
+    pop.set_has_arrow(false);
+    let list = popover_box(&pop);
+    let search = gtk::SearchEntry::new();
+    list.append(&search);
+    let items = gtk::Box::new(Orientation::Vertical, 0);
+    let sc = gtk::ScrolledWindow::new();
+    sc.set_child(Some(&items));
+    sc.set_min_content_width(320);
+    sc.set_min_content_height(300);
+    sc.set_hscrollbar_policy(gtk::PolicyType::Never);
+    list.append(&sc);
+    mb.set_popover(Some(&pop));
+    row.append(&mb);
+    let domains = f.domains.clone();
+    let all: Rc<std::cell::RefCell<Vec<(String, String)>>> = Rc::new(std::cell::RefCell::new(Vec::new()));
+    let fill = {
+        let (items, all, search, e) = (items.clone(), all.clone(), search.clone(), e.clone());
+        Rc::new(move || {
+            while let Some(c) = items.first_child() {
+                items.remove(&c);
+            }
+            let q = search.text().to_lowercase();
+            for (id, name) in all.borrow().iter().filter(|(id, n)| q.is_empty() || id.to_lowercase().contains(&q) || n.to_lowercase().contains(&q)).take(300) {
+                let b = menu_row(&format!("{name}  ·  {id}"), None, &[]);
+                let (e, id) = (e.clone(), id.clone());
+                b.connect_clicked(move |b| {
+                    e.set_text(&id);
+                    close_popover(b);
+                });
+                items.append(&b);
+            }
+        })
+    };
+    {
+        let fill = fill.clone();
+        search.connect_search_changed(move |_| fill());
+    }
+    let cfg = ed.state.borrow().preview.as_ref().map(|c| c.cfg.data.clone()).unwrap_or_default();
+    pop.connect_show(move |_| {
+        // Liste im Hintergrund holen (Netz), dann hier füllen
+        let (tx, rx) = std::sync::mpsc::channel();
+        let cfg = cfg.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(freestream_deck::hass::client(&cfg).states_all().map_err(|e| e.to_string()));
+        });
+        let (all, fill, items, domains) = (all.clone(), fill.clone(), items.clone(), domains.clone());
+        while let Some(c) = items.first_child() {
+            items.remove(&c);
+        }
+        items.append(&label("…", &["muted"]));
+        glib::timeout_add_local(std::time::Duration::from_millis(150), move || match rx.try_recv() {
+            Ok(Ok(states)) => {
+                let mut v: Vec<(String, String)> = states.iter().filter_map(|st| {
+                    let id = st.get("entity_id")?.as_str()?.to_string();
+                    let dom = id.split('.').next().unwrap_or("").to_string();
+                    if let Some(d) = &domains {
+                        if !d.iter().any(|x| *x == dom) {
+                            return None;
+                        }
+                    }
+                    let name = st.get("attributes").and_then(|a| a.get("friendly_name")).and_then(Value::as_str).unwrap_or(&id).to_string();
+                    Some((id, name))
+                }).collect();
+                v.sort_by_key(|x| x.1.to_lowercase());
+                *all.borrow_mut() = v;
+                fill();
+                glib::ControlFlow::Break
+            }
+            Ok(Err(err)) => {
+                while let Some(c) = items.first_child() {
+                    items.remove(&c);
+                }
+                let l = label(&err, &["muted"]);
+                l.set_wrap(true);
+                items.append(&l);
+                glib::ControlFlow::Break
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+            Err(_) => glib::ControlFlow::Break,
+        });
+    });
+    row.upcast()
 }
