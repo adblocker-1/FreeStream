@@ -46,4 +46,5 @@ package both install one (`/lib/udev/rules.d/70-freedeck-rs.rules` or `70-freede
 |---|---|
 | `crates/core` | paths, settings, translations, device models, Elgato profile format |
 | `crates/deck` | devices (USB), key images, actions, controller, service |
+| `crates/wave` | FreeWave core: PipeWire mixer (channels, mixes, levels, ducking, effects, noise suppression), Wave microphones, background service |
 | `apps/freedeck` | the `freedeck` program: window (GTK4) and command line |

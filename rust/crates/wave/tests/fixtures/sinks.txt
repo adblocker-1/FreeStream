@@ -1,0 +1,332 @@
+Sink #80
+	State: RUNNING
+	Name: alsa_output.usb-headphones
+	Description: USB
+	Driver: PipeWire
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Owner Module: 536870915
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Base Volume: 65536 / 100% / 0.00 dB
+	Monitor Source: alsa_output.usb-headphones.monitor
+	Latency: 0 usec, configured 0 usec
+	Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	Properties:
+		node.name = "alsa_output.usb-headphones"
+		device.description = "USB"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		media.class = "Audio/Sink"
+		factory.name = "support.null-audio-sink"
+		monitor.channel-volumes = "true"
+		monitor.passthrough = "true"
+		pulse.module.id = "536870915"
+		factory.id = "17"
+		clock.quantum-limit = "8192"
+		client.id = "36"
+		node.driver = "true"
+		factory.mode = "merge"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		object.id = "37"
+		object.serial = "80"
+	Formats:
+		pcm
+
+Sink #87
+	State: SUSPENDED
+	Name: alsa_output.speakers
+	Description: Lautsprecher
+	Driver: PipeWire
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Owner Module: 536870914
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Base Volume: 65536 / 100% / 0.00 dB
+	Monitor Source: alsa_output.speakers.monitor
+	Latency: 0 usec, configured 0 usec
+	Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	Properties:
+		node.name = "alsa_output.speakers"
+		device.description = "Lautsprecher"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		media.class = "Audio/Sink"
+		factory.name = "support.null-audio-sink"
+		monitor.channel-volumes = "true"
+		monitor.passthrough = "true"
+		pulse.module.id = "536870914"
+		factory.id = "17"
+		clock.quantum-limit = "8192"
+		client.id = "54"
+		node.driver = "true"
+		factory.mode = "merge"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		object.id = "53"
+		object.serial = "87"
+	Formats:
+		pcm
+
+Sink #107
+	State: RUNNING
+	Name: linewave_streammix
+	Description: FreeWave Stream-Mix
+	Driver: PipeWire
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Owner Module: 536870916
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Base Volume: 65536 / 100% / 0.00 dB
+	Monitor Source: linewave_streammix.monitor
+	Latency: 0 usec, configured 0 usec
+	Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	Properties:
+		node.name = "linewave_streammix"
+		device.description = "FreeWave Stream-Mix"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		media.class = "Audio/Sink"
+		factory.name = "support.null-audio-sink"
+		monitor.channel-volumes = "true"
+		monitor.passthrough = "true"
+		pulse.module.id = "536870916"
+		factory.id = "17"
+		clock.quantum-limit = "8192"
+		client.id = "55"
+		node.driver = "true"
+		factory.mode = "merge"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		object.id = "56"
+		object.serial = "107"
+	Formats:
+		pcm
+
+Sink #114
+	State: IDLE
+	Name: linewave_system
+	Description: FreeWave System
+	Driver: PipeWire
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Owner Module: 536870917
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Base Volume: 65536 / 100% / 0.00 dB
+	Monitor Source: linewave_system.monitor
+	Latency: 0 usec, configured 0 usec
+	Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	Properties:
+		node.name = "linewave_system"
+		monitor.channel-volumes = "true"
+		device.description = "FreeWave System"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		media.class = "Audio/Sink"
+		factory.name = "support.null-audio-sink"
+		monitor.passthrough = "true"
+		pulse.module.id = "536870917"
+		factory.id = "17"
+		clock.quantum-limit = "8192"
+		client.id = "61"
+		node.driver = "true"
+		factory.mode = "merge"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		object.id = "62"
+		object.serial = "114"
+	Formats:
+		pcm
+
+Sink #145
+	State: RUNNING
+	Name: linewave_music
+	Description: FreeWave Musik
+	Driver: PipeWire
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Owner Module: 536870920
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Base Volume: 65536 / 100% / 0.00 dB
+	Monitor Source: linewave_music.monitor
+	Latency: 0 usec, configured 0 usec
+	Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	Properties:
+		node.name = "linewave_music"
+		monitor.channel-volumes = "true"
+		device.description = "FreeWave Musik"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		media.class = "Audio/Sink"
+		factory.name = "support.null-audio-sink"
+		monitor.passthrough = "true"
+		pulse.module.id = "536870920"
+		factory.id = "17"
+		clock.quantum-limit = "8192"
+		client.id = "89"
+		node.driver = "true"
+		factory.mode = "merge"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		object.id = "90"
+		object.serial = "145"
+	Formats:
+		pcm
+
+Sink #184
+	State: RUNNING
+	Name: linewave_browser
+	Description: FreeWave Browser
+	Driver: PipeWire
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Owner Module: 536870923
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Base Volume: 65536 / 100% / 0.00 dB
+	Monitor Source: linewave_browser.monitor
+	Latency: 0 usec, configured 0 usec
+	Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	Properties:
+		node.name = "linewave_browser"
+		monitor.channel-volumes = "true"
+		device.description = "FreeWave Browser"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		media.class = "Audio/Sink"
+		factory.name = "support.null-audio-sink"
+		monitor.passthrough = "true"
+		pulse.module.id = "536870923"
+		factory.id = "17"
+		clock.quantum-limit = "8192"
+		client.id = "125"
+		node.driver = "true"
+		factory.mode = "merge"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		object.id = "126"
+		object.serial = "184"
+	Formats:
+		pcm
+
+Sink #215
+	State: IDLE
+	Name: linewave_voice
+	Description: FreeWave Voice Chat
+	Driver: PipeWire
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Owner Module: 536870926
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Base Volume: 65536 / 100% / 0.00 dB
+	Monitor Source: linewave_voice.monitor
+	Latency: 0 usec, configured 0 usec
+	Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	Properties:
+		node.name = "linewave_voice"
+		monitor.channel-volumes = "true"
+		device.description = "FreeWave Voice Chat"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		media.class = "Audio/Sink"
+		factory.name = "support.null-audio-sink"
+		monitor.passthrough = "true"
+		pulse.module.id = "536870926"
+		factory.id = "17"
+		clock.quantum-limit = "8192"
+		client.id = "153"
+		node.driver = "true"
+		factory.mode = "merge"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		object.id = "154"
+		object.serial = "215"
+	Formats:
+		pcm
+
+Sink #244
+	State: IDLE
+	Name: linewave_game
+	Description: FreeWave Spiel
+	Driver: PipeWire
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Owner Module: 536870929
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Base Volume: 65536 / 100% / 0.00 dB
+	Monitor Source: linewave_game.monitor
+	Latency: 0 usec, configured 0 usec
+	Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	Properties:
+		node.name = "linewave_game"
+		monitor.channel-volumes = "true"
+		device.description = "FreeWave Spiel"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		media.class = "Audio/Sink"
+		factory.name = "support.null-audio-sink"
+		monitor.passthrough = "true"
+		pulse.module.id = "536870929"
+		factory.id = "17"
+		clock.quantum-limit = "8192"
+		client.id = "179"
+		node.driver = "true"
+		factory.mode = "merge"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		object.id = "180"
+		object.serial = "244"
+	Formats:
+		pcm
+
+Sink #289
+	State: IDLE
+	Name: linewave_sfx
+	Description: FreeWave Effekte
+	Driver: PipeWire
+	Sample Specification: float32le 2ch 48000Hz
+	Channel Map: front-left,front-right
+	Owner Module: 536870932
+	Mute: no
+	Volume: front-left: 65536 / 100% / 0.00 dB,   front-right: 65536 / 100% / 0.00 dB
+	        balance 0.00
+	Base Volume: 65536 / 100% / 0.00 dB
+	Monitor Source: linewave_sfx.monitor
+	Latency: 0 usec, configured 0 usec
+	Flags: HARDWARE DECIBEL_VOLUME LATENCY 
+	Properties:
+		node.name = "linewave_sfx"
+		monitor.channel-volumes = "true"
+		device.description = "FreeWave Effekte"
+		audio.channels = "2"
+		audio.position = "[ FL, FR ]"
+		media.class = "Audio/Sink"
+		factory.name = "support.null-audio-sink"
+		monitor.passthrough = "true"
+		pulse.module.id = "536870932"
+		factory.id = "17"
+		clock.quantum-limit = "8192"
+		client.id = "221"
+		node.driver = "true"
+		factory.mode = "merge"
+		audio.adapt.follower = ""
+		library.name = "audioconvert/libspa-audioconvert"
+		object.id = "222"
+		object.serial = "289"
+	Formats:
+		pcm
