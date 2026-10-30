@@ -280,7 +280,7 @@ impl Page {
         let portal = button(&tr!("Developer Portal"), Some("web-browser-symbolic"), "ghost");
         portal.connect_clicked(|_| super::settings::open_uri(DISCORD_PORTAL));
         btns.append(&portal);
-        let logout = button(&tr!("Log out"), Some("system-log-out-symbolic"), "ghost");
+        let logout = button(&tr!("Remove"), Some("system-log-out-symbolic"), "ghost");
         logout.set_visible(discord::logged_in());
         btns.append(&logout);
         let status = Self::status(body);
