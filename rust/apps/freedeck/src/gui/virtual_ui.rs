@@ -138,19 +138,20 @@ fn poll(dev: &MemoryDeck, pics: &[gtk::Picture], shown: &RefCell<Vec<Option<imag
     }
 }
 
-/// Virtuelles Deck aus- und wieder einschalten (Einstellungen).
-#[allow(dead_code)] // kommt mit dem Geräte-Reiter der Einstellungen
-pub fn set_enabled(app: &gtk::Application, daemon: &Arc<Mutex<Daemon>>, on: bool) {
-    let mut cfg = Config::load();
-    let mut s = virtual_deck::settings(&cfg.data);
-    s.enabled = on;
-    virtual_deck::save(&mut cfg, &s);
-    if on {
-        show(app, daemon);
-    } else {
-        if let Some(w) = WINDOW.with(|w| w.borrow_mut().take()) {
-            w.close();
-        }
-        virtual_deck::stop(&mut daemon.lock().unwrap());
+/// Einstellungen übernehmen: ein-/ausschalten, bei anderer Größe neu aufbauen.
+pub fn apply(daemon: &Arc<Mutex<Daemon>>) {
+    let s = virtual_deck::settings(&Config::load().data);
+    let Some(app) = gtk::gio::Application::default().and_then(|a| a.downcast::<gtk::Application>().ok()) else { return };
+    let running = daemon.lock().unwrap().virtual_device().map(|d| d.model_code.clone());
+    let want = s.enabled.then(|| s.device_model());
+    if running == want {
+        return;
+    }
+    if let Some(w) = WINDOW.with(|w| w.borrow_mut().take()) {
+        w.close();
+    }
+    virtual_deck::stop(&mut daemon.lock().unwrap());
+    if s.enabled {
+        show(&app, daemon);
     }
 }

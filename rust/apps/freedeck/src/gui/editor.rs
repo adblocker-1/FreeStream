@@ -200,7 +200,8 @@ impl Editor {
             super::update_ui::check_now(&win);
         });
         let win = self.win.clone();
-        store.connect_clicked(move |_| info(&win, &tr!("Plugins"), &tr!("Plugins")));
+        let st2 = self.state.clone();
+        store.connect_clicked(move |_| super::settings::open_tab(&win, &st2, Some("plugins")));
         let (win, st) = (self.win.clone(), self.state.clone());
         gear.connect_clicked(move |_| super::settings::open(&win, &st));
     }

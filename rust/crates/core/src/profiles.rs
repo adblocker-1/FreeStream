@@ -370,7 +370,7 @@ fn copy_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-fn extract_zip(file: &Path, dest: &Path) -> anyhow::Result<()> {
+pub(crate) fn extract_zip(file: &Path, dest: &Path) -> anyhow::Result<()> {
     let mut z = zip::ZipArchive::new(std::fs::File::open(file)?)?;
     for i in 0..z.len() {
         let mut f = z.by_index(i)?;
