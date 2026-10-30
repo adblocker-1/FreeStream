@@ -26,3 +26,4 @@ pub mod render;
 pub mod sound;
 pub mod sysinfo;
 pub mod system;
+pub mod virtual_deck;

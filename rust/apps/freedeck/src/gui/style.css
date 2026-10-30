@@ -53,3 +53,5 @@ textview.title-text { border: 1px solid #3a3a3a; border-radius: 6px; padding: 6p
 .menu-row.accent { color: #3d9bff; }
 .card { background-color: #2b2b2b; border-radius: 8px; padding: 10px 12px; }
 .icon-cell { padding: 2px; background: none; border: 2px solid transparent; border-radius: 10px; } .icon-cell:hover { border-color: #3d9bff; }
+.virtual-deck { background-color: #141414; }
+.vkey { background-color: #262626; border-radius: 10px; }

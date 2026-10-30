@@ -11,6 +11,7 @@ mod library;
 mod profiles_ui;
 mod settings;
 mod util;
+pub mod virtual_ui;
 
 use gtk4 as gtk;
 use gtk::prelude::*;
@@ -38,6 +39,9 @@ pub fn run(daemon: Option<Arc<Mutex<Daemon>>>) -> gtk::glib::ExitCode {
     app.connect_activate(move |app| {
         let win = editor::Editor::build(app, daemon.clone());
         win.present();
+        if let Some(d) = &daemon {
+            virtual_ui::start_if_enabled(app, d);
+        }
     });
     app.run_with_args::<&str>(&[])
 }

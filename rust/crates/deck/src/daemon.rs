@@ -23,6 +23,7 @@ pub struct Daemon {
     pub controllers: Arc<Mutex<HashMap<String, Arc<Mutex<Controller>>>>>,
     running: HashMap<String, Running>,
     pub stop: Arc<AtomicBool>,
+    virtual_dev: Option<Arc<crate::device::MemoryDeck>>,
 }
 
 impl Default for Daemon {
@@ -39,6 +40,7 @@ impl Daemon {
             controllers: Default::default(),
             running: HashMap::new(),
             stop: Arc::new(AtomicBool::new(false)),
+            virtual_dev: None,
         }
     }
 
@@ -77,6 +79,26 @@ impl Daemon {
             })
             .expect("Thread");
         self.running.insert(serial, Running { stop, thread });
+    }
+
+    /// Gerät abmelden (Thread endet, Steuerung wird entfernt).
+    pub fn detach(&mut self, serial: &str) {
+        if let Some(r) = self.running.remove(serial) {
+            r.stop.store(true, Ordering::Relaxed);
+            let _ = r.thread.join();
+        }
+        self.controllers.lock().unwrap().remove(serial);
+        self.virtual_dev = self.virtual_dev.take().filter(|d| d.serial_no != serial);
+    }
+
+    /// Virtuelles Deck betreiben (siehe [`crate::virtual_deck`]).
+    pub fn attach_virtual(&mut self, dev: Arc<crate::device::MemoryDeck>) {
+        self.virtual_dev = Some(dev.clone());
+        self.attach(dev);
+    }
+
+    pub fn virtual_device(&self) -> Option<Arc<crate::device::MemoryDeck>> {
+        self.virtual_dev.clone()
     }
 
     /// Geräte suchen: neue anschließen, getrennte vergessen.
