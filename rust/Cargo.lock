@@ -530,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "freedeck"
-version = "0.39.1"
+version = "0.40.0"
 dependencies = [
  "anyhow",
  "ctrlc",
@@ -546,7 +546,7 @@ dependencies = [
 
 [[package]]
 name = "freestream-core"
-version = "0.39.1"
+version = "0.40.0"
 dependencies = [
  "anyhow",
  "data-encoding",
@@ -566,7 +566,7 @@ dependencies = [
 
 [[package]]
 name = "freestream-deck"
-version = "0.39.1"
+version = "0.40.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -598,7 +598,7 @@ dependencies = [
 
 [[package]]
 name = "freestream-wave"
-version = "0.39.1"
+version = "0.40.0"
 dependencies = [
  "freestream-core",
  "indexmap",
@@ -611,7 +611,7 @@ dependencies = [
 
 [[package]]
 name = "freewave"
-version = "0.39.1"
+version = "0.40.0"
 dependencies = [
  "anyhow",
  "ctrlc",

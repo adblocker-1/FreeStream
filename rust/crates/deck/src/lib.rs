@@ -9,6 +9,7 @@ pub mod actions_mixer;
 pub mod actions_multi;
 pub mod actions_obs;
 pub mod actions_sound;
+pub mod actions_soundboard;
 pub mod actions_sysmon;
 pub mod actions_time;
 pub mod builtin_icons;

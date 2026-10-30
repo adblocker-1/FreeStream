@@ -115,6 +115,8 @@ pub const DYN_MIXER_MIXSELECT: &str = "mixer.mixselect";
 pub const DYN_MIXER_SCENES: &str = "mixer.scenes";
 /// Dynamische Auswahl: Home-Assistant-Entitäten (nur die Oberfläche kennt die Verbindung).
 pub const DYN_HA_ENTITIES: &str = "homeassistant.entities";
+/// Dynamische Auswahl: Klänge aus dem Soundboard von FreeWave (config.json "soundboard").
+pub const DYN_SOUNDBOARD: &str = "freewave.soundboard";
 
 /// Ein Eingabefeld einer Aktion.
 #[derive(Debug, Clone, PartialEq)]
@@ -613,6 +615,10 @@ fn build_catalog() -> Vec<ActionType> {
             .set(json!({"scene": ""})).states(2)
             .fields(vec![f(Choice, "scene", "Scene").dynamic(DYN_MIXER_SCENES)])
             .desc("Applies a mixer scene saved in FreeWave and shows when it is active"),
+        a("com.lindeck.freewave.soundboard", t("Soundboard: Play Sound"), fw())
+            .set(json!({"sound": ""})).states(2)
+            .fields(vec![f(Choice, "sound", "Sound").dynamic(DYN_SOUNDBOARD)])
+            .desc("Plays a sound from the FreeWave soundboard in the chosen mixes (press again to stop)"),
         // -------------------------------------------------------- Wave-Mikro
         a("com.lindeck.wavemic.control", t("Wave Microphone"), fw())
             .set(json!({"function": "mute", "step": 5})).ctrl(&[KEY, DIAL])
@@ -912,7 +918,33 @@ fn mix_list(mixer: &Map<String, Value>) -> Vec<(String, String)> {
 /// Dynamische Auswahlliste nach Schlüssel ([`Choices::Dynamic`]) aus config.json.
 /// Home-Assistant-Entitäten liefern eine leere Liste – die löst die Oberfläche auf.
 pub fn resolve_choices(key: &str) -> Vec<(Value, String)> {
+    if key == DYN_SOUNDBOARD {
+        return sound_choices(&crate::config::read_file().unwrap_or_default());
+    }
     resolve_choices_in(key, &mixer_section())
+}
+
+/// [(id, Name)] der Klänge im Soundboard (wie `soundboard.sound_choices` der Python-Version).
+pub fn sound_choices(cfg: &Map<String, Value>) -> Vec<(Value, String)> {
+    let out: Vec<(Value, String)> = cfg
+        .get("soundboard")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(Value::as_object)
+                .filter_map(|s| {
+                    let id = s.get("id").and_then(Value::as_str).filter(|i| !i.is_empty())?;
+                    let name = s.get("name").and_then(Value::as_str).filter(|n| !n.is_empty()).unwrap_or(id);
+                    Some((Value::String(id.into()), name.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    if out.is_empty() {
+        vec![(Value::String(String::new()), gettext("(no sounds in the FreeWave soundboard yet)"))]
+    } else {
+        out
+    }
 }
 
 /// Wie [`resolve_choices`] mit einem gegebenen Abschnitt „mixer“ der Konfiguration.

@@ -962,6 +962,7 @@ pub fn behavior_for(uuid: &str) -> Option<Box<dyn Behavior>> {
         "com.lindeck.mixer.scene" => return Some(Box::new(MixerScene { last: None })),
         "com.lindeck.mixer.mixselect" => return Some(Box::new(MixSelect::new())),
         "com.lindeck.mixer.pages" => return Some(Box::new(MixerPages)),
+        "com.lindeck.freewave.soundboard" => return Some(Box::new(crate::actions_soundboard::SoundboardKey::new())),
         _ => {}
     }
     if u.starts_with("com.lindeck.mixer.") || wavelink || plugin.contains("wave-link") {
