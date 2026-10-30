@@ -4,6 +4,7 @@
 
 mod editor;
 mod library;
+mod settings;
 mod util;
 
 use gtk4 as gtk;

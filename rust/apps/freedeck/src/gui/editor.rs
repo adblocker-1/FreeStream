@@ -168,8 +168,8 @@ impl Editor {
         });
         let win = self.win.clone();
         store.connect_clicked(move |_| info(&win, &tr!("Plugins"), &tr!("Plugins")));
-        let win = self.win.clone();
-        gear.connect_clicked(move |_| info(&win, &tr!("Settings"), &tr!("Settings")));
+        let (win, st) = (self.win.clone(), self.state.clone());
+        gear.connect_clicked(move |_| super::settings::open(&win, &st));
     }
 
     /// Erstes Bild: angeschlossenes Gerät mit seinem Profil, sonst das erste Profil.
