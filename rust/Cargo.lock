@@ -510,6 +510,7 @@ version = "0.39.0"
 dependencies = [
  "anyhow",
  "data-encoding",
+ "image",
  "log",
  "serde",
  "serde_json",
