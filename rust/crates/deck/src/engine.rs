@@ -416,7 +416,18 @@ impl Controller {
         }
         let keys: Vec<u8> = self.keys.iter().filter(|(_, a)| a.behavior.needs_tick()).map(|(k, _)| *k).collect();
         for k in keys {
-            let redraw = self.keys.get_mut(&k).map(|a| a.behavior.tick(&a.data)).unwrap_or(false);
+            let redraw = self.keys.get_mut(&k).map(|a| {
+                let mut r = a.behavior.tick(&a.data);
+                // Zustand aus der Live-Verbindung übernehmen (zeigt das Bild des passenden Zustands)
+                if let Some(s) = a.behavior.live_state(&a.data) {
+                    let s = s % a.data.state_count();
+                    if s != a.data.state {
+                        a.data.state = s;
+                        r = true;
+                    }
+                }
+                r
+            }).unwrap_or(false);
             if redraw {
                 self.render_key(k);
                 dirty = true;
@@ -426,6 +437,9 @@ impl Controller {
         for a in self.dials.values_mut() {
             if a.behavior.needs_tick() {
                 a.behavior.tick(&a.data);
+                if let Some(s) = a.behavior.live_state(&a.data) {
+                    a.data.state = s % a.data.state_count();
+                }
             }
         }
         if dirty {

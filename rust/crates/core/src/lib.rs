@@ -10,6 +10,7 @@ pub mod i18n;
 pub mod models;
 pub mod paths;
 pub mod profiles;
+pub mod secrets;
 
 pub use i18n::{gettext as tr, pgettext};
 

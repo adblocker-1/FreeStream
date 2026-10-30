@@ -170,6 +170,11 @@ pub trait Behavior: Send {
     fn tick(&mut self, _a: &ActionData) -> bool {
         false
     }
+    /// Zustand aus einer Live-Verbindung (OBS nimmt auf, Discord stumm …): die Steuerung setzt ihn nach
+    /// jedem [`Behavior::tick`] und zeichnet neu, wenn er sich ändert. None = Zustand nicht anfassen.
+    fn live_state(&self, _a: &ActionData) -> Option<usize> {
+        None
+    }
     /// Wird die Aktion auf dem Linux-Rechner ausgeführt? (sonst ein Punkt auf der Taste im Editor)
     fn supported(&self) -> bool {
         true
