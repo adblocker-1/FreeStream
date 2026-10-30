@@ -41,7 +41,9 @@ impl Ctx {
     pub fn sync(&self) {
         for c in self.controllers() {
             if let Ok(mut c) = c.try_lock() {
-                c.cfg.reload_if_changed();
+                if c.cfg.reload_if_changed() {
+                    c.apply_device_settings(true);
+                }
             }
         }
     }

@@ -89,6 +89,10 @@ impl Daemon {
                         last_fast = Instant::now();
                     }
                 }
+                // beendet (nicht abgezogen): Inaktiv-Bild zeigen, falls eingestellt
+                if stop2.load(Ordering::Relaxed) || all_stop.load(Ordering::Relaxed) {
+                    ctrl.lock().unwrap().show_idle_image();
+                }
                 ctrls.lock().unwrap().remove(&serial2);
                 if let Some(h) = crate::plugins::host() {
                     h.device_disconnected(&serial2);

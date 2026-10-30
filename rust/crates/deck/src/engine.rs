@@ -79,6 +79,10 @@ pub struct Controller {
     touch_keys_on: Option<bool>,
     last_input: Instant,
     asleep: bool,
+    /// Gerät steht auf dem Kopf (Einstellungen › Geräte › Drehung 180°)
+    pub rotated: bool,
+    /// Gerät aktiv (aus: dunkel, reagiert nicht)
+    pub enabled: bool,
 }
 
 impl Controller {
@@ -115,6 +119,8 @@ impl Controller {
             touch_keys_on: None,
             last_input: Instant::now(),
             asleep: false,
+            rotated: false,
+            enabled: true,
         }
     }
 
@@ -149,7 +155,8 @@ impl Controller {
 
     /// Starten: Helligkeit setzen, Profil laden, Tasten zeichnen.
     pub fn start(&mut self) {
-        let _ = self.dev.set_brightness(self.brightness);
+        self.read_device_settings();
+        let _ = self.dev.set_brightness(if self.enabled { self.brightness } else { 0 });
         let pid = self.initial_profile();
         self.load_profile(pid.as_deref(), None);
     }
@@ -233,9 +240,18 @@ impl Controller {
         self.load_profile(Some(&id), None);
     }
 
+    /// Drehung und „Aktiv“ aus den Einstellungen des Geräts (wie Python: rotation == 180, enabled).
+    fn read_device_settings(&mut self) {
+        let d = self.cfg.device(&self.serial());
+        self.rotated = d.get("rotation").and_then(Value::as_i64) == Some(180);
+        self.enabled = d.get("enabled") != Some(&Value::Bool(false));
+    }
+
     pub fn set_brightness(&mut self, v: u8) {
         self.brightness = v.min(100);
-        let _ = self.dev.set_brightness(self.brightness);
+        if self.enabled {
+            let _ = self.dev.set_brightness(self.brightness);
+        }
         self.remember();
     }
 
@@ -313,7 +329,14 @@ impl Controller {
         if self.shown.get(&k) == Some(&img) {
             return;
         }
-        if let Err(e) = self.dev.set_key(k, &img) {
+        // gedrehtes Gerät: Taste k liegt gegenüber, Bild auf dem Kopf
+        let res = if self.rotated {
+            let n = self.geometry.keys() as u8;
+            self.dev.set_key(n.saturating_sub(1).saturating_sub(k), &image::imageops::rotate180(&img))
+        } else {
+            self.dev.set_key(k, &img)
+        };
+        if let Err(e) = res {
             log::debug!("Taste {k}: {e}");
         }
         self.shown.insert(k, img);
@@ -402,7 +425,8 @@ impl Controller {
         if self.lcd_shown.as_ref() == Some(&img) {
             return;
         }
-        if let Err(e) = self.dev.set_lcd(&img) {
+        let res = if self.rotated { self.dev.set_lcd(&image::imageops::rotate180(&img)) } else { self.dev.set_lcd(&img) };
+        if let Err(e) = res {
             log::debug!("LCD: {e}");
         }
         self.lcd_shown = Some(img);
@@ -427,6 +451,10 @@ impl Controller {
 
     // ------------------------------------------------------------------------------------ Eingaben
     pub fn handle(&mut self, ev: Event) {
+        if !self.enabled {
+            return;
+        }
+        let ev = if self.rotated { self.physical(ev) } else { ev };
         self.last_input = Instant::now();
         if self.asleep {
             self.wake();
@@ -576,6 +604,79 @@ impl Controller {
         }
     }
 
+    /// Nach geänderten Einstellungen: Drehung und „Aktiv“ übernehmen (`redraw`: gleich neu zeichnen).
+    pub fn apply_device_settings(&mut self, redraw: bool) {
+        let (rot, en) = (self.rotated, self.enabled);
+        self.read_device_settings();
+        if en != self.enabled {
+            let _ = self.dev.set_brightness(if self.enabled && !self.asleep { self.brightness } else { 0 });
+        }
+        if rot != self.rotated {
+            self.shown.clear();
+            self.lcd_shown = None;
+            if redraw {
+                self.render_all();
+                self.render_lcd();
+            }
+        }
+    }
+
+    /// Ereignis vom gedrehten Gerät auf Tasten/Regler im Profil umrechnen.
+    fn physical(&self, ev: Event) -> Event {
+        let n = self.geometry.keys() as u8;
+        let d = self.geometry.dials;
+        let t = self.geometry.touch_keys;
+        let w = self.dev.lcd_size().map(|s| s.0 as u16).unwrap_or(800);
+        let key = |k: u8| n.saturating_sub(1).saturating_sub(k);
+        let dial = |i: u8| d.saturating_sub(1).saturating_sub(i);
+        match ev {
+            Event::KeyDown(k) => Event::KeyDown(key(k)),
+            Event::KeyUp(k) => Event::KeyUp(key(k)),
+            Event::DialDown(i) => Event::DialDown(dial(i)),
+            Event::DialUp(i) => Event::DialUp(dial(i)),
+            // gedreht: rechts herum wird links herum
+            Event::DialTurn(i, v) => Event::DialTurn(dial(i), v),
+            Event::Touch { x, long } => Event::Touch { x: w.saturating_sub(x), long },
+            Event::Swipe { from, to } => Event::Swipe { from: w.saturating_sub(from), to: w.saturating_sub(to) },
+            Event::TouchKeyDown(i) => Event::TouchKeyDown(t.saturating_sub(1).saturating_sub(i)),
+            Event::TouchKeyUp(i) => Event::TouchKeyUp(t.saturating_sub(1).saturating_sub(i)),
+        }
+    }
+
+    /// Beim Beenden: das Inaktiv-Bild (Einstellungen › Geräte) über alle Tasten und die LCD-Fläche legen,
+    /// statt das Gerät leer zu lassen. Gibt true zurück, wenn es gezeigt wurde.
+    pub fn show_idle_image(&mut self) -> bool {
+        let path = self.cfg.device(&self.serial()).get("idle_image").and_then(Value::as_str).map(std::path::PathBuf::from);
+        let Some(path) = path.filter(|p| p.is_file()) else { return false };
+        if !self.dev.has_display() || self.serial() == crate::virtual_deck::SERIAL {
+            return false;
+        }
+        let tiles = render::background_tiles(&path, self.geometry.cols, self.geometry.rows, self.dev.key_size(), 0);
+        if tiles.is_empty() {
+            return false;
+        }
+        let cols = self.geometry.cols.max(1);
+        let n = self.geometry.keys() as u8;
+        for k in 0..n {
+            if let Some(t) = tiles.get(&(k % cols, k / cols)) {
+                let (phys, img) = if self.rotated { (n - 1 - k, image::imageops::rotate180(t)) } else { (k, t.clone()) };
+                let _ = self.dev.set_key(phys, &img);
+            }
+        }
+        if let Some((w, h)) = self.dev.lcd_size() {
+            if let Some(img) = render::load_image(&path, w, h).map(|i| render::fit(&i, w, h)) {
+                let img = if self.rotated { image::imageops::rotate180(&img) } else { img };
+                let _ = self.dev.set_lcd(&img);
+            }
+        }
+        for i in 0..self.geometry.touch_keys {
+            let _ = self.dev.set_touch_key_color(i, [0, 0, 0]);
+        }
+        let _ = self.dev.set_brightness(if self.enabled { self.brightness } else { 0 });
+        let _ = self.dev.flush();
+        true
+    }
+
     pub fn sleep(&mut self) {
         self.asleep = true;
         let _ = self.dev.set_brightness(0);
@@ -583,7 +684,9 @@ impl Controller {
 
     pub fn wake(&mut self) {
         self.asleep = false;
-        let _ = self.dev.set_brightness(self.brightness);
+        if self.enabled {
+            let _ = self.dev.set_brightness(self.brightness);
+        }
     }
 
     /// Alle paar hundert Millisekunden: Hinweise ausblenden, Uhren nachziehen, Ruhezustand.
@@ -686,6 +789,7 @@ impl Controller {
     /// Profile neu gelesen (Editor hat gespeichert): gleiche Seite neu zeichnen.
     pub fn reload(&mut self) {
         if self.cfg.reload_if_changed() {
+            self.apply_device_settings(false);
             // Profil fürs Gerät in den Einstellungen geändert?
             let want = self.cfg.device(&self.serial()).get("profile").and_then(Value::as_str).map(str::to_string);
             if want.is_some() && want != self.profile.as_ref().map(|p| p.id.clone()) {
