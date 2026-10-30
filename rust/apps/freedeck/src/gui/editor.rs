@@ -4,6 +4,7 @@ use gtk4 as gtk;
 use gtk::prelude::*;
 use gtk::{glib, Align, Orientation};
 
+use freestream_core::editdoc::{Clip, ProfileDoc, Slot};
 use freestream_core::models::{model_geometry, model_name, Geometry};
 use freestream_core::profiles::ProfileStore;
 use freestream_core::tr;
@@ -32,7 +33,17 @@ pub struct State {
     pub preview: Option<Controller>,
     pub selected: Option<u8>,
     pub status: String,
-    keys: HashMap<u8, RgbaImage>,
+    pub keys: HashMap<u8, RgbaImage>,
+    /// Profil zum Bearbeiten (Rückgängig, Speichern)
+    pub doc: Option<ProfileDoc>,
+    /// Zwischenablage für Tasten
+    pub clip: Option<Clip>,
+    /// Aktion aus der Liste auf die Taste legen (Doppelklick in der Aktionsliste)
+    pub on_add: Option<Rc<dyn Fn(String)>>,
+    /// Zustand der Taste, der bearbeitet wird (Tasten mit mehreren Zuständen)
+    pub state_idx: usize,
+    /// Speichern nach dem Tippen (verzögert)
+    save_job: Option<glib::SourceId>,
 }
 
 pub struct Editor {
@@ -42,11 +53,13 @@ pub struct Editor {
     prof_label: gtk::Label,
     dev_list: gtk::Box,
     prof_list: gtk::Box,
-    stage: gtk::DrawingArea,
+    pub(super) stage: gtk::DrawingArea,
     pages: gtk::Box,
     status: gtk::Label,
-    insp_head: gtk::Box,
-    insp_body: gtk::Box,
+    pub(super) insp_head: gtk::Box,
+    pub(super) insp_body: gtk::Box,
+    /// Vorschaubild in den Eigenschaften (wird beim Tippen nachgezogen)
+    pub(super) insp_pic: RefCell<Option<gtk::Picture>>,
 }
 
 impl Editor {
@@ -64,6 +77,11 @@ impl Editor {
             selected: None,
             status: String::new(),
             keys: HashMap::new(),
+            doc: None,
+            clip: None,
+            on_add: None,
+            state_idx: 0,
+            save_job: None,
         }));
 
         let win = gtk::ApplicationWindow::builder().application(app).title("FreeDeck").default_width(1280).default_height(800).build();
@@ -147,7 +165,7 @@ impl Editor {
         let lib = super::library::build(&state);
         body.append(&lib);
 
-        let ed = Rc::new(Editor { win: win.clone(), state, dev_label, prof_label, dev_list, prof_list, stage, pages, status, insp_head, insp_body });
+        let ed = Rc::new(Editor { win: win.clone(), state, dev_label, prof_label, dev_list, prof_list, stage, pages, status, insp_head, insp_body, insp_pic: RefCell::new(None) });
         ed.connect(&bell, &store_btn, &gear);
         ed.start();
         win
@@ -160,6 +178,15 @@ impl Editor {
         let ed = self.clone();
         click.connect_pressed(move |_, n, x, y| ed.stage_click(n, x, y));
         self.stage.add_controller(click);
+        self.connect_dnd();
+        {
+            let ed = Rc::downgrade(self);
+            self.state.borrow_mut().on_add = Some(Rc::new(move |uuid: String| {
+                if let Some(ed) = ed.upgrade() {
+                    ed.add_action(&uuid, None);
+                }
+            }));
+        }
         let st = self.state.clone();
         let win = self.win.clone();
         bell.connect_clicked(move |_| {
@@ -205,6 +232,7 @@ impl Editor {
             let prof = pid.and_then(|p| st.store.lock().unwrap().get(p).cloned());
             st.profile = prof.as_ref().map(|p| p.id.clone());
             st.selected = None;
+            st.doc = prof.as_ref().and_then(|p| ProfileDoc::open(&p.root).map_err(|e| log::warn!("{e}")).ok());
             st.preview = prof.map(|p| {
                 let model = if model_geometry(&p.model).is_some() { p.model.clone() } else { "20GBA9901".into() };
                 let dev = Arc::new(MemoryDeck::new(&model, "EDITOR", (KEY_PX, KEY_PX)));
@@ -251,7 +279,7 @@ impl Editor {
         st.keys = imgs;
     }
 
-    fn geometry(&self) -> Geometry {
+    pub(super) fn geometry(&self) -> Geometry {
         self.state.borrow().preview.as_ref().map(|c| c.geometry).unwrap_or(Geometry::new(5, 3))
     }
 
@@ -295,11 +323,28 @@ impl Editor {
             }
             let ed = self.clone();
             b.connect_clicked(move |_| ed.goto_page(i));
+            // Rechtsklick: Seite verschieben oder löschen
+            let rc = gtk::GestureClick::new();
+            rc.set_button(3);
+            let (ed, bb) = (self.clone(), b.clone());
+            rc.connect_pressed(move |_, _, _, _| ed.page_menu(&bb, i, n));
+            b.add_controller(rc);
+            // Taste auf eine Seitenzahl ziehen: auf diese Seite verschieben
+            let drop = gtk::DropTarget::new(glib::Type::STRING, gtk::gdk::DragAction::MOVE);
+            let ed = self.clone();
+            drop.connect_drop(move |_, v, _, _| {
+                let Some(from) = v.get::<String>().ok().and_then(|t| t.strip_prefix(KEY_DRAG).and_then(|s| s.parse::<u8>().ok())) else { return false };
+                ed.move_key_to_page(from, i);
+                true
+            });
+            b.add_controller(drop);
             self.pages.append(&b);
         }
         let add = gtk::Button::with_label("+");
         add.add_css_class("page-btn");
         add.set_tooltip_text(Some(&tr!("Add page")));
+        let ed = self.clone();
+        add.connect_clicked(move |_| ed.add_page());
         self.pages.append(&add);
         self.pages.set_visible(n > 0);
     }
@@ -379,7 +424,13 @@ impl Editor {
 
     fn stage_click(self: &Rc<Self>, n: i32, x: f64, y: f64) {
         let k = self.key_at(x, y);
-        self.state.borrow_mut().selected = k;
+        {
+            let mut st = self.state.borrow_mut();
+            if st.selected != k {
+                st.state_idx = 0;
+            }
+            st.selected = k;
+        }
         if n == 2 {
             // Doppelklick auf einen Ordner öffnet ihn
             let folder = {
@@ -403,59 +454,8 @@ impl Editor {
     }
 
     // ---------------------------------------------------------- Eigenschaften
-    fn refresh_inspector(&self) {
-        for b in [&self.insp_head, &self.insp_body] {
-            while let Some(c) = b.first_child() {
-                b.remove(&c);
-            }
-        }
-        let st = self.state.borrow();
-        let g = self.geometry();
-        let Some(k) = st.selected else {
-            self.insp_head.append(&label(&tr!("Select a key to edit it."), &["insp-name"]));
-            self.insp_body.append(&label(&tr!("Drag an action here from the list on the right, or double-click it there."), &["muted"]));
-            return;
-        };
-        let data = st.preview.as_ref().and_then(|c| c.current_page()).and_then(|pg| pg.keypad.get(&(k % g.cols, k / g.cols)).cloned());
-        let where_ = tr!("Key {col},{row}", col = k % g.cols + 1, row = k / g.cols + 1);
-        let Some(data) = data else {
-            self.insp_head.append(&label(&tr!("{where} – empty", r#where = where_), &["insp-name"]));
-            self.insp_body.append(&label(&tr!("Drag an action here from the list on the right, or double-click it there."), &["muted"]));
-            return;
-        };
-        let uuid = data.get("UUID").and_then(|u| u.as_str()).unwrap_or("").to_string();
-        let name = data.get("Name").and_then(|u| u.as_str()).map(str::to_string)
-            .unwrap_or_else(|| uuid.rsplit('.').next().unwrap_or("").to_string());
-        let cat = super::library::category_of(&uuid);
-        if !cat.is_empty() {
-            self.insp_head.append(&label(&format!("{cat}:"), &["insp-cat"]));
-        }
-        self.insp_head.append(&label(&name, &["insp-name"]));
-        let w = label(&where_, &["muted"]);
-        w.set_margin_start(10);
-        self.insp_head.append(&w);
-        // links die Taste groß, rechts der Titel
-        if let Some(img) = st.keys.get(&k) {
-            let pic = gtk::Picture::for_paintable(&super::util::texture(img));
-            pic.set_size_request(100, 100);
-            pic.set_can_shrink(true);
-            pic.set_valign(Align::Start);
-            self.insp_body.append(&pic);
-        }
-        let grid = gtk::Grid::new();
-        grid.set_row_spacing(8);
-        grid.set_column_spacing(14);
-        grid.set_hexpand(true);
-        let title = data.get("States").and_then(|s| s.get(0)).and_then(|s| s.get("Title")).and_then(|t| t.as_str()).unwrap_or("").to_string();
-        let tl = label(&format!("{}:", tr!("Title")), &["field-label"]);
-        tl.set_xalign(1.0);
-        tl.set_width_chars(14);
-        grid.attach(&tl, 0, 0, 1, 1);
-        let e = gtk::Entry::new();
-        e.set_text(&title);
-        e.set_hexpand(true);
-        grid.attach(&e, 1, 0, 1, 1);
-        self.insp_body.append(&grid);
+    pub fn refresh_inspector(self: &Rc<Self>) {
+        super::inspector::build(self);
     }
 
     // -------------------------------------------------------- Geräte, Profile
@@ -645,3 +645,426 @@ pub fn info(win: &gtk::ApplicationWindow, title: &str, text: &str) {
     d.connect_response(|d, _| d.close());
     d.present();
 }
+
+// ================================================================================== Bearbeiten
+impl Editor {
+    /// UUID der gezeigten Seite (auch eines geöffneten Ordners).
+    pub fn page_uuid(&self) -> Option<String> {
+        self.state.borrow().preview.as_ref()?.current_page().map(|p| p.uuid)
+    }
+
+    /// Platz einer Taste.
+    pub fn slot_of(&self, k: u8) -> Slot {
+        let g = self.geometry();
+        Slot::Key(k % g.cols.max(1), k / g.cols.max(1))
+    }
+
+    /// Änderung am Profil: `f` bekommt das Dokument und die Seite; danach speichern und neu zeichnen.
+    pub fn edit(self: &Rc<Self>, f: impl FnOnce(&mut ProfileDoc, &str)) {
+        let Some(page) = self.page_uuid() else { return };
+        {
+            let mut st = self.state.borrow_mut();
+            let Some(doc) = st.doc.as_mut() else { return };
+            f(doc, &page);
+        }
+        self.commit();
+    }
+
+    /// Gespeichertes Profil überall neu laden: Vorschau, Geräte, Fenster.
+    pub fn commit(self: &Rc<Self>) {
+        let err = {
+            let mut st = self.state.borrow_mut();
+            let r = st.doc.as_mut().map(|d| d.save());
+            match r {
+                Some(Err(e)) => Some(e.to_string()),
+                _ => None,
+            }
+        };
+        if let Some(e) = err {
+            self.state.borrow_mut().status = e;
+        }
+        self.reload_everywhere();
+        self.refresh();
+    }
+
+    /// Aktion aus der Liste auf eine Taste legen (None: gewählte Taste, sonst erste freie).
+    pub fn add_action(self: &Rc<Self>, uuid: &str, key: Option<u8>) {
+        let g = self.geometry();
+        let target = key.or(self.state.borrow().selected).or_else(|| {
+            let st = self.state.borrow();
+            let pg = st.preview.as_ref()?.current_page()?;
+            (0..g.keys() as u8).find(|k| !pg.keypad.contains_key(&(k % g.cols, k / g.cols)))
+        });
+        let Some(k) = target else {
+            self.state.borrow_mut().status = tr!("No free space – select a key to replace it");
+            self.refresh_header();
+            return;
+        };
+        let slot = self.slot_of(k);
+        self.edit(|doc, page| {
+            doc.place(page, slot, uuid);
+        });
+        self.state.borrow_mut().selected = Some(k);
+        self.refresh_inspector();
+        self.stage.queue_draw();
+    }
+
+    pub fn delete_key(self: &Rc<Self>, k: u8) {
+        let slot = self.slot_of(k);
+        self.edit(|doc, page| doc.remove(page, slot));
+    }
+
+    pub fn move_key(self: &Rc<Self>, from: u8, to: u8) {
+        if from == to {
+            return;
+        }
+        let (a, b) = (self.slot_of(from), self.slot_of(to));
+        self.edit(|doc, page| doc.move_action(page, a, page, b));
+        self.state.borrow_mut().selected = Some(to);
+        self.refresh_inspector();
+    }
+
+    pub fn copy_key(self: &Rc<Self>, k: u8) {
+        let (Some(page), slot) = (self.page_uuid(), self.slot_of(k)) else { return };
+        let clip = self.state.borrow().doc.as_ref().and_then(|d| d.copy(&page, slot));
+        if clip.is_some() {
+            self.state.borrow_mut().clip = clip;
+        }
+    }
+
+    pub fn paste_key(self: &Rc<Self>, k: u8) {
+        let Some(clip) = self.state.borrow_mut().clip.take() else { return };
+        let slot = self.slot_of(k);
+        self.edit(|doc, page| {
+            doc.paste(page, slot, &clip);
+        });
+        self.state.borrow_mut().clip = Some(clip);
+    }
+
+    pub fn undo(self: &Rc<Self>, redo: bool) {
+        let done = {
+            let mut st = self.state.borrow_mut();
+            st.doc.as_mut().map(|d| if redo { d.redo() } else { d.undo() }).unwrap_or(false)
+        };
+        if done {
+            self.commit();
+        }
+    }
+
+    pub fn add_page(self: &Rc<Self>) {
+        let new = {
+            let mut st = self.state.borrow_mut();
+            let cur = st.preview.as_ref().and_then(|c| c.current_page()).map(|p| p.uuid);
+            st.doc.as_mut().map(|d| d.add_page(cur.as_deref()))
+        };
+        if new.is_none() {
+            return;
+        }
+        self.commit();
+        let n = self.state.borrow().preview.as_ref().map(|c| c.page_count()).unwrap_or(0);
+        let idx = {
+            let st = self.state.borrow();
+            let ids = st.doc.as_ref().map(|d| d.page_ids()).unwrap_or_default();
+            ids.iter().position(|u| Some(u.to_lowercase()) == new.as_ref().map(|n| n.to_lowercase())).unwrap_or(n.saturating_sub(1))
+        };
+        self.goto_page(idx);
+    }
+
+    pub fn delete_page(self: &Rc<Self>, i: usize) {
+        let uuid = self.state.borrow().doc.as_ref().and_then(|d| d.page_ids().get(i).cloned());
+        let Some(uuid) = uuid else { return };
+        let res = self.state.borrow_mut().doc.as_mut().map(|d| d.remove_page(&uuid));
+        if let Some(Err(e)) = res {
+            self.state.borrow_mut().status = e.to_string();
+            self.refresh_header();
+            return;
+        }
+        self.commit();
+        let n = self.state.borrow().preview.as_ref().map(|c| c.page_count()).unwrap_or(0);
+        self.goto_page(i.min(n.saturating_sub(1)));
+    }
+
+    pub fn move_page(self: &Rc<Self>, i: usize, delta: i64) {
+        let uuid = self.state.borrow().doc.as_ref().and_then(|d| d.page_ids().get(i).cloned());
+        let Some(uuid) = uuid else { return };
+        if let Some(d) = self.state.borrow_mut().doc.as_mut() {
+            d.move_page(&uuid, delta);
+        }
+        self.commit();
+        let n = self.state.borrow().preview.as_ref().map(|c| c.page_count()).unwrap_or(1) as i64;
+        self.goto_page((i as i64 + delta).clamp(0, n - 1) as usize);
+    }
+
+    /// Ziehen auf der Bühne (Tasten verschieben) und Ablegen aus der Aktionsliste.
+    fn connect_dnd(self: &Rc<Self>) {
+        let drop = gtk::DropTarget::new(glib::Type::STRING, gtk::gdk::DragAction::COPY | gtk::gdk::DragAction::MOVE);
+        let ed = self.clone();
+        drop.connect_drop(move |_, v, x, y| {
+            let Ok(text) = v.get::<String>() else { return false };
+            let Some(k) = ed.key_at(x, y) else { return false };
+            if let Some(uuid) = text.strip_prefix(super::library::DRAG_PREFIX) {
+                ed.add_action(uuid, Some(k));
+                return true;
+            }
+            if let Some(from) = text.strip_prefix(KEY_DRAG).and_then(|s| s.parse::<u8>().ok()) {
+                ed.move_key(from, k);
+                return true;
+            }
+            false
+        });
+        self.stage.add_controller(drop);
+
+        let drag = gtk::DragSource::new();
+        drag.set_actions(gtk::gdk::DragAction::MOVE);
+        let ed = self.clone();
+        drag.connect_prepare(move |src, x, y| {
+            let k = ed.key_at(x, y)?;
+            let g = ed.geometry();
+            let st = ed.state.borrow();
+            st.preview.as_ref()?.current_page()?.keypad.get(&(k % g.cols, k / g.cols))?;
+            if let Some(img) = st.keys.get(&k) {
+                let small = image::imageops::resize(img, 72, 72, image::imageops::FilterType::Triangle);
+                src.set_icon(Some(&super::util::texture(&small)), 36, 36);
+            }
+            Some(gtk::gdk::ContentProvider::for_value(&format!("{KEY_DRAG}{k}").to_value()))
+        });
+        self.stage.add_controller(drag);
+
+        // Rechtsklick: Kopieren, Einfügen, Löschen
+        let menu = gtk::GestureClick::new();
+        menu.set_button(3);
+        let ed = self.clone();
+        menu.connect_pressed(move |_, _, x, y| {
+            if let Some(k) = ed.key_at(x, y) {
+                ed.state.borrow_mut().selected = Some(k);
+                ed.refresh_inspector();
+                ed.stage.queue_draw();
+                ed.key_menu(k, x, y);
+            }
+        });
+        self.stage.add_controller(menu);
+
+        // Tastenkürzel
+        let keys = gtk::EventControllerKey::new();
+        let ed = self.clone();
+        keys.connect_key_pressed(move |_, key, _, mods| {
+            use gtk::gdk::{Key, ModifierType};
+            let ctrl = mods.contains(ModifierType::CONTROL_MASK);
+            let shift = mods.contains(ModifierType::SHIFT_MASK);
+            // Eingabefelder bekommen ihre Tasten selbst
+            if gtk::prelude::GtkWindowExt::focus(&ed.win).map(|w| w.is::<gtk::Text>() || w.is::<gtk::TextView>()).unwrap_or(false) {
+                return glib::Propagation::Proceed;
+            }
+            let sel = ed.state.borrow().selected;
+            match key.to_lower() {
+                Key::z if ctrl => ed.undo(shift),
+                Key::y if ctrl => ed.undo(true),
+                Key::c if ctrl => {
+                    if let Some(k) = sel {
+                        ed.copy_key(k)
+                    }
+                }
+                Key::x if ctrl => {
+                    if let Some(k) = sel {
+                        ed.copy_key(k);
+                        ed.delete_key(k);
+                    }
+                }
+                Key::v if ctrl => {
+                    if let Some(k) = sel {
+                        ed.paste_key(k)
+                    }
+                }
+                Key::Delete | Key::BackSpace => {
+                    if let Some(k) = sel {
+                        ed.delete_key(k)
+                    }
+                }
+                _ => return glib::Propagation::Proceed,
+            }
+            glib::Propagation::Stop
+        });
+        self.win.add_controller(keys);
+    }
+
+    fn key_menu(self: &Rc<Self>, k: u8, x: f64, y: f64) {
+        let pop = gtk::Popover::new();
+        pop.set_has_arrow(false);
+        pop.set_parent(&self.stage);
+        pop.set_pointing_to(Some(&gtk::gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+        let list = gtk::Box::new(Orientation::Vertical, 2);
+        list.set_margin_start(4);
+        list.set_margin_end(4);
+        list.set_margin_top(4);
+        list.set_margin_bottom(4);
+        let occupied = {
+            let g = self.geometry();
+            let st = self.state.borrow();
+            st.preview.as_ref().and_then(|c| c.current_page()).map(|p| p.keypad.contains_key(&(k % g.cols, k / g.cols))).unwrap_or(false)
+        };
+        let has_clip = self.state.borrow().clip.is_some();
+        let items: Vec<(String, &str, bool, u8)> = vec![
+            (tr!("Copy"), "edit-copy-symbolic", occupied, 0),
+            (tr!("Paste"), "edit-paste-symbolic", has_clip, 1),
+            (tr!("Delete"), "user-trash-symbolic", occupied, 2),
+        ];
+        for (text, icon, enabled, what) in items {
+            let b = gtk::Button::new();
+            b.add_css_class("title-drop");
+            let row = gtk::Box::new(Orientation::Horizontal, 10);
+            row.add_css_class("menu-row");
+            row.append(&gtk::Image::from_icon_name(icon));
+            row.append(&label(&text, if what == 2 { &["danger"] } else { &[] }));
+            b.set_child(Some(&row));
+            b.set_sensitive(enabled);
+            let (ed, p) = (self.clone(), pop.clone());
+            b.connect_clicked(move |_| {
+                p.popdown();
+                match what {
+                    0 => ed.copy_key(k),
+                    1 => ed.paste_key(k),
+                    _ => ed.delete_key(k),
+                }
+            });
+            list.append(&b);
+        }
+        pop.set_child(Some(&list));
+        pop.connect_closed(|p| p.unparent());
+        pop.popup();
+    }
+}
+
+impl Editor {
+    /// Änderung ohne die Eigenschaften neu aufzubauen (Tippen in Feldern): kurz warten, dann speichern
+    /// und Vorschau, Gerät und Bild der Taste nachziehen.
+    pub fn edit_soon(self: &Rc<Self>, f: impl FnOnce(&mut ProfileDoc, &str)) {
+        let Some(page) = self.page_uuid() else { return };
+        {
+            let mut st = self.state.borrow_mut();
+            let Some(doc) = st.doc.as_mut() else { return };
+            f(doc, &page);
+            if let Some(job) = st.save_job.take() {
+                job.remove();
+            }
+        }
+        let ed = self.clone();
+        let id = glib::timeout_add_local_once(std::time::Duration::from_millis(250), move || {
+            ed.state.borrow_mut().save_job = None;
+            ed.commit_quiet();
+        });
+        self.state.borrow_mut().save_job = Some(id);
+    }
+
+    /// Speichern und neu zeichnen, die Eigenschaften bleiben stehen.
+    pub fn commit_quiet(self: &Rc<Self>) {
+        if let Some(job) = self.state.borrow_mut().save_job.take() {
+            job.remove();
+        }
+        let _ = self.state.borrow_mut().doc.as_mut().map(|d| d.save());
+        self.reload_everywhere();
+        self.render_keys();
+        self.refresh_header();
+        self.stage.queue_draw();
+        let k = self.state.borrow().selected;
+        if let (Some(k), Some(pic)) = (k, self.insp_pic.borrow().as_ref()) {
+            if let Some(img) = self.state.borrow().keys.get(&k) {
+                pic.set_paintable(Some(&super::util::texture(img)));
+            }
+        }
+    }
+
+    fn reload_everywhere(&self) {
+        let st = self.state.borrow();
+        match &st.daemon {
+            Some(d) => {
+                let d = d.lock().unwrap();
+                d.store.lock().unwrap().reload();
+                for c in d.controllers.lock().unwrap().values() {
+                    let mut c = c.lock().unwrap();
+                    if c.profile.as_ref().map(|p| Some(&p.id) == st.profile.as_ref()).unwrap_or(false) {
+                        c.reload();
+                    }
+                }
+            }
+            None => st.store.lock().unwrap().reload(),
+        }
+        drop(st);
+        if let Some(c) = self.state.borrow_mut().preview.as_mut() {
+            c.reload();
+        }
+    }
+
+    /// Taste auf eine andere Seite verschieben (auf die Seitenzahl gezogen): erster freier Platz dort.
+    pub fn move_key_to_page(self: &Rc<Self>, from: u8, page_idx: usize) {
+        let g = self.geometry();
+        let src_slot = self.slot_of(from);
+        let (src, dst) = {
+            let st = self.state.borrow();
+            let Some(doc) = st.doc.as_ref() else { return };
+            (self.page_uuid(), doc.page_ids().get(page_idx).cloned())
+        };
+        let (Some(src), Some(dst)) = (src, dst) else { return };
+        if src.eq_ignore_ascii_case(&dst) {
+            return;
+        }
+        let free = {
+            let st = self.state.borrow();
+            let doc = st.doc.as_ref().unwrap();
+            (0..g.keys() as u8).map(|k| Slot::Key(k % g.cols, k / g.cols)).find(|s| doc.get(&dst, *s).is_none())
+        };
+        let Some(free) = free else {
+            self.state.borrow_mut().status = tr!("There is no free space on the target page");
+            self.refresh_header();
+            return;
+        };
+        if let Some(d) = self.state.borrow_mut().doc.as_mut() {
+            d.move_action(&src, src_slot, &dst, free);
+        }
+        self.state.borrow_mut().selected = None;
+        self.commit();
+    }
+
+    fn page_menu(self: &Rc<Self>, anchor: &gtk::Button, i: usize, n: usize) {
+        let pop = gtk::Popover::new();
+        pop.set_has_arrow(false);
+        pop.set_parent(anchor);
+        let list = gtk::Box::new(Orientation::Vertical, 2);
+        for m in [&list] {
+            m.set_margin_start(4);
+            m.set_margin_end(4);
+            m.set_margin_top(4);
+            m.set_margin_bottom(4);
+        }
+        let items: Vec<(String, &str, bool, u8)> = vec![
+            (tr!("Move left"), "go-previous-symbolic", i > 0, 0),
+            (tr!("Move right"), "go-next-symbolic", i + 1 < n, 1),
+            (tr!("Delete page"), "user-trash-symbolic", n > 1, 2),
+        ];
+        for (text, icon, enabled, what) in items {
+            let b = gtk::Button::new();
+            b.add_css_class("title-drop");
+            let row = gtk::Box::new(Orientation::Horizontal, 10);
+            row.add_css_class("menu-row");
+            row.append(&gtk::Image::from_icon_name(icon));
+            row.append(&label(&text, if what == 2 { &["danger"] } else { &[] }));
+            b.set_child(Some(&row));
+            b.set_sensitive(enabled);
+            let (ed, p) = (self.clone(), pop.clone());
+            b.connect_clicked(move |_| {
+                p.popdown();
+                match what {
+                    0 => ed.move_page(i, -1),
+                    1 => ed.move_page(i, 1),
+                    _ => ed.delete_page(i),
+                }
+            });
+            list.append(&b);
+        }
+        pop.set_child(Some(&list));
+        pop.connect_closed(|p| p.unparent());
+        pop.popup();
+    }
+}
+
+/// Text im Drag & Drop für eine Taste der Bühne.
+const KEY_DRAG: &str = "freedeck-key:";

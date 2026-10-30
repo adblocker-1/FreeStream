@@ -303,6 +303,8 @@ pub fn ngettext(singular: &str, plural: &str, n: i64) -> String {
 pub fn fmt(text: &str, args: &[(&str, &dyn std::fmt::Display)]) -> String {
     let mut out = text.to_string();
     for (k, v) in args {
+        // `r#where` (Rust-Schlüsselwort als Name) steht im Text als {where}
+        let k = k.trim_start_matches("r#");
         out = out.replace(&format!("{{{k}}}"), &v.to_string());
     }
     out

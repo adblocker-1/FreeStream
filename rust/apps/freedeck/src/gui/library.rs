@@ -1,71 +1,68 @@
 //! Aktionsleiste rechts: Suche, Reiter „Tasten | Plugins“, Kategorien zum Auf- und Zuklappen.
-//! (Bis der Aktionskatalog aus der Python-Version übernommen ist, steht hier eine kurze Liste.)
+//! Die Aktionen kommen aus dem Katalog (`freestream_core::catalog`); jede Zeile lässt sich auf eine
+//! Taste ziehen oder per Doppelklick auf die gewählte (sonst erste freie) Taste legen.
 
 use gtk4 as gtk;
 use gtk::prelude::*;
-use gtk::Orientation;
+use gtk::{gdk, Orientation};
 
+use freestream_core::catalog::{self, ActionType, Text};
 use freestream_core::tr;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
 use super::editor::State;
-use super::util::label;
+use super::util::{glyph_tile, label};
 
-/// (Kategorie, Symbol, [(UUID, Name)])
-fn entries() -> Vec<(String, &'static str, Vec<(&'static str, String)>)> {
-    vec![
-        (tr!("System"), "input-keyboard-symbolic", vec![
-            ("com.elgato.streamdeck.system.hotkey", tr!("Hotkey")),
-            ("com.elgato.streamdeck.system.hotkeyswitch", tr!("Hotkey Switch")),
-            ("com.elgato.streamdeck.system.text", tr!("Text")),
-            ("com.elgato.streamdeck.system.open", tr!("Open")),
-            ("com.elgato.streamdeck.system.openapp", tr!("Open Application")),
-            ("com.elgato.streamdeck.system.close", tr!("Close Application")),
-            ("com.elgato.streamdeck.system.website", tr!("Website")),
-            ("com.elgato.streamdeck.system.multimedia", tr!("Multimedia")),
-            ("com.elgato.streamdeck.system.timer", tr!("Timer")),
-        ]),
-        (tr!("Navigation"), "folder-symbolic", vec![
-            ("com.elgato.streamdeck.profile.openchild", tr!("Create Folder")),
-            ("com.elgato.streamdeck.profile.backtoparent", tr!("Parent Folder")),
-            ("com.elgato.streamdeck.page.next", tr!("Next Page")),
-            ("com.elgato.streamdeck.page.previous", tr!("Previous Page")),
-            ("com.elgato.streamdeck.page.goto", tr!("Go to Page")),
-            ("com.elgato.streamdeck.page.indicator", tr!("Page Indicator")),
-        ]),
-        ("FreeDeck".into(), "emblem-system-symbolic", vec![
-            ("com.elgato.streamdeck.profile.rotate", tr!("Switch Profile")),
-            ("com.elgato.streamdeck.system.keybrightness", tr!("Brightness")),
-            ("com.elgato.streamdeck.system.sleep", tr!("Sleep")),
-        ]),
-        (tr!("Multi Action"), "view-dual-symbolic", vec![
-            ("com.elgato.streamdeck.multiactions.routine", tr!("Multi Action")),
-            ("com.elgato.streamdeck.multiactions.routine2", tr!("Multi Action Switch")),
-        ]),
-        (tr!("Soundboard"), "audio-x-generic-symbolic", vec![
-            ("com.elgato.streamdeck.soundboard.playaudio", tr!("Play Audio")),
-            ("com.elgato.streamdeck.soundboard.stopaudioplay", tr!("Stop Audio")),
-        ]),
-        (tr!("Clock & timer"), "alarm-symbolic", vec![
-            ("com.lindeck.clock.clock", tr!("Clock")),
-            ("com.lindeck.clock.countdown", tr!("Countdown")),
-            ("com.lindeck.clock.stopwatch", tr!("Stopwatch")),
-        ]),
-        (tr!("System monitor"), "utilities-system-monitor-symbolic", vec![
-            ("com.lindeck.sysmon.cpu", tr!("CPU")),
-            ("com.lindeck.sysmon.memory", tr!("Memory")),
-        ]),
-    ]
+/// Text im Drag & Drop für eine Aktion aus der Liste.
+pub const DRAG_PREFIX: &str = "freedeck-action:";
+
+/// FreeWave-Aktionen nur zeigen, wenn FreeWave installiert ist.
+fn with_freewave() -> bool {
+    freestream_deck::system::have("freewave")
 }
 
-/// Kategorie einer Aktion (für die Überschrift der Eigenschaften).
-pub fn category_of(uuid: &str) -> String {
-    entries().into_iter().find(|(_, _, items)| items.iter().any(|(u, _)| *u == uuid)).map(|(c, ..)| c).unwrap_or_default()
+fn action_row(t: &'static ActionType, state: &Rc<RefCell<State>>) -> gtk::Box {
+    let r = gtk::Box::new(Orientation::Horizontal, 10);
+    r.add_css_class("action-row");
+    let (glyph, color) = catalog::action_look(&t.uuid, t.category.id());
+    r.append(&glyph_tile(glyph, color, 26));
+    let l = label(&t.name(), &[]);
+    l.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    r.append(&l);
+    let desc = t.description();
+    if !desc.is_empty() {
+        r.set_tooltip_text(Some(&desc));
+    }
+    // ziehen
+    let drag = gtk::DragSource::new();
+    drag.set_actions(gdk::DragAction::COPY);
+    let uuid = t.uuid.clone();
+    drag.connect_prepare(move |_, _, _| Some(gdk::ContentProvider::for_value(&format!("{DRAG_PREFIX}{uuid}").to_value())));
+    let (gl, co) = (glyph, color);
+    drag.connect_drag_begin(move |src, _| {
+        let tile = glyph_tile(gl, co, 40);
+        let paintable = gtk::WidgetPaintable::new(Some(&tile));
+        src.set_icon(Some(&paintable), 20, 20);
+    });
+    r.add_controller(drag);
+    // Doppelklick: auf die Taste legen
+    let click = gtk::GestureClick::new();
+    let (st, uuid) = (state.clone(), t.uuid.clone());
+    click.connect_pressed(move |_, n, _, _| {
+        if n == 2 {
+            let cb = st.borrow().on_add.clone();
+            if let Some(cb) = cb {
+                cb(uuid.clone());
+            }
+        }
+    });
+    r.add_controller(click);
+    r
 }
 
-pub fn build(_state: &Rc<RefCell<State>>) -> gtk::Box {
+pub fn build(state: &Rc<RefCell<State>>) -> gtk::Box {
     let side = gtk::Box::new(Orientation::Vertical, 10);
     side.add_css_class("side");
     side.set_size_request(310, -1);
@@ -111,10 +108,11 @@ pub fn build(_state: &Rc<RefCell<State>>) -> gtk::Box {
     hint.set_wrap(true);
     pad.append(&hint);
 
+    let freewave = with_freewave();
     let open: Rc<RefCell<HashSet<String>>> = Rc::new(RefCell::new(HashSet::new()));
     let fill: Rc<RefCell<Option<Box<dyn Fn()>>>> = Rc::new(RefCell::new(None));
     {
-        let (list, search, open, fill2, plugins) = (list.clone(), search.clone(), open.clone(), fill.clone(), plugins.clone());
+        let (list, search, open, fill2, plugins, state) = (list.clone(), search.clone(), open.clone(), fill.clone(), plugins.clone(), state.clone());
         *fill.borrow_mut() = Some(Box::new(move || {
             while let Some(c) = list.first_child() {
                 list.remove(&c);
@@ -124,12 +122,20 @@ pub fn build(_state: &Rc<RefCell<State>>) -> gtk::Box {
                 return;
             }
             let q = search.text().to_lowercase();
-            for (cat, icon, items) in entries() {
-                let items: Vec<_> = items.into_iter().filter(|(_, n)| q.is_empty() || n.to_lowercase().contains(&q) || cat.to_lowercase().contains(&q)).collect();
+            let types = catalog::catalog_for(freewave);
+            for cat in catalog::categories(freewave) {
+                let cat_label = cat.get();
+                let items: Vec<&'static ActionType> = types
+                    .iter()
+                    .copied()
+                    .filter(|t| t.category.id() == cat.id())
+                    .filter(|t| q.is_empty() || t.name().to_lowercase().contains(&q) || cat_label.to_lowercase().contains(&q))
+                    .collect();
                 if items.is_empty() {
                     continue;
                 }
-                let is_open = !q.is_empty() || open.borrow().contains(&cat);
+                let key = cat.id().to_string();
+                let is_open = !q.is_empty() || open.borrow().contains(&key);
                 let head = gtk::Button::new();
                 head.add_css_class("title-drop");
                 let row = gtk::Box::new(Orientation::Horizontal, 12);
@@ -137,17 +143,16 @@ pub fn build(_state: &Rc<RefCell<State>>) -> gtk::Box {
                 let chev = gtk::Image::from_icon_name(if is_open { "pan-down-symbolic" } else { "pan-end-symbolic" });
                 chev.add_css_class("muted");
                 row.append(&chev);
-                let img = gtk::Image::from_icon_name(icon);
-                img.set_pixel_size(20);
-                row.append(&img);
-                row.append(&label(&cat, &["cat-name"]));
+                let (glyph, color) = catalog::category_look(cat.id());
+                row.append(&glyph_tile(glyph, color, 24));
+                row.append(&label(&cat_label, &["cat-name"]));
                 head.set_child(Some(&row));
-                let (open, fill3, cat2) = (open.clone(), fill2.clone(), cat.clone());
+                let (open, fill3) = (open.clone(), fill2.clone());
                 head.connect_clicked(move |_| {
                     {
                         let mut o = open.borrow_mut();
-                        if !o.remove(&cat2) {
-                            o.insert(cat2.clone());
+                        if !o.remove(&key) {
+                            o.insert(key.clone());
                         }
                     }
                     if let Some(f) = fill3.borrow().as_ref() {
@@ -156,14 +161,8 @@ pub fn build(_state: &Rc<RefCell<State>>) -> gtk::Box {
                 });
                 list.append(&head);
                 if is_open {
-                    for (_uuid, name) in items {
-                        let r = gtk::Box::new(Orientation::Horizontal, 10);
-                        r.add_css_class("action-row");
-                        let ic = gtk::Image::from_icon_name(icon);
-                        ic.set_pixel_size(16);
-                        r.append(&ic);
-                        r.append(&label(&name, &[]));
-                        list.append(&r);
+                    for t in items {
+                        list.append(&action_row(t, &state));
                     }
                 }
             }
@@ -192,7 +191,7 @@ pub fn build(_state: &Rc<RefCell<State>>) -> gtk::Box {
             {
                 let mut o = open.borrow_mut();
                 if o.is_empty() {
-                    o.extend(entries().into_iter().map(|(c, ..)| c));
+                    o.extend(catalog::categories(freewave).iter().map(|c: &Text| c.id().to_string()));
                 } else {
                     o.clear();
                 }

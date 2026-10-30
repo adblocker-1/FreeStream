@@ -73,3 +73,74 @@ pub fn icon_button(icon: &str, tip: &str) -> gtk::Button {
     b.set_tooltip_text(Some(tip));
     b
 }
+
+/// Symbol aus dem Icon-Thema für ein Glyph der Aktionsliste (Namen wie in der Python-Version).
+pub fn glyph_icon(glyph: &str) -> &'static str {
+    match glyph {
+        "keyboard" => "input-keyboard-symbolic",
+        "navigate" | "arrow" | "goto" => "go-next-symbolic",
+        "arrow_left" => "go-previous-symbolic",
+        "up" => "go-up-symbolic",
+        "grid" | "deck" => "view-grid-symbolic",
+        "layers" => "view-paged-symbolic",
+        "sfx" | "music" => "audio-x-generic-symbolic",
+        "speaker" => "audio-speakers-symbolic",
+        "headphones" => "audio-headphones-symbolic",
+        "mic" => "audio-input-microphone-symbolic",
+        "record" | "rec" => "media-record-symbolic",
+        "play" => "media-playback-start-symbolic",
+        "stop" => "media-playback-stop-symbolic",
+        "chat" => "user-available-symbolic",
+        "wave" | "fx" | "mixer" => "multimedia-volume-control-symbolic",
+        "home" => "go-home-symbolic",
+        "clock" | "auto" | "hourglass" | "stopwatch" => "alarm-symbolic",
+        "gauge" | "cpu" | "memory" | "network" | "disk" | "thermometer" | "battery" => "utilities-system-monitor-symbolic",
+        "text" => "format-text-bold-symbolic",
+        "folder" => "folder-symbolic",
+        "close" => "window-close-symbolic",
+        "globe" => "web-browser-symbolic",
+        "sun" => "display-brightness-symbolic",
+        "moon" => "weather-clear-night-symbolic",
+        "camera" => "camera-video-symbolic",
+        "stream" => "network-transmit-symbolic",
+        "image" => "image-x-generic-symbolic",
+        "undo" => "edit-undo-symbolic",
+        "gear" => "emblem-system-symbolic",
+        "spark" => "starred-symbolic",
+        _ => "application-x-addon-symbolic",
+    }
+}
+
+/// CSS-Klasse mit Hintergrundfarbe (für die farbigen Kacheln der Aktionsliste).
+pub fn color_class(hex: &str) -> String {
+    use std::cell::RefCell;
+    use std::collections::HashSet;
+    thread_local!(static DONE: RefCell<HashSet<String>> = RefCell::new(HashSet::new()));
+    let name = format!("bg-{}", hex.trim_start_matches('#'));
+    DONE.with(|d| {
+        if d.borrow_mut().insert(name.clone()) {
+            let css = gtk::CssProvider::new();
+            #[allow(deprecated)]
+            css.load_from_data(&format!(".{name} {{ background-color: {hex}; color: white; border-radius: 6px; }}"));
+            if let Some(display) = gtk::gdk::Display::default() {
+                gtk::style_context_add_provider_for_display(&display, &css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+            }
+        }
+    });
+    name
+}
+
+/// Farbige Kachel mit Symbol (Aktionsliste, Kopf der Eigenschaften).
+pub fn glyph_tile(glyph: &str, color: &str, size: i32) -> gtk::Box {
+    let b = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    b.add_css_class(&color_class(color));
+    b.set_size_request(size, size);
+    b.set_valign(gtk::Align::Center);
+    b.set_halign(gtk::Align::Start);
+    b.set_hexpand(false);
+    let img = gtk::Image::from_icon_name(glyph_icon(glyph));
+    img.set_pixel_size(size * 6 / 10);
+    img.set_size_request(size, size);
+    b.append(&img);
+    b
+}

@@ -3,6 +3,9 @@
 //! Eigenschaften der gewählten Taste; rechts über die ganze Höhe die Aktionen.
 
 mod editor;
+mod hotkey;
+mod icons;
+mod inspector;
 mod library;
 mod settings;
 mod util;

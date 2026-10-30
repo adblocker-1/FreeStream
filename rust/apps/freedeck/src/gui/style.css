@@ -46,3 +46,7 @@ menubutton.title-drop > button, menubutton.title-drop > button:hover, menubutton
   background: none; border: none; box-shadow: none; padding: 0 2px; min-height: 0; }
 menubutton.title-drop > button:hover .profile-title { color: #f2f2f2; }
 button.title-drop:hover, button.title-drop:active { background: none; }
+textview.title-text, textview.title-text text { background-color: #2b2b2b; color: #f2f2f2; }
+textview.title-text { border: 1px solid #3a3a3a; border-radius: 6px; padding: 6px 8px; min-height: 22px; }
+.key-preview { border-radius: 10px; }
+.danger { color: #ff6b6b; }
