@@ -35,6 +35,8 @@ pub const MAGENTA: &str = "#cf3fe0";
 pub const GREEN: &str = "#2fcf8f";
 const MUTED_LINE: &str = "#8c8c8c";
 const FAINT_LINE: &str = "#4a4a4a";
+/// Ein Lichtpunkt braucht so lange (µs) vom Anfang bis zum Ende einer Verbindung
+const PULSE_US: i64 = 2_000_000;
 
 pub struct FlowView {
     pub root: gtk::Stack,
@@ -124,6 +126,15 @@ fn legend() -> gtk::Box {
 pub fn init(w: &Rc<Win>) {
     let w2 = w.clone();
     w.flow.area.set_draw_func(move |_, cr, _, _| draw(&w2, cr));
+    // Lichtpunkte auf dem gewählten Weg bewegen sich: neu zeichnen, solange etwas gewählt ist (der Takt
+    // läuft nur, während die Ansicht sichtbar ist)
+    let w2 = w.clone();
+    w.flow.area.add_tick_callback(move |a, _| {
+        if w2.flow.path.borrow().is_some() {
+            a.queue_draw();
+        }
+        gtk::glib::ControlFlow::Continue
+    });
     // installierte Programme (für Programmsymbole) einmal im Hintergrund lesen
     let w2 = w.clone();
     super::bg(|| apps::app_entries(&apps::app_dirs()), move |list| {
@@ -376,25 +387,52 @@ fn draw(w: &Rc<Win>, cr: &gtk::cairo::Context) {
                     Link::MixOutput => GREEN,
                 }
             };
+            let lit = path.is_some() && on_path;
+            let mid = (x1 - x0) / 2.0;
+            let curve = |cr: &gtk::cairo::Context| {
+                cr.move_to(x0, y0);
+                cr.curve_to(x0 + mid, y0, x1 - mid, y1, x1, y1);
+            };
+            let (r, gr, b) = theme::cairo_rgb(color);
+            if lit && !e.muted {
+                // Leuchten: breite, durchscheinende Linie unter der eigentlichen
+                cr.set_dash(&[], 0.0);
+                for (width, alpha) in [(9.0, 0.10), (5.0, 0.22)] {
+                    cr.set_source_rgba(r, gr, b, alpha);
+                    cr.set_line_width(width);
+                    curve(cr);
+                    let _ = cr.stroke();
+                }
+            }
             theme::set_source(cr, color);
-            cr.set_line_width(if path.is_some() && on_path { 2.5 } else { 1.8 });
+            cr.set_line_width(if lit { 2.5 } else { 1.8 });
             if e.muted {
                 cr.set_dash(&[5.0, 4.0], 0.0);
             } else {
                 cr.set_dash(&[], 0.0);
             }
-            let mid = (x1 - x0) / 2.0;
-            cr.move_to(x0, y0);
-            cr.curve_to(x0 + mid, y0, x1 - mid, y1, x1, y1);
+            curve(cr);
             let _ = cr.stroke();
-            if path.is_some() && on_path {
-                // Punkte an den Enden des hervorgehobenen Wegs
+            if lit && !e.muted {
+                // Punkt am Ziel und ein Lichtpunkt, der den Weg entlangläuft (alle gleichzeitig, alle 2 s)
                 cr.set_dash(&[], 0.0);
-                for (x, y) in [(x0, y0), (x1, y1)] {
-                    cr.arc(x, y, 3.5, 0.0, std::f64::consts::TAU);
+                let t = (gtk::glib::monotonic_time() % PULSE_US) as f64 / PULSE_US as f64;
+                let (px, py) = bezier(t, (x0, y0), (x0 + mid, y0), (x1 - mid, y1), (x1, y1));
+                for (x, y, rad) in [(x1, y1, 3.5), (px, py, 4.0)] {
+                    cr.arc(x, y, rad, 0.0, std::f64::consts::TAU);
                     let _ = cr.fill();
                 }
+                cr.set_source_rgba(r, gr, b, 0.3);
+                cr.arc(px, py, 8.0, 0.0, std::f64::consts::TAU);
+                let _ = cr.fill();
             }
         }
     }
+}
+
+/// Punkt auf der kubischen Bézierkurve p0 … p3 bei t (0 … 1).
+fn bezier(t: f64, p0: (f64, f64), p1: (f64, f64), p2: (f64, f64), p3: (f64, f64)) -> (f64, f64) {
+    let u = 1.0 - t;
+    let (a, b, c, d) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
+    (a * p0.0 + b * p1.0 + c * p2.0 + d * p3.0, a * p0.1 + b * p1.1 + c * p2.1 + d * p3.1)
 }

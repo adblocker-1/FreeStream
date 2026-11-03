@@ -313,8 +313,13 @@ def test_wave_window_flow_and_soundboard(env, pactl, monkeypatch):
         assert win.title_var.get() == "Audio Flow"
         assert "ch:music" in win.flow.graph["nodes"] and "in:stream:7" in win.flow.graph["nodes"]
         assert win.flow.cv.find_all()
-        win.flow.select("ch:music")
+        # Klick auf eine Karte: Tk meldet danach auch den Klick auf die Fläche – die Auswahl bleibt trotzdem
+        win.flow._click_card("ch:music")
+        win.flow._click_bg(None)
         root.update()
+        assert win.flow.selected == "ch:music"
+        # gewählter Weg: Lichtpunkte laufen entlang
+        assert win.flow._pulses and win.flow._pulse_job
         assert win.clear_btn.winfo_manager() == "pack"
         win.clear_btn.command()
         root.update()
