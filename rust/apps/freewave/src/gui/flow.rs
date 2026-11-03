@@ -178,6 +178,7 @@ fn sub_text(sub: &Sub) -> String {
         Sub::Percent(v) => format!("{v} %"),
         Sub::Volume(v) => tr!("Volume {value} %", value = v),
         Sub::Muted => tr!("Muted"),
+        Sub::Virtual => tr!("Virtual output"),
     }
 }
 
@@ -219,6 +220,7 @@ fn node_icon(w: &Win, s: &Snapshot, n: &flow::Node) -> gtk::Widget {
             None => theme::tile("wave", ICON, theme::RAISED, 0.22, "#ffffff").upcast(),
         },
         Col::Mix => plain(if n.icon.is_empty() { "wave" } else { &n.icon }),
+        Col::Output if !n.icon.is_empty() && n.icon != "speaker" => plain(&n.icon),
         Col::Output => plain(if n.sub == Sub::Muted { "speaker_off" } else { "speaker" }),
         _ => plain(if n.icon.is_empty() { "speaker" } else { &n.icon }),
     }

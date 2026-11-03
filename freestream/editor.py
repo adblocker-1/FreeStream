@@ -696,6 +696,7 @@ class EditorApp:
             pass
 
         root.title("FreeDeck")
+        theme.log_tk_errors(root)
         root.geometry("1280x800")
         root.minsize(1100, 720)
         root.configure(bg=COL["bg"])
@@ -1055,6 +1056,7 @@ class EditorApp:
         self.btn["redo"].pack(side="right")
         self.btn["undo"] = IconButton(icons, lambda: self.icons.get("undo", 16, COL["muted"]), command=self.undo)
         self.btn["undo"].pack(side="right")
+        theme.edition_badge(icons).pack(side="right", padx=(0, 10))
         self._update_plugin_count()
 
     def open_notifications(self):

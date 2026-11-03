@@ -30,6 +30,8 @@ pub enum Sub {
     /// Lautstärke eines Mixes oder Geräts in Prozent
     Volume(i64),
     Muted,
+    /// virtueller Ausgang eines Mixes ohne Gerät (z. B. Stream-Mix für OBS)
+    Virtual,
 }
 
 /// Art einer Verbindung (Farbe in der Legende).
@@ -229,6 +231,14 @@ pub fn build(s: &Snapshot) -> Graph {
             let muted = mix_mute || m.device_levels.get(d).is_some_and(|l| l.mute);
             g.edges.push(Edge { from: first_mix + k, to, link: Link::MixOutput, muted });
         }
+        // virtueller Mix: sein eigener Ausgang (den OBS oder andere Programme aufnehmen)
+        if m.mix.virtual_ {
+            let mut n = node(format!("out:virtual:{}", m.mix.id), Col::Output, &format!("FreeWave {}", m.mix.name),
+                             Sub::Virtual);
+            n.icon = "stream".into();
+            g.nodes.push(n);
+            g.edges.push(Edge { from: first_mix + k, to: g.nodes.len() - 1, link: Link::MixOutput, muted: mix_mute });
+        }
     }
     g
 }
@@ -284,6 +294,10 @@ mod tests {
         }
     }
 
+    fn n_sub(g: &Graph, id: &str) -> Sub {
+        g.nodes[g.find(id).unwrap()].sub.clone()
+    }
+
     fn ids(g: &Graph, set: &BTreeSet<usize>) -> Vec<String> {
         set.iter().map(|&i| g.nodes[i].id.clone()).collect()
     }
@@ -296,7 +310,8 @@ mod tests {
         assert_eq!(col(Col::Input), ["in:dev:mic", "in:empty:system", "in:app:10", "in:app:11", "in:empty:game"]);
         assert_eq!(col(Col::Channel), ["ch:mic", "ch:system", "ch:music", "ch:game"]);
         assert_eq!(col(Col::Mix), ["mix:monitor", "mix:stream"]);
-        assert_eq!(col(Col::Output), ["out:alsa_output.a", "out:alsa_output.b"]);
+        assert_eq!(col(Col::Output), ["out:alsa_output.a", "out:alsa_output.b", "out:virtual:stream"]);
+        assert_eq!(n_sub(&g, "out:virtual:stream"), Sub::Virtual);
         let n = |id: &str| &g.nodes[g.find(id).unwrap()];
         assert_eq!(n("in:dev:mic").sub, Sub::Hardware);
         assert_eq!(n("in:dev:mic").title, "USB Mic");
@@ -326,7 +341,8 @@ mod tests {
         assert_eq!(e("mix:monitor", "out:alsa_output.a").unwrap().link, Link::MixOutput);
         assert!(e("mix:monitor", "out:alsa_output.b").unwrap().muted); // Gerät stumm
         assert!(e("mix:stream", "out:alsa_output.a").is_some()); // Gerät nur einmal
-        assert_eq!(g.edges.len(), 5 + 5 + 3);
+        assert!(e("mix:stream", "out:virtual:stream").is_some()); // eigener virtueller Ausgang
+        assert_eq!(g.edges.len(), 5 + 5 + 4);
     }
 
     #[test]
@@ -335,8 +351,8 @@ mod tests {
         // Kanal: seine Eingänge und alles dahinter, aber kein anderer Kanal
         let p = g.path(g.find("ch:music").unwrap());
         assert_eq!(ids(&g, &p.nodes), ["in:app:10", "in:app:11", "ch:music", "mix:monitor", "mix:stream",
-                                       "out:alsa_output.a", "out:alsa_output.b"]);
-        assert_eq!(p.edges.len(), 2 + 2 + 3);
+                                       "out:alsa_output.a", "out:alsa_output.b", "out:virtual:stream"]);
+        assert_eq!(p.edges.len(), 2 + 2 + 4);
         // ein Programm: nur sein eigener Eingang
         let p = g.path(g.find("in:app:11").unwrap());
         assert!(!p.nodes.contains(&g.find("in:app:10").unwrap()));
@@ -344,7 +360,7 @@ mod tests {
         // Mix: alle Kanäle davor samt Eingängen, nur seine Ausgänge
         let p = g.path(g.find("mix:stream").unwrap());
         assert_eq!(ids(&g, &p.nodes), ["in:dev:mic", "in:app:10", "in:app:11", "ch:mic", "ch:music", "mix:stream",
-                                       "out:alsa_output.a"]);
+                                       "out:alsa_output.a", "out:virtual:stream"]);
         // Ausgang: alles, was darauf spielt
         let p = g.path(g.find("out:alsa_output.b").unwrap());
         assert!(p.nodes.contains(&g.find("in:empty:game").unwrap()));

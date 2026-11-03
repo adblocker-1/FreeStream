@@ -1178,6 +1178,28 @@ def _img_cache(master):
     return _IMG.setdefault(master.tk, {})
 
 
+def log_tk_errors(root):
+    """Fehler in Tk-Rückrufen ins Protokoll (freestream.log) statt nur auf die Konsole – sonst sieht man
+    beim Start aus dem Menü nicht, warum eine Ansicht leer bleibt."""
+    import logging
+
+    def report(exc, val, tb):
+        logging.getLogger("freestream.tk").error("Error in the window", exc_info=(exc, val, tb))
+    root.report_callback_exception = report
+
+
+def edition_badge(master):
+    """Kleines Schild „Python“: zeigt, welche Ausgabe läuft (die Rust-Ausgabe zeigt „Rust (Beta)“)."""
+    bg = _bg_of(master)
+    f = font(master, 8, "bold")
+    text = "Python"
+    w = measure(master, f, text) + 14
+    cv = tk.Canvas(master, width=w, height=18, bg=bg, highlightthickness=0, bd=0)
+    rounded_rect(cv, 0, 0, w, 18, 9, fill=COL["raised"], outline="")
+    cv.create_text(w / 2, 9, text=text, fill=COL["muted"], font=f)
+    return cv
+
+
 def gradient_mark(master, size, kind="deck"):
     """App-Zeichen: abgerundetes Quadrat mit Farbverlauf und weißem Symbol."""
     cache = _img_cache(master)
@@ -1259,6 +1281,7 @@ class Sidebar(tk.Frame):
         self._mark = gradient_mark(self, 24, kind)
         tk.Label(row, image=self._mark, bg=COL["side"]).pack(side="left")
         tk.Label(row, text=name, bg=COL["side"], fg=COL["fg"], font=font(self, 11, "bold")).pack(side="left", padx=8)
+        edition_badge(row).pack(side="left")
         return row
 
     def section(self, text, parent=None):
