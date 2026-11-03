@@ -117,6 +117,12 @@ impl Editor {
         let bell = icon_button("preferences-system-notifications-symbolic", &tr!("Updates"));
         let store_btn = icon_button("application-x-addon-symbolic", &tr!("Plugins"));
         let gear = icon_button("emblem-system-symbolic", &tr!("Settings"));
+        // welche Ausgabe läuft: die Python-Version zeigt hier „Python“
+        let edition = gtk::Label::new(Some(&tr!("Rust (Beta)")));
+        edition.add_css_class("edition");
+        edition.set_valign(Align::Center);
+        edition.set_margin_end(10);
+        icons.append(&edition);
         for b in [&bell, &store_btn, &gear] {
             icons.append(b);
         }

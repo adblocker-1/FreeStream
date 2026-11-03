@@ -175,6 +175,19 @@ def curve(a, b):
     return [x0, y0, x0 + dx, y0, x1 - dx, y1, x1, y1]
 
 
+def points(a, b, steps=24):
+    """Die Kurve von a nach b als Punktfolge (x0, y0, x1, y1, …) – zum Zeichnen als einfache Linie, ohne die
+    Kurvenglättung von Tk (die gestrichelt auf manchen Tk-Versionen nicht zuverlässig zeichnet)."""
+    x0, y0, c1x, c1y, c2x, c2y, x1, y1 = curve(a, b)
+    out = []
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1 - t
+        out += [u ** 3 * x0 + 3 * u * u * t * c1x + 3 * u * t * t * c2x + t ** 3 * x1,
+                u ** 3 * y0 + 3 * u * u * t * c1y + 3 * u * t * t * c2y + t ** 3 * y1]
+    return out
+
+
 def signature(graph):
     """Kurzer Vergleichswert: neu zeichnen nur, wenn sich am Graphen etwas geändert hat."""
     return (tuple((n["id"], n["title"], n["sub"], n["muted"]) for n in graph["nodes"].values()),

@@ -310,6 +310,7 @@ pub const CSS: &str = r#"
 window, .main { background-color: #262626; color: #f2f2f2; }
 .side { background-color: #1c1c1c; }
 .brand { font-weight: bold; font-size: 11pt; }
+.edition { background-color: #3a2a12; color: #f5b13d; border-radius: 9px; padding: 1px 8px; font-size: 8pt; font-weight: bold; }
 .side-section { color: #a8a8a8; font-weight: bold; font-size: 9pt; }
 .sep { background-color: #3a3a3a; min-height: 1px; min-width: 1px; }
 .nav { background: none; border: none; box-shadow: none; border-radius: 6px; padding: 0 10px 0 1px; min-height: 32px; color: #a8a8a8; }

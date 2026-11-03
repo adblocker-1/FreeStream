@@ -4,6 +4,7 @@ window, .main { background-color: #171717; color: #f2f2f2; }
 .panel { background-color: #323232; }
 .sep { background-color: #3a3a3a; min-width: 1px; min-height: 1px; }
 .device-title { font-size: 15pt; font-weight: bold; color: #f2f2f2; }
+.edition { background-color: #3a2a12; color: #f5b13d; border-radius: 9px; padding: 1px 8px; font-size: 8pt; font-weight: bold; }
 .profile-title { font-size: 10pt; color: #a8a8a8; }
 .title-drop { background: none; border: none; box-shadow: none; padding: 0 2px; min-height: 0; }
 .title-drop:hover .profile-title { color: #f2f2f2; }

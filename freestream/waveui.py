@@ -558,6 +558,7 @@ class WaveWindow:
         self._apps_ids = None
         self.view = "mixer"
         root.title("FreeWave")
+        theme.log_tk_errors(root)
         root.geometry("1280x800")
         root.minsize(1100, 720)
         root.protocol("WM_DELETE_WINDOW", self.hide)

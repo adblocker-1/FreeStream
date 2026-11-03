@@ -203,6 +203,10 @@ impl Win {
         widgets::margins(&brand, 0, 4, 14, 4);
         brand.append(&theme::mark(24));
         brand.append(&label("FreeWave", &["brand"]));
+        // welche Ausgabe läuft: die Python-Version zeigt hier „Python“
+        let edition = label(&tr!("Rust (Beta)"), &["edition"]);
+        edition.set_valign(Align::Center);
+        brand.append(&edition);
         top.append(&brand);
         let section = |t: &str| {
             let l = label(t, &["side-section"]);

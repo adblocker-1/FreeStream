@@ -8,6 +8,7 @@ hier wird nur gezeichnet. Die Daten kommen aus dem Zustand, den das Fenster ohne
 Arbeits-Thread einliest – die Ansicht selbst fragt PipeWire nie.
 """
 import hashlib
+import logging
 import tkinter as tk
 
 from PIL import Image, ImageDraw, ImageTk
@@ -17,6 +18,7 @@ from .dialogkit import ScrollArea
 from .i18n import _
 from .theme import COL, rounded_rect
 
+log = logging.getLogger(__name__)
 EDGE_COLORS = {"input": "#22c3ee", "channel": "#d946ef", "mix": "#2bd68a"}
 ICON = 30
 HEADS = {"input": (_("Inputs"), "mic"), "channel": (_("Channels"), "speaker"), "mix": (_("Mixes"), "layers"),
@@ -90,8 +92,12 @@ class FlowView:
     # ------------------------------------------------------------ Daten
     def update(self, st):
         self.st = st
-        self.graph = audioflow.build(st) if st.get("mixer_active") else \
-            {"nodes": {}, "columns": {c: [] for c in audioflow.COLUMNS}, "edges": []}
+        empty = {"nodes": {}, "columns": {c: [] for c in audioflow.COLUMNS}, "edges": []}
+        try:
+            self.graph = audioflow.build(st) if st.get("mixer_active") else empty
+        except Exception:  # noqa: BLE001 – unerwartete Daten: lieber leer als eingefroren
+            log.exception("Audio Flow: could not build the graph")
+            self.graph = empty
         if self.selected is not None and self.selected not in self.graph["nodes"]:
             self.select(None)
         self._sig = (audioflow.signature(self.graph), bool(st.get("mixer_active")))
@@ -211,53 +217,68 @@ class FlowView:
         # Verbindungen: erst die abgeblendeten, dann die farbigen darüber
         faint = theme.mix(COL["bg"], COL["fg"], 0.16)
         order = sorted(range(len(g["edges"])), key=lambda i: on_edges is None or i in on_edges)
+        failed = []
         for i in order:
             e = g["edges"][i]
             if e["src"] not in boxes or e["dst"] not in boxes:
                 continue
-            x0, y0, w0, h0 = boxes[e["src"]]
-            x1, y1, _w1, h1 = boxes[e["dst"]]
-            pts = audioflow.curve((x0 + w0, y0 + h0 / 2), (x1, y1 + h1 / 2))
-            active = on_edges is None or i in on_edges
-            if not active:
-                cv.create_line(*pts, smooth="raw", splinesteps=24, fill=faint, width=1.5, tags="bg")
-            elif e["muted"]:
-                cv.create_line(*pts, smooth="raw", splinesteps=24, fill=COL["muted"], width=1.5, dash=(4, 4),
-                               tags="bg")
-            else:
-                cv.create_line(*pts, smooth="raw", splinesteps=24, fill=EDGE_COLORS[e["kind"]],
-                               width=2.5 if on_edges is not None else 2, tags="bg")
+            try:
+                self._draw_edge(e, boxes, on_edges is None or i in on_edges, on_edges is not None, faint)
+            except Exception as exc:  # noqa: BLE001 – eine kaputte Linie darf den Rest nicht verhindern
+                failed.append(exc)
         # Karten
-        for k, (nid, (x, y, w, h)) in enumerate(boxes.items()):
-            n = g["nodes"][nid]
-            dim = on_nodes is not None and nid not in on_nodes
-            tag = f"n{k}"
-            if nid == self.selected:
-                fill = COL["raised"]
-            elif dim:
-                fill = theme.mix(COL["panel"], COL["bg"], 0.55)
-            else:
-                fill = COL["panel"]
-            rounded_rect(cv, x, y, x + w, y + h, 8, fill=fill, outline="", tags=(tag, "card"))
-            img = self._node_image(n, dim)
-            cv.create_image(x + 12 + ICON / 2, y + h / 2, image=img, tags=(tag,))
-            tx = x + 12 + ICON + 12
-            avail = w - (tx - x) - 10
-            fg = COL["faint"] if dim else (COL["muted"] if n["kind"] == "empty" else COL["fg"])
-            title = theme.elide(cv, n["title"], self.f_title, avail)
-            if n["sub"]:
-                cv.create_text(tx, y + h / 2 - 8, text=title, anchor="w", fill=fg, font=self.f_title, tags=(tag,))
-                sub_fg = COL["faint"] if dim else (COL["danger"] if n["muted"] and n["kind"] != "stream"
-                                                   else COL["muted"])
-                cv.create_text(tx, y + h / 2 + 9, text=theme.elide(cv, n["sub"], self.f_sub, avail), anchor="w",
-                               fill=sub_fg, font=self.f_sub, tags=(tag,))
-            else:
-                cv.create_text(tx, y + h / 2, text=title, anchor="w", fill=fg, font=self.f_title, tags=(tag,))
-            cv.tag_bind(tag, "<Button-1>", lambda e, nid=nid: (self.select(None if nid == self.selected else nid),
-                                                                "break")[1])
-            cv.tag_bind(tag, "<Enter>", lambda e, t=tag, nid=nid: self._hover(t, nid, True))
-            cv.tag_bind(tag, "<Leave>", lambda e, t=tag, nid=nid: self._hover(t, nid, False))
+        for k, (nid, box) in enumerate(boxes.items()):
+            try:
+                self._draw_card(k, nid, box, on_nodes)
+            except Exception as exc:  # noqa: BLE001 – wie oben: die übrigen Karten trotzdem zeichnen
+                failed.append(exc)
+        if failed:
+            log.error("Audio Flow: %d element(s) could not be drawn", len(failed), exc_info=failed[0])
         self._draw_legend()
+
+    def _draw_edge(self, e, boxes, active, highlight, faint):
+        cv = self.cv
+        x0, y0, w0, h0 = boxes[e["src"]]
+        x1, y1, _w1, h1 = boxes[e["dst"]]
+        pts = audioflow.points((x0 + w0, y0 + h0 / 2), (x1, y1 + h1 / 2))
+        if not active:
+            cv.create_line(*pts, fill=faint, width=1.5, tags="bg")
+        elif e["muted"]:
+            cv.create_line(*pts, fill=COL["muted"], width=1.5, dash=(4, 4), tags="bg")
+        else:
+            cv.create_line(*pts, fill=EDGE_COLORS[e["kind"]], width=2.5 if highlight else 2, capstyle="round",
+                           joinstyle="round", tags="bg")
+
+    def _draw_card(self, k, nid, box, on_nodes):
+        cv = self.cv
+        x, y, w, h = box
+        n = self.graph["nodes"][nid]
+        dim = on_nodes is not None and nid not in on_nodes
+        tag = f"n{k}"
+        if nid == self.selected:
+            fill = COL["raised"]
+        elif dim:
+            fill = theme.mix(COL["panel"], COL["bg"], 0.55)
+        else:
+            fill = COL["panel"]
+        rounded_rect(cv, x, y, x + w, y + h, 8, fill=fill, outline="", tags=(tag, "card"))
+        cv.tag_bind(tag, "<Button-1>", lambda e, nid=nid: (self.select(None if nid == self.selected else nid),
+                                                            "break")[1])
+        cv.tag_bind(tag, "<Enter>", lambda e, t=tag, nid=nid: self._hover(t, nid, True))
+        cv.tag_bind(tag, "<Leave>", lambda e, t=tag, nid=nid: self._hover(t, nid, False))
+        tx = x + 12 + ICON + 12
+        avail = w - (tx - x) - 10
+        fg = COL["faint"] if dim else (COL["muted"] if n["kind"] == "empty" else COL["fg"])
+        title = theme.elide(cv, n["title"], self.f_title, avail)
+        if n["sub"]:
+            cv.create_text(tx, y + h / 2 - 8, text=title, anchor="w", fill=fg, font=self.f_title, tags=(tag,))
+            sub_fg = COL["faint"] if dim else (COL["danger"] if n["muted"] and n["kind"] != "stream" else COL["muted"])
+            cv.create_text(tx, y + h / 2 + 9, text=theme.elide(cv, n["sub"], self.f_sub, avail), anchor="w",
+                           fill=sub_fg, font=self.f_sub, tags=(tag,))
+        else:
+            cv.create_text(tx, y + h / 2, text=title, anchor="w", fill=fg, font=self.f_title, tags=(tag,))
+        # Symbol zuletzt: fehlt es (kaputtes Bild), stehen Karte und Text trotzdem da
+        cv.create_image(x + 12 + ICON / 2, y + h / 2, image=self._node_image(n, dim), tags=(tag,))
 
     def _hover(self, tag, nid, on):
         self.cv.configure(cursor="hand2" if on else "")
