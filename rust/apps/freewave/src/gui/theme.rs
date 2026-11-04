@@ -10,8 +10,8 @@ use gtk4 as gtk;
 use image::{Rgba, RgbaImage};
 
 // ------------------------------------------------------------------ Farben (PALETTES["dark"])
+pub const BG: &str = "#262626";
 pub const SIDE: &str = "#1c1c1c";
-pub const PANEL: &str = "#323232";
 pub const PANEL2: &str = "#2c2c2c";
 pub const RAISED: &str = "#454545";
 pub const BORDER: &str = "#3a3a3a";
@@ -348,12 +348,16 @@ window, .main { background-color: #262626; color: #f2f2f2; }
 .btn.danger-btn { color: #f0484f; }
 .btn:disabled { color: #707070; }
 .btn.tall { min-height: 34px; }
-.cell { background-color: #323232; border-radius: 6px; padding: 0 10px; }
+.cell { background-color: #2c2c2c; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 12px; }
 .cell.drop { box-shadow: inset 0 0 0 2px #3d9bff; }
-.empty-cell { background-color: #2c2c2c; border-radius: 6px; }
-.empty-cell:hover { background-color: #454545; }
-.add-row { background-image: none; background-color: #2c2c2c; border: none; border-radius: 6px; box-shadow: none; color: #f2f2f2; }
-.add-row:hover { background-color: #323232; }
+.empty-cell { border: 1px dashed #404040; border-radius: 10px; }
+.empty-cell.hover { border-color: #3d9bff; background-color: alpha(#3d9bff, 0.08); }
+.empty-add { color: #3d9bff; font-weight: bold; font-size: 9pt; }
+.add-row { background-image: none; background-color: transparent; border: 1px dashed #444444; border-radius: 10px; box-shadow: none; color: #a8a8a8; }
+.add-row:hover { background-color: #2c2c2c; border-color: #707070; color: #f2f2f2; }
+.col-head { color: #707070; font-size: 8pt; font-weight: bold; }
+.val.muted-val { color: #f0484f; }
+.hint-src { color: #a8a8a8; font-weight: bold; }
 .ch-name { font-weight: bold; font-size: 10pt; }
 .ch-sub { color: #a8a8a8; font-size: 8pt; }
 .val { color: #a8a8a8; font-size: 9pt; }

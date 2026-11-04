@@ -893,6 +893,70 @@ class Fader(tk.Canvas):
         return self._step(2 if e.delta > 0 else -2)
 
 
+class _LineMeter:
+    """Pegel eines MeterFader (gleiche Schnittstelle wie LevelMeter: set(), level)."""
+
+    def __init__(self, fader):
+        self.fader, self.level = fader, 0.0
+
+    def set(self, level):
+        level = max(0.0, min(1.0, float(level or 0)))
+        if abs(level - self.level) > 0.004:
+            self.level = level
+            self.fader._draw_meter()
+
+
+class MeterFader(Fader):
+    """Schmaler waagerechter Regler des Mixers: Spur 4 px, Knopf 14 px, darunter der Pegel als feine Linie
+    (fader.meter.set(pegel)). fill: Farbe des eingestellten Teils (Master-Regler eines Mixes: seine Farbe)."""
+
+    TRACK, KNOB, LINE, H = 4, 14, 2, 18
+
+    def __init__(self, master, length=120, fill=None, command=None, **kw):
+        self.fill = fill
+        self.meter = _LineMeter(self)
+        super().__init__(master, length=length, thickness=self.H, orient="horizontal", command=command, **kw)
+
+    def _knob_size(self, w, h):
+        return self.KNOB
+
+    def _span(self, w):
+        k = self.KNOB
+        return k / 2 + 2, w - k / 2 - 2
+
+    def _draw(self):
+        self.delete("all")
+        w, _h = self._geom()
+        th, cy = self.TRACK, self.KNOB / 2 + 1
+        left, right = self._span(w)
+        x = left + self._frac() * (right - left)
+        rounded_rect(self, left - th / 2, cy - th / 2, right + th / 2, cy + th / 2, th / 2, fill=COL["raised"],
+                     outline="")
+        if self._frac() > 0 and not self.dimmed:
+            rounded_rect(self, left - th / 2, cy - th / 2, x, cy + th / 2, th / 2, outline="",
+                         fill=self.fill or mix(COL["fg"], COL["raised"], 0.78))
+        self._draw_meter()
+        self._knob = _knob_image(self, self.KNOB, COL["faint"] if self.dimmed else "#f2f2f2", self.enabled)
+        self.create_image(x, cy + 1, image=self._knob, tags="knob")
+
+    def _draw_meter(self):
+        """Nur die Pegel-Linie neu zeichnen (25-mal pro Sekunde) – Spur und Knopf bleiben stehen."""
+        self.delete("meter")
+        w, _h = self._geom()
+        th, lh = self.TRACK, self.LINE
+        left, right = self._span(w)
+        x0, x1 = left - th / 2, right + th / 2
+        y = self.KNOB / 2 + 1 + th / 2 + 3
+        self.create_rectangle(x0, y, x1, y + lh, fill=mix(COL["raised"], COL["bg"], 0.45), outline="",
+                              tags="meter")
+        lv = self.meter.level
+        for a, b, col in METER_ZONES:  # grün, ab 70 % gelb, ab 90 % rot
+            lo, hi = x0 + a * (x1 - x0), x0 + min(b, lv) * (x1 - x0)
+            if hi > lo:
+                self.create_rectangle(lo, y, hi, y + lh, fill=col, outline="", tags="meter")
+        self.tag_raise("knob")
+
+
 _KNOBS = {}
 
 

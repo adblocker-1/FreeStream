@@ -247,9 +247,10 @@ channels. **Settings → Setup wizard** opens it again at any time.
 Programs play into **channels** (System, Music, Browser, Voice Chat, Game, SFX,
 Microphone). The mixer is a table like **Mixes** in Wave Link: one row per
 channel with a **master slider**, one column per **mix** with its own slider and
-mute for every channel. It looks like Wave Link too: flat grey rows, slim sliders with
-the live level as a bar below – green, yellow from 70 %, red from 90 % – and the mix columns fill
-the width of the window. The
+mute for every channel. Every cell of the grid has the same layout: mute button, a slim slider with
+the live level as a thin line right below it – green, yellow from 70 %, red from 90 % – and the
+value (red “muted” when muted); the mix columns fill the width of the window. Each mix header has
+its own **master slider** in the mix colour with level and dB. The
 device you listen on is chosen at the top right.
 
 - **Personal Mix** – what you hear on your headphones (also on several devices at once).
@@ -261,8 +262,10 @@ device you listen on is chosen at the top right.
 
 ![Programs go into channels, each channel has a slider in every mix](docs/images/freewave-flow.png)
 
-- **Click an empty cell** (it shows ⊕) to put a channel into a mix; the small ✕
-  on a cell takes it out. New mixes and channels start empty.
+- **Click an empty cell** (dashed, “+ Add to …” when you hover it) to put a channel into a
+  mix; the small ✕ on a cell takes it out. New mixes and channels start empty.
+- **Hover a row** to see the chain between its first two mixes: click it to couple the sliders
+  (it stays blue while they are coupled).
 - **Right-click a mix** to edit, listen to or delete it. The headphones button in
   a mix header lets you **listen** to that mix for a moment.
 

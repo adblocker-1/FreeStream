@@ -462,6 +462,8 @@ def shot_freewave(tmp):
         host.mixer.set_volume(cid, mix, vol)
     host.mixer.set_mute("voice", "stream", True)
     host.mixer.set_linked("music", True)  # gekoppelte Regler zeigen (Abstand 70/35 bleibt)
+    for mid, vol in (("monitor", 80), ("stream", 72), ("chat", 55)):  # Master-Regler der Mixe
+        host.mixer.set_mix_volume(mid, vol)
     import types
     demo = {"music": .78, "browser": .55, "voice": .72, "game": .8, "system": .5, "podcast": .62, "capture": .66,
             "mic": .82, "streammix": .74, "headphones": .8, "mix_chat": .58}
@@ -477,7 +479,12 @@ def shot_freewave(tmp):
         for part in strip.values():
             if isinstance(part, dict) and part.get("remove") is not None:
                 part["remove"].place_forget()
+    win._set_hover_row("browser")  # Zeile überfahren: Kette zum Koppeln und „+ Zu … hinzufügen“ zeigen
+    win.cells[("browser", "chat")][0]._set_hover(True)
+    pump(root, 0.3)
     grab(root, "freewave-mixer.png")
+    win._set_hover_row(None)
+    win.cells[("browser", "chat")][0]._set_hover(False)
     win.show_view("mic")
     pump(root, 1)
     grab(root, "freewave-microphone.png")

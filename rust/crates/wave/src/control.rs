@@ -136,8 +136,7 @@ pub fn build_snapshot(host: &WaveHost, version: u64) -> Snapshot {
         }).collect();
         let mix_views = mixes.into_iter().map(|x| {
             let devices = m.mix_devices(&x, Some(&st));
-            let volume = sinks.get(&Mixer::mix_sink(&x))
-                .or_else(|| if devices.len() == 1 && !x.virtual_ { sinks.get(&devices[0]) } else { None }).copied();
+            let volume = m.mix_volume_target(&x, Some(&st)).and_then(|n| sinks.get(&n).copied());
             MixView {
                 device_levels: devices.iter().filter_map(|d| sinks.get(d).map(|l| (d.clone(), *l))).collect(),
                 volume,

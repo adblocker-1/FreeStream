@@ -2155,6 +2155,31 @@ impl Mixer {
         Ok(())
     }
 
+    // ----------------------------------------------------------- Master-Regler der Mixe
+    /// Sink, an dem der Master-Regler eines Mixes sitzt: sein Null-Sink, bei einem direkten Mix das Gerät
+    /// (wie [`Mixer::level_sources`]); None, wenn der Mix nirgends hinspielt.
+    pub fn mix_volume_target(&self, m: &Mix, st: Option<&Map<String, Value>>) -> Option<String> {
+        let devices = self.mix_devices(m, st);
+        if Self::direct(m, &devices) {
+            Some(devices[0].clone())
+        } else if !devices.is_empty() || m.virtual_ {
+            Some(Self::mix_sink(m))
+        } else {
+            None
+        }
+    }
+
+    /// Master-Regler eines Mixes (pactl set-sink-volume am Mix-Sink bzw. Gerät); None ohne Ausgang.
+    pub fn set_mix_volume(&self, mid: &str, pct: i64) -> Result<Option<i64>> {
+        let Some(m) = self.mix(mid) else {
+            return Err(Error(tr!("Mix {id} not found", id = mid)));
+        };
+        let Some(sink) = self.mix_volume_target(&m, None) else { return Ok(None) };
+        let pct = pct.clamp(0, MAX_VOLUME);
+        self.run(&["set-sink-volume".to_string(), sink, format!("{pct}%")])?;
+        Ok(Some(pct))
+    }
+
     // ----------------------------------------------------------- Abhören
     /// Mix, der gerade auf dem Abhörgerät (Gerät des Persönlichen Mixes) läuft.
     pub fn listening(&self) -> String {

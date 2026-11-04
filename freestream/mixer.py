@@ -1322,6 +1322,40 @@ class Mixer:
         kind, name = self._master_target(cid)
         self.run([f"set-{kind}-mute", name, "toggle" if mute == "toggle" else ("1" if mute else "0")])
 
+    # ------------------------------------------------------ Master-Regler der Mixe
+    def mix_volume_target(self, m, st=None):
+        """Sink, an dem der Master-Regler eines Mixes sitzt: sein Null-Sink, bei einem direkten Mix das Gerät
+        (wie level_sources); None, wenn der Mix nirgends hinspielt."""
+        devices = self.mix_devices(m, st)
+        if self._direct(m, devices):
+            return devices[0]
+        if devices or m["virtual"]:
+            return self.mix_sink(m)
+        return None
+
+    def mix_volumes(self):
+        """Lautstärke je Mix (Master-Regler im Spaltenkopf): {Mix: (Prozent, stumm)}."""
+        st = self._state()
+        sinks = {b.get("name"): b for b in system._pactl_blocks("sinks")}
+        out = {}
+        for m in self.mixes():
+            b = sinks.get(self.mix_volume_target(m, st) or "")
+            if b is not None:
+                out[m["id"]] = (int(b.get("volume", 100)), bool(b.get("mute")))
+        return out
+
+    def set_mix_volume(self, mid, pct):
+        """Master-Regler eines Mixes (pactl set-sink-volume am Mix-Sink bzw. Gerät); None ohne Ausgang."""
+        m = self.mix(mid)
+        if m is None:
+            raise RuntimeError(_("Mix {id} not found").format(id=mid))
+        sink = self.mix_volume_target(m)
+        if not sink:
+            return None
+        pct = max(0, min(MAX_VOLUME, int(pct)))
+        self.run(["set-sink-volume", sink, f"{pct}%"])
+        return pct
+
     # ------------------------------------------------------------ Abhören
     def listening(self):
         """Mix, der gerade auf dem Abhörgerät (Gerät des Persönlichen Mixes) läuft."""
