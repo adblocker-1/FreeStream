@@ -2,10 +2,14 @@
 
 In config.json:
 
-    "soundboard":         [{"id", "name", "file", "color", "volume", "loop"}, ...]
+    "soundboard":         [{"id", "name", "file", "color", "volume", "loop", "start", "end"}, ...]
     "soundboard_play":    ""  (nicht ausgewählt) | "all" (alle Mixe) | Mix-id ("stream", "monitor", ...)
     "soundboard_monitor": ""  | Mix-id | "out:<Sink>" – selbst mithören (leerer Sink = Standardausgabe)
     "soundboard_volume":  80  (Gesamtlautstärke in Prozent)
+
+"start"/"end" (Sekunden, optional) schneiden den Klang zu (Trimmen). Da pw-play und paplay nicht
+springen können, wird für einen zugeschnittenen WAV-Klang eine gekürzte Kopie geschrieben
+(STATE_DIR/soundboard-trim/) und diese gespielt; andere Formate spielen ungekürzt.
 
 Hinzugefügte Dateien werden nach ~/.local/share/freestream/sounds/ kopiert, damit das Soundboard
 auch dann noch spielt, wenn die Originaldatei verschoben wird.
@@ -22,11 +26,16 @@ verschoben. Dieselben Schlüssel und dieselbe Kennung nutzt FreeWave in Rust.
 """
 import logging
 import os
+import re
 import shutil
 import signal
 import subprocess
+import sys
 import threading
+import time
 import uuid
+import wave
+from array import array
 from pathlib import Path
 
 from . import paths, system
@@ -40,10 +49,18 @@ DEFAULT_VOLUME = 80
 KEYS = ("soundboard", "soundboard_play", "soundboard_monitor", "soundboard_volume")
 STREAM_ID = "linewave_soundboard"  # Wert der Property linewave.loop (mixer.LOOP_PROP)
 LOOP_PROP = "linewave.loop"
+ACTION_UUID = "com.lindeck.freewave.soundboard"  # FreeDeck-Taste „Soundboard: Klang abspielen“
+PEAKS = 120  # Balken der Wellenform-Vorschau
+MIN_LENGTH = 0.05  # kürzester zugeschnittener Klang (Sekunden)
 
 
 def sounds_dir():
     return Path(paths.DATA_DIR) / "sounds"
+
+
+def trim_dir():
+    """Ordner für die zugeschnittenen Kopien (werden bei Bedarf neu geschrieben)."""
+    return Path(paths.STATE_DIR) / "soundboard-trim"
 
 
 # ------------------------------------------------------------ Konfiguration
@@ -54,15 +71,34 @@ def _clamp(v, default=100):
         return default
 
 
+def _secs(v):
+    """Zeitpunkt in Sekunden (≥ 0) oder None."""
+    if isinstance(v, bool):
+        return None
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    return round(v, 3) if v == v and 0 <= v < 1e7 else None
+
+
 def normalize(s, i=0):
-    """Ein Eintrag mit allen Feldern (fehlende ergänzt, Werte in Grenzen)."""
+    """Ein Eintrag mit allen Feldern (fehlende ergänzt, Werte in Grenzen).
+
+    "start"/"end" stehen nur drin, wenn der Klang zugeschnitten ist (Anfang > 0, Ende nach dem Anfang)."""
     f = str(s.get("file") or "")
-    return {"id": str(s.get("id") or uuid.uuid4().hex[:8]),
-            "name": str(s.get("name") or Path(f).stem or _("Sound")),
-            "file": f,
-            "color": str(s.get("color") or COLORS[i % len(COLORS)]),
-            "volume": _clamp(s.get("volume"), 100),
-            "loop": bool(s.get("loop"))}
+    out = {"id": str(s.get("id") or uuid.uuid4().hex[:8]),
+           "name": str(s.get("name") or Path(f).stem or _("Sound")),
+           "file": f,
+           "color": str(s.get("color") or COLORS[i % len(COLORS)]),
+           "volume": _clamp(s.get("volume"), 100),
+           "loop": bool(s.get("loop"))}
+    start, end = _secs(s.get("start")), _secs(s.get("end"))
+    if start:
+        out["start"] = start
+    if end is not None and end - (start or 0) >= MIN_LENGTH:
+        out["end"] = end
+    return out
 
 
 def sounds(data):
@@ -116,7 +152,11 @@ def update(cfg, sid, **changes):
     lst = sounds(cfg.data)
     for i, s in enumerate(lst):
         if s["id"] == sid:
-            s.update({k: v for k, v in changes.items() if k in ("name", "file", "color", "volume", "loop")})
+            s.update({k: v for k, v in changes.items()
+                      if k in ("name", "file", "color", "volume", "loop", "start", "end")})
+            if "file" in changes and "start" not in changes and "end" not in changes:
+                s.pop("start", None)  # neue Datei: der Zuschnitt der alten passt nicht mehr
+                s.pop("end", None)
             lst[i] = normalize(s, i)
             _save(cfg, lst)
             return lst[i]
@@ -130,6 +170,7 @@ def remove(cfg, sid):
     rest = [s for s in lst if s["id"] != sid]
     _save(cfg, rest)
     for s in gone:
+        _drop_trimmed(s["id"])
         f = Path(s["file"])
         try:
             if f.parent.resolve() == sounds_dir().resolve() and all(x["file"] != s["file"] for x in rest):
@@ -148,6 +189,228 @@ def set_options(cfg, play=None, monitor=None, volume=None):
         cfg.data["soundboard_volume"] = _clamp(volume, DEFAULT_VOLUME)
     if hasattr(cfg, "save"):
         cfg.save()
+
+
+# ------------------------------------------------- Wellenform und Zuschnitt
+_INFO = {}  # (Pfad, mtime, Größe, n) -> {"duration", "peaks"} oder None
+_INFO_LOCK = threading.Lock()
+
+
+def _peak(data, width):
+    """Größter Ausschlag (0 … 1) in einem Block PCM-Daten (little endian, width Bytes je Wert)."""
+    if not data:
+        return 0.0
+    if width == 1:  # 8 Bit ohne Vorzeichen
+        return max(abs(b - 128) for b in data) / 128
+    if width == 3:  # 24 Bit: das oberste Byte reicht für die Vorschau
+        a, full = array("b", data[2::3]), 128
+    elif width in (2, 4):
+        a = array("h" if width == 2 else "i")
+        a.frombytes(data[:len(data) - len(data) % width])
+        if sys.byteorder == "big":
+            a.byteswap()
+        full = 1 << (8 * width - 1)
+    else:
+        return 0.0
+    if not a:
+        return 0.0
+    return min(1.0, max(max(a), -min(a)) / full)
+
+
+def _analyze(path, n):
+    with wave.open(str(path), "rb") as r:
+        rate, frames, width = r.getframerate(), r.getnframes(), r.getsampwidth()
+        if rate <= 0:
+            return None
+        frame_bytes = width * r.getnchannels()
+        # je Balken höchstens ~64 KB lesen: große Dateien nur stichprobenweise
+        take = max(1, min(frames // n or 1, (64 << 10) // max(1, frame_bytes)))
+        peaks = []
+        for i in range(n if frames else 0):
+            r.setpos(min(frames - 1, i * frames // n))
+            peaks.append(_peak(r.readframes(take), width))
+    top = max(peaks) if peaks else 0
+    return {"duration": frames / rate, "peaks": [round(p / top, 3) if top else 0.0 for p in peaks]}
+
+
+def analyze(path, n=PEAKS):
+    """Länge (Sekunden) und Wellenform (n Werte 0 … 1) einer WAV-Datei; None für andere Formate oder bei
+    Fehlern. Zwischengespeichert je Pfad und Änderungszeit."""
+    if not path or not str(path).lower().endswith(".wav"):
+        return None
+    try:
+        st = os.stat(path)
+    except (OSError, ValueError):
+        return None
+    key = (str(path), st.st_mtime_ns, st.st_size, n)
+    with _INFO_LOCK:
+        if key in _INFO:
+            return _INFO[key]
+    try:
+        info = _analyze(path, n)
+    except (wave.Error, EOFError, OSError, ValueError) as e:
+        log.debug("Wellenform %s: %s", path, e)
+        info = None
+    with _INFO_LOCK:
+        if len(_INFO) > 256:
+            _INFO.clear()
+        _INFO[key] = info
+    return info
+
+
+def trim_range(sound, duration):
+    """(Anfang, Ende) in Sekunden, auf die Länge duration begrenzt."""
+    start = min(max(0.0, float(sound.get("start") or 0)), duration)
+    end = sound.get("end")
+    end = duration if end is None else min(max(0.0, float(end)), duration)
+    if end - start < MIN_LENGTH:
+        return 0.0, duration
+    return start, end
+
+
+def play_length(sound, info=None):
+    """Wie lange der Klang spielt (zugeschnitten) in Sekunden, oder None, wenn unbekannt."""
+    info = info if info is not None else analyze(sound.get("file") or "")
+    if not info:
+        return None
+    start, end = trim_range(sound, info["duration"])
+    return end - start
+
+
+def write_trimmed(src, dst, start, end):
+    """Ausschnitt start … end (Sekunden) einer WAV-Datei nach dst schreiben; gibt die Zahl der Frames zurück."""
+    with wave.open(str(src), "rb") as r:
+        rate, frames = r.getframerate(), r.getnframes()
+        ch, width = r.getnchannels(), r.getsampwidth()
+        a = max(0, min(frames, int(round(start * rate))))
+        b = max(a, min(frames, int(round(end * rate))))
+        if a < frames:
+            r.setpos(a)
+        data = r.readframes(b - a) if b > a else b""
+    dst = Path(dst)
+    tmp = dst.with_name(dst.name + ".tmp")
+    with wave.open(str(tmp), "wb") as w:
+        w.setnchannels(ch)
+        w.setsampwidth(width)
+        w.setframerate(rate)
+        w.writeframes(data)
+    os.replace(tmp, dst)
+    return len(data) // max(1, ch * width)
+
+
+def _fnv(text):
+    """FNV-1a (64 Bit) – derselbe Dateiname der Kopie wie in FreeWave in Rust."""
+    h = 0xcbf29ce484222325
+    for b in text.encode("utf-8"):
+        h = ((h ^ b) * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF
+    return f"{h:016x}"
+
+
+def _safe_id(sid):
+    return re.sub(r"[^A-Za-z0-9_-]", "_", str(sid or "")) or "sound"
+
+
+def _drop_trimmed(sid, keep=None):
+    """Zugeschnittene Kopien eines Klangs löschen (außer keep)."""
+    d = trim_dir()
+    if not d.is_dir():
+        return
+    for f in d.glob(f"{_safe_id(sid)}-*.wav"):
+        if f.name != keep:
+            try:
+                f.unlink()
+            except OSError:
+                pass
+
+
+def playable(sound):
+    """Datei, die für den Klang gespielt wird: bei einem zugeschnittenen WAV die gekürzte Kopie."""
+    f = sound.get("file") or ""
+    if sound.get("start") is None and sound.get("end") is None:
+        return f
+    info = analyze(f)
+    if not info:
+        return f  # Trimmen geht nur mit WAV: ungekürzt spielen
+    start, end = trim_range(sound, info["duration"])
+    if start <= 0 and end >= info["duration"]:
+        return f
+    st = os.stat(f)
+    name = f"{_safe_id(sound.get('id'))}-{_fnv(f'{f}|{st.st_mtime_ns}|{st.st_size}|{start:.3f}|{end:.3f}')}.wav"
+    dst = trim_dir() / name
+    if not dst.is_file():
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        _drop_trimmed(sound.get("id"), keep=name)  # ältere Zuschnitte desselben Klangs
+        write_trimmed(f, dst, start, end)
+    return str(dst)
+
+
+def fmt_time(sec):
+    """„0:07“ (gerundet; ein kurzer Klang zeigt mindestens 0:01)."""
+    s = int(round(sec or 0))
+    if sec and sec > 0:
+        s = max(1, s)
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def fmt_precise(sec, digits=2):
+    """„0:03.65“ – Felder des Zuschnitts (digits Nachkommastellen)."""
+    cs = int(round(max(0.0, float(sec or 0)) * 10 ** digits))
+    m, rest = divmod(cs, 60 * 10 ** digits)
+    s, frac = divmod(rest, 10 ** digits)
+    return f"{m}:{s:02d}.{frac:0{digits}d}" if digits else f"{m}:{s:02d}"
+
+
+def parse_time(text):
+    """„1:02.5“, „62,5“ oder „0:00.25“ -> Sekunden; None, wenn nicht lesbar."""
+    t = str(text or "").strip().replace(",", ".")
+    if not t:
+        return None
+    try:
+        if ":" in t:
+            m, s = t.rsplit(":", 1)
+            v = int(m or 0) * 60 + float(s)
+        else:
+            v = float(t)
+    except ValueError:
+        return None
+    return v if v >= 0 else None
+
+
+# ------------------------------------------------ Tasten auf dem Deck
+def deck_keys(store_root=None):
+    """{Klang-id: (Seite, Taste)}: erste FreeDeck-Taste „Soundboard: Klang abspielen“ je Klang.
+
+    Seite und Taste zählen ab 1 (Tasten zeilenweise wie auf dem Gerät), Profile in der Reihenfolge des
+    Profilordners."""
+    from .profiles import ProfileStore
+    out = {}
+    try:
+        store = ProfileStore(store_root)
+    except OSError:
+        return out
+    for p in store.profiles.values():
+        try:
+            cols = p.geometry.cols or 5
+            pages = p.pages()
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        for n, pg in enumerate(pages, 1):
+            for (c, r), a in sorted(pg.keypad.items(), key=lambda kv: (kv[0][1], kv[0][0])):
+                if a.get("UUID") != ACTION_UUID:
+                    continue
+                st = a.get("Settings") if isinstance(a.get("Settings"), dict) else {}
+                sid = str(st.get("sound") or "")
+                if sid and sid not in out:
+                    out[sid] = (n, r * cols + c + 1)
+    return out
+
+
+def key_text(pos, short=True):
+    """„Key 2“ (kurz, Seite 1) bzw. „Page 2 · Key 3“."""
+    page, key = pos
+    if short and page == 1:
+        return _("Key {n}").format(n=key)
+    return _("Page {page} · Key {key}").format(page=page, key=key)
 
 
 # --------------------------------------------------------------- Ziele
@@ -244,6 +507,7 @@ class Player:
         self._popen = popen or subprocess.Popen
         self._have = have
         self._procs = {}
+        self._started = {}  # Klang-id -> Startzeit (time.monotonic) für den Fortschritt
         self._lock = threading.Lock()
 
     def play(self, sid, path, volume, sinks, loop=False):
@@ -265,7 +529,14 @@ class Player:
                 log.warning(_("Audio playback failed: {error}").format(error=e))
         with self._lock:
             self._procs[sid] = procs
+            self._started[sid] = time.monotonic()
         return len(procs)
+
+    def elapsed(self, sid):
+        """Sekunden seit dem Start des Klangs (None, wenn er nicht spielt)."""
+        with self._lock:
+            t = self._started.get(sid) if self._procs.get(sid) else None
+        return None if t is None else time.monotonic() - t
 
     def is_playing(self, sid):
         with self._lock:
@@ -283,6 +554,8 @@ class Player:
         with self._lock:
             keys = [sid] if sid is not None else list(self._procs)
             procs = [p for k in keys for p in self._procs.pop(k, [])]
+            for k in keys:
+                self._started.pop(k, None)
         for p in procs:
             if p.poll() is None:
                 try:
@@ -299,7 +572,12 @@ class Player:
             self.stop(sound["id"])
             return False
         vol = sound["volume"] * volume / 100
-        return self.play(sound["id"], sound["file"], vol, sinks, sound["loop"]) > 0
+        path = sound["file"]
+        try:
+            path = playable(sound)  # zugeschnitten: die gekürzte Kopie
+        except (OSError, wave.Error, EOFError, ValueError) as e:
+            log.warning(_("Audio playback failed: {error}").format(error=e))
+        return self.play(sound["id"], path, vol, sinks, sound["loop"]) > 0
 
 
 # ------------------------------------------------ Tasten (FreeDeck-Aktion)
