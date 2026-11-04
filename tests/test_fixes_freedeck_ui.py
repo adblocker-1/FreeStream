@@ -583,3 +583,112 @@ def test_inspector_single_view_with_title_menu_and_icon_menu(app):
     app.select(("key", 4, 2))  # leere Taste: keine große Vorschau
     app.root.update()
     assert app._insp_form is None and not app.insp_key.winfo_ismapped()
+
+
+# ------------------------------------------- Hauptfenster: Entwurf A (Titel, leere Tasten, Formular)
+def test_default_title_gets_soft_shadow_explicit_outline_stays():
+    """Standard-Titel (keine Angabe oder die Standard-Dicke 2, die jede Taste mitbringt): weicher Schatten statt
+    Umriss – auf dem Gerät wie in der Vorschau. Eine eigens gesetzte Umrissdicke bleibt ein Umriss."""
+    from freestream import render
+    assert render.title_effect({}) == ("shadow", 0)
+    assert render.title_effect({"OutlineThickness": 2}) == ("shadow", 0)
+    assert render.title_effect({"OutlineThickness": 0}) == ("outline", 0)
+    assert render.title_effect({"OutlineThickness": 3}) == ("outline", 3)
+    assert render.shadow_params(1.0) == (1, 1) and render.shadow_params(2.0) == (2, 3)  # wie render.rs
+
+    def key(state):
+        white = Image.new("RGBA", (72, 72), (255, 255, 255, 255))
+        img = render.compose_key((72, 72), white, "Mute", dict(state, TitleColor="#ffffff"))
+        return [p[0] for p in img.convert("RGB").getdata()]
+    default, two, none, thick = key({}), key({"OutlineThickness": 2}), key({"OutlineThickness": 0}), \
+        key({"OutlineThickness": 3})
+    assert default == two                 # keine Angabe = Standard
+    assert min(default) < 120             # Schatten: dunkel unter dem weißen Titel
+    assert min(none) == 255               # ohne Umriss: nichts Dunkles
+    assert min(thick) < 20 < min(default)  # Umriss 3: harter schwarzer Rand, der Schatten bleibt weicher
+
+
+def test_split_unit_moves_unit_behind_number():
+    from freestream import editor
+    assert editor.split_unit("Gain step size (%)") == ("Gain step size", "%")
+    assert editor.split_unit("Wait time (ms)") == ("Wait time", "ms")
+    assert editor.split_unit("Duration") == ("Duration", "")
+    assert editor.split_unit("Page (next profile)") == ("Page (next profile)", "")
+
+
+def test_status_line_short_with_device_dot(app, monkeypatch):
+    """Statuszeile: „Modell · Seite 1 von n · Alle Änderungen gespeichert“, davor ein Punkt – grün, wenn das
+    Gerät angeschlossen ist, sonst grau."""
+    from freestream import theme
+    from freestream.i18n import _
+    from freestream.models import model_name
+    n = len(app.doc.page_ids)
+    assert app._sub_text == " · ".join([model_name(app.doc.model), _("Page {n} of {total}").format(n=1, total=n),
+                                        _("All changes saved")])
+    cv = app.canvas
+    assert cv.itemcget("subdot", "fill") == theme.COL["faint"]
+    monkeypatch.setattr(app, "device_connected", lambda: True)
+    app._update_header()
+    assert cv.itemcget("subdot", "fill") == theme.COL["ok"]
+    app.place_action(TEXT, ("key", 1, 0))
+    app.save_now()
+    assert app._sub_text.endswith(_("All changes saved"))
+
+
+def _all(w):
+    yield w
+    for c in w.winfo_children():
+        yield from _all(c)
+
+
+def test_empty_key_hover_shows_plus_and_hint(app):
+    """Leere Taste unter der Maus: „+“ mit Hinweis „Aktion hinzufügen“; über einer belegten Taste nichts."""
+    from freestream.i18n import _
+    app.root.update()
+    hit = {s: (x0, y0) for x0, y0, _x, _y, s in app._hit}
+    empty = next(s for s in hit if s[0] == "key" and app.doc.get(app.page_uuid, s) is None)
+    app._canvas_hover(types.SimpleNamespace(x=hit[empty][0] + 5, y=hit[empty][1] + 5))
+    assert app._hover == empty and app.canvas.find_withtag("hover")
+    _until(app.root, lambda: app._tip.win is not None)
+    assert app._tip.win.winfo_children()[0].cget("text") == _("Add action")
+    app.redraw()  # Neuzeichnen (z. B. Live-Tasten): das „+“ bleibt
+    assert app.canvas.find_withtag("hover")
+    used = ("key", 0, 0)
+    app._canvas_hover(types.SimpleNamespace(x=hit[used][0] + 5, y=hit[used][1] + 5))
+    assert app._hover is None and not app.canvas.find_withtag("hover") and app._tip.win is None
+
+
+def test_inspector_form_appearance_and_action(app):
+    """Eigenschaften als Formular: DARSTELLUNG mit Titel und Stil-Knöpfen (fett, Größe, Position – dieselben
+    Einstellungen wie unter T⌄), AKTION mit Feldern, Zahlen als Stepper mit Einheit und der Beschreibung."""
+    from freestream import catalog as C
+    from freestream import editor
+    from freestream.i18n import _
+    page, slot = app.page_uuid, ("key", 1, 0)
+    app.doc.place(page, slot, "com.lindeck.wavemic.control")
+    app.select(slot, redraw=True)
+    app.root.update()
+    form = app._insp_form
+    shown = [str(w.cget("text")) for w in _all(app.inspector.inner) if w.winfo_class() in ("TLabel", "Label")]
+    label, unit = editor.split_unit(_("Gain step size (%)"))
+    assert _("Appearance").upper() in shown and _("ACTION") + " · FREEWAVE" in shown
+    assert label in shown and unit in shown and _("Gain step size (%)") not in shown
+    assert C.BY_UUID["com.lindeck.wavemic.control"].description in shown
+    # Stepper: ttk.Spinbox ohne Pfeile, daneben − und +
+    spin = [w for w in _all(app.inspector.inner) if w.winfo_class() == "TSpinbox"]
+    assert len(spin) == 1 and str(spin[0].cget("style")) == "Stepper.TSpinbox"
+    plus = next(w for w in _all(app.inspector.inner) if w.winfo_class() == "Label" and w.cget("text") == "+")
+    plus.event_generate("<Button-1>")
+    assert app.doc.get(page, slot)["Settings"]["step"] == 6
+
+    def buttons():
+        return [w for w in form.style_row.winfo_children() if isinstance(w, editor.StyleButton)]
+    # Stil: fett, Größe, Farbe, Position – und T⌄ bleibt für alles Weitere
+    assert len(buttons()) == 4 and buttons()[0].text == "B" and not buttons()[0].active
+    buttons()[0].command()
+    assert app.doc.get(page, slot)["States"][0]["FontStyle"] == "Bold" and buttons()[0].active
+    form._size_menu(form.style_row).invoke("16 pt")
+    assert app.doc.get(page, slot)["States"][0]["FontSize"] == 16 and buttons()[1].text == "16 pt"
+    form._align_menu(form.style_row).invoke(_("top"))
+    assert app.doc.get(page, slot)["States"][0]["TitleAlignment"] == "top"
+    assert [w for w in form.style_row.winfo_children() if isinstance(w, editor.TitleMenuButton)]

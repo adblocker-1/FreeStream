@@ -46,6 +46,8 @@ pub struct State {
     pub selected_dial: Option<u8>,
     /// Speichern nach dem Tippen (verzögert)
     save_job: Option<glib::SourceId>,
+    /// leere Taste unter der Maus (blaues „+“)
+    pub hover: Option<u8>,
 }
 
 pub struct Editor {
@@ -59,6 +61,11 @@ pub struct Editor {
     pages: gtk::Box,
     foot: gtk::CenterBox,
     status: gtk::Label,
+    /// Punkt vor der Statuszeile: grün = Gerät angeschlossen
+    status_dot: gtk::Box,
+    /// Helligkeit des Geräts rechts in der Statuszeile
+    bright: gtk::Box,
+    bright_label: gtk::Label,
     pub(super) insp_head: gtk::Box,
     pub(super) insp_body: gtk::Box,
     /// Vorschaubild in den Eigenschaften (wird beim Tippen nachgezogen)
@@ -86,6 +93,7 @@ impl Editor {
             state_idx: 0,
             selected_dial: None,
             save_job: None,
+            hover: None,
         }));
 
         let win = gtk::ApplicationWindow::builder().application(app).title("FreeDeck").default_width(1280).default_height(800).build();
@@ -136,11 +144,29 @@ impl Editor {
         stage.set_margin_top(12);
         main.append(&stage);
 
-        // Statuszeile und Seitenzahlen
+        // Statuszeile („FreeDeck MK.2 · Seite 1 von 3 · Alle Änderungen gespeichert“, davor ein Punkt: grün =
+        // Gerät angeschlossen; rechts die Helligkeit) und Seitenzahlen
+        let srow = gtk::Box::new(Orientation::Horizontal, 7);
+        srow.set_margin_start(30);
+        srow.set_margin_end(30);
+        srow.set_margin_bottom(6);
+        let status_dot = gtk::Box::new(Orientation::Horizontal, 0);
+        status_dot.add_css_class("dot");
+        status_dot.set_valign(Align::Center);
+        status_dot.set_size_request(7, 7);
+        srow.append(&status_dot);
         let status = label("", &["status"]);
-        status.set_margin_start(30);
-        status.set_margin_bottom(6);
-        main.append(&status);
+        status.set_hexpand(true);
+        status.set_ellipsize(gtk::pango::EllipsizeMode::End);
+        srow.append(&status);
+        let bright = gtk::Box::new(Orientation::Horizontal, 6);
+        let sun = gtk::Image::from_icon_name("display-brightness-symbolic");
+        sun.add_css_class("status");
+        bright.append(&sun);
+        let bright_label = label("", &["status"]);
+        bright.append(&bright_label);
+        srow.append(&bright);
+        main.append(&srow);
         let foot = gtk::CenterBox::new();
         foot.set_margin_bottom(12);
         foot.set_margin_start(30);
@@ -177,7 +203,7 @@ impl Editor {
         let lib = super::library::build(&state);
         body.append(&lib);
 
-        let ed = Rc::new(Editor { win: win.clone(), state, dev_label, prof_label, dev_list, prof_list, stage, pages, foot, status, insp_head, insp_body, insp_pic: RefCell::new(None) });
+        let ed = Rc::new(Editor { win: win.clone(), state, dev_label, prof_label, dev_list, prof_list, stage, pages, foot, status, status_dot, bright, bright_label, insp_head, insp_body, insp_pic: RefCell::new(None) });
         ed.connect(&bell, &store_btn, &gear);
         ed.start();
         win
@@ -190,6 +216,35 @@ impl Editor {
         let ed = self.clone();
         click.connect_pressed(move |_, n, x, y| ed.stage_click(n, x, y));
         self.stage.add_controller(click);
+        // leere Taste unter der Maus: „+“ und der Hinweis „Aktion hinzufügen“
+        let motion = gtk::EventControllerMotion::new();
+        let ed = self.clone();
+        motion.connect_motion(move |_, x, y| {
+            let k = ed.empty_key_at(x, y);
+            if ed.state.borrow().hover != k {
+                ed.state.borrow_mut().hover = k;
+                ed.stage.queue_draw();
+            }
+        });
+        let ed = self.clone();
+        motion.connect_leave(move |_| {
+            if ed.state.borrow_mut().hover.take().is_some() {
+                ed.stage.queue_draw();
+            }
+        });
+        self.stage.add_controller(motion);
+        self.stage.set_has_tooltip(true);
+        let ed = self.clone();
+        self.stage.connect_query_tooltip(move |_, x, y, _, tip| {
+            let Some(k) = ed.empty_key_at(x as f64, y as f64) else { return false };
+            let g = ed.geometry();
+            let l = ed.layout(ed.stage.width() as f64, ed.stage.height() as f64);
+            let (c, r) = ((k % g.cols) as f64, (k / g.cols) as f64);
+            let (kx, ky) = (l.x0 + c * (l.size + l.gap), l.y0 + r * (l.size + l.gap));
+            tip.set_text(Some(&tr!("Add action")));
+            tip.set_tip_area(&gtk::gdk::Rectangle::new(kx as i32, ky as i32, l.size as i32, l.size as i32));
+            true
+        });
         self.connect_dnd();
         {
             let ed = Rc::downgrade(self);
@@ -255,7 +310,7 @@ impl Editor {
                 c
             });
             st.status = match &st.preview {
-                Some(c) => tr!("{name} opened – changes are saved automatically", name = c.profile.as_ref().map(|p| p.name.clone()).unwrap_or_default()),
+                Some(_) => tr!("All changes saved"),
                 None => tr!("No profile"),
             };
             // auf dem Gerät zeigen
@@ -322,6 +377,22 @@ impl Editor {
             parts.push(st.status.clone());
         }
         self.status.set_text(&parts.join(" · "));
+        // angeschlossen: Punkt grün und die Helligkeit des Geräts
+        let bright = match (&st.serial, &st.daemon) {
+            (Some(serial), Some(d)) => d.lock().unwrap().controllers.lock().unwrap().get(serial).map(|c| c.lock().unwrap().brightness),
+            _ => None,
+        };
+        if bright.is_some() {
+            self.status_dot.remove_css_class("dot-faint");
+            self.status_dot.add_css_class("dot-ok");
+        } else {
+            self.status_dot.remove_css_class("dot-ok");
+            self.status_dot.add_css_class("dot-faint");
+        }
+        self.bright.set_visible(bright.is_some());
+        if let Some(b) = bright {
+            self.bright_label.set_text(&tr!("Brightness {n} %", n = b));
+        }
     }
 
     fn refresh_pages(self: &Rc<Self>) {
@@ -460,6 +531,36 @@ impl Editor {
         let _ = cr.stroke();
     }
 
+    /// Leere Taste unter der Maus: blauer Rand und „+“ in der Mitte (Hinweis „Aktion hinzufügen“ als Tooltip).
+    fn draw_add_hint(cr: &gtk::cairo::Context, x: f64, y: f64, size: f64, radius: f64) {
+        let (r_, g_, b_) = rgb("#3d9bff");
+        cr.set_source_rgba(r_, g_, b_, 0.07);
+        rounded(cr, x + 0.75, y + 0.75, size - 1.5, size - 1.5, radius);
+        let _ = cr.fill_preserve();
+        cr.set_source_rgba(r_, g_, b_, 0.6);
+        cr.set_line_width(1.5);
+        let _ = cr.stroke();
+        cr.set_source_rgb(r_, g_, b_);
+        cr.set_line_width((size / 40.0).max(1.5));
+        cr.set_line_cap(gtk::cairo::LineCap::Round);
+        let (cx, cy, a) = (x + size / 2.0, y + size / 2.0, size * 0.12);
+        cr.move_to(cx - a, cy);
+        cr.line_to(cx + a, cy);
+        cr.move_to(cx, cy - a);
+        cr.line_to(cx, cy + a);
+        let _ = cr.stroke();
+        cr.set_line_cap(gtk::cairo::LineCap::Butt);
+    }
+
+    /// Leere Taste an (x, y) (für das „+“ und den Tooltip).
+    fn empty_key_at(&self, x: f64, y: f64) -> Option<u8> {
+        let k = self.key_at(x, y)?;
+        let g = self.geometry();
+        let st = self.state.borrow();
+        let page = st.preview.as_ref()?.current_page()?;
+        (!page.keypad.contains_key(&(k % g.cols, k / g.cols))).then_some(k)
+    }
+
     fn draw_stage(&self, cr: &gtk::cairo::Context, w: f64, h: f64) {
         let st = self.state.borrow();
         let g = self.geometry();
@@ -473,11 +574,19 @@ impl Editor {
             match st.keys.get(&k).filter(|_| occupied || st.preview.as_ref().map(|p| p.current_page().map(|pg| !pg.background.is_empty()).unwrap_or(false)).unwrap_or(false)) {
                 Some(img) => Self::draw_image(cr, img, x, y, size, size, radius),
                 None => {
+                    // leere Taste: dunkle Fläche mit feinem Rand
                     let (r_, g_, b_) = rgb("#262626");
                     cr.set_source_rgb(r_, g_, b_);
-                    rounded(cr, x, y, size, size, radius);
-                    let _ = cr.fill();
+                    rounded(cr, x + 0.5, y + 0.5, size - 1.0, size - 1.0, radius);
+                    let _ = cr.fill_preserve();
+                    let (r_, g_, b_) = rgb("#333333");
+                    cr.set_source_rgb(r_, g_, b_);
+                    cr.set_line_width(1.0);
+                    let _ = cr.stroke();
                 }
+            }
+            if st.hover == Some(k) && !occupied {
+                Self::draw_add_hint(cr, x, y, size, radius);
             }
             if st.selected == Some(k) && st.selected_dial.is_none() {
                 Self::select_ring(cr, x, y, size, size, radius);
@@ -899,8 +1008,9 @@ impl Editor {
                 _ => None,
             }
         };
-        if let Some(e) = err {
-            self.state.borrow_mut().status = e;
+        match err {
+            Some(e) => self.state.borrow_mut().status = e,
+            None => self.state.borrow_mut().status = tr!("All changes saved"),
         }
         self.reload_everywhere();
         self.refresh();
