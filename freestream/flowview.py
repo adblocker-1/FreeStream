@@ -9,6 +9,7 @@ Arbeits-Thread einliest – die Ansicht selbst fragt PipeWire nie.
 """
 import hashlib
 import logging
+import time
 import tkinter as tk
 
 from PIL import Image, ImageDraw, ImageTk
@@ -21,6 +22,8 @@ from .theme import COL, rounded_rect
 log = logging.getLogger(__name__)
 EDGE_COLORS = {"input": "#22c3ee", "channel": "#d946ef", "mix": "#2bd68a"}
 ICON = 30
+PULSE = 2.0  # Sekunden, die ein Lichtpunkt vom Anfang bis zum Ende einer Verbindung braucht
+FRAME_MS = 40
 HEADS = {"input": (_("Inputs"), "mic"), "channel": (_("Channels"), "speaker"), "mix": (_("Mixes"), "layers"),
          "output": (_("Outputs"), "headphones")}
 
@@ -75,6 +78,9 @@ class FlowView:
         self._imgs = {}
         self._app_imgs = {}
         self.visible = False
+        self._pulses = []  # [(Punkt-Items, Kurvenpunkte)] auf dem gewählten Weg
+        self._pulse_job = None
+        self._card_clicked = False
         self.legend = tk.Canvas(frame, height=34, bg=COL["bg"], highlightthickness=0, bd=0)
         self.legend.pack(side="bottom", fill="x", padx=22, pady=(0, 4))
         self.legend.bind("<Configure>", lambda e: self._draw_legend())
@@ -107,9 +113,12 @@ class FlowView:
     def show(self):
         self.visible = True
         self.draw()
+        if self._pulses and not self._pulse_job:  # Ansicht wieder sichtbar, nichts neu gezeichnet
+            self._pulse()
 
     def hide(self):
         self.visible = False
+        self._stop_pulse()
 
     def select(self, nid):
         if nid == self.selected:
@@ -122,8 +131,17 @@ class FlowView:
             self.on_select(nid)
 
     def _click_bg(self, e):
+        # Tk ruft nach dem Klick auf eine Karte auch diesen Klick auf die Fläche auf („break“ wirkt dort nicht) –
+        # dann ist schon neu gezeichnet und unter dem Zeiger liegt nur der Hintergrund: Auswahl nicht aufheben
+        if self._card_clicked:
+            self._card_clicked = False
+            return
         if not self.cv.find_withtag("current") or "bg" in self.cv.gettags("current"):
             self.select(None)
+
+    def _click_card(self, nid):
+        self._card_clicked = True
+        self.select(None if nid == self.selected else nid)
 
     def _resized(self, e):
         if self.visible and e.width != getattr(self, "_w", None):
@@ -217,7 +235,10 @@ class FlowView:
         # Verbindungen: erst die abgeblendeten, dann die farbigen darüber
         faint = theme.mix(COL["bg"], COL["fg"], 0.16)
         order = sorted(range(len(g["edges"])), key=lambda i: on_edges is None or i in on_edges)
+        self._pulses_todo = []
         failed = []
+        self._stop_pulse()
+        self._pulses = []
         for i in order:
             e = g["edges"][i]
             if e["src"] not in boxes or e["dst"] not in boxes:
@@ -232,6 +253,15 @@ class FlowView:
                 self._draw_card(k, nid, box, on_nodes)
             except Exception as exc:  # noqa: BLE001 – wie oben: die übrigen Karten trotzdem zeichnen
                 failed.append(exc)
+        # Lichtpunkte über allem, damit sie auch am Rand der Karten zu sehen sind
+        for color, pts in self._pulses_todo:
+            glow = theme.mix(COL["bg"], color, 0.35)
+            items = (cv.create_oval(0, 0, 0, 0, fill=glow, outline="", tags="bg"),
+                     cv.create_oval(0, 0, 0, 0, fill=color, outline="", tags="bg"))
+            self._pulses.append((items, pts))
+        self._pulses_todo = []
+        if self._pulses:
+            self._pulse()
         if failed:
             log.error("Audio Flow: %d element(s) could not be drawn", len(failed), exc_info=failed[0])
         self._draw_legend()
@@ -246,8 +276,39 @@ class FlowView:
         elif e["muted"]:
             cv.create_line(*pts, fill=COL["muted"], width=1.5, dash=(4, 4), tags="bg")
         else:
-            cv.create_line(*pts, fill=EDGE_COLORS[e["kind"]], width=2.5 if highlight else 2, capstyle="round",
+            color = EDGE_COLORS[e["kind"]]
+            if highlight:  # gewählter Weg: Leuchten darunter, Punkt am Ziel, ein Lichtpunkt läuft entlang
+                for width, t in ((10, 0.18), (6, 0.35)):
+                    cv.create_line(*pts, fill=theme.mix(COL["bg"], color, t), width=width, capstyle="round",
+                                   joinstyle="round", tags="bg")
+                self._pulses_todo.append((color, pts))
+            cv.create_line(*pts, fill=color, width=2.5 if highlight else 2, capstyle="round",
                            joinstyle="round", tags="bg")
+            if highlight:
+                x, y = pts[-2], pts[-1]
+                cv.create_oval(x - 3.5, y - 3.5, x + 3.5, y + 3.5, fill=color, outline="", tags="bg")
+
+    def _pulse(self):
+        """Lichtpunkte ein Stück weiterschieben (alle gleichzeitig, wie ein Signal, das durch den Weg läuft)."""
+        self._pulse_job = None
+        if not self._pulses or not self.visible:
+            return
+        t = (time.monotonic() % PULSE) / PULSE
+        for (glow, dot), pts in self._pulses:
+            n = len(pts) // 2 - 1
+            f = t * n
+            i = min(int(f), n - 1)
+            u = f - i
+            x = pts[2 * i] + (pts[2 * i + 2] - pts[2 * i]) * u
+            y = pts[2 * i + 1] + (pts[2 * i + 3] - pts[2 * i + 1]) * u
+            self.cv.coords(glow, x - 8, y - 8, x + 8, y + 8)
+            self.cv.coords(dot, x - 4, y - 4, x + 4, y + 4)
+        self._pulse_job = self.root.after(FRAME_MS, self._pulse)
+
+    def _stop_pulse(self):
+        if self._pulse_job:
+            self.root.after_cancel(self._pulse_job)
+            self._pulse_job = None
 
     def _draw_card(self, k, nid, box, on_nodes):
         cv = self.cv
@@ -262,8 +323,7 @@ class FlowView:
         else:
             fill = COL["panel"]
         rounded_rect(cv, x, y, x + w, y + h, 8, fill=fill, outline="", tags=(tag, "card"))
-        cv.tag_bind(tag, "<Button-1>", lambda e, nid=nid: (self.select(None if nid == self.selected else nid),
-                                                            "break")[1])
+        cv.tag_bind(tag, "<Button-1>", lambda e, nid=nid: self._click_card(nid))
         cv.tag_bind(tag, "<Enter>", lambda e, t=tag, nid=nid: self._hover(t, nid, True))
         cv.tag_bind(tag, "<Leave>", lambda e, t=tag, nid=nid: self._hover(t, nid, False))
         tx = x + 12 + ICON + 12
