@@ -290,7 +290,7 @@ to its channel, magenta from a channel to a mix, green from a mix to a device; d
 grey means muted. **Click any element** to follow its path – everything connected to
 it stays lit, the rest is dimmed; **Clear selection** shows everything again.
 
-![Audio Flow: inputs, channels, mixes and outputs with their connections](docs/images/freewave-audioflow.png)
+![Audio Flow: inputs, channels, mixes and outputs; the selected channel's signal path glows](docs/images/freewave-audioflow.png)
 
 The **Soundboard** plays short sounds (WAV, MP3, OGG, FLAC) straight into your mixes.
 **Add sound** copies the file to `~/.local/share/freestream/sounds/`; click a pad to

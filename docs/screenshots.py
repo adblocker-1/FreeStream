@@ -486,11 +486,11 @@ def shot_freewave(tmp):
     root.event_generate("<Motion>", warp=True, x=5, y=5)  # Mauszeiger aus dem Graphen (sonst eine Karte hell)
     win.flow._redraw()
     pump(root, 0.5)
-    grab(root, "freewave-audioflow.png")
-    win.flow.select("ch:music")
-    pump(root, 0.5)
     if os.environ.get("FREEWAVE_SHOT_ALL"):  # nur zum Vergleichen, nicht in der README
-        grab(root, "freewave-audioflow-selected.png")
+        grab(root, "freewave-audioflow-idle.png")
+    win.flow.select("ch:music")  # in der README mit gewähltem Signalweg
+    pump(root, 0.5)
+    grab(root, "freewave-audioflow.png")
     win.flow.select(None)
     win.show_view("soundboard")
     sv = win.soundview
