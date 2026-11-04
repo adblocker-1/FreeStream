@@ -1,7 +1,9 @@
 """Bilder für Tasten, Touchstreifen (Stream Deck +) und Infobar (Neo) erzeugen.
 
 Titel werden wie in der Elgato-App gerendert: FontSize/FontStyle/
-TitleAlignment/TitleColor/OutlineThickness/ShowTitle aus dem Zustand.
+TitleAlignment/TitleColor/OutlineThickness/ShowTitle aus dem Zustand. Der
+Standard-Titel (OutlineThickness 2 oder keine Angabe) bekommt einen weichen
+Schatten statt eines Umrisses, jede andere Umrissdicke wird gezeichnet wie bisher.
 Animierte GIFs werden als Bildfolge zurückgegeben.
 """
 import io
@@ -10,7 +12,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageSequence
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageSequence
 
 
 def pillow_compat():
@@ -186,6 +188,49 @@ def _title_layer(key, title, state, scale, size_px):
     return layer
 
 
+DEFAULT_OUTLINE = 2  # OutlineThickness, die jede neue Taste bekommt (hier wie in der Elgato-App)
+SHADOW_GAIN = 1.36  # weichgezeichnete Maske verstärkt: dicht am Text bleibt der Schatten fast deckend
+
+
+def title_effect(state: dict):
+    """Wie der Titel vom Hintergrund abgesetzt wird: ("shadow", 0) beim Standard (keine Angabe oder die
+    Standard-Dicke 2 – die steht in jeder Taste, gewählt hat sie niemand), sonst ("outline", Dicke) wie
+    bisher; 0 = ohne Umriss. So bleibt eine eigens gesetzte Umrissdicke am Gerät unverändert."""
+    outline = state.get("OutlineThickness")
+    try:
+        outline = DEFAULT_OUTLINE if outline is None else float(outline)
+    except (TypeError, ValueError):
+        outline = DEFAULT_OUTLINE
+    if outline == DEFAULT_OUTLINE:
+        return "shadow", 0
+    return "outline", max(0.0, outline)
+
+
+def shadow_params(scale: float):
+    """Versatz nach unten und Radius der drei Box-Weichzeichner (zusammen etwa ein Gauß mit σ = 1,5 px je
+    72 px Tastengröße) – gleiche Werte wie in rust/crates/deck/src/render.rs."""
+    sigma = 1.5 * scale
+    radius = max(1, int(round(((4 * sigma * sigma + 1) ** 0.5 - 1) / 2)))
+    return max(1, int(round(scale))), radius
+
+
+def _title_shadow(img, lines, f, y, line_h, scale):
+    """Weicher Schatten unter dem Titel: Text schwarz, nach unten versetzt, weichgezeichnet."""
+    w, h = img.size
+    off, radius = shadow_params(scale)
+    mask = Image.new("L", img.size, 0)
+    d = ImageDraw.Draw(mask)
+    for line in lines:
+        if line:
+            d.text(((w - d.textlength(line, font=f)) / 2, y + off), line, font=f, fill=255)
+        y += line_h
+    for _i in range(3):
+        mask = mask.filter(ImageFilter.BoxBlur(radius))
+    shadow = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    shadow.putalpha(mask.point(lambda a: min(255, int(a * SHADOW_GAIN))))
+    img.alpha_composite(shadow)
+
+
 def _draw_title(img: Image.Image, title: str, state: dict, scale: float):
     size = int(round((state.get("FontSize") or 12) * 1.05 * scale))
     style, family = _style_of(state), state.get("FontFamily") or ""
@@ -196,9 +241,8 @@ def _draw_title(img: Image.Image, title: str, state: dict, scale: float):
         size = max(7, int(size * (img.size[0] - 4) / widest))
         f = font(size, style, family)
     color = parse_color(state.get("TitleColor"))
-    outline = state.get("OutlineThickness")
-    outline = 2 if outline is None else outline
-    stroke = max(0, int(round(outline * scale * 0.6)))
+    kind, outline = title_effect(state)
+    stroke = max(0, int(round(outline * scale * 0.6))) if kind == "outline" else 0
     d = ImageDraw.Draw(img)
     lines = title.split("\n")
     line_h = int(size * 1.15)
@@ -212,6 +256,8 @@ def _draw_title(img: Image.Image, title: str, state: dict, scale: float):
         y = (h - total) // 2
     else:
         y = h - total - pad
+    if kind == "shadow":
+        _title_shadow(img, lines, f, y, line_h, scale)
     for line in lines:
         if line:
             tw = d.textlength(line, font=f)
