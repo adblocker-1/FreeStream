@@ -12,6 +12,7 @@ use image::{Rgba, RgbaImage};
 // ------------------------------------------------------------------ Farben (PALETTES["dark"])
 pub const BG: &str = "#262626";
 pub const SIDE: &str = "#1c1c1c";
+pub const PANEL: &str = "#323232";
 pub const PANEL2: &str = "#2c2c2c";
 pub const RAISED: &str = "#454545";
 pub const BORDER: &str = "#3a3a3a";
