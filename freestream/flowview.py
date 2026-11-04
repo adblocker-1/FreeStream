@@ -12,7 +12,7 @@ import logging
 import time
 import tkinter as tk
 
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageDraw, ImageFilter, ImageTk
 
 from . import audioflow, theme
 from .dialogkit import ScrollArea
@@ -22,18 +22,35 @@ from .theme import COL, rounded_rect
 log = logging.getLogger(__name__)
 EDGE_COLORS = {"input": "#22c3ee", "channel": "#d946ef", "mix": "#2bd68a"}
 ICON = 30
+RADIUS = 10
+SS = 2  # Überabtastung der Linien (Tk zeichnet ohne Kantenglättung)
+DIM = 0.32  # Deckkraft von allem außerhalb des gewählten Wegs
 PULSE = 2.0  # Sekunden, die ein Lichtpunkt vom Anfang bis zum Ende einer Verbindung braucht
 FRAME_MS = 40
 HEADS = {"input": (_("Inputs"), "mic"), "channel": (_("Channels"), "speaker"), "mix": (_("Mixes"), "layers"),
          "output": (_("Outputs"), "headphones")}
 
 
-def _dim(im, factor=0.35):
+def _dim(im, factor=DIM):
     """Bild abblenden (Alpha verringern) – für Elemente außerhalb des gewählten Wegs."""
     im = im.copy()
     a = im.getchannel("A").point(lambda v: int(v * factor))
     im.putalpha(a)
     return im
+
+
+def _dashed(draw, xy, fill, width, dash):
+    """Gestrichelte Linie entlang der Punkte xy (Strich und Lücke je dash lang)."""
+    run, on, seg = 0.0, True, [xy[0]]
+    for (x0, y0), (x1, y1) in zip(xy, xy[1:]):
+        run += ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5
+        seg.append((x1, y1))
+        if run >= dash:
+            if on:
+                draw.line(seg, fill=fill, width=width)
+            on, run, seg = not on, 0.0, [(x1, y1)]
+    if on and len(seg) > 1:
+        draw.line(seg, fill=fill, width=width)
 
 
 def _tile(glyph, size, color, fg="#ffffff"):
@@ -199,7 +216,7 @@ class FlowView:
             glyph = "stream"
         else:
             glyph = "speaker_off" if n["muted"] else "speaker"
-        color = COL["faint"] if dim else (COL["muted"] if kind == "empty" else COL["fg"])
+        color = theme.mix(COL["bg"], COL["fg"], DIM) if dim else (COL["faint"] if kind == "empty" else COL["fg"])
         return self.icons.get(glyph, 18, color)
 
     # ------------------------------------------------------------ Zeichnen
@@ -217,76 +234,105 @@ class FlowView:
                            text=_("Set up the mixer to see the audio flow."))
             return
         g = self.graph
-        lay = audioflow.layout(g, width - 6, top=44)
+        lay = audioflow.layout(g, width - 6, top=44, row_h=48, gap=12)
         boxes = lay["boxes"]
         cv.configure(height=lay["height"] + 16)
-        cv.create_rectangle(0, 0, lay["width"] + 10, lay["height"] + 20, fill=COL["bg"], outline="", tags="bg")
+        back = cv.create_rectangle(0, 0, lay["width"] + 10, lay["height"] + 20, fill=COL["bg"], outline="",
+                                   tags="bg")
         on_nodes, on_edges = audioflow.path(g, self.selected) if self.selected else (None, None)
-        # Spaltenköpfe
+        # Spaltenköpfe: Name und Anzahl linksbündig über der Spalte, feine Linie darunter
         for col, (x, w) in lay["cols"].items():
-            text, glyph = HEADS[col]
-            text = text.upper()
-            tw = theme.measure(cv, self.f_head, text) + 16 + 22
-            cx = x + w / 2
-            rounded_rect(cv, cx - tw / 2, 6, cx + tw / 2, 32, 6, fill=COL["panel"], outline="", tags="bg")
-            cv.create_image(cx - tw / 2 + 16, 19, image=self.icons.get(glyph, 12, COL["muted"]), tags="bg")
-            cv.create_text(cx - tw / 2 + 28, 19, text=text, anchor="w", fill=COL["muted"], font=self.f_head,
-                           tags="bg")
-        # Verbindungen: erst die abgeblendeten, dann die farbigen darüber
-        faint = theme.mix(COL["bg"], COL["fg"], 0.16)
-        order = sorted(range(len(g["edges"])), key=lambda i: on_edges is None or i in on_edges)
-        self._pulses_todo = []
-        failed = []
+            text = HEADS[col][0].upper()
+            cv.create_text(x + 2, 18, text=text, anchor="w", fill=COL["muted"], font=self.f_head, tags="bg")
+            tw = theme.measure(cv, self.f_head, text)
+            cv.create_text(x + 10 + tw, 18, text=str(len(g["columns"][col])), anchor="w", fill=COL["faint"],
+                           font=self.f_head, tags="bg")
+            cv.create_line(x, 32, x + w, 32, fill=COL["border"], tags="bg")
+        # Verbindungen (und gestrichelte leere Eingänge) als ein geglättetes Bild unter den Karten
         self._stop_pulse()
         self._pulses = []
-        for i in order:
-            e = g["edges"][i]
-            if e["src"] not in boxes or e["dst"] not in boxes:
-                continue
-            try:
-                self._draw_edge(e, boxes, on_edges is None or i in on_edges, on_edges is not None, faint)
-            except Exception as exc:  # noqa: BLE001 – eine kaputte Linie darf den Rest nicht verhindern
-                failed.append(exc)
+        failed = []
+        ends = audioflow.anchors(g, boxes)
+        try:
+            self._edge_photo = ImageTk.PhotoImage(self._edge_image(g, boxes, ends, on_edges, lay), master=cv)
+            cv.tag_lower(cv.create_image(0, 0, image=self._edge_photo, anchor="nw", tags="bg"))
+            cv.tag_lower(back)  # Spaltenköpfe liegen darüber
+        except Exception as exc:  # noqa: BLE001 – ohne Linien lieber trotzdem die Karten zeigen
+            failed.append(exc)
         # Karten
         for k, (nid, box) in enumerate(boxes.items()):
             try:
                 self._draw_card(k, nid, box, on_nodes)
             except Exception as exc:  # noqa: BLE001 – wie oben: die übrigen Karten trotzdem zeichnen
                 failed.append(exc)
-        # Lichtpunkte über allem, damit sie auch am Rand der Karten zu sehen sind
-        for color, pts in self._pulses_todo:
-            glow = theme.mix(COL["bg"], color, 0.35)
-            items = (cv.create_oval(0, 0, 0, 0, fill=glow, outline="", tags="bg"),
-                     cv.create_oval(0, 0, 0, 0, fill=color, outline="", tags="bg"))
-            self._pulses.append((items, pts))
-        self._pulses_todo = []
+        # gewählter Weg: Punkte an beiden Enden, Lichtpunkte laufen entlang (über allem, auch am Kartenrand)
+        if on_edges is not None:
+            for i in sorted(on_edges):
+                e = g["edges"][i]
+                if i not in ends or e["muted"]:
+                    continue
+                color = EDGE_COLORS[e["kind"]]
+                (ax, ay), (bx, by) = ends[i]
+                for x, y in ((ax, ay), (bx, by)):
+                    cv.create_oval(x - 3.5, y - 3.5, x + 3.5, y + 3.5, fill=color, outline="", tags="bg")
+                items = (cv.create_oval(0, 0, 0, 0, fill=theme.mix(COL["bg"], color, 0.45), outline="", tags="bg"),
+                         cv.create_oval(0, 0, 0, 0, fill="#ffffff", outline="", tags="bg"))
+                self._pulses.append((items, audioflow.points(ends[i][0], ends[i][1])))
         if self._pulses:
             self._pulse()
         if failed:
             log.error("Audio Flow: %d element(s) could not be drawn", len(failed), exc_info=failed[0])
         self._draw_legend()
 
-    def _draw_edge(self, e, boxes, active, highlight, faint):
-        cv = self.cv
-        x0, y0, w0, h0 = boxes[e["src"]]
-        x1, y1, _w1, h1 = boxes[e["dst"]]
-        pts = audioflow.points((x0 + w0, y0 + h0 / 2), (x1, y1 + h1 / 2))
-        if not active:
-            cv.create_line(*pts, fill=faint, width=1.5, tags="bg")
-        elif e["muted"]:
-            cv.create_line(*pts, fill=COL["muted"], width=1.5, dash=(4, 4), tags="bg")
-        else:
-            color = EDGE_COLORS[e["kind"]]
-            if highlight:  # gewählter Weg: Leuchten darunter, Punkt am Ziel, ein Lichtpunkt läuft entlang
-                for width, t in ((10, 0.18), (6, 0.35)):
-                    cv.create_line(*pts, fill=theme.mix(COL["bg"], color, t), width=width, capstyle="round",
-                                   joinstyle="round", tags="bg")
-                self._pulses_todo.append((color, pts))
-            cv.create_line(*pts, fill=color, width=2.5 if highlight else 2, capstyle="round",
-                           joinstyle="round", tags="bg")
-            if highlight:
-                x, y = pts[-2], pts[-1]
-                cv.create_oval(x - 3.5, y - 3.5, x + 3.5, y + 3.5, fill=color, outline="", tags="bg")
+    def _edge_image(self, g, boxes, ends, on_edges, lay):
+        """Alle Verbindungen in doppelter Größe gezeichnet und verkleinert (glatte Kanten); der gewählte Weg
+        dicker und mit Leuchten, der Rest dünn bzw. abgeblendet; leere Eingänge als gestrichelter Umriss."""
+        k = SS
+        size = (int(lay["width"] + 10), int(lay["height"] + 20))
+        im = Image.new("RGB", (size[0] * k, size[1] * k), theme.rgb(COL["bg"]))  # deckend: kein Alpha nötig
+        faint = theme.rgb(theme.mix(COL["bg"], COL["fg"], 0.16))
+        lit = on_edges is not None
+        curves = {i: audioflow.points(*ends[i], steps=40) for i in ends}
+        if lit:  # Leuchten in einfacher Größe und nur im nötigen Ausschnitt weichzeichnen (schnell)
+            glow = Image.new("RGBA", size, (0, 0, 0, 0))
+            dg = ImageDraw.Draw(glow)
+            for i in on_edges:
+                if i in curves and not g["edges"][i]["muted"]:
+                    dg.line(curves[i], fill=theme.rgb(EDGE_COLORS[g["edges"][i]["kind"]]) + (150,), width=7,
+                            joint="curve")
+            box = glow.getbbox()
+            if box:
+                box = (max(box[0] - 12, 0), max(box[1] - 12, 0), min(box[2] + 12, size[0]), min(box[3] + 12, size[1]))
+                part = glow.crop(box).filter(ImageFilter.GaussianBlur(4))
+                part = part.resize(((box[2] - box[0]) * k, (box[3] - box[1]) * k), Image.BILINEAR)
+                im.paste(part, (box[0] * k, box[1] * k), part)
+        dl = ImageDraw.Draw(im)
+        for i in sorted(curves, key=lambda i: on_edges is None or i in on_edges):
+            e = g["edges"][i]
+            pts = curves[i]
+            xy = [(pts[j] * k, pts[j + 1] * k) for j in range(0, len(pts), 2)]
+            if not (on_edges is None or i in on_edges):
+                dl.line(xy, fill=faint, width=round(1.4 * k), joint="curve")
+            elif e["muted"]:
+                _dashed(dl, xy, theme.rgb(COL["muted"]), round(1.5 * k), 4 * k)
+            else:
+                color = theme.rgb(EDGE_COLORS[e["kind"]])
+                if not lit:  # ohne Auswahl etwas zurückhaltender: Farbe leicht zum Hintergrund
+                    color = theme.rgb(theme.mix(COL["bg"], EDGE_COLORS[e["kind"]], 0.85))
+                dl.line(xy, fill=color, width=round((2.4 if lit else 1.6) * k), joint="curve")
+        # leere Eingänge: nur ein gestrichelter Umriss (die Karte darüber ist unsichtbar, nur klickbar)
+        d = ImageDraw.Draw(im)
+        for nid, (x, y, w, h) in boxes.items():
+            if g["nodes"][nid]["kind"] != "empty":
+                continue
+            dim = on_edges is not None and nid not in audioflow.path(g, self.selected)[0]
+            col = theme.mix(COL["bg"], COL["border"], DIM) if dim else COL["border"]
+            d.rounded_rectangle([x * k, y * k, (x + w) * k, (y + h) * k], RADIUS * k, outline=theme.rgb(col),
+                                width=k)
+            for xx in range(int(x + RADIUS + 4), int(x + w - RADIUS - 4), 9):  # Lücken in die Linie
+                for yy in (y, y + h):
+                    d.line([(xx * k, yy * k), ((xx + 4) * k, yy * k)], fill=theme.rgb(COL["bg"]), width=2 * k)
+        return im.reduce(k)
 
     def _pulse(self):
         """Lichtpunkte ein Stück weiterschieben (alle gleichzeitig, wie ein Signal, das durch den Weg läuft)."""
@@ -301,8 +347,8 @@ class FlowView:
             u = f - i
             x = pts[2 * i] + (pts[2 * i + 2] - pts[2 * i]) * u
             y = pts[2 * i + 1] + (pts[2 * i + 3] - pts[2 * i + 1]) * u
-            self.cv.coords(glow, x - 8, y - 8, x + 8, y + 8)
-            self.cv.coords(dot, x - 4, y - 4, x + 4, y + 4)
+            self.cv.coords(glow, x - 7, y - 7, x + 7, y + 7)
+            self.cv.coords(dot, x - 3.5, y - 3.5, x + 3.5, y + 3.5)
         self._pulse_job = self.root.after(FRAME_MS, self._pulse)
 
     def _stop_pulse(self):
@@ -316,23 +362,25 @@ class FlowView:
         n = self.graph["nodes"][nid]
         dim = on_nodes is not None and nid not in on_nodes
         tag = f"n{k}"
-        if nid == self.selected:
-            fill = COL["raised"]
-        elif dim:
-            fill = theme.mix(COL["panel"], COL["bg"], 0.55)
+        empty = n["kind"] == "empty"
+        fill, outline, width = self._card_look(nid, dim, empty)
+        if empty:  # Umriss steckt im Linienbild; die Fläche hier nur zum Anklicken
+            rounded_rect(cv, x + 2, y + 2, x + w - 2, y + h - 2, RADIUS - 2, fill=COL["bg"], outline="",
+                         tags=(tag, "card"))
         else:
-            fill = COL["panel"]
-        rounded_rect(cv, x, y, x + w, y + h, 8, fill=fill, outline="", tags=(tag, "card"))
+            rounded_rect(cv, x, y, x + w, y + h, RADIUS, fill=fill, outline=outline, width=width,
+                         tags=(tag, "card"))
         cv.tag_bind(tag, "<Button-1>", lambda e, nid=nid: self._click_card(nid))
         cv.tag_bind(tag, "<Enter>", lambda e, t=tag, nid=nid: self._hover(t, nid, True))
         cv.tag_bind(tag, "<Leave>", lambda e, t=tag, nid=nid: self._hover(t, nid, False))
         tx = x + 12 + ICON + 12
         avail = w - (tx - x) - 10
-        fg = COL["faint"] if dim else (COL["muted"] if n["kind"] == "empty" else COL["fg"])
+        fg = theme.mix(COL["bg"], COL["fg"], DIM) if dim else (COL["faint"] if empty else COL["fg"])
         title = theme.elide(cv, n["title"], self.f_title, avail)
         if n["sub"]:
             cv.create_text(tx, y + h / 2 - 8, text=title, anchor="w", fill=fg, font=self.f_title, tags=(tag,))
-            sub_fg = COL["faint"] if dim else (COL["danger"] if n["muted"] and n["kind"] != "stream" else COL["muted"])
+            sub_fg = theme.mix(COL["bg"], COL["muted"], DIM) if dim else \
+                (COL["danger"] if n["muted"] and n["kind"] != "stream" else COL["muted"])
             cv.create_text(tx, y + h / 2 + 9, text=theme.elide(cv, n["sub"], self.f_sub, avail), anchor="w",
                            fill=sub_fg, font=self.f_sub, tags=(tag,))
         else:
@@ -340,15 +388,22 @@ class FlowView:
         # Symbol zuletzt: fehlt es (kaputtes Bild), stehen Karte und Text trotzdem da
         cv.create_image(x + 12 + ICON / 2, y + h / 2, image=self._node_image(n, dim), tags=(tag,))
 
+    def _card_look(self, nid, dim, empty):
+        """(Fläche, Rand, Randbreite) einer Karte: gewählt mit Rand in der Akzentfarbe, abgeblendet blasser."""
+        if nid == self.selected:
+            return COL["raised"], COL["accent"], 1.5
+        if dim:
+            return theme.mix(COL["bg"], COL["panel"], DIM), theme.mix(COL["bg"], COL["border"], DIM), 1
+        return COL["panel"], COL["border"], 1
+
     def _hover(self, tag, nid, on):
         self.cv.configure(cursor="hand2" if on else "")
-        if nid == self.selected:
+        if nid == self.selected or self.graph["nodes"].get(nid, {}).get("kind") == "empty":
             return
+        on_nodes = audioflow.path(self.graph, self.selected)[0] if self.selected else None
+        base = self._card_look(nid, on_nodes is not None and nid not in on_nodes, False)[0]
         for item in self.cv.find_withtag(tag):
             if "card" in self.cv.gettags(item):
-                on_nodes = audioflow.path(self.graph, self.selected)[0] if self.selected else None
-                dim = on_nodes is not None and nid not in on_nodes
-                base = theme.mix(COL["panel"], COL["bg"], 0.55) if dim else COL["panel"]
                 self.cv.itemconfigure(item, fill=theme.mix(base, COL["fg"], 0.06) if on else base)
 
     def _draw_legend(self):

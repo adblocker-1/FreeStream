@@ -188,6 +188,39 @@ def points(a, b, steps=24):
     return out
 
 
+def anchors(graph, boxes, spread=6.0, margin=18.0):
+    """Anfangs- und Endpunkt jeder Verbindung: {Kanten-Index: ((x0, y0), (x1, y1))}.
+
+    Treffen mehrere Verbindungen auf dieselbe Karte, fächern sie sich am Rand auf (je spread Pixel, höchstens
+    die Kartenhöhe minus margin) statt alle in einem Punkt zu enden; sortiert nach der Lage des anderen Endes,
+    damit sich die Linien dort nicht kreuzen."""
+    outs, ins = {}, {}
+    for i, e in enumerate(graph["edges"]):
+        if e["src"] in boxes and e["dst"] in boxes:
+            outs.setdefault(e["src"], []).append(i)
+            ins.setdefault(e["dst"], []).append(i)
+
+    def offsets(groups, other):
+        res = {}
+        for nid, lst in groups.items():
+            lst = sorted(lst, key=lambda i: boxes[graph["edges"][i][other]][1])
+            h = boxes[nid][3]
+            span = min(max(h - margin, 0), spread * (len(lst) - 1))
+            for k, i in enumerate(lst):
+                res[i] = -span / 2 + (span * k / (len(lst) - 1) if len(lst) > 1 else span / 2)
+        return res
+
+    off_out, off_in = offsets(outs, "dst"), offsets(ins, "src")
+    out = {}
+    for i, e in enumerate(graph["edges"]):
+        if i not in off_out:
+            continue
+        x0, y0, w0, h0 = boxes[e["src"]]
+        x1, y1, _w1, h1 = boxes[e["dst"]]
+        out[i] = ((x0 + w0, y0 + h0 / 2 + off_out[i]), (x1, y1 + h1 / 2 + off_in[i]))
+    return out
+
+
 def signature(graph):
     """Kurzer Vergleichswert: neu zeichnen nur, wenn sich am Graphen etwas geändert hat."""
     return (tuple((n["id"], n["title"], n["sub"], n["muted"]) for n in graph["nodes"].values()),

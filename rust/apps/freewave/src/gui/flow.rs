@@ -24,8 +24,8 @@ use super::Win;
 
 /// Abstand zum Rand der Ansicht
 const MARGIN: f64 = 22.0;
-const NODE_H: f64 = 52.0;
-const ROW: f64 = 63.0;
+const NODE_H: f64 = 48.0;
+const ROW: f64 = 60.0;
 /// oberer Rand der ersten Zeile (darüber die Spaltenköpfe)
 const TOP: f64 = 46.0;
 const ICON: i32 = 32;
@@ -35,6 +35,9 @@ pub const MAGENTA: &str = "#cf3fe0";
 pub const GREEN: &str = "#2fcf8f";
 const MUTED_LINE: &str = "#8c8c8c";
 const FAINT_LINE: &str = "#4a4a4a";
+const HEAD_LINE: &str = "#3a3a3a";
+/// Abstand der Linien, die sich am Rand einer Karte auffächern
+const SPREAD: f64 = 6.0;
 /// Ein Lichtpunkt braucht so lange (µs) vom Anfang bis zum Ende einer Verbindung
 const PULSE_US: i64 = 2_000_000;
 
@@ -48,6 +51,8 @@ pub struct FlowView {
     chips: RefCell<Vec<(Col, gtk::Box)>>,
     /// Position (x, y) je Element und Breite der Elemente
     pos: RefCell<Vec<(f64, f64)>>,
+    /// linker Rand jeder Spalte (für die Linie unter den Spaltenköpfen)
+    heads: RefCell<Vec<f64>>,
     node_w: Cell<f64>,
     laid_w: Cell<i32>,
     pub selected: RefCell<Option<String>>,
@@ -81,6 +86,7 @@ impl FlowView {
             nodes: RefCell::new(Vec::new()),
             chips: RefCell::new(Vec::new()),
             pos: RefCell::new(Vec::new()),
+            heads: RefCell::new(Vec::new()),
             node_w: Cell::new(230.0),
             laid_w: Cell::new(-1),
             selected: RefCell::new(None),
@@ -251,12 +257,12 @@ fn rebuild(w: &Rc<Win>, s: &Snapshot) {
         v.area.queue_draw();
         return;
     }
-    for (col, text, icon) in [(Col::Input, tr!("Inputs"), "mic"), (Col::Channel, tr!("Channels"), "speaker"),
-                              (Col::Mix, tr!("Mixes"), "sliders"), (Col::Output, tr!("Outputs"), "volume_up")] {
-        let chip = hbox(6);
-        chip.add_css_class("flow-chip");
-        chip.append(&theme::glyph(icon, 12, theme::MUTED));
-        chip.append(&label(&text.to_uppercase(), &[]));
+    for (col, text) in [(Col::Input, tr!("Inputs")), (Col::Channel, tr!("Channels")), (Col::Mix, tr!("Mixes")),
+                        (Col::Output, tr!("Outputs"))] {
+        // Name und Anzahl linksbündig über der Spalte; die feine Linie darunter zeichnet draw()
+        let chip = hbox(8);
+        chip.append(&label(&text.to_uppercase(), &["flow-chip"]));
+        chip.append(&label(&g.column(col).len().to_string(), &["flow-count"]));
         v.fixed.put(&chip, 0.0, 0.0);
         v.chips.borrow_mut().push((col, chip));
     }
@@ -264,6 +270,9 @@ fn rebuild(w: &Rc<Win>, s: &Snapshot) {
     for n in &g.nodes {
         let b = gtk::Button::new();
         b.add_css_class("flow-node");
+        if n.sub == Sub::Empty {
+            b.add_css_class("empty");
+        }
         b.set_cursor_from_name(Some("pointer"));
         let row = hbox(10);
         row.append(&node_icon(w, s, n));
@@ -330,10 +339,12 @@ fn layout(w: &Rc<Win>) {
             v.fixed.move_(b, x, y);
         }
     }
+    let mut heads = Vec::new();
     for (c, chip) in v.chips.borrow().iter() {
-        let (_, cw, _, _) = chip.measure(gtk::Orientation::Horizontal, -1);
-        v.fixed.move_(chip, (colx(*c) + (nw - cw as f64) / 2.0).round(), 6.0);
+        v.fixed.move_(chip, colx(*c) + 2.0, 10.0);
+        heads.push(colx(*c));
     }
+    *v.heads.borrow_mut() = heads;
     *v.pos.borrow_mut() = pos;
     v.area.set_content_width((width - 2).max(1));
     v.area.set_content_height((TOP + rows as f64 * ROW + 10.0) as i32);
@@ -357,7 +368,35 @@ pub fn select(w: &Rc<Win>, id: Option<String>) {
     w.refresh_header();
 }
 
-/// Verbindungen zeichnen: erst die abgeblendeten, darüber der hervorgehobene Weg.
+/// Anfangs- und Endpunkt jeder Verbindung. Treffen mehrere auf dieselbe Karte, fächern sie sich am Rand auf
+/// (wie `audioflow.anchors` der Python-Version), sortiert nach der Lage des anderen Endes.
+fn anchors(g: &Graph, pos: &[(f64, f64)], nw: f64) -> Vec<((f64, f64), (f64, f64))> {
+    let n = g.edges.len();
+    let mut off_out = vec![0.0; n];
+    let mut off_in = vec![0.0; n];
+    for (outgoing, offs) in [(true, &mut off_out), (false, &mut off_in)] {
+        for node in 0..g.nodes.len() {
+            let mut list: Vec<usize> = (0..n).filter(|&i| if outgoing { g.edges[i].from == node } else { g.edges[i].to == node }).collect();
+            if list.len() < 2 {
+                continue;
+            }
+            list.sort_by(|&a, &b| {
+                let other = |i: usize| pos[if outgoing { g.edges[i].to } else { g.edges[i].from }].1;
+                other(a).total_cmp(&other(b))
+            });
+            let span = (NODE_H - 18.0).max(0.0).min(SPREAD * (list.len() - 1) as f64);
+            for (k, &i) in list.iter().enumerate() {
+                offs[i] = -span / 2.0 + span * k as f64 / (list.len() - 1) as f64;
+            }
+        }
+    }
+    g.edges.iter().enumerate()
+        .map(|(i, e)| ((pos[e.from].0 + nw, pos[e.from].1 + NODE_H / 2.0 + off_out[i]),
+                       (pos[e.to].0, pos[e.to].1 + NODE_H / 2.0 + off_in[i])))
+        .collect()
+}
+
+/// Verbindungen zeichnen: erst die abgeblendeten, darüber der hervorgehobene Weg mit Leuchten und Lichtpunkten.
 fn draw(w: &Rc<Win>, cr: &gtk::cairo::Context) {
     let v = &w.flow;
     let g = v.graph.borrow();
@@ -367,15 +406,26 @@ fn draw(w: &Rc<Win>, cr: &gtk::cairo::Context) {
     if pos.len() != g.nodes.len() {
         return;
     }
+    // feine Linie unter den Spaltenköpfen
+    theme::set_source(cr, HEAD_LINE);
+    cr.set_line_width(1.0);
+    for &x in v.heads.borrow().iter() {
+        cr.move_to(x, 32.5);
+        cr.line_to(x + nw, 32.5);
+    }
+    let _ = cr.stroke();
+    let ends = anchors(&g, &pos, nw);
+    let lit_any = path.is_some();
+    let t = (gtk::glib::monotonic_time() % PULSE_US) as f64 / PULSE_US as f64;
     cr.set_line_cap(gtk::cairo::LineCap::Round);
+    let mut lights = Vec::new();
     for pass in [false, true] {
         for (i, e) in g.edges.iter().enumerate() {
             let on_path = path.as_ref().map(|p| p.edges.contains(&i)).unwrap_or(true);
             if on_path != pass {
                 continue;
             }
-            let (x0, y0) = (pos[e.from].0 + nw, pos[e.from].1 + NODE_H / 2.0);
-            let (x1, y1) = (pos[e.to].0, pos[e.to].1 + NODE_H / 2.0);
+            let ((x0, y0), (x1, y1)) = ends[i];
             let color = if !on_path {
                 FAINT_LINE
             } else if e.muted {
@@ -387,7 +437,7 @@ fn draw(w: &Rc<Win>, cr: &gtk::cairo::Context) {
                     Link::MixOutput => GREEN,
                 }
             };
-            let lit = path.is_some() && on_path;
+            let lit = lit_any && on_path;
             let mid = (x1 - x0) / 2.0;
             let curve = |cr: &gtk::cairo::Context| {
                 cr.move_to(x0, y0);
@@ -395,38 +445,40 @@ fn draw(w: &Rc<Win>, cr: &gtk::cairo::Context) {
             };
             let (r, gr, b) = theme::cairo_rgb(color);
             if lit && !e.muted {
-                // Leuchten: breite, durchscheinende Linie unter der eigentlichen
+                // Leuchten: breite, durchscheinende Linien unter der eigentlichen
                 cr.set_dash(&[], 0.0);
-                for (width, alpha) in [(9.0, 0.10), (5.0, 0.22)] {
+                for (width, alpha) in [(10.0, 0.08), (6.0, 0.18)] {
                     cr.set_source_rgba(r, gr, b, alpha);
                     cr.set_line_width(width);
                     curve(cr);
                     let _ = cr.stroke();
                 }
             }
-            theme::set_source(cr, color);
-            cr.set_line_width(if lit { 2.5 } else { 1.8 });
-            if e.muted {
-                cr.set_dash(&[5.0, 4.0], 0.0);
-            } else {
-                cr.set_dash(&[], 0.0);
-            }
+            // ohne Auswahl etwas zurückhaltender, gewählt kräftiger
+            cr.set_source_rgba(r, gr, b, if on_path && !lit_any && !e.muted { 0.85 } else { 1.0 });
+            cr.set_line_width(if lit { 2.4 } else if on_path && !e.muted { 1.6 } else { 1.4 });
+            cr.set_dash(if e.muted { &[5.0, 4.0][..] } else { &[][..] }, 0.0);
             curve(cr);
             let _ = cr.stroke();
             if lit && !e.muted {
-                // Punkt am Ziel und ein Lichtpunkt, der den Weg entlangläuft (alle gleichzeitig, alle 2 s)
                 cr.set_dash(&[], 0.0);
-                let t = (gtk::glib::monotonic_time() % PULSE_US) as f64 / PULSE_US as f64;
-                let (px, py) = bezier(t, (x0, y0), (x0 + mid, y0), (x1 - mid, y1), (x1, y1));
-                for (x, y, rad) in [(x1, y1, 3.5), (px, py, 4.0)] {
-                    cr.arc(x, y, rad, 0.0, std::f64::consts::TAU);
+                theme::set_source(cr, color);
+                for (x, y) in [(x0, y0), (x1, y1)] {
+                    cr.arc(x, y, 3.5, 0.0, std::f64::consts::TAU);
                     let _ = cr.fill();
                 }
-                cr.set_source_rgba(r, gr, b, 0.3);
-                cr.arc(px, py, 8.0, 0.0, std::f64::consts::TAU);
-                let _ = cr.fill();
+                lights.push(((r, gr, b), bezier(t, (x0, y0), (x0 + mid, y0), (x1 - mid, y1), (x1, y1))));
             }
         }
+    }
+    // Lichtpunkte zuletzt: farbiger Schein, weißer Kern
+    for ((r, gr, b), (px, py)) in lights {
+        cr.set_source_rgba(r, gr, b, 0.35);
+        cr.arc(px, py, 8.0, 0.0, std::f64::consts::TAU);
+        let _ = cr.fill();
+        cr.set_source_rgb(1.0, 1.0, 1.0);
+        cr.arc(px, py, 3.5, 0.0, std::f64::consts::TAU);
+        let _ = cr.fill();
     }
 }
 
@@ -435,4 +487,38 @@ fn bezier(t: f64, p0: (f64, f64), p1: (f64, f64), p2: (f64, f64), p3: (f64, f64)
     let u = 1.0 - t;
     let (a, b, c, d) = (u * u * u, 3.0 * u * u * t, 3.0 * u * t * t, t * t * t);
     (a * p0.0 + b * p1.0 + c * p2.0 + d * p3.0, a * p0.1 + b * p1.1 + c * p2.1 + d * p3.1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use freestream_wave::flow::{Edge, Node};
+
+    fn node(id: &str, col: Col) -> Node {
+        Node { id: id.into(), col, title: id.into(), sub: Sub::None, icon: String::new(), color: String::new(),
+               app: String::new() }
+    }
+
+    #[test]
+    fn ends_fan_out_without_crossing() {
+        // zwei Kanäle (oben, unten) in einen Mix, ein Kanal zusätzlich in einen zweiten Mix
+        let g = Graph {
+            nodes: vec![node("ch:a", Col::Channel), node("ch:b", Col::Channel), node("mix:x", Col::Mix),
+                        node("mix:y", Col::Mix)],
+            edges: vec![
+                Edge { from: 1, to: 2, link: Link::ChannelMix, muted: false },
+                Edge { from: 0, to: 2, link: Link::ChannelMix, muted: false },
+                Edge { from: 0, to: 3, link: Link::ChannelMix, muted: false },
+            ],
+        };
+        let pos = [(0.0, 0.0), (0.0, ROW), (300.0, 0.0), (300.0, ROW)];
+        let e = anchors(&g, &pos, 200.0);
+        // am Mix x: die Verbindung vom oberen Kanal endet weiter oben
+        assert!(e[1].1 .1 < e[0].1 .1);
+        assert_eq!(e[0].1 .1 - e[1].1 .1, SPREAD);
+        // Kanal a hat zwei Verbindungen: oben zu x, unten zu y
+        assert!(e[1].0 .1 < e[2].0 .1);
+        // Kanal b hat nur eine: Mitte der Karte
+        assert_eq!(e[0].0, (200.0, ROW + NODE_H / 2.0));
+    }
 }

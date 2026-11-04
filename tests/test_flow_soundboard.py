@@ -122,6 +122,17 @@ def test_flow_layout_and_curve():
     assert audioflow.layout(g, 300)["cols"]["input"][1] >= 160
     assert audioflow.curve((0, 0), (100, 50)) == [0, 0, 50, 0, 50, 50, 100, 50]
     assert audioflow.signature(g) == audioflow.signature(audioflow.build(_state()))
+    # Linienenden: mehrere auf derselben Karte fächern sich auf, nach der Lage des anderen Endes sortiert
+    ends = audioflow.anchors(g, boxes)
+    into_mon = sorted((ends[i][1][1], boxes[e["src"]][1]) for i, e in enumerate(g["edges"])
+                      if e["dst"] == "mix:monitor")
+    ys = [y for y, _src in into_mon]
+    x, y, w, h = boxes["mix:monitor"]
+    assert len(set(ys)) == len(ys) and y < ys[0] and ys[-1] < y + h  # alle verschieden, innerhalb der Karte
+    assert [src for _y, src in into_mon] == sorted(src for _y, src in into_mon)  # keine Kreuzung am Ende
+    one = next(i for i, e in enumerate(g["edges"]) if e["src"] == "in:stream:9")  # nur eine Verbindung
+    sx, sy, sw, sh = boxes["in:stream:9"]
+    assert ends[one][0] == (sx + sw, sy + sh / 2)
 
 
 # ------------------------------------------------------------------ Soundboard

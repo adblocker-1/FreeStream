@@ -397,14 +397,17 @@ dropdown > button { background-image: none; background-color: #2c2c2c; border: 1
 .step-dot.todo { background-color: #323232; box-shadow: inset 0 0 0 1px #3a3a3a; color: #a8a8a8; font-weight: normal; }
 .step-line { min-height: 1px; background-color: #3a3a3a; }
 .step-line.done { min-height: 2px; background-color: #3d9bff; }
-.flow-node { background-image: none; background-color: #323232; border: none; border-radius: 6px; padding: 0 10px; box-shadow: none; color: #f2f2f2; transition: opacity 120ms; }
-.flow-node:hover { background-color: #3a3a3a; }
-.flow-node.sel { background-color: #3c3c3c; box-shadow: inset 0 0 0 1px #555555; }
+.flow-node { background-image: none; background-color: #2f2f2f; border: none; border-radius: 10px; padding: 0 10px; box-shadow: inset 0 0 0 1px #3a3a3a; color: #f2f2f2; transition: opacity 120ms; }
+.flow-node:hover { background-color: #363636; }
+.flow-node.sel { background-color: #454545; box-shadow: inset 0 0 0 2px #3d9bff; }
 .flow-node.dim { opacity: 0.32; }
+.flow-node.empty { background-color: transparent; box-shadow: none; border: 1px dashed #3a3a3a; color: #707070; }
+.flow-node.empty:hover { background-color: #2a2a2a; }
 .flow-node:focus-visible { outline: none; }
 .flow-title { font-weight: bold; font-size: 10pt; }
 .flow-sub { color: #a8a8a8; font-size: 8pt; }
-.flow-chip { background-color: #323232; border-radius: 4px; padding: 4px 10px; color: #c8c8c8; font-size: 8pt; font-weight: bold; }
+.flow-chip { color: #a8a8a8; font-size: 8pt; font-weight: bold; }
+.flow-count { color: #707070; font-size: 8pt; font-weight: bold; }
 .legend { color: #a8a8a8; font-size: 8pt; }
 .sb-pad, .sb-add { background-image: none; background-color: #2c2c2c; border: 1px solid #333333; border-radius: 8px; box-shadow: none; padding: 6px; color: #f2f2f2; }
 .sb-pad:hover, .sb-add:hover { background-color: #363636; }
