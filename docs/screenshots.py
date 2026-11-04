@@ -7,7 +7,10 @@ Wave:3 – es werden keine echten Geräte gebraucht und keine Elgato-Grafiken
 verwendet (die Symbole zeichnet dieses Skript selbst).
 """
 import json
+import math
 import os
+import random
+import struct
 import subprocess
 import sys
 import tempfile
@@ -394,18 +397,34 @@ def shot_freewave(tmp):
     mixes = [{"id": "monitor", "exclude": ["mic"]},
              {"id": "chat", "name": "Chat Mix", "icon": "chat", "color": "#22c55e", "virtual": True, "devices": [],
               "exclude": ["system", "music", "browser", "podcast"]}]
-    sounds = []  # Soundboard: kurze Töne als Beispiel (selbst erzeugt)
-    for i, (name, color, loop) in enumerate((("Applause", "#30d158", False), ("Drum roll", "#ffb020", True),
-                                             ("Air horn", "#ff4d5a", False), ("Ding", "#2fc3ff", False),
-                                             ("Laugh track", "#a66bff", False), ("Intro jingle", "#ff6bd5", False))):
+    sounds = []  # Soundboard: kurze Klänge als Beispiel (selbst erzeugt, mit sichtbarer Wellenform)
+    rnd = random.Random(7)
+
+    def bursts(t, rate, seed):  # Lautstärke in Stößen (Applaus, Lachen)
+        r = random.Random(seed * 1000 + int(t * rate)).random()
+        return (0.3 + 0.7 * r) * math.exp(-((t * rate) % 1) * 3)
+    shapes = (
+        ("Applause", "#30d158", False, 7, lambda t: (rnd.random() * 2 - 1) * (0.25 + 0.75 * math.sin(math.pi * t / 7))
+         * bursts(t, 9, 1)),
+        ("Drum roll", "#ffb020", True, 4, lambda t: (rnd.random() * 2 - 1) * (0.2 + 0.2 * t)
+         * (0.5 + 0.5 * abs(math.sin(t * 40)))),
+        ("Air horn", "#ff4d5a", False, 2, lambda t: ((t * 440) % 1 * 2 - 1) * (0.9 if (t % 0.6) < 0.45 else 0.1)),
+        ("Ding", "#2fc3ff", False, 1, lambda t: math.sin(2 * math.pi * 880 * t) * math.exp(-t * 4)),
+        ("Laugh track", "#a66bff", False, 5, lambda t: (rnd.random() * 2 - 1) * bursts(t, 5, 2)
+         * (0.4 + 0.6 * math.sin(math.pi * t / 5))),
+        ("Intro jingle", "#ff6bd5", False, 12, lambda t: math.sin(2 * math.pi * (330 + 110 * int(t * 2 % 4)) * t)
+         * math.exp(-(t * 2 % 1) * 2.5) * (0.5 + 0.5 * math.sin(math.pi * t / 12))))
+    for i, (name, color, loop, dur, fn) in enumerate(shapes):
         f = tmp / f"sound{i}.wav"
         with wave.open(str(f), "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)
             w.setframerate(8000)
-            w.writeframes(b"\0\0" * 800)
+            w.writeframes(b"".join(struct.pack("<h", int(max(-1.0, min(1.0, fn(n / 8000))) * 30000))
+                                   for n in range(dur * 8000)))
         sounds.append({"id": f"s{i}", "name": name, "file": str(f), "color": color, "volume": 100 - i * 5,
                        "loop": loop})
+    sounds[1].update(start=0.25, end=3.65)  # „Drum roll“ zugeschnitten
     (tmp / "config" / "config.json").write_text(json.dumps({"mixer": {"enabled": True, "channels": channels,
                                                                        "effects": fx, "mixes": mixes},
                                                             "soundboard": sounds, "soundboard_play": "all",
@@ -492,12 +511,17 @@ def shot_freewave(tmp):
     pump(root, 0.5)
     grab(root, "freewave-audioflow.png")
     win.flow.select(None)
-    win.show_view("soundboard")
+    from freestream import soundboard
+    # Tasten auf dem Deck und laufender Klang wie im Betrieb (ohne Profil und ohne echten Ton)
+    soundboard.deck_keys = lambda store_root=None: {"s0": (1, 1), "s1": (1, 2), "s2": (1, 3), "s4": (1, 5),
+                                                    "s5": (1, 6)}
     sv = win.soundview
-    sv.select(sv.sounds[1])
-    sv.player.playing = lambda: {"s0"}  # wie während des Abspielens (ohne echten Ton)
+    sv.player.playing = lambda: {"s0"}
     sv.player.is_playing = lambda sid: sid == "s0"
-    pump(root, 1)
+    sv.player.elapsed = lambda sid: 3.2 if sid == "s0" else None
+    win.show_view("soundboard")
+    sv.select(sv.sounds[1])
+    pump(root, 1.5)
     grab(root, "freewave-soundboard.png")
     win.show_view("mixer")
 

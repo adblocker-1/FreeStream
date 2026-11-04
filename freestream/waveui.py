@@ -855,6 +855,7 @@ class WaveWindow:
         elif self.view == "soundboard":
             self.title_var.set(_("Soundboard"))
             self.sub_var.set(_("Click a sound to play it – click again to stop. Right-click to edit it."))
+            shown = ("stop",)
         elif self.view == "effects":
             self.title_var.set(_("Effects"))
             self.sub_var.set(_("Effect chains per channel – changes are live."))
@@ -875,8 +876,10 @@ class WaveWindow:
         widgets = {"add": (self.add_btn, {}), "deck": (self.deck_btn, {"padx": (0, 8)}),
                    "listen": (self.listen_btn, {}),
                    "scene": (self.scene_btn, {"padx": (0, 8)}),
-                   "setup": (self.setup_btn, {}), "clear": (self.clear_btn, {})}
-        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.setup_btn, self.listen_btn, self.clear_btn):
+                   "setup": (self.setup_btn, {}), "clear": (self.clear_btn, {}),
+                   "stop": (self.soundview.stop_btn, {})}  # „Stop all“ des Soundboards
+        for w in (self.add_btn, self.deck_btn, self.scene_btn, self.setup_btn, self.listen_btn, self.clear_btn,
+                  self.soundview.stop_btn):
             w.pack_forget()
         for key in self._header_shown:
             w, kw = widgets[key]
