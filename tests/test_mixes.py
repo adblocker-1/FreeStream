@@ -46,6 +46,33 @@ def test_default_mixes_and_compatible_setup(env, pactl):
     assert ["set-source-volume", "alsa_input.mic", "70%"] in pactl.cmds
 
 
+def test_mix_master_volume(env, pactl):
+    """Master-Regler im Mix-Kopf: Null-Sink des Mixes, beim direkten Persönlichen Mix das Gerät."""
+    mx, _cfg = _mixer(env)
+    assert mx.mix_volume_target(mx.mix("monitor")) == "alsa_output.headphones"  # direkt aufs Gerät
+    assert mx.mix_volume_target(mx.mix("stream")) == "linewave_streammix"
+    assert mx.set_mix_volume("stream", 140) == 100  # nie über 100 %
+    assert ["set-sink-volume", "linewave_streammix", "100%"] in pactl.cmds
+    mx.set_mix_volume("stream", 55)
+    mx.set_mix_volume("monitor", 70)
+    assert ["set-sink-volume", "alsa_output.headphones", "70%"] in pactl.cmds
+    assert mx.mix_volumes() == {"monitor": (70, False), "stream": (55, False)}
+    chat = mx.add_mix("Chat-Mix", icon="chat", virtual=True)
+    mx.set_mix_volume(chat["id"], 30)
+    assert ["set-sink-volume", "linewave_mix_chatmix", "30%"] in pactl.cmds
+    assert mx.mix_volumes()["chatmix"] == (30, False)
+    with pytest.raises(RuntimeError):
+        mx.set_mix_volume("gibtsnicht", 50)
+
+
+def test_link_look():
+    """Kette im Mixer: gekoppelt immer (blau), sonst nur beim Überfahren der Zeile (gestrichelt)."""
+    from freestream.waveui import link_look
+    assert link_look(True, False) == "on" and link_look(True, True) == "on"
+    assert link_look(False, True) == "hint"
+    assert link_look(False, False) is None
+
+
 def test_custom_mix_lifecycle(env, pactl):
     mx, _cfg = _mixer(env)
     mx.set_volume("music", "monitor", 70)
@@ -205,11 +232,38 @@ def test_window_mix_table(env, pactl, monkeypatch):
         assert "chat" in win.strips["system"] and "chat" not in win.strips["music"]
         empty = [w for w in win.table.winfo_children() if isinstance(w, EmptyCell)]
         assert len(empty) == 1
-        # leere Zelle: beim Überfahren heller mit ⊕ und Hinweis
+        # leere Zelle: gestrichelt mit „+“, beim Überfahren „+ Zu „Chat-Mix“ hinzufügen“ in der Zelle
+        assert empty[0].text == "Zu „Chat-Mix“ hinzufügen"
         empty[0]._set_hover(True)
-        assert empty[0].tip.win is not None and empty[0].tip.text == "Kanal zum Mix hinzufügen"
+        assert any(empty[0].itemcget(i, "text").startswith("Zu „") for i in empty[0].find_all()
+                   if empty[0].type(i) == "text")
         empty[0]._set_hover(False)
-        assert empty[0].tip.win is None
+        assert not [i for i in empty[0].find_all() if empty[0].type(i) == "text"]
+        # Kette zwischen Persönlichem und Stream-Mix: nur gekoppelt oder beim Überfahren der Zeile zu sehen
+        link = win.link_btns["system"]
+        assert link.look() is None and not link.find_all()
+        card = win.strips["system"]["card"]
+        root.update()
+        x, y = card.winfo_rootx() + 20, card.winfo_rooty() + 20
+        assert win._row_at(x, y) == "system"
+        win._mixer_motion(type("E", (), {"x_root": x, "y_root": y})())
+        assert link.look() == "hint" and link.find_all()
+        win._mixer_motion(type("E", (), {"x_root": x, "y_root": card.winfo_rooty() - 400})())
+        assert link.look() is None
+        win._on_link("system", True)
+        assert link.look() == "on"
+        win._on_link("system", False)
+        # Master-Regler im Mix-Kopf stellt die Lautstärke des Mix-Sinks
+        win._on_mix_volume("stream", "64")
+        assert _pump(root, lambda: ["set-sink-volume", "linewave_streammix", "64%"] in pactl.cmds)
+        # stummer Regler: rot „stumm“ statt der Prozentzahl
+        part = win.strips["system"]["stream"]
+        part["mute"].set(True)
+        win._on_mute("system", "stream")
+        assert part["label"].cget("text") == "stumm" and not part["label"].cget("textvariable")
+        part["mute"].set(False)
+        win._on_mute("system", "stream")
+        assert str(part["label"].cget("textvariable")) == str(part["val"])
         # X zum Entfernen erst beim Überfahren der Zelle
         badge = win.strips["system"]["chat"]["remove"]
         root.update()

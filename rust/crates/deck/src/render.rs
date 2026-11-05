@@ -1,5 +1,6 @@
-//! Tastenbilder (wie `freestream/render.py`): Symbol, Titel mit Umriss nach den Einstellungen des Zustands
-//! (FontSize, FontStyle, TitleAlignment, TitleColor, ShowTitle …), Seiten-Hintergrund, Hinweise.
+//! Tastenbilder (wie `freestream/render.py`): Symbol, Titel nach den Einstellungen des Zustands (FontSize,
+//! FontStyle, TitleAlignment, TitleColor, ShowTitle …; Standard mit weichem Schatten, eigens gesetzte
+//! OutlineThickness mit Umriss), Seiten-Hintergrund, Hinweise.
 
 use ab_glyph::{point, Font, FontArc, Glyph, PxScale, ScaleFont};
 use image::{imageops, Rgba, RgbaImage};
@@ -123,8 +124,8 @@ pub fn text_width(f: &FontArc, size: f32, text: &str) -> f32 {
     w
 }
 
-/// Zeile zeichnen; (x, y) = linke obere Ecke der Zeile.
-pub fn draw_text(img: &mut RgbaImage, f: &FontArc, size: f32, x: f32, y: f32, text: &str, color: [u8; 3]) {
+/// Deckung jedes Pixels einer Zeile; (x, y) = linke obere Ecke der Zeile.
+fn coverage(f: &FontArc, size: f32, x: f32, y: f32, text: &str, mut put: impl FnMut(i32, i32, f32)) {
     let sf = f.as_scaled(PxScale::from(size));
     let mut caret = point(x, y + sf.ascent());
     let mut prev = None;
@@ -138,14 +139,95 @@ pub fn draw_text(img: &mut RgbaImage, f: &FontArc, size: f32, x: f32, y: f32, te
         prev = Some(id);
         if let Some(og) = f.outline_glyph(g) {
             let b = og.px_bounds();
-            og.draw(|gx, gy, cov| {
-                let px = b.min.x as i32 + gx as i32;
-                let py = b.min.y as i32 + gy as i32;
-                if px < 0 || py < 0 || px >= img.width() as i32 || py >= img.height() as i32 {
-                    return;
-                }
-                blend(img.get_pixel_mut(px as u32, py as u32), color, cov.min(1.0));
-            });
+            og.draw(|gx, gy, cov| put(b.min.x as i32 + gx as i32, b.min.y as i32 + gy as i32, cov.min(1.0)));
+        }
+    }
+}
+
+/// Zeile zeichnen; (x, y) = linke obere Ecke der Zeile.
+pub fn draw_text(img: &mut RgbaImage, f: &FontArc, size: f32, x: f32, y: f32, text: &str, color: [u8; 3]) {
+    let (w, h) = (img.width() as i32, img.height() as i32);
+    coverage(f, size, x, y, text, |px, py, cov| {
+        if px >= 0 && py >= 0 && px < w && py < h {
+            blend(img.get_pixel_mut(px as u32, py as u32), color, cov);
+        }
+    });
+}
+
+/// OutlineThickness, die jede neue Taste bekommt (hier wie in der Elgato-App).
+pub const DEFAULT_OUTLINE: f32 = 2.0;
+/// Weichgezeichnete Maske verstärkt: dicht am Text bleibt der Schatten fast deckend.
+const SHADOW_GAIN: f32 = 1.36;
+
+/// Wie der Titel abgesetzt wird (wie `title_effect` in render.py).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TitleEffect {
+    /// Standard: weicher Schatten
+    Shadow,
+    /// eigens gesetzte Umrissdicke (0 = ohne Umriss) – am Gerät wie bisher
+    Outline(f32),
+}
+
+/// Standard (keine Angabe oder die Standard-Dicke 2 – die steht in jeder Taste, gewählt hat sie niemand):
+/// weicher Schatten; jede andere Umrissdicke bleibt ein Umriss.
+pub fn title_effect(state: &Map<String, Value>) -> TitleEffect {
+    let outline = state.get("OutlineThickness").and_then(Value::as_f64).map(|v| v as f32).unwrap_or(DEFAULT_OUTLINE);
+    if outline == DEFAULT_OUTLINE {
+        TitleEffect::Shadow
+    } else {
+        TitleEffect::Outline(outline.max(0.0))
+    }
+}
+
+/// Versatz nach unten und Radius der drei Box-Weichzeichner (zusammen etwa ein Gauß mit σ = 1,5 px je
+/// 72 px Tastengröße) – gleiche Werte wie `shadow_params` in render.py.
+pub fn shadow_params(scale: f32) -> (i32, i32) {
+    let sigma = 1.5 * scale;
+    let radius = ((((4.0 * sigma * sigma + 1.0).sqrt() - 1.0) / 2.0).round() as i32).max(1);
+    ((scale.round() as i32).max(1), radius)
+}
+
+/// Box-Weichzeichner (Radius r) einer Maske, waagrecht und senkrecht; Ränder wie in Pillow fortgesetzt.
+fn box_blur(m: &mut [f32], w: usize, h: usize, r: i32) {
+    let mut tmp = vec![0.0f32; m.len()];
+    blur_pass(m, &mut tmp, w, h, 1, w, r);
+    blur_pass(&tmp, m, h, w, w, 1, r);
+}
+
+/// Ein Durchgang: `count` Linien der Länge `len` (Abstand der Punkte `step`, der Linien `stride`).
+fn blur_pass(from: &[f32], to: &mut [f32], len: usize, count: usize, step: usize, stride: usize, r: i32) {
+    let n = (2 * r + 1) as f32;
+    for line in 0..count {
+        let base = line * stride;
+        let at = |i: i32| from[base + i.clamp(0, len as i32 - 1) as usize * step];
+        let mut sum: f32 = (-r..=r).map(at).sum();
+        for i in 0..len as i32 {
+            to[base + i as usize * step] = sum / n;
+            sum += at(i + r + 1) - at(i - r);
+        }
+    }
+}
+
+/// Weicher Schatten unter den Zeilen eines Titels: Text schwarz, nach unten versetzt, weichgezeichnet.
+fn title_shadow(img: &mut RgbaImage, f: &FontArc, size: f32, lines: &[(f32, f32, &str)], scale: f32) {
+    let (w, h) = (img.width() as usize, img.height() as usize);
+    let (off, radius) = shadow_params(scale);
+    let mut mask = vec![0.0f32; w * h];
+    for (x, y, line) in lines {
+        coverage(f, size, *x, *y + off as f32, line, |px, py, cov| {
+            if px >= 0 && py >= 0 && (px as usize) < w && (py as usize) < h {
+                let m = &mut mask[py as usize * w + px as usize];
+                *m = (*m + cov).min(1.0);
+            }
+        });
+    }
+    for _ in 0..3 {
+        box_blur(&mut mask, w, h, radius);
+    }
+    for (i, a) in mask.iter().enumerate() {
+        let a = (a * SHADOW_GAIN).min(1.0);
+        if a > 0.0 {
+            blend(img.get_pixel_mut((i % w) as u32, (i / w) as u32), [0, 0, 0], a);
         }
     }
 }
@@ -164,7 +246,8 @@ fn blend(p: &mut Rgba<u8>, c: [u8; 3], a: f32) {
     p[3] = (out_a * 255.0).round().min(255.0) as u8;
 }
 
-/// Titel einer Taste wie in der Elgato-App (Größe relativ zu 72 px, Umriss, Position, Unterstreichung).
+/// Titel einer Taste wie in der Elgato-App (Größe relativ zu 72 px, Schatten bzw. Umriss, Position,
+/// Unterstreichung).
 pub fn draw_title(img: &mut RgbaImage, title: &str, state: &Map<String, Value>, scale: f32) {
     if title.is_empty() {
         return;
@@ -180,8 +263,11 @@ pub fn draw_title(img: &mut RgbaImage, title: &str, state: &Map<String, Value>, 
         size = (size * (w - 4.0) / widest).floor().max(7.0);
     }
     let color = parse_color(state.get("TitleColor").and_then(Value::as_str), [255, 255, 255]);
-    let outline = state.get("OutlineThickness").and_then(Value::as_f64).unwrap_or(2.0) as f32;
-    let stroke = (outline * scale * 0.6).round() as i32;
+    let effect = title_effect(state);
+    let stroke = match effect {
+        TitleEffect::Outline(o) => (o * scale * 0.6).round() as i32,
+        TitleEffect::Shadow => 0,
+    };
     let line_h = (size * 1.15).floor();
     let total = line_h * lines.len() as f32;
     let pad = (4.0 * scale).floor();
@@ -192,6 +278,11 @@ pub fn draw_title(img: &mut RgbaImage, title: &str, state: &Map<String, Value>, 
         _ => h - total - pad,
     };
     let underline = state.get("FontUnderline").and_then(Value::as_bool).unwrap_or(false);
+    if effect == TitleEffect::Shadow {
+        let placed: Vec<(f32, f32, &str)> = lines.iter().enumerate().filter(|(_, l)| !l.is_empty())
+            .map(|(i, l)| ((w - text_width(&f, size, l)) / 2.0, y + i as f32 * line_h, *l)).collect();
+        title_shadow(img, &f, size, &placed, scale);
+    }
     for line in lines {
         if !line.is_empty() {
             let tw = text_width(&f, size, line);
@@ -633,6 +724,35 @@ mod tests {
         let y = (72.0 * 0.88 + 1.0) as u32;
         assert_eq!(img.get_pixel(15, y).0[..3], ACCENT);
         assert_ne!(img.get_pixel(55, y).0[..3], ACCENT);
+    }
+
+    #[test]
+    fn default_title_has_soft_shadow() {
+        let st = |o: Option<f64>| {
+            let mut m = Map::new();
+            if let Some(o) = o {
+                m.insert("OutlineThickness".into(), Value::from(o));
+            }
+            m
+        };
+        // keine Angabe und die Standard-Dicke 2: Schatten; alles andere bleibt ein Umriss
+        assert_eq!(title_effect(&st(None)), TitleEffect::Shadow);
+        assert_eq!(title_effect(&st(Some(2.0))), TitleEffect::Shadow);
+        assert_eq!(title_effect(&st(Some(0.0))), TitleEffect::Outline(0.0));
+        assert_eq!(title_effect(&st(Some(3.0))), TitleEffect::Outline(3.0));
+        assert_eq!(shadow_params(1.0), (1, 1));
+        assert_eq!(shadow_params(2.0), (2, 3));
+        if font(Style::Regular).is_none() {
+            return;
+        }
+        // auf weißem Grund: mit Schatten dunkle Pixel unter dem Titel, ohne Umriss (0) keine
+        let darkest = |o: Option<f64>| {
+            let mut img = RgbaImage::from_pixel(72, 72, Rgba([255, 255, 255, 255]));
+            draw_title(&mut img, "Mute", &st(o), 1.0);
+            img.pixels().map(|p| p[0]).min().unwrap_or(255)
+        };
+        assert!(darkest(None) < 120);
+        assert_eq!(darkest(Some(0.0)), 255);
     }
 
     #[test]

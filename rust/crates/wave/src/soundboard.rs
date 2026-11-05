@@ -3,18 +3,25 @@
 //! im Datenordner (`sounds/`), Wiedergabe über die Mix-Sinks von FreeWave mit `pw-play --target <Sink>`
 //! oder `paplay --device=<Sink>` als Kindprozess. Stopp beendet den Prozess, eine Schleife startet ihn neu.
 //!
+//! Zuschnitt (`"start"`/`"end"` in Sekunden, optional): pw-play und paplay können nicht springen, daher
+//! wird für einen zugeschnittenen WAV-Klang eine gekürzte Kopie geschrieben (`<state>/soundboard-trim/`,
+//! derselbe Dateiname wie in der Python-Version) und diese gespielt; andere Formate spielen ungekürzt.
+//! WAV wird von Hand gelesen und geschrieben (PCM 8/16/24/32 Bit und Float, auch WAVE_FORMAT_EXTENSIBLE).
+//!
 //! Gespeichert wird:
 //! ```json
 //! "soundboard": [{"id": "…", "name": "Applaus", "file": "/…/sounds/applaus.wav", "color": "#ec4899",
-//!                 "volume": 100, "loop": false}],
+//!                 "volume": 100, "loop": false, "start": 0.25, "end": 3.6}],
 //! "soundboard_play": "stream",      // "" = nicht ausgewählt, Mix-id oder "all" = alle Mixe
 //! "soundboard_monitor": "monitor",  // "" = nicht ausgewählt oder Mix-id
 //! "soundboard_volume": 80           // 0 … 100
 //! ```
 
 use std::collections::HashMap;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Map, Value};
@@ -32,9 +39,15 @@ pub const DEFAULT_VOLUME: i64 = 80;
 pub const EXTENSIONS: [&str; 6] = ["wav", "mp3", "ogg", "oga", "flac", "opus"];
 /// Farben neuer Klänge (reihum)
 pub const COLORS: [&str; 8] = ["#3d9bff", "#ec4899", "#22c55e", "#f59e0b", "#a855f7", "#36c5e8", "#f0484f", "#64748b"];
+/// FreeDeck-Taste „Soundboard: Klang abspielen“
+pub const ACTION_UUID: &str = "com.lindeck.freewave.soundboard";
+/// Balken der Wellenform-Vorschau
+pub const PEAKS: usize = 120;
+/// kürzester zugeschnittener Klang (Sekunden)
+pub const MIN_LENGTH: f64 = 0.05;
 
 /// Ein Klang auf dem Soundboard.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Sound {
     pub id: String,
     pub name: String,
@@ -43,6 +56,15 @@ pub struct Sound {
     /// 0 … 100
     pub volume: i64,
     pub looping: bool,
+    /// Zuschnitt: Anfang (> 0) und Ende in Sekunden; None = vom Anfang bzw. bis zum Ende
+    pub start: Option<f64>,
+    pub end: Option<f64>,
+}
+
+/// Zeitpunkt in Sekunden (≥ 0, auf ms gerundet) oder None.
+fn secs(v: Option<&Value>) -> Option<f64> {
+    let v = v?.as_f64()?;
+    (v.is_finite() && (0.0..1e7).contains(&v)).then(|| (v * 1000.0).round() / 1000.0)
 }
 
 impl Sound {
@@ -60,17 +82,32 @@ impl Sound {
             color: s("color"),
             volume: o.get("volume").and_then(Value::as_f64).map(|v| v.round() as i64).unwrap_or(100).clamp(0, 100),
             looping: o.get("loop").is_some_and(crate::mixer::truthy),
-        })
+            ..Default::default()
+        }.with_trim(secs(o.get("start")), secs(o.get("end"))))
+    }
+
+    /// Zuschnitt setzen (wie `normalize` in Python: Anfang nur > 0, Ende nur nach dem Anfang).
+    pub fn with_trim(mut self, start: Option<f64>, end: Option<f64>) -> Self {
+        self.start = start.filter(|s| *s > 0.0);
+        self.end = end.filter(|e| e - self.start.unwrap_or(0.0) >= MIN_LENGTH);
+        self
     }
 
     pub fn to_value(&self) -> Value {
-        json!({"id": self.id, "name": self.name, "file": self.file, "color": self.color, "volume": self.volume,
-               "loop": self.looping})
+        let mut v = json!({"id": self.id, "name": self.name, "file": self.file, "color": self.color,
+                           "volume": self.volume, "loop": self.looping});
+        if let Some(s) = self.start {
+            v["start"] = json!(s);
+        }
+        if let Some(e) = self.end {
+            v["end"] = json!(e);
+        }
+        v
     }
 }
 
 /// Alle Einstellungen des Soundboards.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Board {
     pub sounds: Vec<Sound>,
     pub play: String,
@@ -155,7 +192,7 @@ pub fn new_sound(id: &str, file: &Path, existing: &[Sound]) -> Sound {
         file: file.to_string_lossy().into_owned(),
         color: COLORS[existing.len() % COLORS.len()].to_string(),
         volume: 100,
-        looping: false,
+        ..Default::default()
     }
 }
 
@@ -163,6 +200,7 @@ pub fn new_sound(id: &str, file: &Path, existing: &[Sound]) -> Sound {
 pub fn remove(board: &mut Board, id: &str, dir: &Path) -> Option<Sound> {
     let pos = board.sounds.iter().position(|s| s.id == id)?;
     let gone = board.sounds.remove(pos);
+    drop_trimmed(&trim_dir(), &gone.id, None);
     let f = Path::new(&gone.file);
     if f.parent() == Some(dir) && !board.sounds.iter().any(|s| s.file == gone.file) {
         let _ = std::fs::remove_file(f);
@@ -243,7 +281,360 @@ pub fn commands(sound: &Sound, board_volume: i64, targets: &[String], have: impl
     let vol = effective_volume(sound.volume, board_volume);
     let none = [String::new()];
     let list: &[String] = if targets.is_empty() { &none } else { targets };
-    list.iter().filter_map(|t| player_cmd(&sound.file, vol, t, &have)).collect()
+    let file = match playable(sound) {
+        Ok(f) => f,
+        Err(e) => {
+            log::warn!("{}: {e}", sound.file);
+            sound.file.clone()
+        }
+    };
+    list.iter().filter_map(|t| player_cmd(&file, vol, t, &have)).collect()
+}
+
+// ------------------------------------------------------------------ WAV: Wellenform und Zuschnitt
+
+/// Kopf einer WAV-Datei (nur PCM und Float).
+#[derive(Debug, Clone)]
+pub struct WavHead {
+    pub rate: u32,
+    pub channels: u16,
+    pub bits: u16,
+    pub float: bool,
+    /// Lage und Länge der Daten in der Datei
+    pub data_off: u64,
+    pub data_len: u64,
+    /// fmt-Abschnitt unverändert (für die gekürzte Kopie)
+    fmt: Vec<u8>,
+}
+
+impl WavHead {
+    pub fn frame_bytes(&self) -> u64 {
+        (self.bits as u64 / 8).max(1) * self.channels.max(1) as u64
+    }
+
+    pub fn frames(&self) -> u64 {
+        self.data_len / self.frame_bytes()
+    }
+
+    pub fn duration(&self) -> f64 {
+        self.frames() as f64 / self.rate.max(1) as f64
+    }
+}
+
+fn bad(msg: &str) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidData, msg.to_string())
+}
+
+/// Kopf lesen: RIFF/WAVE, fmt (Format 1 = PCM, 3 = Float, 0xFFFE mit einem von beiden), data.
+pub fn read_head(f: &mut std::fs::File) -> std::io::Result<WavHead> {
+    let size = f.metadata()?.len();
+    let mut b = [0u8; 12];
+    f.read_exact(&mut b)?;
+    if &b[0..4] != b"RIFF" || &b[8..12] != b"WAVE" {
+        return Err(bad("no WAV file"));
+    }
+    let mut fmt: Option<Vec<u8>> = None;
+    let mut pos = 12u64;
+    loop {
+        let mut h = [0u8; 8];
+        f.seek(SeekFrom::Start(pos))?;
+        if f.read_exact(&mut h).is_err() {
+            return Err(bad("no data chunk"));
+        }
+        let len = u32::from_le_bytes([h[4], h[5], h[6], h[7]]) as u64;
+        let body = pos + 8;
+        if &h[0..4] == b"fmt " {
+            let mut v = vec![0u8; len.min(1024) as usize];
+            f.read_exact(&mut v)?;
+            fmt = Some(v);
+        } else if &h[0..4] == b"data" {
+            let fmt = fmt.ok_or_else(|| bad("data before fmt"))?;
+            if fmt.len() < 16 {
+                return Err(bad("short fmt chunk"));
+            }
+            let u16le = |i: usize| u16::from_le_bytes([fmt[i], fmt[i + 1]]);
+            let mut tag = u16le(0);
+            if tag == 0xFFFE && fmt.len() >= 26 {
+                tag = u16le(24); // WAVE_FORMAT_EXTENSIBLE: Unterformat
+            }
+            let bits = u16le(14);
+            let float = tag == 3;
+            if !(tag == 1 && matches!(bits, 8 | 16 | 24 | 32) || float && matches!(bits, 32 | 64)) {
+                return Err(bad("unsupported WAV format"));
+            }
+            let rate = u32::from_le_bytes([fmt[4], fmt[5], fmt[6], fmt[7]]);
+            let channels = u16le(2);
+            if rate == 0 || channels == 0 {
+                return Err(bad("bad WAV header"));
+            }
+            // Länge 0 oder zu groß (Aufnahme abgebrochen): bis zum Dateiende
+            let avail = size.saturating_sub(body);
+            let data_len = if len == 0 || len > avail { avail } else { len };
+            return Ok(WavHead { rate, channels, bits, float, data_off: body, data_len, fmt });
+        }
+        pos = body + len + (len & 1);
+        if pos >= size {
+            return Err(bad("no data chunk"));
+        }
+    }
+}
+
+/// Größter Ausschlag (0 … 1) in einem Block Samples.
+fn peak(data: &[u8], bits: u16, float: bool) -> f64 {
+    let w = (bits / 8) as usize;
+    let mut top = 0f64;
+    for s in data.chunks_exact(w) {
+        let v = match (w, float) {
+            (1, _) => (s[0] as f64 - 128.0) / 128.0,
+            (2, _) => i16::from_le_bytes([s[0], s[1]]) as f64 / 32768.0,
+            (3, _) => (i32::from_le_bytes([0, s[0], s[1], s[2]]) >> 8) as f64 / 8_388_608.0,
+            (4, false) => i32::from_le_bytes([s[0], s[1], s[2], s[3]]) as f64 / 2_147_483_648.0,
+            (4, true) => f32::from_le_bytes([s[0], s[1], s[2], s[3]]) as f64,
+            (8, true) => f64::from_le_bytes([s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7]]),
+            _ => 0.0,
+        };
+        if v.is_finite() {
+            top = top.max(v.abs());
+        }
+    }
+    top.min(1.0)
+}
+
+/// Länge und Wellenform eines Klangs.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WavInfo {
+    /// Sekunden
+    pub duration: f64,
+    /// Höchstwerte je Abschnitt, 0 … 1 (lautester Abschnitt = 1)
+    pub peaks: Vec<f32>,
+}
+
+fn read_info(path: &Path, n: usize) -> std::io::Result<WavInfo> {
+    let mut f = std::fs::File::open(path)?;
+    let h = read_head(&mut f)?;
+    let frames = h.frames();
+    let fb = h.frame_bytes();
+    // je Abschnitt höchstens ~64 KB lesen: große Dateien nur stichprobenweise
+    let take = (frames / n as u64).max(1).min((64 << 10) / fb).max(1);
+    let mut peaks = Vec::with_capacity(n);
+    let mut buf = vec![0u8; (take * fb) as usize];
+    for i in 0..if frames > 0 { n } else { 0 } {
+        let at = (i as u64 * frames / n as u64).min(frames - 1);
+        f.seek(SeekFrom::Start(h.data_off + at * fb))?;
+        let want = ((frames - at).min(take) * fb) as usize;
+        f.read_exact(&mut buf[..want])?;
+        peaks.push(peak(&buf[..want], h.bits, h.float));
+    }
+    let top = peaks.iter().cloned().fold(0.0, f64::max);
+    Ok(WavInfo {
+        duration: h.duration(),
+        peaks: peaks.into_iter().map(|p| if top > 0.0 { (p / top) as f32 } else { 0.0 }).collect(),
+    })
+}
+
+type InfoKey = (String, u128, u64, usize);
+static INFO: Mutex<Option<HashMap<InfoKey, Option<Arc<WavInfo>>>>> = Mutex::new(None);
+
+fn stat(path: &Path) -> Option<(u128, u64)> {
+    let m = std::fs::metadata(path).ok()?;
+    let t = m.modified().ok()?.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    Some((t, m.len()))
+}
+
+fn is_wav(path: &str) -> bool {
+    Path::new(path).extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("wav"))
+}
+
+/// Länge und Wellenform (n Werte) einer WAV-Datei; None für andere Formate oder bei Fehlern.
+/// Zwischengespeichert je Pfad und Änderungszeit.
+pub fn analyze(path: &str, n: usize) -> Option<Arc<WavInfo>> {
+    if !is_wav(path) {
+        return None;
+    }
+    let (mtime, size) = stat(Path::new(path))?;
+    let key = (path.to_string(), mtime, size, n);
+    if let Some(hit) = INFO.lock().unwrap().as_ref().and_then(|m| m.get(&key)) {
+        return hit.clone();
+    }
+    let info = read_info(Path::new(path), n.max(1)).map_err(|e| log::debug!("{path}: {e}")).ok().map(Arc::new);
+    let mut g = INFO.lock().unwrap();
+    let m = g.get_or_insert_with(HashMap::new);
+    if m.len() > 256 {
+        m.clear();
+    }
+    m.insert(key, info.clone());
+    info
+}
+
+/// (Anfang, Ende) in Sekunden, auf die Länge `duration` begrenzt.
+pub fn trim_range(sound: &Sound, duration: f64) -> (f64, f64) {
+    let start = sound.start.unwrap_or(0.0).clamp(0.0, duration);
+    let end = sound.end.map(|e| e.clamp(0.0, duration)).unwrap_or(duration);
+    if end - start < MIN_LENGTH {
+        return (0.0, duration);
+    }
+    (start, end)
+}
+
+/// Wie lange der Klang (zugeschnitten) spielt, in Sekunden.
+pub fn play_length(sound: &Sound, info: &WavInfo) -> f64 {
+    let (a, b) = trim_range(sound, info.duration);
+    b - a
+}
+
+/// Ausschnitt `start` … `end` (Sekunden) einer WAV-Datei nach `dst` schreiben; gibt die Zahl der Frames zurück.
+pub fn write_trimmed(src: &Path, dst: &Path, start: f64, end: f64) -> std::io::Result<u64> {
+    let mut f = std::fs::File::open(src)?;
+    let h = read_head(&mut f)?;
+    let frames = h.frames();
+    let a = ((start * h.rate as f64).round().max(0.0) as u64).min(frames);
+    let b = ((end * h.rate as f64).round().max(0.0) as u64).min(frames).max(a);
+    let fb = h.frame_bytes();
+    let mut data = vec![0u8; ((b - a) * fb) as usize];
+    f.seek(SeekFrom::Start(h.data_off + a * fb))?;
+    f.read_exact(&mut data)?;
+    let fmt_len = h.fmt.len() as u32;
+    let pad = |n: u32| n & 1;
+    let riff = 4 + 8 + fmt_len + pad(fmt_len) + 8 + data.len() as u32 + pad(data.len() as u32);
+    let tmp = dst.with_extension("wav.tmp");
+    {
+        let mut o = std::io::BufWriter::new(std::fs::File::create(&tmp)?);
+        o.write_all(b"RIFF")?;
+        o.write_all(&riff.to_le_bytes())?;
+        o.write_all(b"WAVEfmt ")?;
+        o.write_all(&fmt_len.to_le_bytes())?;
+        o.write_all(&h.fmt)?;
+        if pad(fmt_len) == 1 {
+            o.write_all(&[0])?;
+        }
+        o.write_all(b"data")?;
+        o.write_all(&(data.len() as u32).to_le_bytes())?;
+        o.write_all(&data)?;
+        if pad(data.len() as u32) == 1 {
+            o.write_all(&[0])?;
+        }
+        o.flush()?;
+    }
+    std::fs::rename(&tmp, dst)?;
+    Ok(b - a)
+}
+
+/// Ordner für die zugeschnittenen Kopien.
+pub fn trim_dir() -> PathBuf {
+    freestream_core::paths::state_dir().join("soundboard-trim")
+}
+
+/// FNV-1a (64 Bit) – derselbe Dateiname der Kopie wie in der Python-Version.
+pub fn fnv(text: &str) -> String {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in text.bytes() {
+        h = (h ^ b as u64).wrapping_mul(0x100000001b3);
+    }
+    format!("{h:016x}")
+}
+
+fn safe_id(id: &str) -> String {
+    let s: String = id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
+    if s.is_empty() { "sound".into() } else { s }
+}
+
+/// Zugeschnittene Kopien eines Klangs löschen (außer `keep`).
+fn drop_trimmed(dir: &Path, id: &str, keep: Option<&str>) {
+    let prefix = format!("{}-", safe_id(id));
+    for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        if name.starts_with(&prefix) && name.ends_with(".wav") && Some(name.as_str()) != keep {
+            let _ = std::fs::remove_file(e.path());
+        }
+    }
+}
+
+/// Datei, die für den Klang gespielt wird: bei einem zugeschnittenen WAV die gekürzte Kopie.
+pub fn playable(sound: &Sound) -> std::io::Result<String> {
+    playable_in(sound, &trim_dir())
+}
+
+/// [`playable`] mit den Kopien im Ordner `dir`.
+pub fn playable_in(sound: &Sound, dir: &Path) -> std::io::Result<String> {
+    if sound.start.is_none() && sound.end.is_none() {
+        return Ok(sound.file.clone());
+    }
+    let Some(info) = analyze(&sound.file, PEAKS) else {
+        return Ok(sound.file.clone()); // Trimmen geht nur mit WAV: ungekürzt spielen
+    };
+    let (start, end) = trim_range(sound, info.duration);
+    if start <= 0.0 && end >= info.duration {
+        return Ok(sound.file.clone());
+    }
+    let (mtime, size) = stat(Path::new(&sound.file)).ok_or_else(|| bad("file not found"))?;
+    let key = format!("{}|{mtime}|{size}|{start:.3}|{end:.3}", sound.file);
+    let name = format!("{}-{}.wav", safe_id(&sound.id), fnv(&key));
+    let dst = dir.join(&name);
+    if !dst.is_file() {
+        std::fs::create_dir_all(dir)?;
+        drop_trimmed(dir, &sound.id, Some(&name)); // ältere Zuschnitte desselben Klangs
+        write_trimmed(Path::new(&sound.file), &dst, start, end)?;
+    }
+    Ok(dst.to_string_lossy().into_owned())
+}
+
+/// „0:07“ (gerundet; ein kurzer Klang zeigt mindestens 0:01).
+pub fn fmt_time(sec: f64) -> String {
+    let mut s = sec.max(0.0).round() as u64;
+    if sec > 0.0 {
+        s = s.max(1);
+    }
+    format!("{}:{:02}", s / 60, s % 60)
+}
+
+/// „0:03.65“ – Felder des Zuschnitts (`digits` Nachkommastellen).
+pub fn fmt_precise(sec: f64, digits: u32) -> String {
+    let k = 10u64.pow(digits);
+    let cs = (sec.max(0.0) * k as f64).round() as u64;
+    let (m, rest) = (cs / (60 * k), cs % (60 * k));
+    if digits == 0 {
+        return format!("{m}:{rest:02}");
+    }
+    format!("{m}:{:02}.{:0w$}", rest / k, rest % k, w = digits as usize)
+}
+
+/// „1:02.5“, „62,5“ oder „0:00.25“ -> Sekunden.
+pub fn parse_time(text: &str) -> Option<f64> {
+    let t = text.trim().replace(',', ".");
+    if t.is_empty() {
+        return None;
+    }
+    let v = match t.rsplit_once(':') {
+        Some((m, s)) => (if m.is_empty() { 0 } else { m.parse::<u64>().ok()? }) as f64 * 60.0 + s.parse::<f64>().ok()?,
+        None => t.parse::<f64>().ok()?,
+    };
+    (v.is_finite() && v >= 0.0).then_some(v)
+}
+
+// ------------------------------------------------------------------ Tasten auf dem Deck
+
+/// Erste FreeDeck-Taste „Soundboard: Klang abspielen“ je Klang-id: (Seite, Taste), beide ab 1, die
+/// Tasten zeilenweise wie auf dem Gerät; Profile in der Reihenfolge des Profilordners.
+pub fn deck_keys(store_root: Option<&Path>) -> HashMap<String, (usize, usize)> {
+    let store = freestream_core::profiles::ProfileStore::new(store_root);
+    let mut out = HashMap::new();
+    for p in store.profiles.values() {
+        let cols = p.geometry().cols.max(1) as usize;
+        for (n, pg) in p.pages().iter().enumerate() {
+            let mut keys: Vec<_> = pg.keypad.iter().collect();
+            keys.sort_by_key(|((c, r), _)| (*r, *c));
+            for ((c, r), a) in keys {
+                if a.get("UUID").and_then(Value::as_str) != Some(ACTION_UUID) {
+                    continue;
+                }
+                let sid = a.get("Settings").and_then(|s| s.get("sound")).and_then(Value::as_str).unwrap_or("");
+                if !sid.is_empty() && !out.contains_key(sid) {
+                    out.insert(sid.to_string(), (n + 1, *r as usize * cols + *c as usize + 1));
+                }
+            }
+        }
+    }
+    out
 }
 
 struct Proc {
@@ -334,6 +725,11 @@ impl Player {
         self.playing.contains_key(id)
     }
 
+    /// Zeit seit dem Start (bei einer Schleife: seit dem letzten Neubeginn); None, wenn er nicht spielt.
+    pub fn elapsed(&self, id: &str) -> Option<Duration> {
+        self.playing.get(id)?.procs.first().map(|p| p.started.elapsed())
+    }
+
     /// ids der laufenden Klänge.
     pub fn playing(&self) -> Vec<String> {
         let mut v: Vec<String> = self.playing.keys().cloned().collect();
@@ -362,7 +758,7 @@ mod tests {
         let b = Board::from_conf(conf.as_object().unwrap());
         assert_eq!(b.sounds.len(), 2);
         assert_eq!(b.sounds[0], Sound { id: "a".into(), name: "Applause".into(), file: "/x/a.wav".into(),
-                                        color: "#ff0000".into(), volume: 70, looping: true });
+                                        color: "#ff0000".into(), volume: 70, looping: true, ..Default::default() });
         assert_eq!((b.sounds[1].volume, b.sounds[1].looping), (100, false));
         assert_eq!((b.play.as_str(), b.monitor.as_str(), b.volume), ("all", "monitor", 100));
         let mut out = Map::new();
@@ -467,5 +863,161 @@ mod tests {
         assert!(!p.is_playing("d"));
         p.stop_all();
         assert!(p.playing().is_empty());
+    }
+
+    /// WAV (PCM 16 Bit) mit `frames` Frames schreiben: lauter werdender Sägezahn.
+    fn wav16(path: &Path, rate: u32, channels: u16, frames: u32) {
+        let mut d = Vec::new();
+        for i in 0..frames {
+            let v = ((i % 100) as i32 * 300 - 15000) * i as i32 / frames.max(1) as i32;
+            for _ in 0..channels {
+                d.extend_from_slice(&(v as i16).to_le_bytes());
+            }
+        }
+        let mut o = Vec::new();
+        o.extend_from_slice(b"RIFF");
+        o.extend_from_slice(&(36 + 8 + d.len() as u32).to_le_bytes()); // mit einem LIST-Abschnitt davor
+        o.extend_from_slice(b"WAVEfmt ");
+        o.extend_from_slice(&16u32.to_le_bytes());
+        o.extend_from_slice(&1u16.to_le_bytes());
+        o.extend_from_slice(&channels.to_le_bytes());
+        o.extend_from_slice(&rate.to_le_bytes());
+        o.extend_from_slice(&(rate * channels as u32 * 2).to_le_bytes());
+        o.extend_from_slice(&(channels * 2).to_le_bytes());
+        o.extend_from_slice(&16u16.to_le_bytes());
+        o.extend_from_slice(b"LIST\x03\0\0\0abc\0"); // ungerade Länge: Füllbyte
+        o.extend_from_slice(b"data");
+        o.extend_from_slice(&(d.len() as u32).to_le_bytes());
+        o.extend_from_slice(&d);
+        std::fs::write(path, o).unwrap();
+    }
+
+    #[test]
+    fn trim_round_trip_in_config() {
+        let conf = json!({"soundboard": [
+            {"id": "a", "file": "/x/a.wav", "start": 0.25, "end": 3.65},
+            {"id": "b", "file": "/x/b.wav", "start": 0, "end": -1},
+            {"id": "c", "file": "/x/c.wav", "start": 2.0, "end": 2.01},
+            {"id": "d", "file": "/x/d.wav", "start": "x", "end": 1.23456}]});
+        let b = Board::from_conf(conf.as_object().unwrap());
+        assert_eq!((b.sounds[0].start, b.sounds[0].end), (Some(0.25), Some(3.65)));
+        assert_eq!((b.sounds[1].start, b.sounds[1].end), (None, None));
+        assert_eq!((b.sounds[2].start, b.sounds[2].end), (Some(2.0), None)); // Ende vor dem Anfang
+        assert_eq!((b.sounds[3].start, b.sounds[3].end), (None, Some(1.235)));
+        let mut out = Map::new();
+        b.write(&mut out);
+        assert_eq!(out["soundboard"][0]["start"], json!(0.25));
+        assert_eq!(out["soundboard"][0]["end"], json!(3.65));
+        assert!(out["soundboard"][1].get("start").is_none() && out["soundboard"][1].get("end").is_none());
+        assert_eq!(Board::from_conf(&out), b);
+        // Bereich, Länge, Zeiten
+        let s = &b.sounds[0];
+        assert_eq!(trim_range(s, 4.0), (0.25, 3.65));
+        assert_eq!(trim_range(s, 2.0), (0.25, 2.0));
+        assert_eq!(trim_range(&Sound::default(), 4.0), (0.0, 4.0));
+        assert!((play_length(s, &WavInfo { duration: 4.0, peaks: vec![] }) - 3.4).abs() < 1e-9);
+        assert_eq!((fmt_time(7.2), fmt_time(0.3), fmt_time(0.0), fmt_time(65.0)), ("0:07".into(), "0:01".into(),
+                   "0:00".into(), "1:05".into()));
+        assert_eq!((fmt_precise(3.65, 2), fmt_precise(0.25, 2), fmt_precise(4.0, 1), fmt_precise(61.999, 2)),
+                   ("0:03.65".into(), "0:00.25".into(), "0:04.0".into(), "1:02.00".into()));
+        assert_eq!(parse_time("0:03.65"), Some(3.65));
+        assert_eq!(parse_time("62,5"), Some(62.5));
+        assert_eq!(parse_time("1:02"), Some(62.0));
+        assert_eq!((parse_time(""), parse_time("x"), parse_time("-1")), (None, None, None));
+        assert_eq!(fnv("abc"), "e71fa2190541574b"); // wie soundboard._fnv in Python
+    }
+
+    #[test]
+    fn reads_peaks_and_writes_trimmed_wav() {
+        let dir = tempfile::tempdir().unwrap();
+        let f = dir.path().join("a.wav");
+        wav16(&f, 8000, 2, 16000); // 2 s Stereo
+        let mut file = std::fs::File::open(&f).unwrap();
+        let h = read_head(&mut file).unwrap();
+        assert_eq!((h.rate, h.channels, h.bits, h.frames()), (8000, 2, 16, 16000));
+        let info = analyze(f.to_str().unwrap(), 50).unwrap();
+        assert!((info.duration - 2.0).abs() < 1e-9);
+        assert_eq!(info.peaks.len(), 50);
+        assert!(info.peaks.iter().all(|p| (0.0..=1.0).contains(p)));
+        assert!(info.peaks[0] < 0.1 && info.peaks[49] > 0.9); // wird lauter
+        assert!(analyze("/nonexistent/x.wav", 50).is_none());
+        let mp3 = dir.path().join("x.mp3");
+        std::fs::write(&mp3, b"ID3").unwrap();
+        assert!(analyze(mp3.to_str().unwrap(), 50).is_none()); // kein WAV: keine Wellenform
+        // Ausschnitt 0.25 … 1.5 s = 10000 Frames
+        let out = dir.path().join("cut.wav");
+        assert_eq!(write_trimmed(&f, &out, 0.25, 1.5).unwrap(), 10000);
+        let mut o = std::fs::File::open(&out).unwrap();
+        let ho = read_head(&mut o).unwrap();
+        assert_eq!((ho.rate, ho.channels, ho.frames()), (8000, 2, 10000));
+        let src = std::fs::read(&f).unwrap();
+        let cut = std::fs::read(&out).unwrap();
+        let a = h.data_off as usize + 2000 * 4;
+        assert_eq!(&cut[ho.data_off as usize..], &src[a..a + 40000]);
+        assert_eq!(u32::from_le_bytes(cut[4..8].try_into().unwrap()) as usize, cut.len() - 8);
+        // über das Ende hinaus: begrenzt
+        assert_eq!(write_trimmed(&f, &out, 1.5, 9.0).unwrap(), 4000);
+        // kaputte Datei
+        std::fs::write(dir.path().join("bad.wav"), b"RIFF0000WAVEjunk").unwrap();
+        assert!(read_head(&mut std::fs::File::open(dir.path().join("bad.wav")).unwrap()).is_err());
+    }
+
+    #[test]
+    fn playable_writes_trimmed_copy() {
+        let dir = tempfile::tempdir().unwrap();
+        let td = dir.path().join("trim");
+        let f = dir.path().join("a.wav");
+        wav16(&f, 8000, 1, 8000);
+        let mut s = Sound { id: "x1".into(), file: f.to_string_lossy().into_owned(), volume: 100, ..Default::default() };
+        assert_eq!(playable_in(&s, &td).unwrap(), s.file); // nicht zugeschnitten: die Datei selbst
+        s.start = Some(0.5);
+        let p = playable_in(&s, &td).unwrap();
+        assert!(p.starts_with(td.to_str().unwrap()) && p.contains("/x1-"));
+        assert_eq!(read_head(&mut std::fs::File::open(&p).unwrap()).unwrap().frames(), 4000);
+        s.end = Some(0.75);
+        let p2 = playable_in(&s, &td).unwrap();
+        assert!(p2 != p && !Path::new(&p).exists()); // alter Zuschnitt weg
+        // anderes Format: ungekürzt
+        let mut o = s.clone();
+        o.file = dir.path().join("a.ogg").to_string_lossy().into_owned();
+        assert_eq!(playable_in(&o, &td).unwrap(), o.file);
+        drop_trimmed(&td, "x1", None);
+        assert!(!Path::new(&p2).exists());
+    }
+
+    #[test]
+    fn finds_deck_keys() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("P1.sdProfile");
+        let pages = ["11111111-0000-4000-8000-000000000001", "11111111-0000-4000-8000-000000000002"];
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("manifest.json"), json!({"Device": {"Model": "20GBA9901"}, "Name": "A",
+            "Pages": {"Default": pages[0], "Pages": pages}}).to_string()).unwrap();
+        let key = |sid: &str| json!({"UUID": ACTION_UUID, "Settings": {"sound": sid}});
+        let acts = [json!({"2,1": key("a"), "1,0": key("b"), "3,2": {"UUID": "com.other"}}),
+                    json!({"0,0": key("a"), "4,0": key("c"), "0,1": key("")})];
+        for (pg, a) in pages.iter().zip(acts) {
+            let d = root.join("Profiles").join(pg.to_uppercase());
+            std::fs::create_dir_all(&d).unwrap();
+            std::fs::write(d.join("manifest.json"), json!({"Controllers": [{"Type": "Keypad", "Actions": a}]})
+                .to_string()).unwrap();
+        }
+        let k = deck_keys(Some(dir.path()));
+        assert_eq!(k.get("a"), Some(&(1, 8))); // Zeile 1, Spalte 2 bei 5 Spalten
+        assert_eq!(k.get("b"), Some(&(1, 2)));
+        assert_eq!(k.get("c"), Some(&(2, 5)));
+        assert_eq!(k.len(), 3);
+        assert!(deck_keys(Some(&dir.path().join("none"))).is_empty());
+    }
+
+    #[test]
+    fn reports_elapsed_time() {
+        let mut p = Player::new();
+        assert!(p.elapsed("a").is_none());
+        assert!(p.play("a", vec![vec!["sleep".into(), "5".into()]], false));
+        std::thread::sleep(Duration::from_millis(50));
+        assert!(p.elapsed("a").unwrap() >= Duration::from_millis(50));
+        p.stop_all();
+        assert!(p.elapsed("a").is_none());
     }
 }

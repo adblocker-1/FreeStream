@@ -246,9 +246,9 @@ def test_freewave_mix_columns_fit_window(env, pactl):
         fader = win.strips["system"]["monitor"]["fader"]
         root.geometry("1700x800")
         assert _pump(root, lambda: win.mix_w > w0)
-        assert win.strips["system"]["monitor"]["fader"] is fader and int(fader["width"]) == win.mix_w - 100
-        from freestream.waveui import METER_INSET  # Pegel genau so breit wie die Spur des Reglers
-        assert int(win.strips["system"]["monitor"]["meter"]["width"]) == win.mix_w - 100 - METER_INSET
+        assert win.strips["system"]["monitor"]["fader"] is fader
+        assert int(fader["width"]) == win._cell_fader_w(win.mix_w) > 100
+        assert int(win.mix_heads["monitor"]["fader"]["width"]) == win._head_fader_w(win.mix_w)
         assert int(win.mix_heads["monitor"]["card"]["width"]) == win.mix_w
     finally:
         win.quitting = True
@@ -258,7 +258,7 @@ def test_freewave_mix_columns_fit_window(env, pactl):
 def test_freewave_setup_wizard_in_settings_and_meters(env, pactl, monkeypatch):
     """Einrichtung über Einstellungen (nicht mehr in der Seitenleiste); Live-Pegel als eigene Anzeige."""
     import tkinter as tk
-    from freestream.theme import LevelMeter
+    from freestream.theme import MeterFader
     from freestream.wavehost import WaveHost
     from freestream.waveui import WaveWindow
     host = WaveHost(_config(env, {"mixer": {"enabled": True}}))
@@ -267,8 +267,8 @@ def test_freewave_setup_wizard_in_settings_and_meters(env, pactl, monkeypatch):
     try:
         win = WaveWindow(root, host, tray=False)
         assert _pump(root, lambda: bool(win.strips))
-        assert isinstance(win.strips["system"]["monitor"]["meter"], LevelMeter)
-        assert isinstance(win.strips["system"]["master"]["meter"], LevelMeter)
+        for part in (win.strips["system"]["monitor"], win.strips["system"]["master"]):  # Pegel-Linie im Regler
+            assert isinstance(part["fader"], MeterFader) and part["meter"] is part["fader"].meter
         opened = []
         monkeypatch.setattr(win, "open_setup", lambda: opened.append(1))
         dlg = win.open_settings()

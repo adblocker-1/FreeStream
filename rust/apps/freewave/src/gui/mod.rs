@@ -624,7 +624,8 @@ impl Win {
             }
             "soundboard" => {
                 self.title.set_text(&tr!("Soundboard"));
-                self.sub.set_text("");
+                self.sub.set_text(&tr!("Click a sound to play it – click again to stop. Right-click to edit it."));
+                shown = vec!["stop"];
             }
             "mic" => {
                 self.title.set_text(&tr!("Microphone"));
@@ -656,6 +657,7 @@ impl Win {
                 "listen" => &self.listen_btn,
                 "setup" => &self.setup_btn,
                 "clear" => &self.clear_btn,
+                "stop" => &self.sb.stop_btn, // „Stop all“ des Soundboards
                 _ => &self.add_btn,
             };
             self.head_buttons.append(b);

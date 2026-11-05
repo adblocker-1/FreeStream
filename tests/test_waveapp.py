@@ -63,6 +63,10 @@ class FakePactl:
         if args[0] == "set-sink-input-mute":
             b = self.inputs[args[1]]
             b["mute"] = (not b["mute"]) if args[2] == "toggle" else args[2] == "1"
+        if args[0] == "set-sink-volume":
+            for s in self.sinks:
+                if s["name"] == args[1]:
+                    s["volume"] = int(args[2].rstrip("%"))
         if args[0] == "move-sink-input":
             self.inputs[args[1]]["sink"] = self._sink(args[2])
         if args[0] == "unload-module":

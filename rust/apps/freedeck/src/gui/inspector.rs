@@ -1,6 +1,7 @@
-//! Eigenschaften der gewählten Taste (unten im Fenster), wie in der Deck-Software: links die Taste mit
-//! „+“ (Icon-Bibliothek) und ⌄ (Symbol, Deckkraft, JSON, Löschen), rechts der Titel mit T⌄ und die Felder
-//! der Aktion aus dem Katalog; bei Multi-Aktionen darunter die enthaltenen Aktionen.
+//! Eigenschaften der gewählten Taste (unten im Fenster) als Formular: links die Taste mit „+“
+//! (Icon-Bibliothek) und ⌄ (Symbol, Deckkraft, JSON, Löschen), daneben DARSTELLUNG (Titel und Titelstil:
+//! fett, Größe, Farbe, Position, T⌄) und AKTION (Felder aus dem Katalog, Zahlen mit Einheit, darunter die
+//! Beschreibung); bei Multi-Aktionen darunter die enthaltenen Aktionen.
 
 use gtk4 as gtk;
 use gtk::prelude::*;
@@ -16,6 +17,8 @@ use super::editor::Editor;
 use super::util::{glyph_tile, label};
 
 const ALIGN: [(&str, &str); 3] = [("top", "top"), ("middle", "middle"), ("bottom", "bottom")];
+/// Schriftgrößen im Menü „12 pt“ (wie SIZES in editor.py).
+const SIZES: [i64; 13] = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32];
 const STYLES: [(&str, &str); 4] = [("", "Regular"), ("Bold", "Bold"), ("Italic", "Italic"), ("Bold Italic", "Bold italic")];
 
 fn clear(b: &gtk::Box) {
@@ -97,26 +100,24 @@ pub fn build(ed: &Rc<Editor>) {
     let uuid = data.get("UUID").and_then(Value::as_str).unwrap_or("").to_string();
     let typ = catalog::lookup(&uuid);
     let cat = typ.map(ActionType::category_label).unwrap_or_default();
-    let (glyph, color) = catalog::action_look(&uuid, typ.map(|t| t.category.id()).unwrap_or(""));
 
     // ------------------------------------------------------------------ Kopf
-    ed.insp_head.append(&glyph_tile(glyph, color, 28));
+    // „Kategorie › Aktion“, dahinter als Chip, wo die Taste sitzt; rechts Löschen
     if !cat.is_empty() {
-        let c = label(&format!("{cat}:"), &["insp-cat"]);
-        c.set_margin_start(6);
-        ed.insp_head.append(&c);
+        ed.insp_head.append(&label(&format!("{cat}  ›"), &["insp-cat"]));
     }
     ed.insp_head.append(&label(&catalog::display_name(&data), &["insp-name"]));
-    let w = label(&where_, &["muted"]);
-    w.set_margin_start(10);
+    let w = label(&where_, &["chip"]);
+    w.set_margin_start(8);
+    w.set_valign(Align::Center);
     ed.insp_head.append(&w);
+    let spacer = gtk::Box::new(Orientation::Horizontal, 0);
+    spacer.set_hexpand(true);
+    ed.insp_head.append(&spacer);
     let n_states = data.get("States").and_then(Value::as_array).map(Vec::len).unwrap_or(1).max(1);
     let state_idx = ed.state.borrow().state_idx.min(n_states - 1);
     if n_states > 1 {
         // Zustand wählen (z. B. Stummschalten an/aus)
-        let spacer = gtk::Box::new(Orientation::Horizontal, 0);
-        spacer.set_hexpand(true);
-        ed.insp_head.append(&spacer);
         let names: Vec<String> = (0..n_states).map(|i| match i {
             0 => tr!("State 1"),
             1 => tr!("State 2"),
@@ -132,6 +133,13 @@ pub fn build(ed: &Rc<Editor>) {
         });
         ed.insp_head.append(&dd);
     }
+    let trash = super::util::icon_button("user-trash-symbolic", &tr!("Delete"));
+    let e = ed.clone();
+    trash.connect_clicked(move |_| {
+        let e = e.clone();
+        glib::idle_add_local_once(move || e.edit(|doc, page| doc.remove(page, slot)));
+    });
+    ed.insp_head.append(&trash);
 
     // ------------------------------------------------- links: Taste mit + und ⌄
     let left = gtk::Box::new(Orientation::Vertical, 6);
@@ -147,7 +155,7 @@ pub fn build(ed: &Rc<Editor>) {
     };
     if let Some(img) = preview.as_ref() {
         let pic = gtk::Picture::for_paintable(&super::util::texture(img));
-        pic.set_size_request(96, 96);
+        pic.set_size_request(104, 104);
         pic.set_can_shrink(true);
         pic.add_css_class("key-preview");
         left.append(&pic);
@@ -170,26 +178,26 @@ pub fn build(ed: &Rc<Editor>) {
     left.append(&tools);
     ed.insp_body.append(&left);
 
-    // ------------------------------------------------ rechts: Titel und Felder
-    let right = gtk::Box::new(Orientation::Vertical, 6);
+    // ---------------------- rechts: Formular mit DARSTELLUNG | AKTION (Felder und Beschreibung)
+    let right = gtk::Box::new(Orientation::Horizontal, 0);
     right.set_hexpand(true);
+    right.set_homogeneous(false);
     let sc = gtk::ScrolledWindow::new();
     sc.set_hscrollbar_policy(gtk::PolicyType::Never);
     sc.set_propagate_natural_height(true);
-    sc.set_max_content_height(220);
+    sc.set_max_content_height(190);
     sc.set_child(Some(&right));
     sc.set_hexpand(true);
     ed.insp_body.append(&sc);
-    let grid = gtk::Grid::new();
-    grid.set_row_spacing(8);
-    grid.set_column_spacing(14);
-    right.append(&grid);
-    let mut row = 0;
 
-    // Titel mit T⌄
+    // Darstellung: Titel und Titelstil
     let st = state_of(&data, state_idx);
-    attach_label(&grid, row, &tr!("Title"));
-    let trow = gtk::Box::new(Orientation::Horizontal, 6);
+    let look = gtk::Box::new(Orientation::Vertical, 8);
+    look.set_hexpand(true);
+    look.append(&label(&tr!("Appearance").to_uppercase(), &["section"]));
+    let lgrid = form_grid();
+    look.append(&lgrid);
+    attach_label(&lgrid, 0, &tr!("Title"));
     let tv = gtk::TextView::new();
     tv.add_css_class("title-text");
     tv.set_hexpand(true);
@@ -200,19 +208,27 @@ pub fn build(ed: &Rc<Editor>) {
         let text = b.text(&b.start_iter(), &b.end_iter(), false).to_string();
         e.edit_soon(|doc, page| doc.update_state(page, slot, &[], state_idx, "Title", Value::String(text)));
     });
-    trow.append(&tv);
-    let tbtn = gtk::MenuButton::new();
-    tbtn.set_label("T");
-    tbtn.add_css_class("icon-btn");
-    tbtn.set_tooltip_text(Some(&tr!("Title")));
-    let tpop = gtk::Popover::new();
-    tpop.set_has_arrow(false);
-    title_settings(ed, &tpop, slot, state_idx, &st);
-    tbtn.set_popover(Some(&tpop));
-    tbtn.set_valign(Align::Start);
-    trow.append(&tbtn);
-    grid.attach(&trow, 1, row, 1, 1);
-    row += 1;
+    lgrid.attach(&tv, 1, 0, 1, 1);
+    attach_label(&lgrid, 1, &tr!("Style"));
+    lgrid.attach(&style_row(ed, slot, state_idx, &st), 1, 1, 1, 1);
+    right.append(&look);
+    let vsep = gtk::Box::new(Orientation::Vertical, 0);
+    vsep.add_css_class("sep");
+    vsep.set_margin_start(20);
+    vsep.set_margin_end(20);
+    vsep.set_margin_bottom(6);
+    right.append(&vsep);
+
+    // Aktion: Felder aus dem Katalog, darunter die Beschreibung
+    let act = gtk::Box::new(Orientation::Vertical, 8);
+    act.set_hexpand(true);
+    right.append(&act);
+    let act_cat = if cat.is_empty() { data.get("Plugin").and_then(|p| p.get("Name")).and_then(Value::as_str).unwrap_or("").to_string() } else { cat.clone() };
+    let head = if act_cat.is_empty() { tr!("ACTION") } else { format!("{} · {}", tr!("ACTION"), act_cat.to_uppercase()) };
+    act.append(&label(&head, &["section"]));
+    let grid = form_grid();
+    act.append(&grid);
+    let mut row = 0;
 
     let plugin_ok = typ.is_none() && freestream_deck::plugins::action_supported(&uuid);
     if plugin_ok && freestream_deck::plugins::has_property_inspector(&uuid) {
@@ -229,7 +245,7 @@ pub fn build(ed: &Rc<Editor>) {
         let note = label(&tr!("Action of the plugin “{plugin}” – cannot run on Linux (plugin not installed or only for Windows/macOS). Title, icon and settings are kept.",
                               plugin = data.get("Plugin").and_then(|p| p.get("Name")).and_then(Value::as_str).unwrap_or(uuid.rsplit_once('.').map(|x| x.0).unwrap_or(&uuid))), &["muted"]);
         note.set_wrap(true);
-        grid.attach(&note, 1, row, 1, 1);
+        grid.attach(&note, 0, row, 2, 1);
     }
     if let Some(t) = typ {
         let settings = data.get("Settings").and_then(Value::as_object).cloned().unwrap_or_default();
@@ -250,22 +266,221 @@ pub fn build(ed: &Rc<Editor>) {
             row += 1;
         }
         for f in t.fields_for(slot.controller()) {
-            attach_label(&grid, row, &f.label());
-            grid.attach(&field_widget(ed, slot, f, &settings, &data), 1, row, 1, 1);
+            let full = f.label();
+            let (text, unit) = if f.kind == FieldKind::Int { split_unit(&full) } else { (full.as_str(), "") };
+            attach_label(&grid, row, text);
+            let w = field_widget(ed, slot, f, &settings, &data);
+            if unit.is_empty() {
+                grid.attach(&w, 1, row, 1, 1);
+            } else {
+                // Einheit hinter dem Zahlenfeld („5 − + %“)
+                let b = gtk::Box::new(Orientation::Horizontal, 10);
+                b.append(&w);
+                b.append(&label(unit, &["muted"]));
+                grid.attach(&b, 1, row, 1, 1);
+            }
             row += 1;
         }
+        let desc = t.description();
+        if !desc.is_empty() {
+            let hb = gtk::Box::new(Orientation::Horizontal, 6);
+            let i = gtk::Image::from_icon_name("dialog-information-symbolic");
+            i.add_css_class("faint");
+            i.set_valign(Align::Start);
+            hb.append(&i);
+            let l = label(&desc, &["faint", "help"]);
+            l.set_wrap(true);
+            l.set_hexpand(true);
+            hb.append(&l);
+            grid.attach(&hb, 1, row, 1, 1);
+        }
         if let Some(ch) = &t.children {
-            children(ed, &right, slot, ch.kind, &ch.labels.iter().map(|l| l.get()).collect::<Vec<_>>(), &data);
+            children(ed, &act, slot, ch.kind, &ch.labels.iter().map(|l| l.get()).collect::<Vec<_>>(), &data);
         }
     }
 }
 
+/// „Gain step size (%)“ -> („Gain step size“, „%“): die Einheit steht hinter dem Zahlenfeld (wie
+/// `split_unit` in editor.py).
+pub fn split_unit(label: &str) -> (&str, &str) {
+    if let Some(rest) = label.strip_suffix(')') {
+        if let Some((text, unit)) = rest.rsplit_once('(') {
+            let text = text.trim_end();
+            if !text.is_empty() && (1..=3).contains(&unit.chars().count()) && !unit.contains([' ', ')']) {
+                return (text, unit);
+            }
+        }
+    }
+    (label, "")
+}
+
+/// Raster eines Formularteils: Beschriftung rechtsbündig links, Feld rechts.
+fn form_grid() -> gtk::Grid {
+    let grid = gtk::Grid::new();
+    grid.set_row_spacing(8);
+    grid.set_column_spacing(12);
+    grid
+}
+
+/// Knöpfe des Titelstils – dieselben Einstellungen wie unter T⌄: fett, Größe, Farbe, Position, T⌄.
+fn style_row(ed: &Rc<Editor>, slot: Slot, idx: usize, st: &Map<String, Value>) -> gtk::Box {
+    let row = gtk::Box::new(Orientation::Horizontal, 6);
+    let set = {
+        let ed = ed.clone();
+        move |key: &'static str, v: Value| ed.edit(|doc, page| doc.update_state(page, slot, &[], idx, key, v))
+    };
+    let style = st.get("FontStyle").and_then(Value::as_str).unwrap_or("").to_lowercase();
+    let (bold, italic) = (style.contains("bold"), style.contains("italic"));
+    let b = gtk::ToggleButton::with_label("B");
+    b.add_css_class("style-btn");
+    b.add_css_class("bold");
+    b.set_active(bold);
+    b.set_tooltip_text(Some(&tr!("Bold")));
+    let s2 = set.clone();
+    b.connect_toggled(move |b| {
+        let v = match (b.is_active(), italic) {
+            (true, true) => "Bold Italic",
+            (true, false) => "Bold",
+            (false, true) => "Italic",
+            _ => "",
+        };
+        s2("FontStyle", Value::String(v.into()));
+    });
+    row.append(&b);
+
+    // Größe: Liste wie in der Python-Version
+    let cur = st.get("FontSize").and_then(Value::as_i64).unwrap_or(12);
+    let size = gtk::MenuButton::new();
+    size.set_label(&format!("{cur} pt"));
+    size.add_css_class("style-btn");
+    size.set_tooltip_text(Some(&tr!("Size")));
+    let pop = gtk::Popover::new();
+    pop.set_has_arrow(false);
+    let list = popover_box(&pop);
+    for n in SIZES {
+        let b = menu_row(&format!("{n} pt"), (n == cur).then_some("object-select-symbolic"), &[]);
+        let s2 = set.clone();
+        b.connect_clicked(move |b| {
+            close_popover(b);
+            s2("FontSize", json!(n));
+        });
+        list.append(&b);
+    }
+    size.set_popover(Some(&pop));
+    row.append(&size);
+
+    // Farbe: kleines Farbfeld, Klick öffnet die Farbwahl
+    let rgba = gtk::gdk::RGBA::parse(st.get("TitleColor").and_then(Value::as_str).unwrap_or("#ffffff")).unwrap_or(gtk::gdk::RGBA::WHITE);
+    let color = gtk::Button::new();
+    color.add_css_class("style-btn");
+    color.set_tooltip_text(Some(&tr!("Title color")));
+    let sw = gtk::DrawingArea::new();
+    sw.set_content_width(14);
+    sw.set_content_height(14);
+    sw.set_draw_func(move |_, cr, w, h| {
+        super::util::rounded(cr, 0.5, 0.5, w as f64 - 1.0, h as f64 - 1.0, 3.5);
+        cr.set_source_rgb(rgba.red() as f64, rgba.green() as f64, rgba.blue() as f64);
+        let _ = cr.fill_preserve();
+        cr.set_source_rgb(0.66, 0.66, 0.66);
+        cr.set_line_width(1.0);
+        let _ = cr.stroke();
+    });
+    color.set_child(Some(&sw));
+    let (s2, win) = (set.clone(), ed.win.clone());
+    color.connect_clicked(move |_| {
+        #[allow(deprecated)]
+        let dlg = gtk::ColorChooserDialog::new(Some(&tr!("Title color")), Some(&win));
+        #[allow(deprecated)]
+        {
+            dlg.set_modal(true);
+            dlg.set_use_alpha(false);
+            dlg.set_rgba(&rgba);
+        }
+        let s3 = s2.clone();
+        #[allow(deprecated)]
+        dlg.connect_response(move |d, resp| {
+            if resp == gtk::ResponseType::Ok {
+                let c = d.rgba();
+                let hex = format!("#{:02x}{:02x}{:02x}", (c.red() * 255.0).round() as u8, (c.green() * 255.0).round() as u8, (c.blue() * 255.0).round() as u8);
+                s3("TitleColor", Value::String(hex));
+            }
+            d.close();
+        });
+        dlg.present();
+    });
+    row.append(&color);
+
+    // Position: Symbol (Taste mit Balken oben/mittig/unten), Liste der drei Lagen
+    let cur = match st.get("TitleAlignment").and_then(Value::as_str).unwrap_or("bottom").to_lowercase().as_str() {
+        "top" => 0,
+        "middle" | "center" => 1,
+        _ => 2,
+    };
+    let al = gtk::MenuButton::new();
+    al.add_css_class("style-btn");
+    al.set_child(Some(&align_icon(cur)));
+    al.set_tooltip_text(Some(&tr!(ALIGN[cur].1)));
+    let pop = gtk::Popover::new();
+    pop.set_has_arrow(false);
+    let list = popover_box(&pop);
+    for (i, (v, n)) in ALIGN.iter().enumerate() {
+        let b = gtk::Button::new();
+        b.add_css_class("title-drop");
+        let r = gtk::Box::new(Orientation::Horizontal, 10);
+        r.add_css_class("menu-row");
+        r.append(&align_icon(i));
+        r.append(&label(&tr!(*n), &[]));
+        b.set_child(Some(&r));
+        let s2 = set.clone();
+        b.connect_clicked(move |b| {
+            close_popover(b);
+            s2("TitleAlignment", Value::String((*v).into()));
+        });
+        list.append(&b);
+    }
+    al.set_popover(Some(&pop));
+    row.append(&al);
+
+    // T⌄: alle Titel-Einstellungen (zeigen, Schrift, unterstrichen …)
+    let tbtn = gtk::MenuButton::new();
+    tbtn.set_label("T");
+    tbtn.add_css_class("icon-btn");
+    tbtn.set_tooltip_text(Some(&tr!("Title")));
+    let tpop = gtk::Popover::new();
+    tpop.set_has_arrow(false);
+    title_settings(ed, &tpop, slot, idx, st);
+    tbtn.set_popover(Some(&tpop));
+    row.append(&tbtn);
+    row
+}
+
+/// Kleines Symbol der Titelposition: Taste mit Balken oben (0), mittig (1) oder unten (2).
+fn align_icon(pos: usize) -> gtk::DrawingArea {
+    let da = gtk::DrawingArea::new();
+    da.set_content_width(16);
+    da.set_content_height(16);
+    da.set_draw_func(move |_, cr, w, h| {
+        let (w, h) = (w as f64, h as f64);
+        cr.set_source_rgb(0.66, 0.66, 0.66);
+        cr.set_line_width(1.5);
+        super::util::rounded(cr, 2.75, 0.75, w - 5.5, h - 1.5, 3.0);
+        let _ = cr.stroke();
+        let y = [0.28, 0.5, 0.72][pos.min(2)] * h;
+        cr.set_line_width(2.0);
+        cr.set_line_cap(gtk::cairo::LineCap::Round);
+        cr.move_to(w * 0.34, y);
+        cr.line_to(w * 0.66, y);
+        let _ = cr.stroke();
+    });
+    da
+}
+
 fn attach_label(grid: &gtk::Grid, row: i32, text: &str) {
-    let l = label(&format!("{text}:"), &["field-label"]);
+    let l = label(text, &["field-label"]);
     l.set_xalign(1.0);
     l.set_valign(Align::Start);
-    l.set_margin_top(6);
-    l.set_width_chars(14);
+    l.set_margin_top(7);
+    l.set_width_chars(8);
     grid.attach(&l, 0, row, 1, 1);
 }
 
@@ -374,7 +589,7 @@ fn dropdown(names: Vec<String>, cur: usize, on: impl Fn(usize) + 'static) -> gtk
     let refs: Vec<&str> = names.iter().map(String::as_str).collect();
     let dd = gtk::DropDown::from_strings(&refs);
     dd.set_selected(cur.min(names.len().saturating_sub(1)) as u32);
-    dd.set_halign(Align::Start);
+    dd.set_halign(Align::Fill);
     dd.connect_selected_notify(move |d| on(d.selected() as usize));
     dd.upcast()
 }
@@ -890,4 +1105,19 @@ fn entity_field(ed: &Rc<Editor>, f: &Field, s: &Map<String, Value>, set: impl Fn
         });
     });
     row.upcast()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::split_unit;
+
+    #[test]
+    fn unit_moves_behind_the_number() {
+        assert_eq!(split_unit("Gain step size (%)"), ("Gain step size", "%"));
+        assert_eq!(split_unit("Wait time (ms)"), ("Wait time", "ms"));
+        assert_eq!(split_unit("Volume for “set” (%)"), ("Volume for “set”", "%"));
+        // keine Einheit: unverändert
+        assert_eq!(split_unit("Duration"), ("Duration", ""));
+        assert_eq!(split_unit("Page (next profile)"), ("Page (next profile)", ""));
+    }
 }

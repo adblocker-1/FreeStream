@@ -30,7 +30,7 @@ from . import paths
 
 # bg: Hauptfläche, side: Seitenleiste, panel: Karten, panel2: Eingabefelder/Chips,
 # raised: Spuren/gedrückt, border: feine Ränder, accent_soft: gewählte Einträge
-# line: Umriss des Geräts in der Vorschau, card/card_edge: Felder des Touchstreifens
+# line: Umriss des Geräts in der Vorschau, card/card_edge: Felder des Touchstreifens, key_edge: Rand leerer Tasten
 PALETTES = {  # neutrales Grau wie in Wave Link / der Deck-Software von Elgato
     "dark": {
         "bg": "#262626", "side": "#1c1c1c", "panel": "#323232", "panel2": "#2c2c2c", "raised": "#454545",
@@ -40,6 +40,7 @@ PALETTES = {  # neutrales Grau wie in Wave Link / der Deck-Software von Elgato
         "ok": "#2bd665", "warn": "#f5b13d",
         "device": "#111111", "slot": "#2a2a2a", "drop": "#2bd665", "shadow": "#0a0a0a",
         "line": "#4a4a4a", "card": "#2c2c2c", "card_edge": "#3c3c3c", "canvas": "#171717", "key_empty": "#262626",
+        "key_edge": "#333333",
     },
     "light": {
         "bg": "#f3f3f3", "side": "#ebebeb", "panel": "#fbfbfb", "panel2": "#f5f5f5", "raised": "#d9d9d9",
@@ -49,6 +50,7 @@ PALETTES = {  # neutrales Grau wie in Wave Link / der Deck-Software von Elgato
         "ok": "#16a34a", "warn": "#d48a06",
         "device": "#1c1c1c", "slot": "#2a2a2a", "drop": "#16a34a", "shadow": "#c4c4c4",
         "line": "#c4c4c4", "card": "#ffffff", "card_edge": "#dcdcdc", "canvas": "#e6e6e6", "key_empty": "#d2d2d2",
+        "key_edge": "#c2c2c2",
     },
 }
 MODES = ("auto", "light", "dark")
@@ -629,6 +631,14 @@ def _draw_glyph(name, size, color, bg, circle):
             line((x, 0.5 - hh / 2), (x, 0.5 + hh / 2))
     elif n == "stop":
         rect(0.14, 0.14, 0.86, 0.86, r=0.12)
+    elif n == "info":  # Kreis mit „i“: Hilfetext unter einem Feld
+        ell(0.04, 0.04, 0.96, 0.96, fill=False)
+        line((0.5, 0.46), (0.5, 0.74))
+        ell(0.44, 0.24, 0.56, 0.36)
+    elif n in ("align_top", "align_middle", "align_bottom"):  # Taste mit Titelbalken oben/mittig/unten
+        rect(0.14, 0.06, 0.86, 0.94, r=0.16, fill=False)
+        y = {"align_top": 0.26, "align_middle": 0.5, "align_bottom": 0.74}[n]
+        line((0.32, y), (0.68, y))
     else:  # Punkt als Ersatz
         ell(0.3, 0.3, 0.7, 0.7)
     return im.resize((size, size), Image.LANCZOS)
@@ -891,6 +901,70 @@ class Fader(tk.Canvas):
 
     def _wheel(self, e):
         return self._step(2 if e.delta > 0 else -2)
+
+
+class _LineMeter:
+    """Pegel eines MeterFader (gleiche Schnittstelle wie LevelMeter: set(), level)."""
+
+    def __init__(self, fader):
+        self.fader, self.level = fader, 0.0
+
+    def set(self, level):
+        level = max(0.0, min(1.0, float(level or 0)))
+        if abs(level - self.level) > 0.004:
+            self.level = level
+            self.fader._draw_meter()
+
+
+class MeterFader(Fader):
+    """Schmaler waagerechter Regler des Mixers: Spur 4 px, Knopf 14 px, darunter der Pegel als feine Linie
+    (fader.meter.set(pegel)). fill: Farbe des eingestellten Teils (Master-Regler eines Mixes: seine Farbe)."""
+
+    TRACK, KNOB, LINE, H = 4, 14, 2, 18
+
+    def __init__(self, master, length=120, fill=None, command=None, **kw):
+        self.fill = fill
+        self.meter = _LineMeter(self)
+        super().__init__(master, length=length, thickness=self.H, orient="horizontal", command=command, **kw)
+
+    def _knob_size(self, w, h):
+        return self.KNOB
+
+    def _span(self, w):
+        k = self.KNOB
+        return k / 2 + 2, w - k / 2 - 2
+
+    def _draw(self):
+        self.delete("all")
+        w, _h = self._geom()
+        th, cy = self.TRACK, self.KNOB / 2 + 1
+        left, right = self._span(w)
+        x = left + self._frac() * (right - left)
+        rounded_rect(self, left - th / 2, cy - th / 2, right + th / 2, cy + th / 2, th / 2, fill=COL["raised"],
+                     outline="")
+        if self._frac() > 0 and not self.dimmed:
+            rounded_rect(self, left - th / 2, cy - th / 2, x, cy + th / 2, th / 2, outline="",
+                         fill=self.fill or mix(COL["fg"], COL["raised"], 0.78))
+        self._draw_meter()
+        self._knob = _knob_image(self, self.KNOB, COL["faint"] if self.dimmed else "#f2f2f2", self.enabled)
+        self.create_image(x, cy + 1, image=self._knob, tags="knob")
+
+    def _draw_meter(self):
+        """Nur die Pegel-Linie neu zeichnen (25-mal pro Sekunde) – Spur und Knopf bleiben stehen."""
+        self.delete("meter")
+        w, _h = self._geom()
+        th, lh = self.TRACK, self.LINE
+        left, right = self._span(w)
+        x0, x1 = left - th / 2, right + th / 2
+        y = self.KNOB / 2 + 1 + th / 2 + 3
+        self.create_rectangle(x0, y, x1, y + lh, fill=mix(COL["raised"], COL["bg"], 0.45), outline="",
+                              tags="meter")
+        lv = self.meter.level
+        for a, b, col in METER_ZONES:  # grün, ab 70 % gelb, ab 90 % rot
+            lo, hi = x0 + a * (x1 - x0), x0 + min(b, lv) * (x1 - x0)
+            if hi > lo:
+                self.create_rectangle(lo, y, hi, y + lh, fill=col, outline="", tags="meter")
+        self.tag_raise("knob")
 
 
 _KNOBS = {}

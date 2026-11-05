@@ -366,7 +366,7 @@ def test_new_channel_with_apps_is_in_the_default_mixes(env, pactl):
 # ==========================================================================
 @needs_x
 def test_link_gap_moves_back_with_the_chain(env, pactl):
-    from freestream.waveui import LINK_GAP
+    from freestream.waveui import CELL_GAP, LINK_GAP
     host, root, win = _window(env, {"mixer": {"enabled": True, "mixes": [
         {"id": "chat", "name": "Chat", "icon": "chat", "virtual": True}]}})
     try:
@@ -375,13 +375,13 @@ def test_link_gap_moves_back_with_the_chain(env, pactl):
 
         def padx(mid):
             return _padx(win.strips["music"][mid]["card"])
-        assert padx("monitor") == (0, LINK_GAP) and padx("stream") == (0, 10)
+        assert padx("monitor") == (0, LINK_GAP) and padx("stream") == (0, CELL_GAP)
         win._toggle_member("music", "monitor", False)
         win._place_links(mixes, set())
         assert padx("stream") == (0, LINK_GAP)
         win._toggle_member("music", "monitor", True)
         win._place_links(mixes, set())
-        assert padx("monitor") == (0, LINK_GAP) and padx("stream") == (0, 10)
+        assert padx("monitor") == (0, LINK_GAP) and padx("stream") == (0, CELL_GAP)
         _settle(root, win)
     finally:
         _close(root, win)

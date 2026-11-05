@@ -93,6 +93,27 @@ fn linked_faders_and_volume_steps() {
 }
 
 #[test]
+fn mix_master_volume() {
+    // Master-Regler im Mix-Kopf: Null-Sink des Mixes, beim direkten Persönlichen Mix das Gerät
+    let dir = tempfile::tempdir().unwrap();
+    let (mx, fake) = mixer(dir.path(), json!({"mixer": {"enabled": true}}));
+    mx.setup().unwrap();
+    let monitor = mx.mix("monitor").unwrap();
+    assert_eq!(mx.mix_volume_target(&monitor, None).as_deref(), Some("alsa_output.headphones"));
+    assert_eq!(mx.mix_volume_target(&mx.mix("stream").unwrap(), None).as_deref(), Some("linewave_streammix"));
+    assert_eq!(mx.set_mix_volume("stream", 140).unwrap(), Some(100)); // nie über 100 %
+    assert_eq!(mx.set_mix_volume("monitor", 70).unwrap(), Some(70));
+    let cmds = fake.cmds();
+    assert!(cmds.iter().any(|c| c == &["set-sink-volume", "linewave_streammix", "100%"]));
+    assert!(cmds.iter().any(|c| c == &["set-sink-volume", "alsa_output.headphones", "70%"]));
+    let chat = mx.add_mix("Chat", "chat", "#22c55e", &[], true, &[]).unwrap();
+    mx.set_mix_volume(&chat.id, 30).unwrap();
+    let want = format!("linewave_mix_{}", chat.id);
+    assert!(fake.cmds().iter().any(|c| c[0] == "set-sink-volume" && c[1] == want && c[2] == "30%"));
+    assert!(mx.set_mix_volume("unknown", 50).is_err());
+}
+
+#[test]
 fn ducking_lowers_and_restores() {
     let dir = tempfile::tempdir().unwrap();
     let (mx, fake) = mixer(dir.path(), json!({"mixer": {"enabled": true,

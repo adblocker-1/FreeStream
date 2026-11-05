@@ -1,5 +1,5 @@
 //! Bausteine des Fensters, gezeichnet mit Cairo wie in `freestream/theme.py` und `waveui.py`: Regler
-//! (Fader), Pegel (LevelMeter), runde Knöpfe (RoundToggle, MuteToggle, HearToggle, LinkToggle, FxButton),
+//! (Fader, schmal mit Pegel-Linie wie MeterFader), runde Knöpfe (RoundToggle, MuteToggle, HearToggle, LinkToggle, FxButton),
 //! Schalter (Switch) – dazu Knöpfe, Menüs, Seitenleisten-Einträge und Dialograhmen im FreeWave-Stil.
 
 use std::cell::{Cell, RefCell};
@@ -30,16 +30,39 @@ struct FaderState {
     dimmed: Cell<bool>,
     enabled: Cell<bool>,
     drag_x: Cell<f64>,
+    /// schmaler Regler des Mixers mit Pegel-Linie (theme.MeterFader)
+    slim: bool,
+    /// Farbe des eingestellten Teils (None: hellgrau)
+    fill: Option<String>,
+    /// Pegel 0 … 1 (nur `slim`)
+    level: Cell<f64>,
 }
+
+/// Schmaler Regler (theme.MeterFader): Spur, Knopf, Abstand der Pegel-Linie, Linie, Höhe.
+const SLIM_TRACK: f64 = 4.0;
+const SLIM_KNOB: f64 = 14.0;
+const SLIM_LINE: f64 = 2.0;
+pub const SLIM_H: i32 = 18;
 
 impl Fader {
     pub fn new(width: i32, height: i32, lo: f64, hi: f64) -> Self {
+        Self::build(width, height, lo, hi, false, None)
+    }
+
+    /// Schmaler Regler des Mixers: Spur 4 px, Knopf 14 px, darunter der Pegel als feine Linie
+    /// ([`Fader::set_level`]); `fill`: Farbe des eingestellten Teils (Master-Regler eines Mixes).
+    pub fn slim(width: i32, fill: Option<&str>) -> Self {
+        Self::build(width, SLIM_H, 0.0, 100.0, true, fill)
+    }
+
+    fn build(width: i32, height: i32, lo: f64, hi: f64, slim: bool, fill: Option<&str>) -> Self {
         let area = gtk::DrawingArea::new();
         area.set_content_width(width.max(1));
         area.set_content_height(height);
         area.set_valign(Align::Center);
         let st = Rc::new(FaderState { value: Cell::new(lo), lo, hi, dimmed: Cell::new(false), enabled: Cell::new(true),
-                                      drag_x: Cell::new(0.0) });
+                                      drag_x: Cell::new(0.0), slim, fill: fill.map(str::to_string),
+                                      level: Cell::new(0.0) });
         let f = Self { area, st, cb: Rc::new(RefCell::new(None)) };
         let s = f.st.clone();
         f.area.set_draw_func(move |_, cr, w, h| Self::draw(&s, cr, w as f64, h as f64));
@@ -96,8 +119,17 @@ impl Fader {
         }
     }
 
-    fn knob(h: f64) -> f64 {
-        (h - 4.0).min(18.0)
+    /// Pegel unter der Spur (nur schmale Regler), 0 … 1.
+    pub fn set_level(&self, v: f64) {
+        let v = v.clamp(0.0, 1.0);
+        if (v - self.st.level.get()).abs() > 0.004 {
+            self.st.level.set(v);
+            self.area.queue_draw();
+        }
+    }
+
+    fn knob(s: &FaderState, h: f64) -> f64 {
+        if s.slim { SLIM_KNOB } else { (h - 4.0).min(18.0) }
     }
 
     fn press(&self, x: f64) {
@@ -105,7 +137,7 @@ impl Fader {
             return;
         }
         let w = self.area.width() as f64;
-        let k = Self::knob(self.area.height() as f64);
+        let k = Self::knob(&self.st, self.area.height() as f64);
         let (left, right) = (k / 2.0 + 2.0, w - k / 2.0 - 2.0);
         let f = ((x - left) / (right - left).max(1.0)).clamp(0.0, 1.0);
         self.changed(self.st.lo + f * (self.st.hi - self.st.lo));
@@ -123,9 +155,12 @@ impl Fader {
     }
 
     fn draw(s: &FaderState, cr: &gtk::cairo::Context, w: f64, h: f64) {
+        if s.slim {
+            return Self::draw_slim(s, cr, w);
+        }
         let f = (s.value.get() - s.lo) / ((s.hi - s.lo).abs().max(1e-9));
         let th = 6.0;
-        let knob = Self::knob(h);
+        let knob = Self::knob(s, h);
         let (left, right) = (knob / 2.0 + 2.0, w - knob / 2.0 - 2.0);
         let x = left + f * (right - left);
         let y0 = (h - th) / 2.0;
@@ -143,55 +178,41 @@ impl Fader {
         cr.arc(x, h / 2.0 + 1.0, r, 0.0, std::f64::consts::TAU);
         let _ = cr.fill();
     }
-}
 
-// ================================================================== Pegel
-/// Pegelanzeige waagerecht grün → gelb → rot; mit `color` einfarbig.
-#[derive(Clone)]
-pub struct Meter {
-    pub area: gtk::DrawingArea,
-    level: Rc<Cell<f64>>,
-}
-
-impl Meter {
-    pub fn new(width: i32, height: i32, color: Option<&str>) -> Self {
-        let area = gtk::DrawingArea::new();
-        area.set_content_width(width.max(1));
-        area.set_content_height(height);
-        let level = Rc::new(Cell::new(0.0));
-        let l = level.clone();
-        let color = color.map(str::to_string);
-        area.set_draw_func(move |_, cr, w, h| {
-            let (w, h) = (w as f64, h as f64);
-            fill_rounded(cr, 0.0, 0.0, w, h, h / 2.0, theme::RAISED);
-            let lv = l.get();
-            if lv <= 0.0 {
-                return;
-            }
-            if let Some(c) = &color {
-                fill_rounded(cr, 0.0, 0.0, (lv * w).max(h), h, h / 2.0, c);
-                return;
-            }
-            theme::rounded(cr, 0.0, 0.0, w, h, h / 2.0);
-            cr.clip();
-            for (a, b, col) in theme::METER_ZONES {
-                let (lo, hi) = (a * w, b.min(lv) * w);
-                if hi > lo {
-                    set_source(cr, col);
-                    cr.rectangle(lo, 0.0, hi - lo, h);
-                    let _ = cr.fill();
-                }
-            }
-        });
-        Self { area, level }
-    }
-
-    pub fn set(&self, v: f64) {
-        let v = v.clamp(0.0, 1.0);
-        if (v - self.level.get()).abs() > 0.004 {
-            self.level.set(v);
-            self.area.queue_draw();
+    /// Schmaler Regler: Spur, eingestellter Teil (Farbe `fill`), Pegel-Linie darunter, Knopf.
+    fn draw_slim(s: &FaderState, cr: &gtk::cairo::Context, w: f64) {
+        let f = (s.value.get() - s.lo) / ((s.hi - s.lo).abs().max(1e-9));
+        let (th, k) = (SLIM_TRACK, SLIM_KNOB);
+        let cy = k / 2.0 + 1.0;
+        let (left, right) = (k / 2.0 + 2.0, w - k / 2.0 - 2.0);
+        let x = left + f * (right - left);
+        let (x0, x1) = (left - th / 2.0, right + th / 2.0);
+        fill_rounded(cr, x0, cy - th / 2.0, x1 - x0, th, th / 2.0, theme::RAISED);
+        if f > 0.0 && !s.dimmed.get() {
+            let fill = s.fill.clone().unwrap_or_else(|| mix(theme::FG, theme::RAISED, 0.78));
+            fill_rounded(cr, x0, cy - th / 2.0, x - x0, th, th / 2.0, &fill);
         }
+        // Pegel als feine Linie direkt unter der Spur: grün, ab 70 % gelb, ab 90 % rot
+        let y = cy + th / 2.0 + 3.0;
+        set_source(cr, &mix(theme::RAISED, theme::BG, 0.45));
+        cr.rectangle(x0, y, x1 - x0, SLIM_LINE);
+        let _ = cr.fill();
+        let lv = s.level.get();
+        for (a, b, col) in theme::METER_ZONES {
+            let (lo, hi) = (x0 + a * (x1 - x0), x0 + b.min(lv) * (x1 - x0));
+            if hi > lo {
+                set_source(cr, col);
+                cr.rectangle(lo, y, hi - lo, SLIM_LINE);
+                let _ = cr.fill();
+            }
+        }
+        let r = k / 2.0;
+        cr.set_source_rgba(0.0, 0.0, 0.0, 110.0 / 255.0);
+        cr.arc(x, cy + 3.0, r, 0.0, std::f64::consts::TAU);
+        let _ = cr.fill();
+        set_source(cr, if s.dimmed.get() || !s.enabled.get() { theme::FAINT } else { "#f2f2f2" });
+        cr.arc(x, cy + 1.0, r, 0.0, std::f64::consts::TAU);
+        let _ = cr.fill();
     }
 }
 
@@ -216,7 +237,21 @@ pub struct Toggle {
     pub area: gtk::DrawingArea,
     on: Rc<Cell<bool>>,
     hover: Rc<Cell<bool>>,
+    /// Maus über der Zeile (nur [`ToggleKind::Link`]: dann gestrichelt zu sehen)
+    row_hover: Rc<Cell<bool>>,
     cb: Callback<bool>,
+}
+
+/// Aussehen der Kette zwischen zwei Mix-Reglern: "on" (gekoppelt, blau), "hint" (Zeile überfahren:
+/// gestrichelt) oder None (unsichtbar) – waveui.link_look.
+pub fn link_look(linked: bool, row_hover: bool) -> Option<&'static str> {
+    if linked {
+        Some("on")
+    } else if row_hover {
+        Some("hint")
+    } else {
+        None
+    }
 }
 
 impl Toggle {
@@ -230,8 +265,9 @@ impl Toggle {
         area.set_cursor_from_name(Some("pointer"));
         let on = Rc::new(Cell::new(false));
         let hover = Rc::new(Cell::new(false));
+        let row_hover = Rc::new(Cell::new(false));
         let (i_off, i_on, on_color) = (icons.0.to_string(), icons.1.to_string(), on_color.to_string());
-        let (o, hv) = (on.clone(), hover.clone());
+        let (o, hv, rh) = (on.clone(), hover.clone(), row_hover.clone());
         area.set_draw_func(move |_, cr, w, h| {
             let (w, h) = (w as f64, h as f64);
             let (on, hover) = (o.get(), hv.get());
@@ -258,13 +294,26 @@ impl Toggle {
                     paint_glyph(cr, icon, (w.min(h) * 0.5) as i32, if on { "#ffffff" } else { theme::FG }, w / 2.0, h / 2.0);
                 }
                 ToggleKind::Link => {
-                    let r = w.min(h) / 2.0 - 1.0;
-                    if on || hover {
-                        set_source(cr, if on { theme::ACCENT } else { theme::RAISED });
-                        cr.arc(w / 2.0, h / 2.0, r, 0.0, std::f64::consts::TAU);
-                        let _ = cr.fill();
+                    let r = w.min(h) / 2.0 - 0.5;
+                    match link_look(on, hover || rh.get()) {
+                        Some("on") => {
+                            set_source(cr, theme::ACCENT);
+                            cr.arc(w / 2.0, h / 2.0, r, 0.0, std::f64::consts::TAU);
+                            let _ = cr.fill();
+                            paint_glyph(cr, "link", 12, "#ffffff", w / 2.0, h / 2.0);
+                        }
+                        Some(_) => {
+                            let fg = if hover { theme::MUTED } else { theme::FAINT };
+                            set_source(cr, fg);
+                            cr.set_line_width(1.0);
+                            cr.set_dash(&[2.0, 2.0], 0.0);
+                            cr.arc(w / 2.0, h / 2.0, r - 0.5, 0.0, std::f64::consts::TAU);
+                            let _ = cr.stroke();
+                            cr.set_dash(&[], 0.0);
+                            paint_glyph(cr, "link", 11, fg, w / 2.0, h / 2.0);
+                        }
+                        None => {}
                     }
-                    paint_glyph(cr, if on { "link" } else { "link_off" }, 15, if on { "#ffffff" } else { theme::MUTED }, w / 2.0, h / 2.0);
                 }
                 ToggleKind::Fx => {
                     if hover {
@@ -274,7 +323,7 @@ impl Toggle {
                 }
             }
         });
-        let t = Self { area, on, hover, cb: Rc::new(RefCell::new(None)) };
+        let t = Self { area, on, hover, row_hover, cb: Rc::new(RefCell::new(None)) };
         let motion = gtk::EventControllerMotion::new();
         let me = t.clone();
         motion.connect_enter(move |_, _, _| me.set_hover(true));
@@ -305,6 +354,14 @@ impl Toggle {
     fn set_hover(&self, v: bool) {
         self.hover.set(v);
         self.area.queue_draw();
+    }
+
+    /// Maus über der Zeile dieses Knopfs (Kette: gestrichelt zu sehen).
+    pub fn set_row_hover(&self, v: bool) {
+        if v != self.row_hover.get() {
+            self.row_hover.set(v);
+            self.area.queue_draw();
+        }
     }
 
     pub fn on_toggle(&self, f: impl Fn(bool) + 'static) {
@@ -851,4 +908,18 @@ pub fn scroll(child: &impl IsA<gtk::Widget>) -> gtk::ScrolledWindow {
     sc.set_child(Some(child));
     sc.set_vexpand(true);
     sc
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn link_only_when_needed() {
+        // Kette: gekoppelt immer (blau), sonst nur beim Überfahren der Zeile (gestrichelt)
+        assert_eq!(link_look(true, false), Some("on"));
+        assert_eq!(link_look(true, true), Some("on"));
+        assert_eq!(link_look(false, true), Some("hint"));
+        assert_eq!(link_look(false, false), None);
+    }
 }

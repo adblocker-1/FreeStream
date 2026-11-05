@@ -10,6 +10,7 @@ Start: freedeck edit [Profil]
 """
 import json
 import logging
+import re
 import subprocess
 import time
 import tkinter as tk
@@ -97,7 +98,16 @@ def profile_glyph(name):
 
 ALIGN = [("top", _("top")), ("middle", _("middle")), ("bottom", _("bottom"))]
 STYLES = [("", _("Regular")), ("Bold", _("Bold")), ("Italic", _("Italic")), ("Bold Italic", _("Bold italic"))]
+SIZES = (8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32)  # Schriftgrößen im Menü „12 pt“ der Eigenschaften
 TEXT_WIDGETS = ("Entry", "TEntry", "Text", "Spinbox", "TSpinbox", "TCombobox")
+_UNIT = re.compile(r"^(.*\S)\s*\(([^()]{1,3})\)$")
+
+
+def split_unit(label):
+    """„Gain step size (%)“ -> („Gain step size“, „%“): die Einheit steht in den Eigenschaften hinter dem
+    Zahlenfeld statt in der Beschriftung. Ohne Einheit in Klammern: (label, "")."""
+    m = _UNIT.match(label or "")
+    return (m.group(1), m.group(2)) if m else (label, "")
 FOOTER_H = 34  # Fußzeile der Bühne (Hinweis, Helligkeit)
 
 
@@ -580,6 +590,104 @@ class TitleMenuButton(tk.Canvas):
         self.create_image(29, 16, image=self.icons.get("chevron", 11, c))
 
 
+class Tip:
+    """Kleiner Hinweis neben einer Stelle (eigenes Fenster ohne Rahmen), z. B. „Aktion hinzufügen“ über einer
+    leeren Taste oder der Name eines Stil-Knopfs."""
+
+    def __init__(self, master):
+        self.master, self.win, self._job = master, None, None
+
+    def show(self, text, x_root, y_root, delay=350, anchor="w"):
+        """Nach delay ms bei (x_root, y_root) zeigen; anchor „w“: rechts daneben, „s“: darüber."""
+        self.hide()
+        self._job = self.master.after(delay, lambda: self._open(text, x_root, y_root, anchor))
+
+    def _open(self, text, x, y, anchor):
+        self._job = None
+        win = tk.Toplevel(self.master)
+        win.overrideredirect(True)
+        win.configure(bg=COL["border"])
+        tk.Label(win, text=text, bg=COL["side"], fg=COL["fg"], font=theme.font(self.master, 9),
+                 padx=9, pady=5, justify="left").pack(padx=1, pady=1)
+        win.update_idletasks()
+        if anchor == "s":
+            x, y = x - win.winfo_reqwidth() // 2, y - win.winfo_reqheight() - 6
+        else:
+            y -= win.winfo_reqheight() // 2
+        win.geometry(f"+{int(x)}+{int(y)}")
+        self.win = win
+
+    def hide(self):
+        if self._job is not None:
+            try:
+                self.master.after_cancel(self._job)
+            except tk.TclError:
+                pass
+            self._job = None
+        if self.win is not None:
+            try:
+                self.win.destroy()
+            except tk.TclError:
+                pass
+            self.win = None
+
+
+def _tip(widget, text):
+    """Hinweis über einem Knopf beim Überfahren."""
+    tip = Tip(widget)
+    widget.bind("<Enter>", lambda e: tip.show(text, widget.winfo_rootx() + widget.winfo_width() // 2,
+                                              widget.winfo_rooty()), add="+")
+    widget.bind("<Leave>", lambda e: tip.hide(), add="+")
+    widget.bind("<ButtonPress>", lambda e: tip.hide(), add="+")
+    widget.bind("<Destroy>", lambda e: tip.hide(), add="+")
+    return tip
+
+
+class StyleButton(tk.Canvas):
+    """Knopf der Zeile „Stil“ in den Eigenschaften: Text („B“, „12 pt“), Symbol oder Farbfeld, mit Rand;
+    active = hervorgehoben (z. B. fett an)."""
+
+    def __init__(self, master, text="", icon=None, swatch=None, bold=False, active=False, command=None, tip=""):
+        super().__init__(master, height=30, bg=_bg(master), highlightthickness=0, bd=0, cursor="hand2")
+        self.text, self.icon, self.swatch, self.active, self.command = text, icon, swatch, active, command
+        self.hover = False
+        self.icons = theme.Icons(self)
+        self.f = theme.font(master, 10 if bold else 9, "bold" if bold else "normal")
+        self.bind("<Button-1>", lambda e: self.command and self.command())
+        self.bind("<Enter>", lambda e: self._set_hover(True))
+        self.bind("<Leave>", lambda e: self._set_hover(False))
+        if tip:
+            _tip(self, tip)
+        self._draw()
+
+    def _set_hover(self, v):
+        self.hover = v
+        self._draw()
+
+    def set(self, text=None, swatch=None, active=None, icon=None):
+        for k, v in (("text", text), ("swatch", swatch), ("active", active), ("icon", icon)):
+            if v is not None:
+                setattr(self, k, v)
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        h = 30
+        w = max(30, theme.measure(self, self.f, self.text) + 20) if self.text else 30
+        self.configure(width=w)
+        fill = COL["accent_soft"] if self.active else COL["raised"] if self.hover else COL["panel2"]
+        theme.rounded_rect(self, 0, 0, w - 1, h - 1, 6, fill=fill,
+                           outline=COL["accent"] if self.active else COL["border"])
+        fg = COL["accent"] if self.active else COL["fg"]
+        if self.swatch:
+            theme.rounded_rect(self, w / 2 - 7, h / 2 - 7, w / 2 + 7, h / 2 + 7, 4, fill=self.swatch,
+                               outline=COL["muted"])
+        elif self.icon:
+            self.create_image(w / 2, h / 2, image=self.icons.get(self.icon, 15, COL["muted"]))
+        else:
+            self.create_text(w / 2, h / 2, text=self.text, fill=fg, font=self.f)
+
+
 class DropPanel(tk.Toplevel):
     """Aufgeklappte Liste unter einem DropButton; schließt bei Klick daneben, Esc oder wenn ein anderes
     Programm den Fokus bekommt (Alt+Tab)."""
@@ -679,6 +787,7 @@ class EditorApp:
         self._live_keys = {}   # Slot -> Schlüssel seines Live-Bildes in _img_cache
         self._tiles, self._tiles_id = {}, None  # Hintergrund-Kacheln der gezeichneten Seite
         self._hit = []
+        self._hover = None     # leere Taste unter der Maus („+“)
         self._drag = None
         self._save_job = None
         self._followed_at = 0.0
@@ -809,6 +918,7 @@ class EditorApp:
                     self._show_device_profile()
             if initial and self.device:
                 self._show_device_profile()
+            self._update_header()  # Punkt vor der Statuszeile: angeschlossen oder nicht
         self.build_devices()
         try:
             self.root.after_cancel(self._dev_job)
@@ -986,6 +1096,16 @@ class EditorApp:
         self._fam = theme.font(self.root)[0]
         self._small = tkfont.Font(self.root, font=theme.font(self.root, 8))
         self._small_bold = tkfont.Font(self.root, font=theme.font(self.root, 8, "bold"))
+        # Zahlenfelder der Eigenschaften: ohne die kleinen Pfeile, daneben eigene − und + (Stepper)
+        st = ttk.Style(self.root)
+        st.layout("Stepper.TSpinbox", [("Spinbox.field", {"sticky": "nswe", "children": [
+            ("Spinbox.padding", {"sticky": "nswe", "children": [("Spinbox.textarea", {"sticky": "nswe"})]})]})])
+        st.configure("Stepper.TSpinbox", padding=(8, 4), bordercolor=COL["panel2"], lightcolor=COL["panel2"],
+                     darkcolor=COL["panel2"])
+        st.configure("Faint.TLabel", background=COL["panel"], foreground=COL["faint"])
+        st.configure("InspSection.TLabel", background=COL["panel"], foreground=COL["faint"],
+                     font=theme.font(self.root, 8, "bold"))
+        self._tip = Tip(self.root)
 
     def _build(self):
         """Aufbau wie in der Deck-Software von Elgato: links oben Gerät und Profil, rechts daneben Glocke,
@@ -1134,6 +1254,7 @@ class EditorApp:
         self._sub_text = text
         try:
             self.canvas.itemconfigure("subtext", text=text or _("Drag actions onto keys · right-click for more"))
+            self.canvas.itemconfigure("subdot", fill=COL["ok"] if self.device_connected() else COL["faint"])
         except (AttributeError, tk.TclError):
             pass
 
@@ -1155,6 +1276,8 @@ class EditorApp:
         self.canvas.bind("<ButtonRelease-1>", self._canvas_release)
         self.canvas.bind("<Double-Button-1>", self._canvas_double)
         self.canvas.bind("<Button-3>", self._canvas_menu)
+        self.canvas.bind("<Motion>", self._canvas_hover)
+        self.canvas.bind("<Leave>", lambda e: self._set_key_hover(None))
         self.insp_head = tk.Frame(insp, bg=COL["panel"])
         self.insp_head.pack(side="top", fill="x")
         tk.Frame(insp, bg=COL["border"], height=1).pack(side="top", fill="x", pady=(10, 0))
@@ -1316,7 +1439,7 @@ class EditorApp:
             self.build_devices()
         self.fill_catalog()
         self.refresh_all()
-        self.status(_("{name} opened – changes are saved automatically").format(name=self.doc.name))
+        self.status(_("All changes saved"))
         if not from_device:
             self._device_follow(0)
 
@@ -1457,7 +1580,7 @@ class EditorApp:
             return
         try:
             if self.doc.save():
-                self.status(_("saved"))
+                self.status(_("All changes saved"))
         except OSError as e:
             self.status(_("Saving failed: {error}").format(error=e))
             messagebox.showerror(_("Save"), str(e), parent=self.root)
@@ -1719,18 +1842,30 @@ class EditorApp:
         return img
 
     def _draw_stage(self, footer_right=None):
-        """Bühne: Karte mit Rand, Fußzeile mit Hinweis und Helligkeit."""
+        """Bühne: Fußzeile mit Gerät, Seite und letzter Meldung (davor ein Punkt: grün = Gerät angeschlossen),
+        rechts die Helligkeit."""
         cv = self.canvas
         w, h = cv.winfo_width(), cv.winfo_height()
         f = theme.font(self.root, 9)
-        cv.create_text(18, h - FOOTER_H / 2 - 2, anchor="w", fill=COL["muted"], font=f, tags="subtext",
+        cy = h - FOOTER_H / 2 - 2
+        cv.create_oval(18, cy - 3.5, 25, cy + 3.5, outline="", tags="subdot",
+                       fill=COL["ok"] if self.device_connected() else COL["faint"])
+        cv.create_text(32, cy, anchor="w", fill=COL["muted"], font=f, tags="subtext",
                        text=getattr(self, "_sub_text", "") or _("Drag actions onto keys · right-click for more"))
         ctrl = self._ctrl()
         bright = getattr(ctrl, "brightness", None) if ctrl is not None else None
+        sun = False
         if footer_right is None and isinstance(bright, (int, float)):
-            footer_right = _("Brightness {n} %").format(n=int(bright))
+            footer_right, sun = _("Brightness {n} %").format(n=int(bright)), True
         if footer_right:
-            cv.create_text(w - 18, h - FOOTER_H / 2 - 2, anchor="e", fill=COL["muted"], font=f, text=footer_right)
+            t = cv.create_text(w - 18, cy, anchor="e", fill=COL["muted"], font=f, text=footer_right)
+            if sun:
+                x0 = (cv.bbox(t) or (w - 18,))[0]
+                cv.create_image(x0 - 11, cy, image=self.icons.get("sun", 14, COL["muted"]))
+
+    def device_connected(self):
+        """Ist das gewählte Gerät angeschlossen (Punkt vor der Statuszeile grün)?"""
+        return self._ctrl() is not None
 
     def redraw(self):
         cv = self.canvas
@@ -1773,6 +1908,12 @@ class EditorApp:
             c, r = slot[1], slot[2]
             x, y = x0 + c * (ts + gap), y0 + r * (ts + gap)
             self._draw_slot(slot, page.get(slot), x, y, ts, ts)
+        hover = getattr(self, "_hover", None)
+        if hover is not None and page.get(hover) is None:
+            self._draw_hover(tip=False)  # „+“ bleibt nach dem Neuzeichnen, der Hinweis ist schon offen
+        elif hover is not None:
+            self._hover = None
+            self._tip.hide()
         below = y0 + L["grid_h"]
         if kind == "plus":
             self._draw_strip(L, x0, below + 16, page, dials)
@@ -1963,14 +2104,51 @@ class EditorApp:
                     self._tk_forget(hit[1])
                 hit = self._img_cache[key] = (tile, _rounded(tile, max(6, w // 8)))
             cv.create_image(x, y, image=self._tk_image(hit[1]), anchor="nw")
-        elif data is None:  # leere Taste: dunkle Fläche wie in der Deck-Software
-            _round_rect(cv, x, y, x + w, y + h, max(6, w // 8), fill=COL["key_empty"], outline="")
+        elif data is None:  # leere Taste: dunkle Fläche mit feinem Rand
+            _round_rect(cv, x, y, x + w, y + h, max(6, w // 8), fill=COL["key_empty"], outline=COL["key_edge"],
+                        width=1)
         else:
             cv.create_image(x, y, image=self._tk_image(self._render(slot, data, (w, h))), anchor="nw")
             if not A.is_supported(data.get("UUID", "")):
                 cv.create_oval(x + w - 14, y + 4, x + w - 4, y + 14, fill="#f5a623", outline="")
         self._sel_ring(slot, "rect", (x - 3, y - 3, x + w + 3, y + h + 3), max(8, w // 7))
         self._hit.append((x, y, x + w, y + h, slot))
+
+    # ---------------------------------------- leere Taste unter der Maus: „+“
+    def _canvas_hover(self, e):
+        slot = self.slot_at(e.x, e.y)
+        empty = slot is not None and slot[0] == "key" and self.doc and self.doc.get(self.page_uuid, slot) is None
+        self._set_key_hover(slot if empty and not self._drag else None)
+
+    def _set_key_hover(self, slot):
+        """Leere Taste unter der Maus: blauer Rand, „+“ in der Mitte und der Hinweis „Aktion hinzufügen“.
+        Klick und Doppelklick bleiben, wie sie sind."""
+        if slot == getattr(self, "_hover", None):
+            return
+        self._hover = slot
+        self.canvas.delete("hover")
+        self._tip.hide()
+        if slot is not None:
+            self._draw_hover()
+
+    def _draw_hover(self, tip=True):
+        slot = getattr(self, "_hover", None)
+        box = next((b[:4] for b in self._hit if b[4] == slot), None) if slot is not None else None
+        if box is None:
+            self._hover = None
+            return
+        cv = self.canvas
+        x0, y0, x1, y1 = box
+        w = x1 - x0
+        tile = self._tiles.get((slot[1], slot[2])) if getattr(self, "_tiles", None) else None
+        _round_rect(cv, x0, y0, x1, y1, max(6, w // 8), width=1.5, tags="hover",
+                    fill="" if tile is not None else theme.mix(COL["key_empty"], COL["accent"], 0.07),
+                    outline=theme.mix(COL["key_empty"], COL["accent"], 0.6))
+        cv.create_image((x0 + x1) / 2, (y0 + y1) / 2, image=self.icons.get("plus", max(14, w // 4), COL["accent"]),
+                        tags="hover")
+        cv.tag_raise("sel")
+        if tip:
+            self._tip.show(_("Add action"), cv.winfo_rootx() + x1 + 10, cv.winfo_rooty() + (y0 + y1) / 2)
 
     def slot_at(self, x, y):
         for x0, y0, x1, y1, slot in self._hit:
@@ -2006,6 +2184,7 @@ class EditorApp:
 
     # -------------------------------------------------- Maus auf dem Gerät
     def _canvas_press(self, e):
+        self._tip.hide()
         self.canvas.focus_set()
         slot = self.slot_at(e.x, e.y)
         self._drag = {"slot": slot, "x": e.x, "y": e.y, "active": False, "ghost": None}
@@ -2361,16 +2540,14 @@ class EditorApp:
             c.destroy()
         data, slot = form.data, form.slot
         states = data.get("States") or [{}]
-        size = (96, 96) if slot[0] == "key" else (104, 52)
+        size = (104, 104) if slot[0] == "key" else (104, 52)
         try:
             img = (E.preview_action(self.doc, self.page_uuid, data, size, state=form.state_idx) if slot[0] == "key"
                    else E.preview_dial(self.doc, self.page_uuid, data, size)).convert("RGBA")
         except Exception:  # noqa: BLE001 – Vorschau ist Beiwerk
             return
         pad = 5
-        frame = Image.new("RGBA", (size[0] + 2 * pad, size[1] + 2 * pad), (0, 0, 0, 0))
-        ImageDraw.Draw(frame).rounded_rectangle((0, 0, frame.width - 1, frame.height - 1), radius=18,
-                                                fill=theme.rgb(COL["line"]) + (255,))
+        frame = Image.new("RGBA", (size[0] + 2 * pad, size[1] + 2 * pad), theme.rgb(COL["panel"]) + (255,))
         frame.alpha_composite(_rounded(img, 14), (pad, pad))
         self._insp_photo = ImageTk.PhotoImage(frame, master=self.root)
         if not box.winfo_ismapped():
@@ -2469,35 +2646,111 @@ class ActionForm:
         cat = (t.category if t else "") or (self.data.get("Plugin") or {}).get("Name") or ""
         cat = cat.split(":", 1)[-1].strip() if cat.startswith("Plugin:") else cat
         pc = COL["panel"]
-        if cat:
-            theme.label(head, cat + ":", 11, "bold", bg=pc).pack(side="left")
-        theme.label(head, name, 11, bg=pc).pack(side="left", padx=(6, 0))
-        theme.label(head, self.header, 9, color=COL["muted"], bg=pc).pack(side="left", padx=(10, 0))
+        if cat:  # „Kategorie › Aktion“, dahinter als Chip, wo die Taste sitzt
+            theme.label(head, cat + "  ›", 10, color=COL["muted"], bg=pc).pack(side="left", padx=(0, 6))
+        theme.label(head, name, 10, "bold", bg=pc).pack(side="left")
+        if self.header:
+            chip = theme.Chip(head, self.header, height=22)
+            chip.configure(cursor="")
+            chip.pack(side="left", padx=(10, 0))
         theme.Button(head, icon="trash", kind="ghost", command=self.app.delete_selected).pack(side="right",
                                                                                              padx=(8, 0))
 
     def build_main(self, f):
-        """Eigenschaften wie in der Deck-Software: Titel (T⌄: Schrift, Farbe, Position), darunter die Felder der
-        Aktion – Beschriftung rechtsbündig links daneben."""
-        self._unsupported_note(f)
-        grid = self._grid(f)
+        """Eigenschaften als Formular in zwei Spalten: links DARSTELLUNG (Titel, darunter die Knöpfe des
+        Titelstils: fett, Größe, Farbe, Position, T⌄ für alles Weitere), rechts AKTION mit den Feldern der
+        Aktion und ihrer Beschreibung – Beschriftung rechtsbündig links daneben."""
+        pc = COL["panel"]
         states = self.data.get("States") or [{}]
         self.state_idx = min(self.state_idx, len(states) - 1)
+        cols = tk.Frame(f, bg=pc)
+        cols.pack(fill="x")
+        act = tk.Frame(cols, bg=pc)
         if self.slot[0] == "key" or self.data.get("States"):
-            self._label(grid, 0, _("Title"))
-            trow = tk.Frame(grid, bg=COL["panel"])
-            trow.grid(row=0, column=1, sticky="ew", pady=4)
-            title = (states[self.state_idx] or {}).get("Title") or ""
-            self.title_txt = tk.Text(trow, height=2 if "\n" in title else 1, width=24, bg=COL["panel2"],
-                                     fg=COL["fg"], insertbackground=COL["fg"], relief="flat",
-                                     font=theme.font(self.app.root, 10), wrap="none", highlightthickness=1,
-                                     highlightbackground=COL["border"], highlightcolor=COL["accent"], padx=6, pady=4)
-            self.title_txt.insert("1.0", title)
-            self.title_txt.pack(side="left", fill="x", expand=True)
-            self.title_txt.bind("<KeyRelease>", lambda e: self._set_state("Title", self.title_txt.get("1.0", "end-1c")))
-            tb = TitleMenuButton(trow, command=lambda: self.app._toggle_title_panel(self, tb))
-            tb.pack(side="left", padx=(8, 0))
-        row = 1
+            look = tk.Frame(cols, bg=pc)
+            look.grid(row=0, column=0, sticky="new")
+            tk.Frame(cols, bg=COL["border"], width=1).grid(row=0, column=1, sticky="ns", padx=20, pady=(2, 6))
+            act.grid(row=0, column=2, sticky="new")
+            cols.columnconfigure(0, weight=1, uniform="insp")
+            cols.columnconfigure(2, weight=1, uniform="insp")
+            self.build_look(look, states[self.state_idx] or {})
+        else:
+            act.grid(row=0, column=0, sticky="new")
+            cols.columnconfigure(0, weight=1)
+        self.build_action(act)
+
+    def build_look(self, f, st):
+        """Spalte DARSTELLUNG: Titel und Titelstil der gewählten Taste."""
+        self._section(f, _("Appearance").upper(), top=True)
+        grid = self._grid(f, label_w=64)
+        self._label(grid, 0, _("Title"))
+        title = st.get("Title") or ""
+        self.title_txt = tk.Text(grid, height=2 if "\n" in title else 1, width=18, bg=COL["panel2"],
+                                 fg=COL["fg"], insertbackground=COL["fg"], relief="flat",
+                                 font=theme.font(self.app.root, 10), wrap="none", highlightthickness=1,
+                                 highlightbackground=COL["border"], highlightcolor=COL["accent"], padx=8, pady=5)
+        self.title_txt.insert("1.0", title)
+        self.title_txt.grid(row=0, column=1, sticky="ew", pady=4)
+        self.title_txt.bind("<KeyRelease>", lambda e: self._set_state("Title", self.title_txt.get("1.0", "end-1c")))
+        self._label(grid, 1, _("Style"), sticky="e")
+        srow = tk.Frame(grid, bg=COL["panel"])
+        srow.grid(row=1, column=1, sticky="w", pady=4)
+        self.style_row = srow
+        self._style_buttons(srow, st)
+
+    def _style_buttons(self, srow, st):
+        """Knöpfe des Titelstils – dieselben Einstellungen wie unter T⌄ (FontStyle, FontSize, TitleColor,
+        TitleAlignment), nur schneller erreichbar."""
+        for c in srow.winfo_children():
+            c.destroy()
+        style = (st.get("FontStyle") or "").lower()
+        bold = "bold" in style
+        StyleButton(srow, "B", bold=True, active=bold, tip=_("Bold"),
+                    command=lambda: self._set_font_style(not bold, "italic" in style)).pack(side="left")
+        StyleButton(srow, f"{st.get('FontSize') or 12} pt", tip=_("Size"),
+                    command=lambda: self._size_menu(srow)).pack(side="left", padx=(6, 0))
+        sw = StyleButton(srow, swatch=st.get("TitleColor") or "#ffffff", tip=_("Title color"))
+        sw.command = lambda: self._pick_color(sw)
+        sw.pack(side="left", padx=(6, 0))
+        cur = (st.get("TitleAlignment") or "bottom").lower()
+        cur = "middle" if cur == "center" else cur if cur in ("top", "middle") else "bottom"
+        StyleButton(srow, icon=f"align_{cur}", tip=dict(ALIGN)[cur],
+                    command=lambda: self._align_menu(srow)).pack(side="left", padx=(6, 0))
+        tb = TitleMenuButton(srow, command=lambda: self.app._toggle_title_panel(self, tb))
+        tb.pack(side="left", padx=(4, 0))
+
+    def _cur_state(self):
+        states = self.data.get("States") or [{}]
+        return states[min(self.state_idx, len(states) - 1)] or {}
+
+    def _set_font_style(self, bold, italic):
+        self._set_state("FontStyle", "Bold Italic" if bold and italic else "Bold" if bold else
+                        "Italic" if italic else "", rebuild=True)
+
+    def _size_menu(self, anchor):
+        cur = int(self._cur_state().get("FontSize") or 12)
+        m = theme.PopupMenu(self.app.root, width=110)
+        for n in SIZES:
+            m.add(f"{n} pt", lambda n=n: self._set_state("FontSize", n, rebuild=True), icon="check" if n == cur else None)
+        m.below(anchor)
+        return m
+
+    def _align_menu(self, anchor):
+        m = theme.PopupMenu(self.app.root, width=150)
+        for v, name in ALIGN:
+            m.add(name, lambda v=v: self._set_state("TitleAlignment", v, rebuild=True), icon=f"align_{v}")
+        m.below(anchor)
+        return m
+
+    def build_action(self, f):
+        """Spalte AKTION: Felder der Aktion, darunter ihre Beschreibung."""
+        t = self.type or self.app._types.get(self.data.get("UUID", ""))
+        cat = (t.category if t else "") or (self.data.get("Plugin") or {}).get("Name") or ""
+        cat = cat.split(":", 1)[-1].strip() if cat.startswith("Plugin:") else cat
+        self._section(f, _("ACTION") + (" · " + cat.upper() if cat else ""), top=True)
+        self._unsupported_note(f)
+        grid = self._grid(f, label_w=64)
+        row = 0
         if self.data.get("UUID") == C.FOLDER_UUID:
             theme.Button(grid, _("Open folder"), icon="folder", command=lambda: self.app.open_folder(
                 (self.data.get("Settings") or {}).get("ProfileUUID"))).grid(row=row, column=1, sticky="w", pady=4)
@@ -2512,22 +2765,36 @@ class ActionForm:
         for fld in fields:
             self.build_field(grid, row, fld)
             row += 1
-        if self.type and self.type.children:
-            self.build_children(f)
         if not fields and not (self.type and self.type.children) and self._has_pi():
             theme.Button(grid, _("Settings page…"), kind="primary", command=lambda: self.app.open_property_inspector(
                 self.page_uuid, self.slot)).grid(row=row, column=1, sticky="w", pady=4)
+            row += 1
+        desc = (t.description if t else "") or ""
+        if desc:
+            self._help(grid, row, desc)
+        if self.type and self.type.children:
+            self.build_children(f)
 
-    def _grid(self, f):
+    def _help(self, grid, row, text):
+        """Kurzer Hilfetext unter den Feldern (Beschreibung der Aktion), mit ⓘ davor."""
+        box = tk.Frame(grid, bg=COL["panel"])
+        box.grid(row=row, column=1, sticky="ew", pady=(4, 0))
+        tk.Label(box, image=self.app.icons.get("info", 13, COL["faint"]), bg=COL["panel"]).pack(
+            side="left", anchor="n", pady=(2, 0))
+        lb = ttk.Label(box, text=text, style="Faint.TLabel", wraplength=300, justify="left")
+        lb.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        _autowrap(lb)
+
+    def _grid(self, f, label_w=110):
         grid = tk.Frame(f, bg=COL["panel"])
         grid.pack(fill="x")
-        grid.columnconfigure(0, minsize=110)
+        grid.columnconfigure(0, minsize=label_w)
         grid.columnconfigure(1, weight=1)
         return grid
 
     def _label(self, grid, row, text, sticky="ne"):
-        ttk.Label(grid, text=text + ":", style="Muted.TLabel").grid(row=row, column=0, sticky=sticky,
-                                                                   padx=(0, 14), pady=(8, 4))
+        ttk.Label(grid, text=text, style="Muted.TLabel").grid(row=row, column=0, sticky=sticky,
+                                                              padx=(0, 12), pady=(8, 4))
 
     # ------------------------------------------- Aufklapp-Felder (T⌄, ⌄)
     def build_title_settings(self, f):
@@ -2658,8 +2925,10 @@ class ActionForm:
         meta = info.actions.get(self.data.get("UUID", "")) or {}
         return bool(meta.get("PropertyInspectorPath") or info.manifest.get("PropertyInspectorPath"))
 
-    def _section(self, f, text):
-        ttk.Label(f, text=text, style="Section.TLabel").pack(anchor="w", pady=(14, 4))
+    def _section(self, f, text, top=False):
+        """Überschrift eines Abschnitts; top: erste in einer Spalte der Eigenschaften (klein, ohne Abstand)."""
+        ttk.Label(f, text=text, style="InspSection.TLabel" if top else "Section.TLabel").pack(
+            anchor="w", pady=(0, 6) if top else (14, 4))
 
     def _changed_visual(self):
         self.app.redraw()
@@ -2675,14 +2944,22 @@ class ActionForm:
                     c.destroy()
                 self.build_title_settings(panel.body)
             if hasattr(self, "title_txt") and self.title_txt.winfo_exists():
-                states = self.data.get("States") or [{}]
                 self.title_txt.delete("1.0", "end")
-                self.title_txt.insert("1.0", (states[min(self.state_idx, len(states) - 1)] or {}).get("Title") or "")
+                self.title_txt.insert("1.0", self._cur_state().get("Title") or "")
+            self._refresh_style_row()
 
     def _set_state(self, key, value, rebuild=False):
         self.doc.update_state(self.page_uuid, self.slot, self.state_idx, key, value, action=self.data)
         if rebuild:
             self.build_appearance()
+        elif key in ("FontStyle", "FontSize", "TitleColor", "TitleAlignment"):
+            self._refresh_style_row()
+
+    def _refresh_style_row(self):
+        """Knöpfe des Titelstils neu (nach einer Änderung hier oder unter T⌄)."""
+        row = getattr(self, "style_row", None)
+        if row is not None and row.winfo_exists():
+            self._style_buttons(row, self._cur_state())
 
     def _set_opacity(self, value, var):
         """Deckkraft für alle Zustände der Taste (gesammelt beim Ziehen, damit nicht jeder Pixel speichert)."""
@@ -2714,11 +2991,13 @@ class ActionForm:
             self._set_state(key, v)
 
     def _pick_color(self, btn):
-        states = self.data.get("States") or [{}]
-        cur = states[self.state_idx].get("TitleColor") or "#ffffff"
+        cur = self._cur_state().get("TitleColor") or "#ffffff"
         res = colorchooser.askcolor(color=cur, parent=self.app.root, title=_("Title color"))
         if res and res[1]:
-            btn.configure(bg=res[1], activebackground=res[1])
+            if isinstance(btn, StyleButton):
+                btn.set(swatch=res[1])
+            else:
+                btn.configure(bg=res[1], activebackground=res[1])
             self._set_state("TitleColor", res[1])
 
     def _icon_library(self):
@@ -2778,8 +3057,9 @@ class ActionForm:
         # Beobachtung der Felder endet mit ihrer Zelle – sonst hielte Tcl jedes ersetzte Formular fest
         from .dialogkit import trace
         s = self.data.setdefault("Settings", {})
-        ttk.Label(grid, text=fld.label + ":", style="Muted.TLabel").grid(row=row, column=col, sticky="ne",
-                                                                         padx=(0 if col == 0 else 24, 14), pady=(8, 4))
+        text, unit = split_unit(fld.label) if fld.kind == "int" else (fld.label, "")
+        ttk.Label(grid, text=text, style="Muted.TLabel").grid(row=row, column=col, sticky="ne",
+                                                              padx=(0 if col == 0 else 24, 12), pady=(8, 4))
         cell = ttk.Frame(grid, style="Panel.TFrame")
         cell.grid(row=row, column=col + 1, columnspan=span, sticky="ew", pady=4)
         k = fld.key
@@ -2801,7 +3081,7 @@ class ActionForm:
             txt.bind("<KeyRelease>", lambda e: self._set(k, txt.get("1.0", "end-1c")))
         elif fld.kind == "int":
             var = tk.StringVar(value=str(s.get(k) if s.get(k) is not None else fld.min))
-            ttk.Spinbox(cell, from_=fld.min, to=fld.max, textvariable=var, width=10).pack(side="left")
+            self._stepper(cell, var, fld, unit)
 
             def on_int(var=var):
                 try:
@@ -2818,12 +3098,12 @@ class ActionForm:
             vals = list(fld.options() if callable(fld.options) else fld.options)
             if s.get(k) not in (None, "") and all(str(v) != str(s.get(k)) for v, _n in vals):
                 vals = [(s.get(k), str(s.get(k)))] + [(v, n) for v, n in vals if v != ""]  # z. B. gelöschte Szene
-            box = ttk.Combobox(cell, state="readonly", width=28, values=[n for _v, n in vals])
+            box = ttk.Combobox(cell, state="readonly", width=20, values=[n for _v, n in vals])
             cur = s.get(k)
             idx = next((i for i, (v, _n) in enumerate(vals) if str(v) == str(cur)), 0)
             box.current(idx)
             box.bind("<<ComboboxSelected>>", lambda e: self._set(k, vals[box.current()][0]))
-            box.pack(side="left")
+            box.pack(side="left", fill="x", expand=True)
         elif fld.kind == "page":
             n = len(self.doc.page_ids)
             box = ttk.Combobox(cell, state="readonly", width=12, values=[_("Page {n}").format(n=i + 1) for i in range(n)])
@@ -2847,6 +3127,29 @@ class ActionForm:
         elif fld.kind == "entity":
             from . import hassui
             hassui.entity_field(cell, self, k, fld)
+
+    def _stepper(self, cell, var, fld, unit=""):
+        """Zahlenfeld mit − und + daneben (Pfeiltasten gehen weiter), dahinter die Einheit („%“)."""
+        box = tk.Frame(cell, bg=COL["border"])
+        box.pack(side="left")
+        ttk.Spinbox(box, from_=fld.min, to=fld.max, textvariable=var, width=6, style="Stepper.TSpinbox").pack(
+            side="left", padx=(1, 0), pady=1)
+
+        def step(d):
+            try:
+                v = int(var.get())
+            except ValueError:
+                v = fld.min
+            var.set(str(max(fld.min, min(fld.max, v + d))))
+        for glyph, d in (("−", -1), ("+", 1)):
+            b = tk.Label(box, text=glyph, width=3, bg=COL["panel2"], fg=COL["muted"], cursor="hand2",
+                         font=theme.font(self.app.root, 10))
+            b.pack(side="left", fill="y", padx=(1, 1 if d > 0 else 0), pady=1)
+            b.bind("<Button-1>", lambda e, d=d: step(d))
+            b.bind("<Enter>", lambda e, b=b: b.configure(bg=COL["raised"], fg=COL["fg"]))
+            b.bind("<Leave>", lambda e, b=b: b.configure(bg=COL["panel2"], fg=COL["muted"]))
+        if unit:
+            ttk.Label(cell, text=unit, style="Muted.TLabel").pack(side="left", padx=(10, 0))
 
     def _browse(self, var):
         f = filedialog.askopenfilename(parent=self.app.root, title=_("Choose file"))
